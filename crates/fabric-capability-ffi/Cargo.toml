@@ -11,6 +11,3 @@ fabric-capability = { path = "../fabric-capability" }
 serde = "1.0"
 serde_json = "1.0"
 thiserror = "2.0"
-
-[build-dependencies]
-cbindgen = "0.27"

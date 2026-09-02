@@ -26,6 +26,8 @@ Format follows the existing ecosystem ADR convention: status/date/deciders/super
 | [0020 — Use Phenotype Fabric As A Working Name Only](0020-provisional-name.md) | Use `Phenotype Fabric` / `phenotype-fabric` in this package. Treat it as provisional and avoid irreversible namespace or legal claims until product-boundary validation. | Accepted |
 | [0021 — Prefer Immutable Objects And Explicit Mutable Authority](0021-object-authority-immutability.md) | Runtime objects are immutable/content-addressed by default. Mutable objects declare one authority or a named consistency protocol. Replicas/caches never become authoritative implicitly. | Accepted |
 | [0022 — Keep Coordinator Off Payload And Rt Hot Paths](0022-control-data-plane-separation.md) | The coordinator manages identity, desired state, plans, leases, and evidence references. Endpoint peers execute data planes directly or through blind relays. RT engines operate compiled local schedules. | Accepted |
+| [0023 — Signed Capability Descriptor Schema and FFI](0023-capability-inventory-schema.md) | CapabilityDescriptor uses Ed25519 signatures, blake3 canonical-bytes for identity, a hand-authored C ABI, and JSON Schema validation. Canonical-bytes strips signatures before hashing. | Accepted |
+| [0024 — NVMS Adapter — Mapping `odin.nvms` to Fabric CapabilityDescriptor](0024-nvms-adapter.md) | `crates/phenotype-nvms-adapter` translates odin.nvms v0.2 YAML manifests into Fabric `CapabilityDescriptor` instances. Required/bounds model separates minimum viable from acceptable range. | Proposed |
 
 ## Decision themes
 
@@ -34,3 +36,4 @@ Format follows the existing ecosystem ADR convention: status/date/deciders/super
 - Compute/data granularity: 0005, 0011, 0021.
 - Real-time media and quality: 0008, 0013, 0014.
 - Safety and authority: 0007, 0012, 0017–0019.
+- Capability inventory and integration: 0023, 0024.

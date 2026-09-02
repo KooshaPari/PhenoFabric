@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/fabric-capability",
     "crates/fabric-capability-ffi",
+    "crates/phenotype-nvms-adapter",
 ]
 
 [workspace.package]
@@ -26,3 +27,7 @@ schemars = { version = "0.8", features = ["impl"] }
 jsonschema = "0.27"
 fabric-capability = { path = "crates/fabric-capability" }
 fabric-capability-ffi = { path = "crates/fabric-capability-ffi" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"

@@ -92,16 +92,17 @@ pub unsafe extern "C" fn fabric_capability_to_json(
 /// The returned pointer is a static string — do not free it.
 #[no_mangle]
 pub extern "C" fn fabric_capability_error_message(code: FabricError) -> *const std::os::raw::c_char {
-    match code {
-        FabricError::Ok => "success\0",
-        FabricError::Unsupported => "unsupported platform\0",
-        FabricError::Schema => "schema validation failed\0",
-        FabricError::Crypto => "cryptographic error\0",
-        FabricError::Signature => "signature verification failed\0",
-        FabricError::Io => "I/O error\0",
-        FabricError::Serde => "serialization error\0",
-        FabricError::NullPointer => "null pointer\0",
-    }
+    let s: &'static str = match code {
+        FabricError::Ok => "success",
+        FabricError::Unsupported => "unsupported platform",
+        FabricError::Schema => "schema validation failed",
+        FabricError::Crypto => "cryptographic error",
+        FabricError::Signature => "signature verification failed",
+        FabricError::Io => "I/O error",
+        FabricError::Serde => "serialization error",
+        FabricError::NullPointer => "null pointer",
+    };
+    s.as_ptr() as *const std::os::raw::c_char
 }
 
 // ---------------------------------------------------------------------------
