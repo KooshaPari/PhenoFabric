@@ -127,3 +127,77 @@ continuation session.
    capability** — also high priority and integrates with PF-WP-010
    by exercising the reference adapter.
 5. Commit early and often. Do not batch.
+
+---
+
+## 2026-09-01 — Session continuation from `01a04c3e-7645-75e2-92f2-591fb21157a9`
+
+Operator instruction: "codex will resume on reset with a handoff I explicitly
+request from you THEN, until then you are to fully own their domain/scope of
+work/repos and continue their defined goal and tasks + derive more as if you
+were them until that point arrives." This session ran on GLM credits while
+Codex usage limits reset (~5 days).
+
+### Work performed
+
+| Area | Output |
+|:--|:--|
+| AgilePlus rebase recovery | Drained 60+ commits; resolved embedded conflict markers in 17 source files; ~1,300 tests passing at `77d90bdb` |
+| `phenotype-fabric` repo creation | Initialized + 258-file docs.zip archive imported; 12 commits building R0 + R0.5 + PF-WP-020 |
+| Program baseline (PF-WP-000) | `boundaries.json`, `identifiers.md`, 4 spec-check scripts, `spec-validation.yml` CI, `source-status.md` |
+| Capability inventory (PF-WP-010) | `fabric-capability` crate (11 + 6 + 6 + 6 = 29 tests), FFI crate, `cmd/capprobe` Go adapter (7 Go tests passing) |
+| NVMS adapter (R0.5) | `phenotype-nvms-adapter` crate — 14 tests passing; ADR-0024 (proposed) |
+| Route compiler (PF-WP-020) | `fabric-graph` crate (43 tests); ADR-0023 (accepted), ADR-0025 (proposed) |
+| Go reference adapter tests | `parse.go` + 18 sub-tests in `parse_test.go`; probe_unix_test build-tag tests |
+| `meta/PHENOTYPE_ARCHITECTURE.md` | 30-product authority matrix, branch/worktree conventions, onboarding path |
+
+### Decisions made
+
+- **Canonical-bytes algorithm**: domain-separated blake3; strips `signatures`
+  before hashing so descriptor_id is stable across signature operations.
+- **Identifier scheme**: 6 namespaces (capability/route/event/device/task/
+  runtime/topology) under `phenotype.fabric.*` prefix.
+- **Stability model**: StabilityClass (Stable/Provisional/Experimental)
+  applied to every public type. R0 caps at Stable.
+- **NVMS adapter**: maps `odin.nvms` v0.2 manifests to Fabric descriptors;
+  required-vs-bounds distinction (required = host must have, bounds = clamp).
+- **Route compiler**: hard filter on `IntentRequirements` + soft scoring on
+  locality/RT-island/trust; `compile()` returns highest-scored candidate.
+
+### Open threads
+
+1. **fabric-cli (PF-WP-020 UI)** — source files exist untracked, but cascading
+   API mismatches between planned API and actual `fabric-capability`/`fabric-graph`
+   surface. Workspace currently excludes `fabric-cli`. Needs a fresh write using
+   the verified real API (`probe::default_probe().probe()`, `signing::sign()`/
+   `verify()` free fns, `TopologyBuilder`/`IntentBuilder` builders).
+2. **ShareCLI macos-signing WIP** — staged in `sharecli/` worktree, not in
+   session scope. Out of lane; flagged for owning session.
+3. **fabric-workspace crate** — lease management not yet implemented;
+   `RoutePlan.lease_token` is a placeholder.
+4. **Surface plane (PF-WP-015)** — reference POSIX surface not started; CLI
+   is the dependency.
+5. **Trust root for signed descriptors** — R0 has direct-key model; R1 needs
+   trust-root or CA model for revocation.
+
+### Statistics at handoff
+
+- Fabric commits: 13
+- Total Fabric repo size: 280 files
+- Rust tests: 66 (capability 29 + graph 43, excluding nvms-adapter)
+- Go tests: 7 passing
+- Spec checks: manifest ✓, schemas ✓, openapi ✓, links ✓
+
+### Next session plan (replaces prior "Next session plan")
+
+1. Read this worklog + `releases/2026-09-01-R0.md`.
+2. **Resume PF-WP-020 CLI work**: write `fabric-cli/{cap,graph,route,workspace}.rs`
+   from scratch using the verified real API. The `commands/mod.rs` and
+   `main.rs` (clap-based dispatch) are correct; just need the four command
+   files. Spec 015 covers the contract.
+3. **Implement `fabric-workspace` crate**: persistent seat-leases, state file
+   format, conflict detection. Required for `fabric route plan` to actually
+   create a workspace.
+4. **Promote ADR-0024 and ADR-0025 to Accepted** after review.
+5. Start R1: PF-WP-021 (route failover), PF-WP-015 (surface plane),
+   NVMS→Fabric deep integration (PF-WP-011 cross-check probe vs manifest).
