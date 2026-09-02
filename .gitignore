@@ -1,0 +1,33 @@
+# Build artifacts
+target/
+**/target/
+**/*.rs.bk
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Cargo
+Cargo.lock.bak
+
+# Local env
+.env
+.env.local

@@ -3,7 +3,7 @@
 check_manifest.py
 
 Validates that MANIFEST.sha256 contains an entry for every file in
-the repo (excluding .git, .archive, MANIFEST.sha256 itself, and
+the repo (excluding .git, target, .archive, MANIFEST.sha256 itself, and
 generated files).
 
 Exits 0 if the file tree matches the manifest, non-zero otherwise.
@@ -47,7 +47,7 @@ def main():
 
     # Build actual file list
     actual_files = set()
-    exclude_patterns = [".git/", ".archive/", "node_modules/", "__pycache__/"]
+    exclude_patterns = [".git/", ".archive/", "node_modules/", "__pycache__/", "target/"]
     exclude_files = {"MANIFEST.sha256"}
 
     for f in sorted(root.rglob("*")):

@@ -1,0 +1,16 @@
+[package]
+name = "fabric-capability-ffi"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "C FFI bindings for fabric-capability"
+repository = "https://github.com/phenotype-dev/phenotype-fabric"
+
+[dependencies]
+fabric-capability = { path = "../fabric-capability" }
+serde = "1.0"
+serde_json = "1.0"
+thiserror = "2.0"
+
+[build-dependencies]
+cbindgen = "0.27"
