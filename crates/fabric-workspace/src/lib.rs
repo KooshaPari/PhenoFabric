@@ -1,6 +1,6 @@
 //! # fabric-workspace
 //!
-//! Persistent seat-lease management for Fabric.  A *workspace* is a
+//! Persistent seat-lease management for Fabric. A *workspace* is a
 //! [ADR-0025](https://phenotype-fabric/adr/0025) instantiation of a
 //! compiled [RoutePlan] — it binds the route's steps to a real seat
 //! (a `LocalityTier` instance on a concrete host), tracks the seat's
@@ -11,17 +11,14 @@
 //! ## Lifecycle
 //!
 //! ```text
-//! Pending ──acquire──► Active ──release──► Completed
-//!                       │                    ▲
-//!                       │                    │
-//!                       └──fail──► Failed    │
-//!                       │                    │
-//!                       └──revoke──► Revoked  │
+//! Unassigned ──assign_plan──► Assigned ──claim_seat──► Active
+//!                                                       │
+//!                                                       │ complete()
+//!                                                       ▼
+//!                                          Completed / Failed / Cancelled
 //! ```
 //!
-//! The 5 states are persisted to `~/.local/share/fabric/workspaces/<id>.json`.
-//! All state transitions are append-only — completed/failed/revoked workspaces
-//! are never deleted, only marked terminal.
+//! Seat leases have their own FSM: Pending → Active → Released/Failed/Revoked.
 //!
 //! ## Conflict detection
 //!
@@ -45,6 +42,5 @@ pub mod lease;
 pub mod state;
 
 pub use error::{Error, Result};
-pub use lease::{Lease, LeaseId, LeaseState, Transition, TransitionError};
-pub use state::Workspace;
-pub use state::{Workspace, WorkspaceStore, WorkspaceStoreOptions};
+pub use lease::{LeaseId, LeaseState, SeatLease, Transition};
+pub use state::{Workspace, WorkspaceId, WorkspaceStore, WorkspaceStoreOptions, TrustScope};

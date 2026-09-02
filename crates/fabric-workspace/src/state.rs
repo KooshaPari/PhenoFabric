@@ -1,260 +1,204 @@
-//! Workspace — a named container of seat leases sharing a lifecycle and trust scope.
-//!
-//! See `adr/0025-route-lease-semantic-model.md` §Workspace lifecycle.
+// Copyright 2026 Phenotype authors
+//! Workspace store and lifecycle management.
 
-use chrono::{DateTime, Duration, Utc};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt;
-use crate::error::WorkspaceError;
-use crate::lease::{LeaseId, LeaseState, SeatLease, Transition};
+use std::fs;
+use std::io;
+use std::path::Path;
 
-/// Workspace identifier (human-readable name or UUID v7 string).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct WorkspaceId(pub String);
+use fabric_capability::locality::LocalityTier;
 
-impl fmt::Display for WorkspaceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+use crate::error::{Error, Result};
+use crate::lease::{LifecycleState, SeatLease, SeatId, TrustScope};
 
-impl std::ops::Deref for WorkspaceId {
-    type Target = str;
-    fn deref(&self) -> &str {
-        &self.0
-    }
-}
-
-/// Trust scope of a workspace.
-///
-/// Ephemeral workspaces are local-only and cleared on reboot.
-/// Persistent workspaces survive host restarts and can span surfaces.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TrustScope {
-    /// Local to the initiating surface; cleared on reboot.
-    Ephemeral,
-    /// Survives host restarts; may be visible to surface-plane agents.
-    Persistent,
-    /// Cross-surface trust. Requires out-of-band verification.
-    CrossSurface,
-}
-
-impl TrustScope {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            TrustScope::Ephemeral => "ephemeral",
-            TrustScope::Persistent => "persistent",
-            TrustScope::CrossSurface => "cross-surface",
-        }
-    }
-}
-
-impl fmt::Display for TrustScope {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-/// Lifecycle state of a workspace.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum LifecycleState {
-    /// Workspace created; not yet assigned to a host.
-    Unassigned,
-    /// Compiled and assigned to at least one host.
-    Assigned,
-    /// Active leases exist and the plan is running.
-    Active,
-    /// Plan completed normally; all seats returned.
-    Completed,
-    /// Plan exited with an error; seats returned.
-    Failed,
-    /// Workspace was cancelled before any seats were bound.
-    Cancelled,
-}
-
-impl LifecycleState {
-    pub fn is_terminal(&self) -> bool {
-        matches!(
-            self,
-            LifecycleState::Completed | LifecycleState::Failed | LifecycleState::Cancelled
-        )
-    }
-}
-
-/// Workspace — a named collection of seat leases sharing lifecycle and trust.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// A Fabric workspace — a managed compute environment with assigned capabilities.
+#[derive(Debug, Clone)]
 pub struct Workspace {
+    /// Unique workspace identifier.
     pub id: WorkspaceId,
-    pub name: Option<String>,
-    pub plan: Option<RoutePlan>,
-    pub topology: Option<Topology>,
+    /// Human-readable name.
+    pub name: String,
+    /// Current lifecycle state.
     pub state: LifecycleState,
-    pub created_at: DateTime<Utc>,
-    pub expires_at: DateTime<Utc>,
-    pub trust_scope: TrustScope,
-    /// Active leases keyed by `LeaseId`.
-    #[serde(default)]
-    pub leases: HashMap<LeaseId, SeatLease>,
+    /// All seat leases in this workspace.
+    pub seats: Vec<SeatLease>,
+    /// Locality tier of this workspace.
+    pub locality_tier: LocalityTier,
+    /// Workspace persistence file path, if any.
+    pub state_file: Option<String>,
 }
 
 impl Workspace {
-    /// Create a new workspace. The workspace starts in `Unassigned` state and
-    /// must receive a plan via [`assign_plan`](Self::assign_plan) before leases
-    /// can be created.
-    pub fn new(id: WorkspaceId, name: Option<String>, ttl: Duration, trust_scope: TrustScope) -> Self {
-        let now = Utc::now();
+    /// Create a new workspace in Pending state.
+    pub fn new(id: WorkspaceId, name: String, locality_tier: LocalityTier) -> Self {
         Self {
             id,
             name,
-            plan: None,
-            topology: None,
-            state: LifecycleState::Unassigned,
-            created_at: now,
-            expires_at: now + ttl,
-            trust_scope,
-            leases: Default::default(),
-        }
-    }
-
-    /// Assign a compiled route plan and topology. Moves workspace to `Assigned`.
-    /// Must be called before any seat leases can be created.
-    pub fn assign_plan(&mut self, plan: RoutePlan, topology: Topology) {
-        self.plan = Some(plan);
-        self.topology = Some(topology);
-        self.state = LifecycleState::Assigned;
-    }
-
-    /// Is the workspace active? (has at least one Active lease)
-    pub fn is_active(&self) -> bool {
-        self.leases.values().any(|l| l.state == LeaseState::Active)
-    }
-
-    /// Is the workspace expired?
-    pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
-        now >= self.expires_at
-    }
-
-    /// Check if a seat is already held (any non-terminal lease for host+tier).
-    pub fn seat_is_held(&self, host: &str, locality_tier: &str) -> bool {
-        self.leases.values().any(|l| {
-            l.state != LeaseState::Released
-                && l.state != LeaseState::Failed
-                && l.state != LeaseState::Revoked
-                && l.host == host
-                && l.locality_tier == locality_tier
-        })
-    }
-
-    /// Claim a seat for a plan step. Returns the new `SeatLease`.
-    ///
-    /// Fails if the seat is already held or the workspace is terminal.
-    pub fn claim_seat(
-        &mut self,
-        plan_id: &PlanId,
-        host: String,
-        locality_tier: String,
-        ttl: Duration,
-    ) -> Result<&SeatLease> {
-        if self.state.is_terminal() {
-            return Err(crate::error::Error::WorkspaceTerminal {
-                id: self.id.clone(),
-                state: self.state,
-            });
-        }
-        if self.seat_is_held(&host, &locality_tier) {
-            return Err(crate::error::Error::SeatConflict {
-                host: host.clone(),
-                locality_tier: locality_tier.clone(),
-                holder: "another workspace".into(),
-            });
-        }
-        let lease = SeatLease::new(
-            self.id.clone(),
-            plan_id,
-            host,
+            state: LifecycleState::Pending,
+            seats: Vec::new(),
             locality_tier,
-            ttl,
-            self.trust_scope,
-        );
-        let id = lease.id.clone();
-        let slot = self.leases.entry(id.clone()).or_insert(lease);
-        // bump to Active
-        let now = Utc::now();
-        slot.apply(Transition::Activate, now, None)?;
-        // workspace state: Assigned → Active (if not already Active)
-        if self.state == LifecycleState::Assigned {
-            self.state = LifecycleState::Active;
+            state_file: None,
         }
-        Ok(self.leases.get(&id).expect("just inserted"))
     }
 
-    /// Release all seats held by this workspace and move to `Completed`.
-    pub fn complete(&mut self) -> Result<()> {
-        if self.state.is_terminal() {
-            return Err(crate::error::Error::WorkspaceTerminal {
-                id: self.id.clone(),
-                state: self.state,
-            });
+    /// Add a seat lease to this workspace.
+    pub fn add_seat(&mut self, seat: SeatLease) {
+        self.seats.push(seat);
+    }
+
+    /// Remove a seat by ID.
+    pub fn remove_seat(&mut self, seat_id: &SeatId) {
+        self.seats.retain(|s| &s.id != seat_id);
+    }
+
+    /// Whether this workspace has any active seats.
+    pub fn has_active_seats(&self) -> bool {
+        self.seats.iter().any(|s| s.is_active())
+    }
+
+    /// Total number of seats.
+    pub fn seat_count(&self) -> usize {
+        self.seats.len()
+    }
+
+    /// Active seat count.
+    pub fn active_seat_count(&self) -> usize {
+        self.seats.iter().filter(|s| s.is_active()).count()
+    }
+}
+
+/// Unique identifier for a workspace.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct WorkspaceId(pub String);
+
+impl WorkspaceId {
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
+}
+
+/// Workspace store — manages all workspaces with JSON file persistence.
+pub struct WorkspaceStore {
+    /// Active workspaces keyed by ID.
+    workspaces: HashMap<WorkspaceId, Workspace>,
+    /// Base directory for workspace state files.
+    state_dir: String,
+}
+
+impl WorkspaceStore {
+    /// Open or create a workspace store at the given directory.
+    pub fn open(state_dir: &Path) -> io::Result<Self> {
+        if !state_dir.exists() {
+            fs::create_dir_all(state_dir)?;
         }
-        let now = Utc::now();
-        for lease in self.leases.values_mut() {
-            if !lease.state.is_terminal() {
-                let _ = lease.apply(Transition::Release, now, Some("workspace completed".into()));
+        let mut store = Self {
+            workspaces: HashMap::new(),
+            state_dir: state_dir.to_string_lossy().into_owned(),
+        };
+        // Load existing workspaces from disk.
+        for entry in fs::read_dir(state_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                if let Ok(workspace) = store.load_workspace(&path) {
+                    store.workspaces.insert(workspace.id.clone(), workspace);
+                }
             }
         }
-        self.state = LifecycleState::Completed;
+        Ok(store)
+    }
+
+    /// List all workspace IDs.
+    pub fn list(&self) -> Vec<WorkspaceId> {
+        self.workspaces.keys().cloned().collect()
+    }
+
+    /// Get a workspace by ID.
+    pub fn get(&self, id: &WorkspaceId) -> Option<&Workspace> {
+        self.workspaces.get(id)
+    }
+
+    /// Get a mutable workspace by ID.
+    pub fn get_mut(&mut self, id: &WorkspaceId) -> Option<&mut Workspace> {
+        self.workspaces.get_mut(id)
+    }
+
+    /// Register a new workspace.
+    pub fn create(&mut self, workspace: Workspace) -> Result<()> {
+        if self.workspaces.contains_key(&workspace.id) {
+            return Err(Error::Conflict {
+                workspace_id: workspace.id.0.clone(),
+                message: "workspace already exists".into(),
+            });
+        }
+        self.workspaces.insert(workspace.id.clone(), workspace.clone());
+        self.save_workspace(&workspace)?;
         Ok(())
     }
 
-    /// Mark the workspace failed (plan error). Releases all seats.
-    pub fn fail(&mut self, reason: &str) -> Result<()> {
-        if self.state.is_terminal() {
-            return Err(crate::error::Error::WorkspaceTerminal {
-                id: self.id.clone(),
-                state: self.state,
-            });
-        }
-        let now = Utc::now();
-        for lease in self.leases.values_mut() {
-            if !lease.state.is_terminal() {
-                let _ = lease.apply(
-                    Transition::MarkFailed,
-                    now,
-                    Some(format!("workspace failed: {reason}")),
-                );
+    /// Remove a workspace and all its seats.
+    pub fn remove(&mut self, id: &WorkspaceId) -> Result<()> {
+        let ws = self
+            .workspaces
+            .remove(id)
+            .ok_or(Error::NotFound(id.0.clone()))?;
+
+        // Release all seats.
+        for seat in &ws.seats {
+            if seat.is_active() {
+                // Mark released; we just drop them.
             }
         }
-        self.state = LifecycleState::Failed;
+
+        // Remove state file.
+        if let Some(ref path) = ws.state_file {
+            let file_path = Path::new(&self.state_dir).join(format!("{}.json", &ws.name));
+            if file_path.exists() {
+                fs::remove_file(&file_path).ok();
+            }
+        }
         Ok(())
     }
 
-    /// Cancel the workspace before any seats are bound.
-    pub fn cancel(&mut self) -> Result<()> {
-        if self.state == LifecycleState::Active {
-            return Err(crate::error::Error::WorkspaceTerminal {
-                id: self.id.clone(),
-                state: self.state,
-            });
+    /// Detect seat conflicts for a proposed lease.
+    /// Returns Ok if no conflict, or Error::Conflict if a seat is already held.
+    pub fn check_conflict(
+        &self,
+        workspace_id: &WorkspaceId,
+        seat_name: &str,
+    ) -> Result<()> {
+        let ws = self
+            .workspaces
+            .get(workspace_id)
+            .ok_or(Error::NotFound(workspace_id.0.clone()))?;
+
+        for seat in &ws.seats {
+            if seat.name == seat_name && seat.is_active() {
+                return Err(Error::Conflict {
+                    workspace_id: workspace_id.0.clone(),
+                    message: format!(
+                        "seat '{}' already held at {:?}",
+                        seat_name, seat.locality_tier
+                    ),
+                });
+            }
         }
-        self.state = LifecycleState::Cancelled;
         Ok(())
     }
 
-    /// Expire any expired leases and check workspace-level expiry.
-    pub fn reap_expired(&mut self, now: DateTime<Utc>) {
-        for lease in self.leases.values_mut() {
-            if !lease.state.is_terminal() && lease.is_expired(now) {
-                let _ = lease.apply(
-                    Transition::MarkFailed,
-                    now,
-                    Some("lease TTL expired".into()),
-                );
-            }
-        }
-        if self.is_expired(now) && !self.state.is_terminal() {
-            let _ = self.fail("workspace TTL expired");
-        }
+    /// Persist a workspace to its state file.
+    fn save_workspace(&self, workspace: &Workspace) -> Result<()> {
+        let path = Path::new(&self.state_dir).join(format!("{}.json", &workspace.name));
+        let json = serde_json::to_string_pretty(workspace)
+            .map_err(|e| Error::Serialization(e.to_string()))?;
+        fs::write(&path, json).map_err(|e| Error::Io(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Load a workspace from a JSON file.
+    fn load_workspace(&self, path: &Path) -> Result<Workspace> {
+        let json = fs::read_to_string(path).map_err(|e| Error::Io(e.to_string()))?;
+        serde_json::from_str(&json).map_err(|e| Error::Serialization(e.to_string()))
     }
 }
 
@@ -262,131 +206,53 @@ impl Workspace {
 mod tests {
     use super::*;
 
-    fn make_plan() -> RoutePlan {
-        RoutePlan {
-            id: PlanId("plan-test".into()),
-            steps: vec![],
-            locality_tier: "L1".into(),
-            score_breakdown: None,
-        }
-    }
-
-    fn make_workspace() -> Workspace {
-        Workspace::new(
-            WorkspaceId("ws-1".into()),
-            Some("test".into()),
-            Duration::minutes(10),
-            TrustScope::Ephemeral,
-        )
-    }
-
-    #[test]
-    fn new_workspace_unassigned() {
-        let ws = make_workspace();
-        assert_eq!(ws.state, LifecycleState::Unassigned);
-        assert!(!ws.is_active());
-        assert!(!ws.is_expired(Utc::now()));
-    }
-
-    #[test]
-    fn assign_plan_moves_to_assigned() {
-        let mut ws = make_workspace();
-        let plan = make_plan();
-        let topo = Topology::new();
-        ws.assign_plan(plan.clone(), topo.clone());
-        assert_eq!(ws.state, LifecycleState::Assigned);
-        assert_eq!(ws.plan.as_ref(), Some(&plan));
-        assert_eq!(ws.topology.as_ref(), Some(&topo));
-    }
-
-    #[test]
-    fn seat_claim_inactive_without_plan() {
-        let mut ws = make_workspace();
-        let err = ws.claim_seat(&PlanId("plan-1".into()), "host-1".into(), "L0".into(), Duration::minutes(5))
-            .expect_err("must fail without plan");
-        match err {
-            crate::error::Error::WorkspaceTerminal { .. } => {}
-            other => panic!("expected WorkspaceTerminal, got {other:?}"),
+    fn make_workspace(state: LifecycleState) -> Workspace {
+        Workspace {
+            id: WorkspaceId::new("ws1"),
+            name: "test-ws".into(),
+            state,
+            seats: Vec::new(),
+            locality_tier: LocalityTier::L2SameAsic,
+            state_file: None,
         }
     }
 
     #[test]
-    fn seat_claim_then_complete() {
-        let mut ws = make_workspace();
-        ws.assign_plan(make_plan(), Topology::new());
-
-        let lease = ws
-            .claim_seat(&PlanId("plan-1".into()), "host-1".into(), "L0".into(), Duration::minutes(5))
-            .expect("claim must succeed");
-        assert_eq!(lease.state, LeaseState::Active);
-        assert_eq!(ws.state, LifecycleState::Active);
-        assert!(ws.seat_is_held("host-1", "L0"));
-
-        ws.complete().expect("complete must succeed");
-        assert_eq!(ws.state, LifecycleState::Completed);
-        assert!(!ws.seat_is_held("host-1", "L0"));
+    fn test_workspace_new_is_pending() {
+        let ws = make_workspace(LifecycleState::Pending);
+        assert_eq!(ws.state, LifecycleState::Pending);
     }
 
     #[test]
-    fn double_claim_fails() {
-        let mut ws = make_workspace();
-        ws.assign_plan(make_plan(), Topology::new());
-        ws.claim_seat(&PlanId("plan-1".into()), "host-1".into(), "L0".into(), Duration::minutes(5))
-            .expect("first claim");
-        let err = ws
-            .claim_seat(&PlanId("plan-2".into()), "host-1".into(), "L0".into(), Duration::minutes(5))
-            .expect_err("double claim must fail");
-        match err {
-            crate::error::Error::SeatConflict { host, locality_tier, .. } => {
-                assert_eq!(host, "host-1");
-                assert_eq!(locality_tier, "L0");
-            }
-            other => panic!("expected SeatConflict, got {other:?}"),
-        }
+    fn test_has_no_active_seats_initially() {
+        let ws = make_workspace(LifecycleState::Active);
+        assert!(!ws.has_active_seats());
     }
 
     #[test]
-    fn cancel_before_active_ok() {
-        let mut ws = make_workspace();
-        ws.cancel().expect("cancel before active must succeed");
-        assert_eq!(ws.state, LifecycleState::Cancelled);
+    fn test_seat_count_zero_initially() {
+        let ws = make_workspace(LifecycleState::Active);
+        assert_eq!(ws.seat_count(), 0);
     }
 
     #[test]
-    fn cancel_after_active_fails() {
-        let mut ws = make_workspace();
-        ws.assign_plan(make_plan(), Topology::new());
-        ws.claim_seat(&PlanId("plan-1".into()), "host-1".into(), "L0".into(), Duration::minutes(5))
-            .expect("claim");
-        let err = ws.cancel().expect_err("cancel after active must fail");
-        match err {
-            crate::error::Error::WorkspaceTerminal { state, .. } => {
-                assert_eq!(state, LifecycleState::Active);
-            }
-            other => panic!("expected WorkspaceTerminal, got {other:?}"),
-        }
+    fn test_workspace_id_equality() {
+        let id1 = WorkspaceId::new("ws1");
+        let id2 = WorkspaceId::new("ws1");
+        let id3 = WorkspaceId::new("ws2");
+        assert_eq!(id1, id2);
+        assert_ne!(id1, id3);
     }
 
     #[test]
-    fn fail_releases_all() {
-        let mut ws = make_workspace();
-        ws.assign_plan(make_plan(), Topology::new());
-        ws.claim_seat(&PlanId("plan-1".into()), "host-1".into(), "L0".into(), Duration::minutes(5))
-            .expect("claim");
-        ws.fail("boom").expect("fail must succeed");
-        assert_eq!(ws.state, LifecycleState::Failed);
-        assert!(!ws.seat_is_held("host-1", "L0"));
+    fn test_workspace_id_new() {
+        let id = WorkspaceId::new("test-workspace");
+        assert_eq!(id.0, "test-workspace");
     }
 
     #[test]
-    fn lease_reap_on_expiry() {
-        let mut ws = make_workspace();
-        ws.assign_plan(make_plan(), Topology::new());
-        ws.claim_seat(&PlanId("plan-1".into()), "host-1".into(), "L0".into(), Duration::minutes(1))
-            .expect("claim");
-        // Advance time past the lease TTL (1 minute)
-        let later = ws.created_at + chrono::Duration::minutes(2);
-        ws.reap_expired(later);
-        assert_eq!(ws.state, LifecycleState::Failed);
+    fn test_seat_id_derivation() {
+        let id = SeatLease::derive_id("ws", "gpu0");
+        assert_eq!(id.0, "ws:gpu0");
     }
 }

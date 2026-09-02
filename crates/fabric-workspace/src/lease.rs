@@ -1,320 +1,186 @@
-//! Seat-lease state machine.
-//!
-//! A `SeatLease` represents the binding between a [`RoutePlan`](fabric_graph::RoutePlan) and the
-//! physical seat(s) it claims on a host. Leases are tracked per-(host, locality-tier) pair and
-//! guarantee that at most one active workspace holds a given seat at any time.
-//!
-//! See `adr/0025-route-lease-semantic-model.md` for the semantic model.
+// Copyright 2026 Phenotype authors
+//! Seat lease and workspace lifecycle types.
 
-use chrono::{DateTime, Duration, Utc};
-use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::time::Duration;
 
-/// State of a seat lease.
-///
-/// The state machine is:
-///
-/// ```text
-///                  release()
-///   Pending ───────────────────▶ Released
-///     │
-///     │  activate()  (seat bound; plan is now executing)
-///     ▼
-///  Active  ────────────────▶ Revoked (operator action or trust failure)
-///            state: Transition::Pending,│
-///     │  release()  (plan completed normally)
-///     ▼
-///  Released
-///
-///  Any state can transition to Failed (via mark_failed).
-///  Active, Revoked, Failed, and Released are terminal.
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum LeaseState {
-    /// Plan compiled; lease reserved but execution not yet bound.
+use fabric_capability::locality::LocalityTier;
+
+/// Unique identifier for a seat within a workspace.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SeatId(pub String);
+
+impl SeatId {
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
+}
+
+/// Trust scope of a seat lease — ephemeral (local process only) or persistent
+/// (survives process restarts).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TrustScope {
+    /// Ephemeral lease; local process only.
+    Ephemeral,
+    /// Persistent lease; survives process restarts.
+    Persistent,
+}
+
+/// Lifecycle state of a seat lease.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LifecycleState {
     Pending,
-    /// Plan is executing; seat is held.
     Active,
-    /// Plan completed normally (or was never activated); seat returned.
     Released,
-    /// Plan completed with an error; seat returned.
-    Failed,
-    /// Operator or trust failure revoked the seat before plan completion.
     Revoked,
+    Expired,
 }
 
-impl LeaseState {
-    /// Is this state terminal? (no further transitions accepted)
-    pub fn is_terminal(self) -> bool {
-        matches!(
-            self,
-            LeaseState::Released | LeaseState::Failed | LeaseState::Revoked
-        )
-    }
-
-    /// Human-readable name (for log lines and CLI output).
-    pub fn as_str(self) -> &'static str {
-        match self {
-            LeaseState::Pending => "pending",
-            LeaseState::Active => "active",
-            LeaseState::Released => "released",
-            LeaseState::Failed => "failed",
-            LeaseState::Revoked => "revoked",
-        }
-    }
-}
-
-impl fmt::Display for LeaseState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-/// A transition request applied to a lease.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Lifecycle transition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Transition {
-    /// Bind the seat; move Pending → Active.
     Activate,
-    /// Complete normally; move Active → Released.
     Release,
-    /// Complete with error; move any non-terminal → Failed.
-    MarkFailed,
-    /// Operator revoke; move Active → Revoked.
     Revoke,
+    Expire,
 }
 
-impl Transition {
-    /// Verify the transition is valid from `from`.
-    pub fn is_valid(self, from: LeaseState) -> bool {
-        use LeaseState::*;
-        match (from, self) {
-            (Pending, Activate) => true,
-            (Active, Release) => true,
-            (Active, Revoke) => true,
-            (Pending, MarkFailed) => true,
-            (Active, MarkFailed) => true,
-            (Released, _) | (Failed, _) | (Revoked, _) => false,
-            (Pending, Release) | (Pending, Revoke) => false,
-        }
-    }
-}
-
-/// Identifier of a seat lease (UUID v7 string).
-pub type LeaseId = String;
-
-/// A binding of a RoutePlan to the physical seats it occupies.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Seat lease — binds a named seat to a workspace with an expiry time.
+#[derive(Debug, Clone)]
 pub struct SeatLease {
-    /// Unique lease identifier.
-    pub id: LeaseId,
-    /// Workspace that owns this lease.
-    pub workspace_id: crate::workspace::WorkspaceId,
-    /// `RoutePlan.id` (UUID v7 string from the route compiler).
-    pub plan_id: String,
-    /// Host identifier (`CapabilityDescriptor.node_id`).
-    pub host: String,
-    /// Locality tier of the claimed seat ("L0", "L1", etc.).
-    pub locality_tier: String,
-    /// Current state of the lease.
-    pub state: LeaseState,
-    /// When the lease was created.
-    pub created_at: DateTime<Utc>,
-    /// When the lease was activated (None if still pending).
-    pub activated_at: Option<DateTime<Utc>>,
-    /// Hard expiry (TTL). After this point, the seat is reclaimed automatically.
-    pub expires_at: DateTime<Utc>,
-    /// Time the lease entered a terminal state (None if still in flight).
-    pub terminated_at: Option<DateTime<Utc>>,
-    /// Trust scope required for the seat. See [`crate::workspace::TrustScope`].
-    pub trust_scope: crate::workspace::TrustScope,
-    /// Optional human-readable reason for the most recent state change.
-    pub last_reason: Option<String>,
+    /// Unique identifier.
+    pub id: SeatId,
+    /// Display name of the seat.
+    pub name: String,
+    /// Parent workspace identifier.
+    pub workspace_id: String,
+    /// Locality tier at which this seat is allocated.
+    pub locality_tier: LocalityTier,
+    /// Trust scope.
+    pub trust_scope: TrustScope,
+    /// Lease TTL.
+    pub ttl: Duration,
+    /// Lease expiry instant (UTC epoch millis).
+    pub expires_at_ms: i64,
+    /// Current lifecycle state.
+    pub state: LifecycleState,
+    /// Optional capability requirements (e.g. GPU:1, audio:1).
+    pub required_capabilities: Vec<String>,
 }
 
 impl SeatLease {
-    /// Create a new pending lease. `ttl` is the time-to-live from now.
-    pub fn new(
-        workspace_id: crate::workspace::WorkspaceId,
-        plan_id: impl Into<String>,
-        host: impl Into<String>,
-        locality_tier: impl Into<String>,
-        ttl: Duration,
-        trust_scope: crate::workspace::TrustScope,
-    ) -> Self {
-        let now = Utc::now();
-        Self {
-            id: uuid::Uuid::now_v7().to_string(),
-            workspace_id,
-            plan_id: plan_id.into(),
-            host: host.into(),
-            locality_tier: locality_tier.into(),
-            state: LeaseState::Pending,
-            created_at: now,
-            activated_at: None,
-            expires_at: now + ttl,
-            terminated_at: None,
-            trust_scope,
-            last_reason: None,
+    /// Derive a unique seat ID from workspace name and seat name.
+    pub fn derive_id(workspace: &str, seat: &str) -> SeatId {
+        SeatId(format!("{}:{}", workspace, seat))
+    }
+
+    /// Whether this lease is currently active and not expired.
+    pub fn is_active(&self) -> bool {
+        self.state == LifecycleState::Active
+            && chrono::Utc::now().timestamp_millis() < self.expires_at_ms
+    }
+
+    /// Whether this lease has expired based on wall-clock time.
+    pub fn is_expired(&self) -> bool {
+        chrono::Utc::now().timestamp_millis() >= self.expires_at_ms
+    }
+
+    /// Whether the given transition is valid from the current state.
+    pub fn can_transition(&self, t: Transition) -> bool {
+        match (&self.state, t) {
+            (LifecycleState::Pending, Transition::Activate) => true,
+            (LifecycleState::Active, Transition::Release) => true,
+            (LifecycleState::Active, Transition::Revoke) => true,
+            (LifecycleState::Active, Transition::Expire) => true,
+            _ => false,
         }
     }
 
-    /// Has this lease expired relative to `now`?
-    pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
-        now >= self.expires_at
-    }
-
-    /// Apply a state transition. Returns the previous state on success.
-    pub fn apply(
-        &mut self,
-        transition: Transition,
-        now: DateTime<Utc>,
-        reason: Option<String>,
-    ) -> crate::error::Result<LeaseState> {
-        if !transition.is_valid(self.state) {
-            return Err(crate::error::Error::InvalidTransition {
-                lease_id: self.id.clone(),
-                transition,
-            });
+    /// Apply the given transition and return the next state, or None if invalid.
+    #[must_use]
+    pub fn transition(&mut self, t: Transition) -> Option<LifecycleState> {
+        if !self.can_transition(t) {
+            return None;
         }
-        let prev = self.state;
-        self.state = match transition {
-            Transition::Activate => {
-                self.activated_at = Some(now);
-                LeaseState::Active
-            }
-            Transition::Release => {
-                self.terminated_at = Some(now);
-                LeaseState::Released
-            }
-            Transition::MarkFailed => {
-                self.terminated_at = Some(now);
-                LeaseState::Failed
-            }
-            Transition::Revoke => {
-                self.terminated_at = Some(now);
-                LeaseState::Revoked
+        let next = match t {
+            Transition::Activate => LifecycleState::Active,
+            Transition::Release => LifecycleState::Released,
+            Transition::Revoke => LifecycleState::Revoked,
+            Transition::Expire => {
+                self.state = LifecycleState::Expired;
+                return Some(LifecycleState::Expired);
             }
         };
-        self.last_reason = reason;
-        Ok(prev)
+        self.state = next.clone();
+        Some(next)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::workspace::{TrustScope, WorkspaceId};
 
-    fn ws() -> WorkspaceId {
-        WorkspaceId("ws-test".into())
-    }
-
-    #[test]
-    fn state_terminal_predicate() {
-        assert!(!LeaseState::Pending.is_terminal());
-        assert!(!LeaseState::Active.is_terminal());
-        for s in [
-            LeaseState::Released,
-            LeaseState::Failed,
-            LeaseState::Revoked,
-        ] {
-            assert!(s.is_terminal());
+    fn make_lease(state: LifecycleState, expires_ms: i64) -> SeatLease {
+        SeatLease {
+            id: SeatId::new("ws:gpu0"),
+            name: "gpu0".into(),
+            workspace_id: "ws".into(),
+            locality_tier: LocalityTier::L2SameAsic,
+            trust_scope: TrustScope::Ephemeral,
+            ttl: Duration::from_secs(3600),
+            expires_at_ms: expires_ms,
+            state,
+            required_capabilities: vec!["GPU:1".into()],
         }
     }
 
     #[test]
-    fn transition_validity_table() {
-        // pending → activate ok
-        assert!(Transition::Activate.is_valid(LeaseState::Pending));
-        assert!(!Transition::Release.is_valid(LeaseState::Pending));
-        assert!(!Transition::Revoke.is_valid(LeaseState::Pending));
-        assert!(Transition::MarkFailed.is_valid(LeaseState::Pending));
-
-        // active → release/revoke/mark_failed ok
-        assert!(Transition::Release.is_valid(LeaseState::Active));
-        assert!(Transition::Revoke.is_valid(LeaseState::Active));
-        assert!(Transition::MarkFailed.is_valid(LeaseState::Active));
-        assert!(!Transition::Activate.is_valid(LeaseState::Active));
-
-        // terminal: nothing valid
-        for t in [
-            Transition::Activate,
-            Transition::Release,
-            Transition::MarkFailed,
-            Transition::Revoke,
-        ] {
-            assert!(!t.is_valid(LeaseState::Released));
-            assert!(!t.is_valid(LeaseState::Failed));
-            assert!(!t.is_valid(LeaseState::Revoked));
-        }
+    fn test_active_when_pending() {
+        let lease = make_lease(LifecycleState::Pending, i64::MAX);
+        assert!(!lease.is_active());
     }
 
     #[test]
-    fn lease_full_lifecycle() {
-        let mut lease = SeatLease::new(
-            ws(),
-            "plan-1",
-            "host-1",
-            "L0",
-            Duration::seconds(60),
-            TrustScope::Ephemeral,
-        );
-        assert_eq!(lease.state, LeaseState::Pending);
-        let now = lease.created_at + Duration::seconds(1);
-
-        let prev = lease.apply(Transition::Activate, now, Some("go".into())).unwrap();
-        assert_eq!(prev, LeaseState::Pending);
-        assert_eq!(lease.state, LeaseState::Active);
-        assert_eq!(lease.activated_at, Some(now));
-        assert!(!lease.is_expired(now));
-
-        let later = now + Duration::seconds(30);
-        let prev = lease.apply(Transition::Release, later, None).unwrap();
-        assert_eq!(prev, LeaseState::Active);
-        assert_eq!(lease.state, LeaseState::Released);
-        assert_eq!(lease.terminated_at, Some(later));
-        assert!(lease.is_terminal());
+    fn test_active_when_released() {
+        let lease = make_lease(LifecycleState::Released, i64::MAX);
+        assert!(!lease.is_active());
     }
 
     #[test]
-    fn lease_rejects_invalid_transition() {
-        let mut lease = SeatLease::new(
-            ws(),
-            "plan-1",
-            "host-1",
-            "L0",
-            Duration::seconds(60),
-            TrustScope::Ephemeral,
-        );
-        let now = lease.created_at;
-        let err = lease
-            .apply(Transition::Release, now, None)
-            .expect_err("Release on Pending must fail");
-        match err {
-            crate::error::Error::InvalidTransition {
-                lease_id,
-                transition,
-            } => {
-                assert_eq!(lease_id, lease.id);
-                assert_eq!(transition, Transition::Release);
-            }
-            other => panic!("expected InvalidTransition, got {other:?}"),
-        }
+    fn test_is_expired() {
+        let lease = make_lease(LifecycleState::Active, 0);
+        assert!(lease.is_expired());
     }
 
     #[test]
-    fn lease_expiry_predicate() {
-        let lease = SeatLease::new(
-            ws(),
-            "plan-1",
-            "host-1",
-            "L0",
-            Duration::seconds(10),
-            TrustScope::Ephemeral,
-        );
-        let now = lease.created_at + Duration::seconds(5);
-        assert!(!lease.is_expired(now));
-        let after = lease.created_at + Duration::seconds(11);
-        assert!(lease.is_expired(after));
+    fn test_transition_pending_to_active() {
+        let mut lease = make_lease(LifecycleState::Pending, i64::MAX);
+        assert_eq!(lease.transition(Transition::Activate), Some(LifecycleState::Active));
+        assert_eq!(lease.state, LifecycleState::Active);
+    }
+
+    #[test]
+    fn test_transition_active_to_released() {
+        let mut lease = make_lease(LifecycleState::Active, i64::MAX);
+        assert_eq!(lease.transition(Transition::Release), Some(LifecycleState::Released));
+    }
+
+    #[test]
+    fn test_invalid_transition_pending_to_released() {
+        let mut lease = make_lease(LifecycleState::Pending, i64::MAX);
+        assert_eq!(lease.transition(Transition::Release), None);
+        assert_eq!(lease.state, LifecycleState::Pending);
+    }
+
+    #[test]
+    fn test_expire_sets_state() {
+        let mut lease = make_lease(LifecycleState::Active, i64::MAX);
+        assert_eq!(lease.transition(Transition::Expire), Some(LifecycleState::Expired));
+        assert_eq!(lease.state, LifecycleState::Expired);
+    }
+
+    #[test]
+    fn test_id_derivation() {
+        let id = SeatLease::derive_id("ws", "gpu0");
+        assert_eq!(id.0, "ws:gpu0");
     }
 }
