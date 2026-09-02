@@ -22,7 +22,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -178,32 +177,4 @@ func verifyDescriptor(_ map[string]interface{}) error {
 	return nil
 }
 
-// Helper functions.
-func extractField(data []byte, key string) string {
-	lines := bytes.Split(data, []byte("\n"))
-	prefix := []byte(key + "\t: ")
-	for _, line := range lines {
-		if bytes.HasPrefix(line, prefix) {
-			return string(bytes.TrimSpace(line[len(prefix):]))
-		}
-	}
-	return "unknown"
-}
-
-func extractFieldInt(data []byte, key string) int64 {
-	s := extractField(data, key)
-	// Remove "kB" suffix if present
-	s = bytes.TrimSuffix([]byte(s), []byte(" kB"))
-	n, _ := parseInt([]byte(s))
-	return n
-}
-
-func parseInt(b []byte) int64 {
-	var n int64
-	for _, c := range bytes.TrimSpace(b) {
-		if c >= '0' && c <= '9' {
-			n = n*10 + int64(c-'0')
-		}
-	}
-	return n
-}
+// probeMinimal returns a minimal descriptor for unsupported platforms.
