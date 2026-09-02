@@ -1,0 +1,34 @@
+{
+  "id": "002-universal-io-graph",
+  "title": "Universal I/O Graph, Seats, and Focus",
+  "created": "2026-08-28",
+  "state": "specified",
+  "scope": "Typed ports, graph transactions, input/output leases, HID/MIDI/audio/video/clipboard/file endpoint semantics",
+  "requirements": [
+    "PF-FR-010",
+    "PF-FR-011",
+    "PF-FR-015",
+    "PF-FR-016",
+    "PF-FR-020",
+    "PF-FR-021",
+    "PF-FR-022",
+    "PF-FR-023",
+    "PF-FR-024",
+    "PF-FR-025",
+    "PF-FR-026"
+  ],
+  "source_intent": [
+    "INT-P001",
+    "INT-P002",
+    "INT-P003",
+    "INT-P004",
+    "INT-P005",
+    "INT-P006",
+    "INT-P007",
+    "INT-P008"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true
+  }
+}

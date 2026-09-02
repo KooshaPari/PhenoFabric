@@ -1,0 +1,22 @@
+id,phase,name,deps,o,m,p,te,sd,gate,lead
+PF-WP-000,P0,Program baseline and governance,—,1,2,4,2.2,0.5,"Schemas, requirement IDs, ADRs, source register and CI documentation checks accepted.",Architecture/governance
+PF-WP-010,P1,Capability and topology inventory,PF-WP-000,2,4,7,4.2,0.8,"Linux/Windows/macOS nodes publish signed resource, display, audio, input and transport descriptors.",Runtime/platform
+PF-WP-020,P1,Graph core and transaction engine,PF-WP-000,3,5,8,5.2,0.8,"Typed nodes/ports/links, schema validation, prepare/commit/abort and workspace persistence pass contracts.",Graph runtime
+PF-WP-030,P2,Linux seat and local media adapters,"PF-WP-010, PF-WP-020",3,6,10,6.2,1.2,evdev/uinput/libei and PipeWire/JACK adapters pass pressed-state and RT callback tests.,Linux/RT
+PF-WP-040,P2,Same-host VM fast paths,"PF-WP-010, PF-WP-020",3,6,10,6.2,1.2,"Looking Glass/KVMFR, SPICE fallback, virtio input/audio/files and VM lifecycle are one route family.",VFIO/virtualization
+PF-WP-050,P2,"Unified shell, workspaces and focus UX",PF-WP-020,4,7,12,7.3,1.3,"Graph canvas, simple workspace mode, hotkeys, surface palette, explanations and rollback are usable.",Product/UI
+PF-WP-060,P3,Windows and macOS endpoint agents,"PF-WP-010, PF-WP-020",5,9,15,9.3,1.7,"Signed/minimal helpers expose display, audio, input, capture and virtual-device capabilities.",Platform
+PF-WP-070,P3,LAN interactive media transport,"PF-WP-030, PF-WP-060",4,8,13,8.2,1.5,Sunshine/Moonlight-class adapter plus telemetry and direct QUIC data channels pass wired mixed-load tests.,Media/network
+PF-WP-080,P3,"Real-time audio, MIDI and clock domains","PF-WP-030, PF-WP-060",5,9,15,9.3,1.7,Ableton reference route meets admitted xrun/latency budgets under background load.,Audio/RT
+PF-WP-090,P3,"HDR, color and frame pacing","PF-WP-060, PF-WP-070",4,8,14,8.3,1.7,C27HG70 and 2021 M1 Pro paths preserve declared SDR/HDR/color policy with measured frame pacing.,Video/color
+PF-WP-100,P4,Agent realms and surface publishing,"PF-WP-050, PF-WP-070",3,6,10,6.2,1.2,Agent can create TTL realm and publish desktop/window/report without stealing focus.,Agents/runtime
+PF-WP-110,P4,"Object identity, authority and residency plane","PF-WP-010, PF-WP-020",5,10,17,10.3,2.0,"Versioned objects, local SHM store, replicas, spill, provenance and corruption recovery pass tests.",Data runtime
+PF-WP-120,P4,Explicit TaskSpec placement scheduler,"PF-WP-010, PF-WP-110",5,10,16,10.2,1.8,Build/test/inference/media tasks choose nodes by measured total cost and explain alternatives.,Scheduler
+PF-WP-130,P5,Adaptive execution regions and prediction,PF-WP-120,6,12,22,12.7,2.7,"Fusion/fission, hysteresis, prefetch and speculative execution beat explicit baseline without thrash.",Runtime research
+PF-WP-140,P5,Semantic and pixel-proxy application surfaces,"PF-WP-060, PF-WP-070, PF-WP-090",7,14,24,14.5,2.8,"RAIL/Xpra/Waypipe adapters and native proxy fallback handle window graphs, IME, DPI and secure fallbacks.",Surface/platform
+PF-WP-150,P5,"WAN, roaming and OOB integration","PF-WP-070, PF-WP-050",4,8,14,8.3,1.7,"Congestion adaptation, NAT/relay policy, overlay identities and PiKVM-class recovery pass fault tests.",Network/Ops
+PF-WP-160,P1-P6,"Security, identity and privileged-boundary program",PF-WP-000,5,10,18,10.5,2.2,"Threat model, mTLS enrollment, capabilities, helper isolation, signing, audit and red-team gates accepted.",Security
+PF-WP-170,P1-P6,"Observability, benchmark and evidence program",PF-WP-000,4,9,16,9.3,2.0,"Stage timing, topology snapshots, benchmark corpus, Tracera refs and regression gates run continuously.",QE/performance
+PF-WP-180,P6,"Packaging, updates and operations","PF-WP-050, PF-WP-060, PF-WP-150, PF-WP-160, PF-WP-170",5,10,18,10.5,2.2,"One installer per OS, guided setup, rollback, fleet update rings and recovery docs pass clean-machine tests.",Release/operations
+PF-WP-190,R,Selective atomic interposition research,"PF-WP-110, PF-WP-120, PF-WP-170",8,18,36,19.3,4.7,At least one syscall/function/kernel granule experiment shows positive net benefit and safe fallback; otherwise remains research.,Systems research
+PF-WP-200,P6,Release candidate and acceptance,"PF-WP-080, PF-WP-090, PF-WP-100, PF-WP-120, PF-WP-140, PF-WP-150, PF-WP-180",3,6,12,6.5,1.5,"Reference scenarios, security, mixed-load, fault, usability and upgrade gates all pass.",Program/QE

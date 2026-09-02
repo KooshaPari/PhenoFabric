@@ -1,0 +1,31 @@
+{
+  "id": "004-locality-route-compiler",
+  "title": "Locality-Aware Route Compiler and Transport Plane",
+  "created": "2026-08-28",
+  "state": "specified",
+  "scope": "L0-L8 locality tiers, stage elimination, shared-memory/PCIe/LAN/WAN/OOB paths, dynamic replanning",
+  "requirements": [
+    "PF-FR-012",
+    "PF-FR-013",
+    "PF-FR-014",
+    "PF-FR-015",
+    "PF-FR-017",
+    "PF-FR-041",
+    "PF-FR-044",
+    "PF-FR-045"
+  ],
+  "source_intent": [
+    "INT-P001",
+    "INT-P002",
+    "INT-P003",
+    "INT-P004",
+    "INT-P005",
+    "INT-P006",
+    "INT-P007",
+    "INT-P008"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true
+  }
+}

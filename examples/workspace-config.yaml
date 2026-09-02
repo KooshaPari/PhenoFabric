@@ -1,0 +1,39 @@
+schema_version: 1
+workspaces:
+  main-desk:
+    zone: main-desk
+    focus:
+      input: realm://main/windows-vfio/seat/console
+      output: display://main/c27hg70
+      audio: audio://main/interface/monitor
+    surfaces:
+      - source: realm://main/windows-vfio/display/0
+        sink: display://main/c27hg70
+        mode: takeover
+      - source: realm://agent/latest/report
+        sink: display://macbook/panel
+        mode: pin
+        placement: bottom-right
+    profile: gaming
+  couch:
+    zone: couch
+    focus:
+      input: device://macbook/keyboard-trackpad
+      output: display://macbook/panel
+      audio: audio://macbook/speakers
+    surfaces:
+      - source: realm://main/windows-vfio/display/virtual-macbook
+        sink: display://macbook/panel
+        mode: takeover
+    profile: desktop-text
+  creator-safe:
+    zone: main-desk
+    focus:
+      input: realm://ableton/seat
+      output: display://main/c27hg70
+      audio: audio://main/interface/monitor
+    profile: creator-rt
+    policy:
+      reject_unadmitted_remote_dsp: true
+      evacuate_background_compute: true
+      bulk_network_limit_mbps: 50

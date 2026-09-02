@@ -1,0 +1,212 @@
+[
+  {
+    "id": "RH-001",
+    "area": "Locality-first routing",
+    "hyp": "For a same-host VFIO surface, KVMFR/Looking Glass produces lower total latency and lower CPU/GPU overhead than any encode/decode route at equivalent visible quality.",
+    "falsify": "Reject if an encoded route reproducibly beats it without hidden queue/quality loss.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-002",
+    "area": "Stage elimination",
+    "hyp": "Removing one full memory-domain copy produces a measurable p95/worst improvement under contention even when idle median changes little.",
+    "falsify": "Reject if copy removal adds synchronization cost that erases total benefit.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-003",
+    "area": "Central input broker",
+    "hyp": "A persistent evdev\u2192uinput broker switches among N realms faster and more safely than direct QEMU device grabs.",
+    "falsify": "Reject if broker overhead or failure rate exceeds direct-grab baseline.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-004",
+    "area": "Pressed-state transaction",
+    "hyp": "Synthesizing releases before focus commit eliminates stuck modifiers/buttons without materially increasing switch latency.",
+    "falsify": "Reject if failures persist in randomized million-switch corpus.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-005",
+    "area": "Independent media queues",
+    "hyp": "Separating input, audio, video, clipboard and bulk queues reduces tail latency during large transfers.",
+    "falsify": "Reject if shared scheduling performs equivalently under impairment and saturation.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-006",
+    "area": "Content-aware video policy",
+    "hyp": "Desktop 4:4:4 and game frame-priority policies outperform one fixed codec profile on user-visible quality per resource cost.",
+    "falsify": "Reject if blind/metric tests show no material benefit.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-007",
+    "area": "M1 Pro sink viability",
+    "hyp": "The 2021 M1 Pro can sustain the selected 10-bit high-refresh stream mode with acceptable decode/compositor cost while running ordinary local work.",
+    "falsify": "Reject or lower mode if decode/thermal/frame pacing misses gate.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-008",
+    "area": "HDR intent preservation",
+    "hyp": "Explicit source/sink color metadata and controlled transforms reduce clipping/gamut errors versus OS-default black-box paths.",
+    "falsify": "Reject if instrumentation and visual targets show no improvement.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-009",
+    "area": "Audio RT reservation",
+    "hyp": "Cross-resource admission and relocation of background work prevent Ableton xruns more effectively than process priority alone.",
+    "falsify": "Reject if background relocation does not improve worst-case audio stability.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-010",
+    "area": "Remote DSP break-even",
+    "hyp": "Selected coarse DSP/plugin nodes can run on another LAN host when two-way audio/control latency plus jitter remains below graph slack.",
+    "falsify": "Reject per node when deadline margin is not robust.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-011",
+    "area": "Explicit TaskSpec baseline",
+    "hyp": "Cooperative task placement captures most practical distributed benefit before transparent syscall interposition.",
+    "falsify": "Reject if high-value workloads cannot be expressed without transparent interception.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-012",
+    "area": "Data-aware placement",
+    "hyp": "A slower compute node with local inputs often beats a faster remote accelerator once transfer and queue cost are included.",
+    "falsify": "Reject if test corpus never changes winner after data cost.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-013",
+    "area": "Adaptive region fusion",
+    "hyp": "Fusing repeated same-destination atomic decisions reduces overhead while preserving placement quality.",
+    "falsify": "Reject if fusion increases completion time or misses changing constraints.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-014",
+    "area": "Region fission",
+    "hyp": "Fission triggered by contention/locality change improves performance over static pinning without thrash under hysteresis.",
+    "falsify": "Reject if fission oscillation or overhead exceeds benefit.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-015",
+    "area": "Predictive prefetch",
+    "hyp": "Workload-sequence prediction for builds, game E2E and agent tools reduces cold-start transfer/queue latency.",
+    "falsify": "Reject if cache pollution/waste dominates p95 gain.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-016",
+    "area": "Speculation",
+    "hyp": "Bounded speculative execution improves tail completion for high-variance agents/tasks within an explicit waste budget.",
+    "falsify": "Reject if cancellation/resource externality violates foreground SLOs.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-017",
+    "area": "Surface/execution independence",
+    "hyp": "Moving only presentation/seat is the optimal desk\u2194couch operation in most cases.",
+    "falsify": "Reject if execution migration improves experience often enough to justify default complexity.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-018",
+    "area": "Semantic before pixel",
+    "hyp": "RAIL/Xpra/Waypipe paths produce better window/IME/clipboard behavior and lower resource cost than pixel proxies for supported apps.",
+    "falsify": "Reject per application when protocol semantics are incomplete or slower.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-019",
+    "area": "Surface atlas",
+    "hyp": "Packing multiple mostly-static proxy windows into shared streams reduces encoder/session pressure without unacceptable interaction latency.",
+    "falsify": "Reject if damage/atlas management costs exceed dedicated streams.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-020",
+    "area": "Lease fencing",
+    "hyp": "Monotonic fencing tokens prevent split-brain input/output ownership during coordinator/network partitions.",
+    "falsify": "Reject only on correctness failure; performance is secondary.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-021",
+    "area": "Agent non-stealing",
+    "hyp": "Attention requests and surface catalog preserve user flow while remaining fast enough for agent inspection.",
+    "falsify": "Reject if users consistently prefer automatic focus under defined policies; retain explicit opt-in.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-022",
+    "area": "OOB value",
+    "hyp": "Hardware KVM paths materially reduce mean recovery time for bench/failed systems despite inferior daily media quality.",
+    "falsify": "Reject only if software path remains available in all tested failure classes.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-023",
+    "area": "Explainability",
+    "hyp": "Counterfactual route explanations accelerate debugging and improve trust without overwhelming ordinary users.",
+    "falsify": "Reject or simplify UI if users cannot act on explanations.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-024",
+    "area": "Cross-product events",
+    "hyp": "Stable IDs/events integrate AgilePlus/thegent/Tracera/ledgers without shared storage and with acceptable reconciliation cost.",
+    "falsify": "Reject if event reconciliation becomes less correct than explicit API queries.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-025",
+    "area": "Atomic FUSE relocation",
+    "hyp": "For selected I/O-heavy agent/build patterns, filesystem-level interception can coalesce or move execution with positive net benefit.",
+    "falsify": "Reject as a product path if overhead/security exceed measured gain.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-026",
+    "area": "Syscall mediation",
+    "hyp": "Syscall-level routing has a narrow profitable domain on same-host/shared-memory or very fast fabric, not a universal domain.",
+    "falsify": "Reject universal claim if any distribution tax is ignored; graduate only bounded cases.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-027",
+    "area": "Kernel routing",
+    "hyp": "Accelerator-kernel placement can be changed at graph/capture boundaries more profitably than at arbitrary API calls.",
+    "falsify": "Reject if data residency makes alternate device consistently worse.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-028",
+    "area": "Mixed-load telemetry",
+    "hyp": "Idle benchmarks substantially overpredict user experience; mixed-load p99/worst correlates better with satisfaction.",
+    "falsify": "Reject if idle and mixed-load rankings remain identical across corpus.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-029",
+    "area": "Adaptive degradation",
+    "hyp": "Predictable quality ladders maintain interaction better than queue buildup under resource loss.",
+    "falsify": "Reject if users prefer occasional stalls over controlled quality reduction for a workload class.",
+    "state": "Proposed"
+  },
+  {
+    "id": "RH-030",
+    "area": "One shell value",
+    "hyp": "A unified workspace/graph shell reduces action count and error rate compared with operating separate KVM, streamer, audio and VM tools.",
+    "falsify": "Reject if integration complexity creates more failures than it removes.",
+    "state": "Proposed"
+  }
+]

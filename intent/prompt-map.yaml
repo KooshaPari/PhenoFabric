@@ -1,0 +1,79 @@
+schema_version: '1.0'
+project: phenotype-fabric
+prompts:
+- id: INT-P001
+  requirements:
+  - PF-FR-002
+  - PF-FR-012
+  - PF-FR-020
+  - PF-FR-030
+  - PF-FR-031
+  - PF-FR-032
+  - PF-FR-083
+  - PF-FR-084
+  - PF-FR-085
+  specs:
+  - '001'
+  - '002'
+  - '004'
+  - '006'
+  - '007'
+  - 008
+- id: INT-P002
+  requirements:
+  - PF-FR-040
+  - PF-FR-050
+  - PF-FR-056
+  - PF-FR-070
+  - PF-FR-075
+  specs:
+  - '005'
+  - '007'
+- id: INT-P003
+  requirements:
+  - PF-FR-001
+  - PF-FR-004
+  - PF-FR-010
+  adrs:
+  - '0002'
+  - '0003'
+- id: INT-P004
+  requirements:
+  - PF-FR-012
+  - PF-FR-013
+  - PF-FR-044
+  specs:
+  - '004'
+  adrs:
+  - '0004'
+  - 0009
+- id: INT-P005
+  requirements:
+  - PF-FR-060
+  - PF-FR-062
+  - PF-FR-065
+  - PF-FR-068
+  specs:
+  - '003'
+- id: INT-P006
+  requirements:
+  - PF-FR-065
+  - PF-FR-066
+  adrs:
+  - '0005'
+- id: INT-P007
+  requirements:
+  - PF-FR-086
+  specs:
+  - '010'
+- id: INT-P008
+  artifacts:
+  - PRD.md
+  - HLD.md
+  - LLD.md
+  - specs/
+  - adr/
+  - work/
+  - sota/
+  - research/
+  - intent/

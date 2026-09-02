@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phenotype.dev/schemas/fabric/capability.schema.json",
+  "title": "Capability Descriptor",
+  "type": "object",
+  "required": [
+    "id",
+    "provider",
+    "version",
+    "kind",
+    "status",
+    "observedAt",
+    "confidence"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "available",
+        "degraded",
+        "unavailable",
+        "permission_required",
+        "unknown"
+      ]
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "probe": {
+      "type": "object"
+    },
+    "formats": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "locality": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "L0",
+          "L1",
+          "L2",
+          "L3",
+          "L4",
+          "L5",
+          "L6",
+          "L7",
+          "L8"
+        ]
+      }
+    },
+    "security": {
+      "type": "object"
+    },
+    "benchmarks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "additionalProperties": false
+}

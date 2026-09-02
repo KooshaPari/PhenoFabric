@@ -1,0 +1,25 @@
+{
+  "id": "010-ecosystem-integration",
+  "title": "Phenotype Ecosystem Integration and Product Boundaries",
+  "created": "2026-08-28",
+  "state": "specified",
+  "scope": "AgilePlus, thegent, AGSLAG, Tracera, SessionLedger, ShareCLI, NVMS, labs-compute, event contracts",
+  "requirements": [
+    "PF-FR-086",
+    "PF-FR-087"
+  ],
+  "source_intent": [
+    "INT-P001",
+    "INT-P002",
+    "INT-P003",
+    "INT-P004",
+    "INT-P005",
+    "INT-P006",
+    "INT-P007",
+    "INT-P008"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phenotype.dev/schemas/fabric/graph.schema.json",
+  "title": "Phenotype Fabric Graph",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "graphId",
+    "version",
+    "nodes",
+    "links"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string"
+    },
+    "graphId": {
+      "type": "string",
+      "pattern": "^pf://"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/link"
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "ports"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^pf://"
+        },
+        "kind": {
+          "enum": [
+            "device",
+            "realm",
+            "session",
+            "seat",
+            "surface",
+            "resource",
+            "transform",
+            "application",
+            "process",
+            "object_service"
+          ]
+        },
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/port"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "port": {
+      "type": "object",
+      "required": [
+        "id",
+        "direction",
+        "type",
+        "formats"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^pf://"
+        },
+        "direction": {
+          "enum": [
+            "in",
+            "out",
+            "duplex"
+          ]
+        },
+        "type": {
+          "enum": [
+            "video",
+            "audio",
+            "midi",
+            "osc",
+            "hid",
+            "clipboard",
+            "file",
+            "storage",
+            "object",
+            "compute",
+            "telemetry",
+            "terminal"
+          ]
+        },
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "timing": {
+          "type": "object"
+        },
+        "memoryDomains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "securityLabels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "link": {
+      "type": "object",
+      "required": [
+        "id",
+        "sourcePort",
+        "sinkPort",
+        "policy"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^pf://"
+        },
+        "sourcePort": {
+          "type": "string"
+        },
+        "sinkPort": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "object"
+        },
+        "desiredState": {
+          "enum": [
+            "active",
+            "inactive",
+            "pinned"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

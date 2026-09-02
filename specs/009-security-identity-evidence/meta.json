@@ -1,0 +1,30 @@
+{
+  "id": "009-security-identity-evidence",
+  "title": "Security, Identity, Leases, Audit, and Evidence",
+  "created": "2026-08-28",
+  "state": "specified",
+  "scope": "Mutual identity, capability authorization, privileged helper isolation, route leases, evidence bundles, OOB isolation",
+  "requirements": [
+    "PF-FR-080",
+    "PF-FR-081",
+    "PF-FR-082",
+    "PF-FR-083",
+    "PF-FR-084",
+    "PF-FR-087",
+    "PF-FR-088"
+  ],
+  "source_intent": [
+    "INT-P001",
+    "INT-P002",
+    "INT-P003",
+    "INT-P004",
+    "INT-P005",
+    "INT-P006",
+    "INT-P007",
+    "INT-P008"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true
+  }
+}

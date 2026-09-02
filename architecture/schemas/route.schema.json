@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phenotype.dev/schemas/fabric/route.schema.json",
+  "title": "Compiled Route",
+  "type": "object",
+  "required": [
+    "id",
+    "linkId",
+    "topologyEpoch",
+    "state",
+    "stages",
+    "claims",
+    "fencingToken"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^pf://"
+    },
+    "linkId": {
+      "type": "string"
+    },
+    "topologyEpoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "state": {
+      "enum": [
+        "proposed",
+        "compiled",
+        "preparing",
+        "ready",
+        "active",
+        "degraded",
+        "draining",
+        "stopped",
+        "aborted",
+        "rejected"
+      ]
+    },
+    "fencingToken": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "adapter"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "capture",
+              "inject",
+              "copy",
+              "transform",
+              "encode",
+              "decode",
+              "transport",
+              "compose",
+              "store",
+              "schedule"
+            ]
+          },
+          "adapter": {
+            "type": "string"
+          },
+          "inputFormat": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "outputFormat": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "resourceClaims": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "properties": {
+        "copies": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "memoryTransitions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "latencyBudgetUs": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "quality": {
+          "type": "object"
+        },
+        "security": {
+          "type": "object"
+        }
+      }
+    },
+    "fallbackRouteIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "explanation": {
+      "type": "object"
+    }
+  }
+}

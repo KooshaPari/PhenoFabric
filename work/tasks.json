@@ -1,0 +1,1098 @@
+[
+  {
+    "id": "PF-WP-000.01",
+    "wp": "PF-WP-000",
+    "task": "Freeze provisional product boundary and authority map",
+    "deps": "\u2014",
+    "evidence": "Accepted ADR set and ecosystem boundary review",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-000.02",
+    "wp": "PF-WP-000",
+    "task": "Normalize requirement, intent, evidence and event identifiers",
+    "deps": "000.01",
+    "evidence": "Schema tests and traceability lint",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-000.03",
+    "wp": "PF-WP-000",
+    "task": "Establish documentation-as-code checks",
+    "deps": "000.02",
+    "evidence": "Link/schema/source validation in CI",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-000.04",
+    "wp": "PF-WP-000",
+    "task": "Create source confidence and claim policy",
+    "deps": "000.01",
+    "evidence": "Research source register",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-000.05",
+    "wp": "PF-WP-000",
+    "task": "Define release evidence contract",
+    "deps": "000.02",
+    "evidence": "Acceptance gate manifest",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-010.01",
+    "wp": "PF-WP-010",
+    "task": "Define capability descriptor schemas",
+    "deps": "000.02",
+    "evidence": "JSON/protobuf contract tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-010.02",
+    "wp": "PF-WP-010",
+    "task": "Probe CPU/NUMA/cache/memory topology",
+    "deps": "010.01",
+    "evidence": "Cross-platform topology snapshots",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-010.03",
+    "wp": "PF-WP-010",
+    "task": "Probe GPU/NPU/codec/display/PCIe topology",
+    "deps": "010.01",
+    "evidence": "Reference hardware inventory",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-010.04",
+    "wp": "PF-WP-010",
+    "task": "Probe audio/MIDI/input/storage/NIC endpoints",
+    "deps": "010.01",
+    "evidence": "Endpoint capability snapshots",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-010.05",
+    "wp": "PF-WP-010",
+    "task": "Measure link RTT/jitter/loss/bandwidth and copy paths",
+    "deps": "010.02,010.03,010.04",
+    "evidence": "Calibrated topology benchmark",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-010.06",
+    "wp": "PF-WP-010",
+    "task": "Sign and publish descriptor deltas",
+    "deps": "010.01",
+    "evidence": "Identity/replay tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-020.01",
+    "wp": "PF-WP-020",
+    "task": "Implement canonical node/port/link/domain objects",
+    "deps": "000.02",
+    "evidence": "Schema/property tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-020.02",
+    "wp": "PF-WP-020",
+    "task": "Implement capability and format negotiation",
+    "deps": "020.01",
+    "evidence": "Negotiation matrix",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-020.03",
+    "wp": "PF-WP-020",
+    "task": "Implement graph prepare/commit/abort/rollback",
+    "deps": "020.01",
+    "evidence": "Fault/property tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-020.04",
+    "wp": "PF-WP-020",
+    "task": "Implement lease/fencing primitives",
+    "deps": "020.03",
+    "evidence": "Partition and stale-token tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-020.05",
+    "wp": "PF-WP-020",
+    "task": "Implement workspace snapshots and diff",
+    "deps": "020.01",
+    "evidence": "Round-trip/recovery tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-020.06",
+    "wp": "PF-WP-020",
+    "task": "Implement route recursion/hop prevention",
+    "deps": "020.03",
+    "evidence": "Loop adversarial tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-020.07",
+    "wp": "PF-WP-020",
+    "task": "Expose CLI/SDK/API graph operations",
+    "deps": "020.01-020.06",
+    "evidence": "Contract and usability tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-030.01",
+    "wp": "PF-WP-030",
+    "task": "Build Linux evdev/libevdev acquisition service",
+    "deps": "010.04",
+    "evidence": "Device hotplug/grab tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-030.02",
+    "wp": "PF-WP-030",
+    "task": "Build uinput endpoint pool and pressed-state ledger",
+    "deps": "030.01",
+    "evidence": "One-million randomized switch test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-030.03",
+    "wp": "PF-WP-030",
+    "task": "Integrate libei/EIS and XDG portals",
+    "deps": "030.01",
+    "evidence": "Wayland compositor matrix",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-030.04",
+    "wp": "PF-WP-030",
+    "task": "Integrate PipeWire node/port discovery and links",
+    "deps": "010.04,020.02",
+    "evidence": "Audio/video graph tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-030.05",
+    "wp": "PF-WP-030",
+    "task": "Integrate JACK compatibility and RT callbacks",
+    "deps": "030.04",
+    "evidence": "xrun/priority tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-030.06",
+    "wp": "PF-WP-030",
+    "task": "Implement emergency local control path",
+    "deps": "030.01",
+    "evidence": "Kill/partition recovery tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-040.01",
+    "wp": "PF-WP-040",
+    "task": "Automate Looking Glass/KVMFR discovery and launch",
+    "deps": "010.03",
+    "evidence": "VFIO reference scenario",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-040.02",
+    "wp": "PF-WP-040",
+    "task": "Integrate QEMU/libvirt input endpoint binding",
+    "deps": "030.02",
+    "evidence": "Hot switch and rollback test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-040.03",
+    "wp": "PF-WP-040",
+    "task": "Integrate SPICE/noVNC recovery console",
+    "deps": "040.01",
+    "evidence": "Guest failure recovery",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-040.04",
+    "wp": "PF-WP-040",
+    "task": "Integrate virtio audio/file/clipboard service paths",
+    "deps": "020.02",
+    "evidence": "Copy/latency benchmark",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-040.05",
+    "wp": "PF-WP-040",
+    "task": "Model VM lifecycle, display and seat as graph nodes",
+    "deps": "020.01",
+    "evidence": "Graph contract test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-040.06",
+    "wp": "PF-WP-040",
+    "task": "Probe PCIe/IOMMU/P2P constraints",
+    "deps": "010.03",
+    "evidence": "Topology truth report",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-050.01",
+    "wp": "PF-WP-050",
+    "task": "Implement device/realm/surface navigator",
+    "deps": "020.07",
+    "evidence": "Usability scenario",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-050.02",
+    "wp": "PF-WP-050",
+    "task": "Implement graph canvas with nested nodes",
+    "deps": "020.07",
+    "evidence": "Graph editing test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-050.03",
+    "wp": "PF-WP-050",
+    "task": "Implement simple workspace mode and templates",
+    "deps": "050.01",
+    "evidence": "Desk/couch/bench templates",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-050.04",
+    "wp": "PF-WP-050",
+    "task": "Implement global input/output/coupled hotkeys",
+    "deps": "030.02,020.04",
+    "evidence": "No-blind/no-stuck test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-050.05",
+    "wp": "PF-WP-050",
+    "task": "Implement route and placement explanation UI",
+    "deps": "020.02",
+    "evidence": "Explanation acceptance",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-050.06",
+    "wp": "PF-WP-050",
+    "task": "Implement adapter health/fallback UI",
+    "deps": "020.03",
+    "evidence": "Injected adapter failure",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-050.07",
+    "wp": "PF-WP-050",
+    "task": "Implement accessibility and keyboard-only workflows",
+    "deps": "050.01-050.06",
+    "evidence": "Accessibility audit",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-060.01",
+    "wp": "PF-WP-060",
+    "task": "Windows endpoint service and capability probe",
+    "deps": "010.01",
+    "evidence": "Windows clean-machine test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-060.02",
+    "wp": "PF-WP-060",
+    "task": "Windows capture/virtual display/audio/input adapters",
+    "deps": "060.01",
+    "evidence": "Signed helper and media tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-060.03",
+    "wp": "PF-WP-060",
+    "task": "macOS endpoint service and capability probe",
+    "deps": "010.01",
+    "evidence": "macOS clean-machine test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-060.04",
+    "wp": "PF-WP-060",
+    "task": "macOS capture/presentation/audio/input adapters",
+    "deps": "060.03",
+    "evidence": "TCC/secure-input matrix",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-060.05",
+    "wp": "PF-WP-060",
+    "task": "Implement per-platform privileged helper split",
+    "deps": "060.01,060.03",
+    "evidence": "Privilege/threat review",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-060.06",
+    "wp": "PF-WP-060",
+    "task": "Implement sleep/wake/hotplug recovery",
+    "deps": "060.02,060.04",
+    "evidence": "Lifecycle fault tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-070.01",
+    "wp": "PF-WP-070",
+    "task": "Wrap Sunshine/Moonlight session lifecycle",
+    "deps": "030.04,060.02,060.04",
+    "evidence": "Adapter contract",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-070.02",
+    "wp": "PF-WP-070",
+    "task": "Implement direct media/control QUIC channels",
+    "deps": "020.03",
+    "evidence": "Loss/reorder tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-070.03",
+    "wp": "PF-WP-070",
+    "task": "Implement stage timestamps and queue telemetry",
+    "deps": "170.01",
+    "evidence": "Latency calibration",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-070.04",
+    "wp": "PF-WP-070",
+    "task": "Implement congestion/pacing/FEC policy hooks",
+    "deps": "070.02",
+    "evidence": "Network impairment suite",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-070.05",
+    "wp": "PF-WP-070",
+    "task": "Implement client virtual display matching",
+    "deps": "060.02",
+    "evidence": "MacBook sink test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-070.06",
+    "wp": "PF-WP-070",
+    "task": "Implement input/audio independent channels",
+    "deps": "030.02,080.01",
+    "evidence": "Queue isolation test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-080.01",
+    "wp": "PF-WP-080",
+    "task": "Define audio clock/format/latency port schema",
+    "deps": "020.02",
+    "evidence": "Schema and negotiation test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-080.02",
+    "wp": "PF-WP-080",
+    "task": "Integrate ASIO/WASAPI, CoreAudio and PipeWire/JACK nodes",
+    "deps": "030.04,060.02,060.04",
+    "evidence": "Endpoint matrix",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-080.03",
+    "wp": "PF-WP-080",
+    "task": "Implement drift estimator, ASRC and elastic buffer",
+    "deps": "080.01",
+    "evidence": "Long soak drift test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-080.04",
+    "wp": "PF-WP-080",
+    "task": "Implement timestamped MIDI/OSC routes",
+    "deps": "080.01",
+    "evidence": "Jitter/ordering test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-080.05",
+    "wp": "PF-WP-080",
+    "task": "Implement RT admission and CPU/IRQ affinity policy",
+    "deps": "010.02",
+    "evidence": "Ableton mixed-load test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-080.06",
+    "wp": "PF-WP-080",
+    "task": "Implement audio-only and split-monitor routes",
+    "deps": "080.02",
+    "evidence": "Workspace scenarios",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-080.07",
+    "wp": "PF-WP-080",
+    "task": "Implement xrun diagnosis and fallback",
+    "deps": "080.03,080.05",
+    "evidence": "Fault injection",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-090.01",
+    "wp": "PF-WP-090",
+    "task": "Inventory EDID/ICC/HDR/refresh/VRR capabilities",
+    "deps": "010.03",
+    "evidence": "C27HG70/MacBook profiles",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-090.02",
+    "wp": "PF-WP-090",
+    "task": "Define color intent and transform graph",
+    "deps": "020.02",
+    "evidence": "Golden image/vector tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-090.03",
+    "wp": "PF-WP-090",
+    "task": "Implement 8/10-bit and HDR metadata negotiation",
+    "deps": "090.01",
+    "evidence": "HDR metadata capture",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-090.04",
+    "wp": "PF-WP-090",
+    "task": "Implement workload chroma/quality policies",
+    "deps": "090.02",
+    "evidence": "Text/game/video comparisons",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-090.05",
+    "wp": "PF-WP-090",
+    "task": "Implement frame pacing and refresh adaptation",
+    "deps": "070.03",
+    "evidence": "High-speed capture evidence",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-090.06",
+    "wp": "PF-WP-090",
+    "task": "Implement tone/gamut mapping fallback",
+    "deps": "090.02",
+    "evidence": "Instrumented visual tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-100.01",
+    "wp": "PF-WP-100",
+    "task": "Define RealmRequest, SurfacePublish and TTL contracts",
+    "deps": "020.01",
+    "evidence": "API contract",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-100.02",
+    "wp": "PF-WP-100",
+    "task": "Integrate VM/native/sandbox providers",
+    "deps": "040.05",
+    "evidence": "Provider tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-100.03",
+    "wp": "PF-WP-100",
+    "task": "Implement non-stealing surface catalog",
+    "deps": "050.01",
+    "evidence": "Focus safety test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-100.04",
+    "wp": "PF-WP-100",
+    "task": "Implement budget/TTL cleanup and grace restore",
+    "deps": "100.01",
+    "evidence": "Lifecycle fault test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-100.05",
+    "wp": "PF-WP-100",
+    "task": "Publish semantic terminal/report/artifact nodes",
+    "deps": "100.01",
+    "evidence": "Agent scenario",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-100.06",
+    "wp": "PF-WP-100",
+    "task": "Emit thegent/AgilePlus/Tracera/SessionLedger IDs",
+    "deps": "000.02",
+    "evidence": "Cross-product contract tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-110.01",
+    "wp": "PF-WP-110",
+    "task": "Define immutable/versioned object references and authority",
+    "deps": "020.01",
+    "evidence": "Object schema/property tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-110.02",
+    "wp": "PF-WP-110",
+    "task": "Implement local shared-memory object store",
+    "deps": "110.01",
+    "evidence": "Zero-copy/copy-count benchmark",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-110.03",
+    "wp": "PF-WP-110",
+    "task": "Implement residency catalog and transfer plans",
+    "deps": "010.05,110.01",
+    "evidence": "Residency correctness tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-110.04",
+    "wp": "PF-WP-110",
+    "task": "Implement spill to files/object stores",
+    "deps": "110.01",
+    "evidence": "Crash/recovery tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-110.05",
+    "wp": "PF-WP-110",
+    "task": "Implement replica/cache eviction and provenance",
+    "deps": "110.03",
+    "evidence": "Eviction/corruption tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-110.06",
+    "wp": "PF-WP-110",
+    "task": "Integrate virtiofs/SMB/NFS/Syncthing adapters",
+    "deps": "110.03",
+    "evidence": "Compatibility tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-110.07",
+    "wp": "PF-WP-110",
+    "task": "Implement data policy and sensitivity constraints",
+    "deps": "110.01",
+    "evidence": "Security tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-120.01",
+    "wp": "PF-WP-120",
+    "task": "Define TaskSpec/RegionSpec capabilities and constraints",
+    "deps": "010.01,110.01",
+    "evidence": "Schema tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-120.02",
+    "wp": "PF-WP-120",
+    "task": "Build candidate pruning by security/capability/locality",
+    "deps": "120.01",
+    "evidence": "Correctness corpus",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-120.03",
+    "wp": "PF-WP-120",
+    "task": "Build total completion cost model",
+    "deps": "010.05,110.03",
+    "evidence": "Calibration benchmark",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-120.04",
+    "wp": "PF-WP-120",
+    "task": "Implement reservations/admission across resource types",
+    "deps": "120.03",
+    "evidence": "Mixed-load test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-120.05",
+    "wp": "PF-WP-120",
+    "task": "Integrate ShareCLI/NVMS/thegent execution adapters",
+    "deps": "120.01",
+    "evidence": "Cross-product run test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-120.06",
+    "wp": "PF-WP-120",
+    "task": "Implement placement explanation and uncertainty",
+    "deps": "120.03",
+    "evidence": "Counterfactual test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-120.07",
+    "wp": "PF-WP-120",
+    "task": "Implement cancellation/result routing/retry",
+    "deps": "120.02",
+    "evidence": "Failure tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-130.01",
+    "wp": "PF-WP-130",
+    "task": "Collect decision traces and neighboring affinity",
+    "deps": "120.03",
+    "evidence": "Trace corpus",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-130.02",
+    "wp": "PF-WP-130",
+    "task": "Implement region fusion with amortization threshold",
+    "deps": "130.01",
+    "evidence": "Micro/macro benchmark",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-130.03",
+    "wp": "PF-WP-130",
+    "task": "Implement fission on contention/locality change",
+    "deps": "130.02",
+    "evidence": "Dynamic load test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-130.04",
+    "wp": "PF-WP-130",
+    "task": "Implement hysteresis/cooldown/minimum residency",
+    "deps": "130.02,130.03",
+    "evidence": "Thrash adversarial test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-130.05",
+    "wp": "PF-WP-130",
+    "task": "Implement predictive prefetch and cache warming",
+    "deps": "110.03,130.01",
+    "evidence": "Build/game/agent prediction tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-130.06",
+    "wp": "PF-WP-130",
+    "task": "Implement bounded speculative execution",
+    "deps": "120.07",
+    "evidence": "Waste/correctness test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-130.07",
+    "wp": "PF-WP-130",
+    "task": "Compare learned versus analytic policy",
+    "deps": "130.01-130.06",
+    "evidence": "A/B evidence",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-140.01",
+    "wp": "PF-WP-140",
+    "task": "Integrate FreeRDP/RAIL application adapter",
+    "deps": "060.02",
+    "evidence": "Windows app matrix",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-140.02",
+    "wp": "PF-WP-140",
+    "task": "Integrate Xpra and Waypipe adapters",
+    "deps": "030.03",
+    "evidence": "Linux app matrix",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-140.03",
+    "wp": "PF-WP-140",
+    "task": "Define owned-window graph and local proxy model",
+    "deps": "020.01",
+    "evidence": "Popup/modal model tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-140.04",
+    "wp": "PF-WP-140",
+    "task": "Implement Windows capture and Mac native proxy fallback",
+    "deps": "060.02,060.04,140.03",
+    "evidence": "Reference demo",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-140.05",
+    "wp": "PF-WP-140",
+    "task": "Implement IME/raw keys/clipboard/drag-drop",
+    "deps": "140.03",
+    "evidence": "International/input tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-140.06",
+    "wp": "PF-WP-140",
+    "task": "Implement mixed-DPI/z-order/minimize semantics",
+    "deps": "140.03",
+    "evidence": "Multi-monitor matrix",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-140.07",
+    "wp": "PF-WP-140",
+    "task": "Implement secure/protected surface detection and fallback",
+    "deps": "140.01,140.04",
+    "evidence": "UAC/DRM/security tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-140.08",
+    "wp": "PF-WP-140",
+    "task": "Implement stream atlas/session budgeting",
+    "deps": "140.04",
+    "evidence": "Encoder saturation test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-150.01",
+    "wp": "PF-WP-150",
+    "task": "Implement overlay/direct/relay path discovery",
+    "deps": "010.05",
+    "evidence": "Roaming tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-150.02",
+    "wp": "PF-WP-150",
+    "task": "Implement WAN congestion and loss adaptation",
+    "deps": "070.04",
+    "evidence": "Network emulator suite",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-150.03",
+    "wp": "PF-WP-150",
+    "task": "Implement device roaming and session resume",
+    "deps": "150.01",
+    "evidence": "IP/sleep transition tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-150.04",
+    "wp": "PF-WP-150",
+    "task": "Integrate Parsec optional adapter",
+    "deps": "050.06",
+    "evidence": "Adapter test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-150.05",
+    "wp": "PF-WP-150",
+    "task": "Integrate PiKVM/JetKVM-class OOB APIs",
+    "deps": "010.01",
+    "evidence": "BIOS/crash scenario",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-150.06",
+    "wp": "PF-WP-150",
+    "task": "Implement management VLAN/ACL policy templates",
+    "deps": "150.05",
+    "evidence": "Security review",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-160.01",
+    "wp": "PF-WP-160",
+    "task": "Threat model all trust and privilege boundaries",
+    "deps": "000.01",
+    "evidence": "Reviewed threat model",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-160.02",
+    "wp": "PF-WP-160",
+    "task": "Implement ECDH-confirmed mutual enrollment and rotation",
+    "deps": "010.06",
+    "evidence": "Protocol tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-160.03",
+    "wp": "PF-WP-160",
+    "task": "Implement capability-scoped authorization and leases",
+    "deps": "020.04",
+    "evidence": "Policy/property tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-160.04",
+    "wp": "PF-WP-160",
+    "task": "Implement OS key-store/TPM/Keychain integration",
+    "deps": "160.02",
+    "evidence": "Clean-machine security tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-160.05",
+    "wp": "PF-WP-160",
+    "task": "Implement signed helper/update pipeline",
+    "deps": "060.05",
+    "evidence": "Supply-chain evidence",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-160.06",
+    "wp": "PF-WP-160",
+    "task": "Implement audit/event integrity and redaction",
+    "deps": "000.02",
+    "evidence": "Audit tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-160.07",
+    "wp": "PF-WP-160",
+    "task": "Red-team input capture, surface, clipboard, OOB and relay paths",
+    "deps": "160.01-160.06",
+    "evidence": "Adversarial report",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-170.01",
+    "wp": "PF-WP-170",
+    "task": "Define stage taxonomy, clocks and trace context",
+    "deps": "000.05",
+    "evidence": "Telemetry schema",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-170.02",
+    "wp": "PF-WP-170",
+    "task": "Build capture-to-enqueue and input-to-photon lab",
+    "deps": "170.01",
+    "evidence": "Calibration report",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-170.03",
+    "wp": "PF-WP-170",
+    "task": "Build audio loopback/xrun/drift lab",
+    "deps": "170.01",
+    "evidence": "Calibration report",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-170.04",
+    "wp": "PF-WP-170",
+    "task": "Build mixed-load and contention corpus",
+    "deps": "170.01",
+    "evidence": "Reference scenarios",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-170.05",
+    "wp": "PF-WP-170",
+    "task": "Build network impairment/fault lab",
+    "deps": "170.01",
+    "evidence": "Repro scripts",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-170.06",
+    "wp": "PF-WP-170",
+    "task": "Build requirement-to-evidence matrix and gates",
+    "deps": "000.02",
+    "evidence": "Traceability report",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-170.07",
+    "wp": "PF-WP-170",
+    "task": "Implement regression dashboards and artifact retention",
+    "deps": "170.02-170.06",
+    "evidence": "CI evidence",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-180.01",
+    "wp": "PF-WP-180",
+    "task": "Define per-OS installer and component manifests",
+    "deps": "050.01,060.05",
+    "evidence": "Manifest validation",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-180.02",
+    "wp": "PF-WP-180",
+    "task": "Implement guided permissions/driver/device enrollment",
+    "deps": "180.01",
+    "evidence": "Clean-machine UX test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-180.03",
+    "wp": "PF-WP-180",
+    "task": "Implement update rings, compatibility checks and rollback",
+    "deps": "180.01",
+    "evidence": "Upgrade fault tests",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-180.04",
+    "wp": "PF-WP-180",
+    "task": "Implement local-first coordinator and replica recovery",
+    "deps": "020.05",
+    "evidence": "Coordinator loss test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-180.05",
+    "wp": "PF-WP-180",
+    "task": "Ship workspace templates and diagnostics bundle",
+    "deps": "050.03,170.07",
+    "evidence": "Operator acceptance",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-180.06",
+    "wp": "PF-WP-180",
+    "task": "Define support/security response and deprecation policy",
+    "deps": "160.06",
+    "evidence": "Operations review",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-190.01",
+    "wp": "PF-WP-190",
+    "task": "Select high-value interposition workloads and boundaries",
+    "deps": "120.06",
+    "evidence": "Experiment charter",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-190.02",
+    "wp": "PF-WP-190",
+    "task": "Prototype FUSE/filesystem-operation relocation",
+    "deps": "190.01",
+    "evidence": "Net-benefit benchmark",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-190.03",
+    "wp": "PF-WP-190",
+    "task": "Prototype syscall/eBPF/seccomp mediation where safe",
+    "deps": "190.01",
+    "evidence": "Overhead/correctness report",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-190.04",
+    "wp": "PF-WP-190",
+    "task": "Prototype runtime/library function offload",
+    "deps": "190.01",
+    "evidence": "Cooperative benchmark",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-190.05",
+    "wp": "PF-WP-190",
+    "task": "Prototype accelerator-kernel routing/graph capture",
+    "deps": "190.01",
+    "evidence": "GPU benchmark",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-190.06",
+    "wp": "PF-WP-190",
+    "task": "Implement automatic fusion fallback",
+    "deps": "190.02-190.05",
+    "evidence": "No-regression test",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-190.07",
+    "wp": "PF-WP-190",
+    "task": "Graduate or reject each mechanism by evidence",
+    "deps": "190.02-190.06",
+    "evidence": "ADR update",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-200.01",
+    "wp": "PF-WP-200",
+    "task": "Run desk/couch/MacBook-third-display acceptance",
+    "deps": "050.03,070.05",
+    "evidence": "Scenario evidence",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-200.02",
+    "wp": "PF-WP-200",
+    "task": "Run gaming mixed-load acceptance",
+    "deps": "090.05,120.04",
+    "evidence": "Frame/input evidence",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-200.03",
+    "wp": "PF-WP-200",
+    "task": "Run Ableton mixed-load acceptance",
+    "deps": "080.05",
+    "evidence": "Audio evidence",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-200.04",
+    "wp": "PF-WP-200",
+    "task": "Run agent game-E2E and ephemeral realm acceptance",
+    "deps": "100.03,120.05",
+    "evidence": "Agent evidence",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-200.05",
+    "wp": "PF-WP-200",
+    "task": "Run WAN/OOB and fault acceptance",
+    "deps": "150.02,150.05",
+    "evidence": "Recovery evidence",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-200.06",
+    "wp": "PF-WP-200",
+    "task": "Run security/red-team and upgrade acceptance",
+    "deps": "160.07,180.03",
+    "evidence": "Release report",
+    "state": "Planned"
+  },
+  {
+    "id": "PF-WP-200.07",
+    "wp": "PF-WP-200",
+    "task": "Publish release manifest and known limits",
+    "deps": "200.01-200.06",
+    "evidence": "Signed release evidence",
+    "state": "Planned"
+  }
+]

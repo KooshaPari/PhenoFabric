@@ -1,0 +1,170 @@
+[
+  {
+    "id": "RE-001",
+    "name": "Same-host surface route shootout",
+    "compare": "LG/KVMFR vs Parsec vs Sunshine/Moonlight vs RDP/SPICE on the same VM",
+    "metrics": "capture\u2192enqueue, input\u2192photon, CPU/GPU/copy engines, frame pacing, quality",
+    "matrix": "Idle and mixed game/compiler load; 60/120/144 Hz; SDR/HDR",
+    "gate": "Select minimum valid path; document stage count."
+  },
+  {
+    "id": "RE-002",
+    "name": "Input switch torture",
+    "compare": "Central broker vs QEMU grabs; randomized held keys/buttons/raw mouse",
+    "metrics": "stuck state, switch p50/p95/p99/max, lost/duplicated events",
+    "matrix": "1M transitions, target crash, coordinator crash, hotplug",
+    "gate": "Zero stuck/lost ownership failures."
+  },
+  {
+    "id": "RE-003",
+    "name": "MacBook sink matrix",
+    "compare": "HEVC/H.264/available codecs, 8/10-bit, 60/120 Hz, scale modes",
+    "metrics": "decode time, compositor delay, thermals, dropped frames, power",
+    "matrix": "M1 Pro local workload plus remote desktop/game",
+    "gate": "Choose supported profiles; no assumed AV1 hardware."
+  },
+  {
+    "id": "RE-004",
+    "name": "HDR/color chain",
+    "compare": "Windows/Linux source to C27HG70 and M1 Pro",
+    "metrics": "DeltaE/gamut coverage where instrumented, clipping, metadata, banding",
+    "matrix": "SDR, PQ HDR, desktop text, game, video",
+    "gate": "Controlled policy no worse than native baseline within tolerance."
+  },
+  {
+    "id": "RE-005",
+    "name": "Ableton isolation",
+    "compare": "Ableton project at several buffer sizes with cargo build, game E2E, inference and disk I/O",
+    "metrics": "xruns, callback deadline, round-trip latency, DPC/scheduler spikes",
+    "matrix": "Local and routed audio; CPU/GPU/network saturation",
+    "gate": "No xruns within admitted envelope; honest rejection otherwise."
+  },
+  {
+    "id": "RE-006",
+    "name": "Network audio clock soak",
+    "compare": "Independent PC/Mac clocks over wired LAN",
+    "metrics": "drift estimate error, buffer occupancy, ASRC ratio, glitch count",
+    "matrix": "1h/8h/24h, induced jitter and clock skew",
+    "gate": "Stable occupancy and zero audible discontinuity."
+  },
+  {
+    "id": "RE-007",
+    "name": "Independent queue isolation",
+    "compare": "Bulk clipboard/file transfer during input/audio/video",
+    "metrics": "input p99, audio xrun, video frame age, transfer throughput",
+    "matrix": "Shared vs isolated queues; congestion and packet loss",
+    "gate": "RT classes unaffected within gate."
+  },
+  {
+    "id": "RE-008",
+    "name": "Explicit placement corpus",
+    "compare": "Rust builds, tests, game E2E, encoding, inference, compression",
+    "metrics": "completion, queue, transfer, energy, foreground externality",
+    "matrix": "Main PC/Mac/bench/remote nodes with cold/warm data",
+    "gate": "Cost model picks measured winner above threshold."
+  },
+  {
+    "id": "RE-009",
+    "name": "Object residency",
+    "compare": "Immutable object cache, spill and replicas",
+    "metrics": "copy count, lookup, transfer, corruption recovery, space",
+    "matrix": "SHM, SSD, LAN, WAN, node loss",
+    "gate": "Correct authority/version and positive cache benefit."
+  },
+  {
+    "id": "RE-010",
+    "name": "Fusion/fission",
+    "compare": "Synthetic micro-ops and real build/inference traces",
+    "metrics": "decision overhead, completion, migrations, oscillation",
+    "matrix": "RTT/locality/load sweeps",
+    "gate": "Adaptive policy beats atomic-every-time and static-region baselines."
+  },
+  {
+    "id": "RE-011",
+    "name": "Prefetch prediction",
+    "compare": "Known workflow transitions and adversarial changes",
+    "metrics": "cold-start p95, hit rate, bytes wasted, eviction externality",
+    "matrix": "Build, agent tool, game E2E, Ableton project",
+    "gate": "Net p95 gain inside waste budget."
+  },
+  {
+    "id": "RE-012",
+    "name": "Seamless app compatibility",
+    "compare": "Representative Windows/Linux apps including browser, IDE, video, Blender, dialogs",
+    "metrics": "window graph correctness, IME, DPI, cursor, latency, encoder sessions",
+    "matrix": "RAIL/Xpra/Waypipe/pixel proxy/full desktop",
+    "gate": "Per-app route and fallback recorded."
+  },
+  {
+    "id": "RE-013",
+    "name": "Surface atlas",
+    "compare": "1\u201332 proxy windows with static/motion mixes",
+    "metrics": "encoder sessions, bandwidth, interaction latency, artifacts",
+    "matrix": "Dedicated vs atlas, damage rates",
+    "gate": "Atlas beneficial for static mix; dedicated for high-motion as selected."
+  },
+  {
+    "id": "RE-014",
+    "name": "WAN impairment",
+    "compare": "Desktop/app/audio/input over latency/loss/jitter/bandwidth transitions",
+    "metrics": "p50/p95/p99, recovery, quality changes, disconnect time",
+    "matrix": "Network emulator and real remote node",
+    "gate": "No unsafe focus; stable adaptation and resumability."
+  },
+  {
+    "id": "RE-015",
+    "name": "Partition/fencing",
+    "compare": "Coordinator and link partitions during route/focus transaction",
+    "metrics": "dual ownership, stale acceptance, rollback time",
+    "matrix": "Prepare/commit boundaries and clock skew",
+    "gate": "No stale-token action accepted."
+  },
+  {
+    "id": "RE-016",
+    "name": "Agent realm lifecycle",
+    "compare": "Provision N VMs/sandboxes, publish surfaces, expire/restore",
+    "metrics": "time-to-ready, cleanup leaks, focus theft, evidence completeness",
+    "matrix": "1/8/32 realms and provider failures",
+    "gate": "No focus theft; bounded cleanup and fallback."
+  },
+  {
+    "id": "RE-017",
+    "name": "OOB recovery",
+    "compare": "OS hang, driver crash, no boot, wrong display, network path failure",
+    "metrics": "time to control/recover, action count",
+    "matrix": "PiKVM/JetKVM/software fallbacks",
+    "gate": "Defined recovery coverage for each important host."
+  },
+  {
+    "id": "RE-018",
+    "name": "Security adversarial suite",
+    "compare": "Pairing MITM, stale tokens, malicious adapter, clipboard exfiltration, input logger, OOB exposure",
+    "metrics": "exploit success, detection, containment, audit",
+    "matrix": "Local/LAN/WAN and privilege boundaries",
+    "gate": "No critical open finding at promotion."
+  },
+  {
+    "id": "RE-019",
+    "name": "FUSE coalescing/offload",
+    "compare": "ShareCLI-like repeated build/read patterns",
+    "metrics": "overhead, duplicate bytes/work, completion, correctness",
+    "matrix": "FUSE on/off, cache cold/warm, same-host/LAN",
+    "gate": "Graduate only positive bounded workload."
+  },
+  {
+    "id": "RE-020",
+    "name": "Atomic mediation envelope",
+    "compare": "Function/syscall/kernel candidates across locality tiers",
+    "metrics": "break-even granularity, marshal/sync cost, failures",
+    "matrix": "same process/OS/host/RDMA/LAN/WAN",
+    "gate": "Publish empirical granularity map, not universal claim."
+  },
+  {
+    "id": "RE-021",
+    "name": "User workflow comparison",
+    "compare": "Separate apps vs unified shell for desk/couch/bench/agent tasks",
+    "metrics": "actions, errors, completion, cognitive load, recovery",
+    "matrix": "Expert and ordinary modes",
+    "gate": "Unified shell materially improves workflow without hiding failures."
+  }
+]

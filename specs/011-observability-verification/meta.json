@@ -1,0 +1,27 @@
+{
+  "id": "011-observability-verification",
+  "title": "Observability, Benchmarking, and Verification",
+  "created": "2026-08-28",
+  "state": "specified",
+  "scope": "Measurement boundaries, telemetry, benchmark harness, fault injection, compatibility, evidence",
+  "requirements": [
+    "PF-FR-006",
+    "PF-FR-014",
+    "PF-FR-045",
+    "PF-FR-087"
+  ],
+  "source_intent": [
+    "INT-P001",
+    "INT-P002",
+    "INT-P003",
+    "INT-P004",
+    "INT-P005",
+    "INT-P006",
+    "INT-P007",
+    "INT-P008"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true
+  }
+}

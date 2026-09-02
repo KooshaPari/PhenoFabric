@@ -1,0 +1,29 @@
+{
+  "id": "001-unified-product-shell",
+  "title": "Unified Product Shell and Workspace Model",
+  "created": "2026-08-28",
+  "state": "specified",
+  "scope": "Cross-platform packaged UI, CLI, SDK, installer, discovery, graph canvas, simple workspace controls",
+  "requirements": [
+    "PF-FR-001",
+    "PF-FR-002",
+    "PF-FR-003",
+    "PF-FR-004",
+    "PF-FR-005",
+    "PF-FR-006"
+  ],
+  "source_intent": [
+    "INT-P001",
+    "INT-P002",
+    "INT-P003",
+    "INT-P004",
+    "INT-P005",
+    "INT-P006",
+    "INT-P007",
+    "INT-P008"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true
+  }
+}

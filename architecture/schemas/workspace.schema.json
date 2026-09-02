@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phenotype.dev/schemas/fabric/workspace.schema.json",
+  "title": "Workspace",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "version",
+    "graph",
+    "zones",
+    "policies"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^pf://workspace/"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "graph": {
+      "$ref": "graph.schema.json"
+    },
+    "zones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "endpoints"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "policies": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "hotkeys": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "fallbackWorkspaceId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

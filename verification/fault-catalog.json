@@ -1,0 +1,92 @@
+[
+  {
+    "id": "FI-001",
+    "fault": "Kill coordinator before route prepare",
+    "expected": "No data-plane impact; request fails/retries safely."
+  },
+  {
+    "id": "FI-002",
+    "fault": "Kill coordinator after prepare before commit",
+    "expected": "Prepared resources expire/abort; old route remains authoritative."
+  },
+  {
+    "id": "FI-003",
+    "fault": "Partition coordinator from one endpoint",
+    "expected": "Stale fencing token rejected; no dual focus."
+  },
+  {
+    "id": "FI-004",
+    "fault": "Kill source adapter mid-stream",
+    "expected": "Sink freezes/marks stale; audio/input return to safe policy; fallback offered."
+  },
+  {
+    "id": "FI-005",
+    "fault": "Kill sink/compositor",
+    "expected": "Source virtual display/stream cleaned or parked after timeout."
+  },
+  {
+    "id": "FI-006",
+    "fault": "Hold every modifier/button during switch",
+    "expected": "Old target receives releases; new target starts defined state."
+  },
+  {
+    "id": "FI-007",
+    "fault": "Raw-relative game/CAD capture then network loss",
+    "expected": "Emergency chord/local control releases capture."
+  },
+  {
+    "id": "FI-008",
+    "fault": "Encoder/decoder exhaustion",
+    "expected": "Compiler chooses valid lower path or rejects; no unbounded queue."
+  },
+  {
+    "id": "FI-009",
+    "fault": "GPU reset/driver crash",
+    "expected": "Route fails explicit; VM/OOB fallback remains reachable."
+  },
+  {
+    "id": "FI-010",
+    "fault": "Audio device disappears",
+    "expected": "Graph reconfigures or stops recording/monitoring explicitly; no silent wrong sink."
+  },
+  {
+    "id": "FI-011",
+    "fault": "Clock jump/drift spike",
+    "expected": "Estimator rejects outlier; buffer stays bounded or route fails clearly."
+  },
+  {
+    "id": "FI-012",
+    "fault": "Object authority node fails",
+    "expected": "Promote only valid replica by policy; no split writer."
+  },
+  {
+    "id": "FI-013",
+    "fault": "Corrupt cached object",
+    "expected": "Hash/version detects and refetches; authority remains intact."
+  },
+  {
+    "id": "FI-014",
+    "fault": "Storage full",
+    "expected": "Admission/spill fails before corrupting state; cleanup guidance emitted."
+  },
+  {
+    "id": "FI-015",
+    "fault": "Network bandwidth step/loss burst",
+    "expected": "Declared quality ladder; RT queues protected."
+  },
+  {
+    "id": "FI-016",
+    "fault": "Agent realm provider hangs",
+    "expected": "TTL/cancel/fallback console and resource reclamation."
+  },
+  {
+    "id": "FI-017",
+    "fault": "Upgrade interrupted",
+    "expected": "Previous compatible core/helpers remain bootable or rollback."
+  },
+  {
+    "id": "FI-018",
+    "fault": "OOB device unreachable",
+    "expected": "Secondary physical/local recovery path documented."
+  }
+]

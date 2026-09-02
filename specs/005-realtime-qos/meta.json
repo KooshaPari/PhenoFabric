@@ -1,0 +1,30 @@
+{
+  "id": "005-realtime-qos",
+  "title": "Real-Time QoS, Admission, and Contention Control",
+  "created": "2026-08-28",
+  "state": "specified",
+  "scope": "RT0-Bulk classes, resource reservations, Ableton/gaming protection, adaptive degradation, thermal/power policy",
+  "requirements": [
+    "PF-FR-056",
+    "PF-FR-070",
+    "PF-FR-071",
+    "PF-FR-072",
+    "PF-FR-073",
+    "PF-FR-074",
+    "PF-FR-075"
+  ],
+  "source_intent": [
+    "INT-P001",
+    "INT-P002",
+    "INT-P003",
+    "INT-P004",
+    "INT-P005",
+    "INT-P006",
+    "INT-P007",
+    "INT-P008"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true
+  }
+}

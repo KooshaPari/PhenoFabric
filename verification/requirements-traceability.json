@@ -1,0 +1,682 @@
+[
+  {
+    "fr": "PF-FR-001",
+    "priority": "P0",
+    "requirement": "The system shall provide a single packaged UI, CLI, SDK, and agent-facing API across supported platforms.",
+    "spec": "001-unified-product-shell",
+    "verification": "PF-CT-SHELL-001",
+    "acceptance": "PF-AT-UX-001",
+    "evidence": "workspace and clean-install evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-002",
+    "priority": "P0",
+    "requirement": "The system shall discover physical devices, realms, sessions, seats, surfaces, resources, and endpoint capabilities.",
+    "spec": "001-unified-product-shell",
+    "verification": "PF-CT-SHELL-002",
+    "acceptance": "PF-AT-UX-002",
+    "evidence": "workspace and clean-install evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-003",
+    "priority": "P0",
+    "requirement": "The system shall preserve stable IDs across reconnects and distinguish identity from transient address or display order.",
+    "spec": "001-unified-product-shell",
+    "verification": "PF-CT-SHELL-003",
+    "acceptance": "PF-AT-UX-003",
+    "evidence": "workspace and clean-install evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-004",
+    "priority": "P0",
+    "requirement": "The system shall present both a simplified workspace UI and an expert graph/patchbay UI.",
+    "spec": "001-unified-product-shell",
+    "verification": "PF-CT-SHELL-004",
+    "acceptance": "PF-AT-UX-004",
+    "evidence": "workspace and clean-install evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-005",
+    "priority": "P0",
+    "requirement": "The system shall serialize, version, activate, diff, and roll back workspace graphs.",
+    "spec": "001-unified-product-shell",
+    "verification": "PF-CT-SHELL-005",
+    "acceptance": "PF-AT-UX-005",
+    "evidence": "workspace and clean-install evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-006",
+    "priority": "P0",
+    "requirement": "The system shall expose health, pressure, and route status without requiring users to inspect each backend.",
+    "spec": "001-unified-product-shell",
+    "verification": "PF-CT-SHELL-006",
+    "acceptance": "PF-AT-UX-006",
+    "evidence": "workspace and clean-install evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-010",
+    "priority": "P0",
+    "requirement": "Every connectable capability shall be represented by typed ports with format, timing, security, and locality metadata.",
+    "spec": "002-universal-io-graph; 004-locality-route-compiler",
+    "verification": "PF-CT-GRAPH-007",
+    "acceptance": "PF-AT-ROUTE-007",
+    "evidence": "graph transaction and route-plan evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-011",
+    "priority": "P0",
+    "requirement": "A desired link shall be distinct from its compiled route.",
+    "spec": "002-universal-io-graph; 004-locality-route-compiler",
+    "verification": "PF-CT-GRAPH-008",
+    "acceptance": "PF-AT-ROUTE-008",
+    "evidence": "graph transaction and route-plan evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-012",
+    "priority": "P0",
+    "requirement": "Route compilation shall search locality tiers from least expensive to most remote, subject to policy.",
+    "spec": "002-universal-io-graph; 004-locality-route-compiler",
+    "verification": "PF-CT-GRAPH-009",
+    "acceptance": "PF-AT-ROUTE-009",
+    "evidence": "graph transaction and route-plan evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-013",
+    "priority": "P0",
+    "requirement": "The compiler shall eliminate unnecessary copy, serialization, codec, color-conversion, resampling, and relay stages.",
+    "spec": "002-universal-io-graph; 004-locality-route-compiler",
+    "verification": "PF-CT-GRAPH-010",
+    "acceptance": "PF-AT-ROUTE-010",
+    "evidence": "graph transaction and route-plan evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-014",
+    "priority": "P1",
+    "requirement": "The compiler shall produce a route explanation with considered alternatives and rejected constraints.",
+    "spec": "002-universal-io-graph; 004-locality-route-compiler",
+    "verification": "PF-CT-GRAPH-011",
+    "acceptance": "PF-AT-ROUTE-011",
+    "evidence": "graph transaction and route-plan evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-015",
+    "priority": "P0",
+    "requirement": "Route changes shall be transactional with prepare, validate, commit, abort, and rollback.",
+    "spec": "002-universal-io-graph; 004-locality-route-compiler",
+    "verification": "PF-CT-GRAPH-012",
+    "acceptance": "PF-AT-ROUTE-012",
+    "evidence": "graph transaction and route-plan evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-016",
+    "priority": "P0",
+    "requirement": "Recursive capture/route loops shall be detected and blocked.",
+    "spec": "002-universal-io-graph; 004-locality-route-compiler",
+    "verification": "PF-CT-GRAPH-013",
+    "acceptance": "PF-AT-ROUTE-013",
+    "evidence": "graph transaction and route-plan evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-017",
+    "priority": "P0",
+    "requirement": "Routes shall replan when topology/capabilities change, but shall not silently violate hard constraints.",
+    "spec": "002-universal-io-graph; 004-locality-route-compiler",
+    "verification": "PF-CT-GRAPH-014",
+    "acceptance": "PF-AT-ROUTE-014",
+    "evidence": "graph transaction and route-plan evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-020",
+    "priority": "P0",
+    "requirement": "A central broker shall route physical and virtual keyboard, mouse, controller, pen, touch, and MIDI input.",
+    "spec": "002-universal-io-graph; 005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-ST-INPUT-015",
+    "acceptance": "PF-AT-SEAT-015",
+    "evidence": "input torture and focus-lease evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-021",
+    "priority": "P0",
+    "requirement": "Input focus shall be governed by exclusive leases and monotonically increasing fencing tokens.",
+    "spec": "002-universal-io-graph; 005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-ST-INPUT-016",
+    "acceptance": "PF-AT-SEAT-016",
+    "evidence": "input torture and focus-lease evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-022",
+    "priority": "P0",
+    "requirement": "Focus transfer shall synthesize releases for all held keys/buttons before revoking the old route.",
+    "spec": "002-universal-io-graph; 005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-ST-INPUT-017",
+    "acceptance": "PF-AT-SEAT-017",
+    "evidence": "input torture and focus-lease evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-023",
+    "priority": "P0",
+    "requirement": "Absolute desktop pointer and raw-relative capture modes shall be explicit and mutually safe.",
+    "spec": "002-universal-io-graph; 005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-ST-INPUT-018",
+    "acceptance": "PF-AT-SEAT-018",
+    "evidence": "input torture and focus-lease evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-024",
+    "priority": "P0",
+    "requirement": "Users shall independently cycle input focus, output focus, or both.",
+    "spec": "002-universal-io-graph; 005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-ST-INPUT-019",
+    "acceptance": "PF-AT-SEAT-019",
+    "evidence": "input torture and focus-lease evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-025",
+    "priority": "P0",
+    "requirement": "A local break-glass input path shall remain available.",
+    "spec": "002-universal-io-graph; 005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-ST-INPUT-020",
+    "acceptance": "PF-AT-SEAT-020",
+    "evidence": "input torture and focus-lease evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-026",
+    "priority": "P0",
+    "requirement": "Agents shall not acquire human input focus without an explicit grant or policy.",
+    "spec": "002-universal-io-graph; 005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-ST-INPUT-021",
+    "acceptance": "PF-AT-SEAT-021",
+    "evidence": "input torture and focus-lease evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-030",
+    "priority": "P0",
+    "requirement": "The system shall support takeover, extend, portal, mirror/pin, and audio-only presentation modes.",
+    "spec": "006-seamless-surface-presentation; 007-platform-continuity-adapters; 008-agent-ephemeral-realms",
+    "verification": "PF-ST-SURFACE-022",
+    "acceptance": "PF-AT-SURFACE-022",
+    "evidence": "surface compatibility and agent focus evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-031",
+    "priority": "P0",
+    "requirement": "A sink device may advertise a panel as a dynamic virtual monitor for another realm.",
+    "spec": "006-seamless-surface-presentation; 007-platform-continuity-adapters; 008-agent-ephemeral-realms",
+    "verification": "PF-ST-SURFACE-023",
+    "acceptance": "PF-AT-SURFACE-023",
+    "evidence": "surface compatibility and agent focus evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-032",
+    "priority": "P1",
+    "requirement": "The system shall prefer semantic per-application remoting when compatible and fall back to pixel proxies.",
+    "spec": "006-seamless-surface-presentation; 007-platform-continuity-adapters; 008-agent-ephemeral-realms",
+    "verification": "PF-ST-SURFACE-024",
+    "acceptance": "PF-AT-SURFACE-024",
+    "evidence": "surface compatibility and agent focus evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-033",
+    "priority": "P1",
+    "requirement": "Pixel-proxy mode shall preserve owned-window relationships, modals, popups, z-order intent, and minimize semantics.",
+    "spec": "006-seamless-surface-presentation; 007-platform-continuity-adapters; 008-agent-ephemeral-realms",
+    "verification": "PF-ST-SURFACE-025",
+    "acceptance": "PF-AT-SURFACE-025",
+    "evidence": "surface compatibility and agent focus evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-034",
+    "priority": "P1",
+    "requirement": "The system shall support mixed-DPI coordinate translation and raw/semantic text input.",
+    "spec": "006-seamless-surface-presentation; 007-platform-continuity-adapters; 008-agent-ephemeral-realms",
+    "verification": "PF-ST-SURFACE-026",
+    "acceptance": "PF-AT-SURFACE-026",
+    "evidence": "surface compatibility and agent focus evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-035",
+    "priority": "P0",
+    "requirement": "Protected or unavailable surfaces shall fail explicitly and offer a whole-desktop or out-of-band fallback.",
+    "spec": "006-seamless-surface-presentation; 007-platform-continuity-adapters; 008-agent-ephemeral-realms",
+    "verification": "PF-ST-SURFACE-027",
+    "acceptance": "PF-AT-SURFACE-027",
+    "evidence": "surface compatibility and agent focus evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-036",
+    "priority": "P0",
+    "requirement": "Surface location shall be independent from process and compute location.",
+    "spec": "006-seamless-surface-presentation; 007-platform-continuity-adapters; 008-agent-ephemeral-realms",
+    "verification": "PF-ST-SURFACE-028",
+    "acceptance": "PF-AT-SURFACE-028",
+    "evidence": "surface compatibility and agent focus evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-037",
+    "priority": "P0",
+    "requirement": "The system shall allow an agent to publish a surface without forcing it visible or focused.",
+    "spec": "006-seamless-surface-presentation; 007-platform-continuity-adapters; 008-agent-ephemeral-realms",
+    "verification": "PF-ST-SURFACE-029",
+    "acceptance": "PF-AT-SURFACE-029",
+    "evidence": "surface compatibility and agent focus evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-040",
+    "priority": "P0",
+    "requirement": "Display capability descriptors shall include resolution, scale, refresh, VRR, bit depth, primaries, transfer functions, luminance, and ICC/EDID data where available.",
+    "spec": "004-locality-route-compiler; 005-realtime-qos; 006-seamless-surface-presentation; 011-observability-verification",
+    "verification": "PF-PT-VIDEO-030",
+    "acceptance": "PF-AT-HDR-030",
+    "evidence": "frame pacing, HDR and stage telemetry evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-041",
+    "priority": "P0",
+    "requirement": "Video links shall negotiate raw or encoded formats based on locality, source intent, sink capability, and resource pressure.",
+    "spec": "004-locality-route-compiler; 005-realtime-qos; 006-seamless-surface-presentation; 011-observability-verification",
+    "verification": "PF-PT-VIDEO-031",
+    "acceptance": "PF-AT-HDR-031",
+    "evidence": "frame pacing, HDR and stage telemetry evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-042",
+    "priority": "P0",
+    "requirement": "Workload profiles shall distinguish desktop-text, gaming, color-critical, and video cadence priorities.",
+    "spec": "004-locality-route-compiler; 005-realtime-qos; 006-seamless-surface-presentation; 011-observability-verification",
+    "verification": "PF-PT-VIDEO-032",
+    "acceptance": "PF-AT-HDR-032",
+    "evidence": "frame pacing, HDR and stage telemetry evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-043",
+    "priority": "P0",
+    "requirement": "HDR metadata shall be preserved where possible and explicit tone/gamut mapping shall be recorded where not.",
+    "spec": "004-locality-route-compiler; 005-realtime-qos; 006-seamless-surface-presentation; 011-observability-verification",
+    "verification": "PF-PT-VIDEO-033",
+    "acceptance": "PF-AT-HDR-033",
+    "evidence": "frame pacing, HDR and stage telemetry evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-044",
+    "priority": "P0",
+    "requirement": "Encoder, decoder, copy-engine, VRAM, PCIe, and memory-bandwidth pressure shall influence route selection.",
+    "spec": "004-locality-route-compiler; 005-realtime-qos; 006-seamless-surface-presentation; 011-observability-verification",
+    "verification": "PF-PT-VIDEO-034",
+    "acceptance": "PF-AT-HDR-034",
+    "evidence": "frame pacing, HDR and stage telemetry evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-045",
+    "priority": "P0",
+    "requirement": "The system shall expose frame pacing, capture, encode, network, decode, composition, and display-stage telemetry.",
+    "spec": "004-locality-route-compiler; 005-realtime-qos; 006-seamless-surface-presentation; 011-observability-verification",
+    "verification": "PF-PT-VIDEO-035",
+    "acceptance": "PF-AT-HDR-035",
+    "evidence": "frame pacing, HDR and stage telemetry evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-046",
+    "priority": "P0",
+    "requirement": "Quality degradation shall follow declared profiles rather than uncontrolled queue growth.",
+    "spec": "004-locality-route-compiler; 005-realtime-qos; 006-seamless-surface-presentation; 011-observability-verification",
+    "verification": "PF-PT-VIDEO-036",
+    "acceptance": "PF-AT-HDR-036",
+    "evidence": "frame pacing, HDR and stage telemetry evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-050",
+    "priority": "P0",
+    "requirement": "Audio, MIDI, OSC, microphone, and control surfaces shall be first-class graph port types.",
+    "spec": "005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-PT-AUDIO-037",
+    "acceptance": "PF-AT-ABLETON-037",
+    "evidence": "audio clock, xrun and MIDI evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-051",
+    "priority": "P0",
+    "requirement": "Audio routes shall carry sample format, rate, channels, clock domain, target latency, and xrun policy.",
+    "spec": "005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-PT-AUDIO-038",
+    "acceptance": "PF-AT-ABLETON-038",
+    "evidence": "audio clock, xrun and MIDI evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-052",
+    "priority": "P0",
+    "requirement": "Local routes shall avoid encoding/resampling when compatible direct/shared paths exist.",
+    "spec": "005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-PT-AUDIO-039",
+    "acceptance": "PF-AT-ABLETON-039",
+    "evidence": "audio clock, xrun and MIDI evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-053",
+    "priority": "P1",
+    "requirement": "Network routes shall estimate clock drift and apply bounded elastic buffering and asynchronous sample-rate conversion when required.",
+    "spec": "005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-PT-AUDIO-040",
+    "acceptance": "PF-AT-ABLETON-040",
+    "evidence": "audio clock, xrun and MIDI evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-054",
+    "priority": "P0",
+    "requirement": "Audio and video may share synchronization intent but shall retain independent buffering and transport.",
+    "spec": "005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-PT-AUDIO-041",
+    "acceptance": "PF-AT-ABLETON-041",
+    "evidence": "audio clock, xrun and MIDI evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-055",
+    "priority": "P1",
+    "requirement": "MIDI/control events shall be timestamped and not tunneled as generic USB unless device fidelity requires it.",
+    "spec": "005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-PT-AUDIO-042",
+    "acceptance": "PF-AT-ABLETON-042",
+    "evidence": "audio clock, xrun and MIDI evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-056",
+    "priority": "P0",
+    "requirement": "The system shall provide protected RT audio islands for Ableton-class workloads.",
+    "spec": "005-realtime-qos; 007-platform-continuity-adapters",
+    "verification": "PF-PT-AUDIO-043",
+    "acceptance": "PF-AT-ABLETON-043",
+    "evidence": "audio clock, xrun and MIDI evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-060",
+    "priority": "P0",
+    "requirement": "The system shall inventory CPU topology, NUMA, caches, accelerators, memory domains, storage, NICs, PCIe paths, thermals, and power state.",
+    "spec": "003-compute-data-fabric; 004-locality-route-compiler",
+    "verification": "PF-PT-COMPUTE-044",
+    "acceptance": "PF-AT-MESH-044",
+    "evidence": "placement, residency and adaptive-region evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-061",
+    "priority": "P0",
+    "requirement": "Tasks and objects shall declare capabilities, locality, security, consistency, deadline, and resource constraints.",
+    "spec": "003-compute-data-fabric; 004-locality-route-compiler",
+    "verification": "PF-PT-COMPUTE-045",
+    "acceptance": "PF-AT-MESH-045",
+    "evidence": "placement, residency and adaptive-region evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-062",
+    "priority": "P0",
+    "requirement": "Placement shall minimize predicted total completion cost including queueing, compute, state movement, data transfer, synchronization, result return, contention, and risk.",
+    "spec": "003-compute-data-fabric; 004-locality-route-compiler",
+    "verification": "PF-PT-COMPUTE-046",
+    "acceptance": "PF-AT-MESH-046",
+    "evidence": "placement, residency and adaptive-region evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-063",
+    "priority": "P0",
+    "requirement": "The runtime shall track object identity, versions, authority, replicas, caches, and residency.",
+    "spec": "003-compute-data-fabric; 004-locality-route-compiler",
+    "verification": "PF-PT-COMPUTE-047",
+    "acceptance": "PF-AT-MESH-047",
+    "evidence": "placement, residency and adaptive-region evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-064",
+    "priority": "P0",
+    "requirement": "The runtime shall move compute to data or data to compute based on measured total cost.",
+    "spec": "003-compute-data-fabric; 004-locality-route-compiler",
+    "verification": "PF-PT-COMPUTE-048",
+    "acceptance": "PF-AT-MESH-048",
+    "evidence": "placement, residency and adaptive-region evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-065",
+    "priority": "P2",
+    "requirement": "Placement granularity may reach task, function, syscall, operation, or accelerator-kernel boundaries where interposition exists.",
+    "spec": "003-compute-data-fabric; 004-locality-route-compiler",
+    "verification": "PF-PT-COMPUTE-049",
+    "acceptance": "PF-AT-MESH-049",
+    "evidence": "placement, residency and adaptive-region evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-066",
+    "priority": "P1",
+    "requirement": "The runtime shall fuse repeated fine-grained decisions into execution regions and split regions when conditions diverge.",
+    "spec": "003-compute-data-fabric; 004-locality-route-compiler",
+    "verification": "PF-PT-COMPUTE-050",
+    "acceptance": "PF-AT-MESH-050",
+    "evidence": "placement, residency and adaptive-region evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-067",
+    "priority": "P1",
+    "requirement": "The runtime shall support prefetch, replication, speculative execution, cancellation, and cache eviction policies.",
+    "spec": "003-compute-data-fabric; 004-locality-route-compiler",
+    "verification": "PF-PT-COMPUTE-051",
+    "acceptance": "PF-AT-MESH-051",
+    "evidence": "placement, residency and adaptive-region evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-068",
+    "priority": "P1",
+    "requirement": "The runtime shall support mobility levels: surface projection, semantic handoff, application checkpoint, process checkpoint, VM migration, and workload rematerialization.",
+    "spec": "003-compute-data-fabric; 004-locality-route-compiler",
+    "verification": "PF-PT-COMPUTE-052",
+    "acceptance": "PF-AT-MESH-052",
+    "evidence": "placement, residency and adaptive-region evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-069",
+    "priority": "P0",
+    "requirement": "The runtime shall never represent remote memory or VRAM as uniform local capacity without visible latency/consistency semantics.",
+    "spec": "003-compute-data-fabric; 004-locality-route-compiler",
+    "verification": "PF-PT-COMPUTE-053",
+    "acceptance": "PF-AT-MESH-053",
+    "evidence": "placement, residency and adaptive-region evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-070",
+    "priority": "P0",
+    "requirement": "Work shall be classified into RT0, RT1, RT2, RT3, RT4, Bulk, and Background service classes.",
+    "spec": "005-realtime-qos",
+    "verification": "PF-PT-QOS-054",
+    "acceptance": "PF-AT-MIXED-054",
+    "evidence": "mixed-load admission/degradation evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-071",
+    "priority": "P0",
+    "requirement": "Resource reservations shall extend across CPU, GPU, encoder/decoder, memory bandwidth, storage I/O, network, thermal, and power constraints.",
+    "spec": "005-realtime-qos",
+    "verification": "PF-PT-QOS-055",
+    "acceptance": "PF-AT-MIXED-055",
+    "evidence": "mixed-load admission/degradation evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-072",
+    "priority": "P0",
+    "requirement": "Background builds, tests, inference, and agents shall be subordinate to declared foreground deadlines.",
+    "spec": "005-realtime-qos",
+    "verification": "PF-PT-QOS-056",
+    "acceptance": "PF-AT-MIXED-056",
+    "evidence": "mixed-load admission/degradation evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-073",
+    "priority": "P0",
+    "requirement": "The scheduler shall evict or relocate competing work before distributing tightly coupled game/audio critical paths.",
+    "spec": "005-realtime-qos",
+    "verification": "PF-PT-QOS-057",
+    "acceptance": "PF-AT-MIXED-057",
+    "evidence": "mixed-load admission/degradation evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-074",
+    "priority": "P0",
+    "requirement": "The system shall support explicit degradation ladders for frame rate, chroma, bitrate, resolution, and optional effects.",
+    "spec": "005-realtime-qos",
+    "verification": "PF-PT-QOS-058",
+    "acceptance": "PF-AT-MIXED-058",
+    "evidence": "mixed-load admission/degradation evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-075",
+    "priority": "P0",
+    "requirement": "The system shall expose admission-control failure rather than overcommit a hard real-time route.",
+    "spec": "005-realtime-qos",
+    "verification": "PF-PT-QOS-059",
+    "acceptance": "PF-AT-MIXED-059",
+    "evidence": "mixed-load admission/degradation evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-080",
+    "priority": "P0",
+    "requirement": "Device enrollment shall use mutually authenticated identities and revocable short-lived credentials.",
+    "spec": "008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations",
+    "verification": "PF-ST-SECOPS-060",
+    "acceptance": "PF-AT-RECOVERY-060",
+    "evidence": "security, audit, OOB and local-first evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-081",
+    "priority": "P0",
+    "requirement": "Permissions shall be capability-scoped by view, input, audio, microphone, clipboard, file, USB, migration, compute, and focus actions.",
+    "spec": "008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations",
+    "verification": "PF-ST-SECOPS-061",
+    "acceptance": "PF-AT-RECOVERY-061",
+    "evidence": "security, audit, OOB and local-first evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-082",
+    "priority": "P0",
+    "requirement": "Privileged capture, injection, driver, and KVM components shall be isolated from the UI/control process.",
+    "spec": "008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations",
+    "verification": "PF-ST-SECOPS-062",
+    "acceptance": "PF-AT-RECOVERY-062",
+    "evidence": "security, audit, OOB and local-first evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-083",
+    "priority": "P0",
+    "requirement": "Clipboard and file objects shall preserve MIME/types, provenance, sensitivity, expiry, and loop suppression.",
+    "spec": "008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations",
+    "verification": "PF-ST-SECOPS-063",
+    "acceptance": "PF-AT-RECOVERY-063",
+    "evidence": "security, audit, OOB and local-first evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-084",
+    "priority": "P0",
+    "requirement": "Important physical devices shall support an out-of-band recovery route.",
+    "spec": "008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations",
+    "verification": "PF-ST-SECOPS-064",
+    "acceptance": "PF-AT-RECOVERY-064",
+    "evidence": "security, audit, OOB and local-first evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-085",
+    "priority": "P0",
+    "requirement": "Ephemeral realms shall have owner, purpose, TTL, resource budget, fallback console, and cleanup policy.",
+    "spec": "008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations",
+    "verification": "PF-ST-SECOPS-065",
+    "acceptance": "PF-AT-RECOVERY-065",
+    "evidence": "security, audit, OOB and local-first evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-086",
+    "priority": "P0",
+    "requirement": "The system shall emit stable events and evidence references for AgilePlus, thegent, Tracera, SessionLedger, AGSLAG, ShareCLI, NVMS, and ledgers without assuming shared storage.",
+    "spec": "008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations",
+    "verification": "PF-ST-SECOPS-066",
+    "acceptance": "PF-AT-RECOVERY-066",
+    "evidence": "security, audit, OOB and local-first evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-087",
+    "priority": "P0",
+    "requirement": "All focus, route, privilege, migration, and placement decisions shall be auditable.",
+    "spec": "008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations",
+    "verification": "PF-ST-SECOPS-067",
+    "acceptance": "PF-AT-RECOVERY-067",
+    "evidence": "security, audit, OOB and local-first evidence",
+    "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-088",
+    "priority": "P0",
+    "requirement": "The system shall continue local operation during loss of cloud/coordination services where policy permits.",
+    "spec": "008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations",
+    "verification": "PF-ST-SECOPS-068",
+    "acceptance": "PF-AT-RECOVERY-068",
+    "evidence": "security, audit, OOB and local-first evidence",
+    "state": "Specified"
+  }
+]

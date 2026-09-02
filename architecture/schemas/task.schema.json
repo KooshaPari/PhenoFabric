@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phenotype.dev/schemas/fabric/task.schema.json",
+  "title": "Placement and Execution Region",
+  "type": "object",
+  "required": [
+    "id",
+    "workId",
+    "executable",
+    "inputs",
+    "outputs",
+    "constraints",
+    "objective"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^pf://"
+    },
+    "workId": {
+      "type": "string"
+    },
+    "executable": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "process",
+            "task",
+            "function",
+            "syscall",
+            "io_operation",
+            "gpu_kernel",
+            "vm",
+            "agent"
+          ]
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "codeRef": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "deadlineUs": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "serviceClass": {
+          "enum": [
+            "RT0",
+            "RT1",
+            "RT2",
+            "RT3",
+            "RT4",
+            "Bulk",
+            "Background"
+          ]
+        },
+        "trustZone": {
+          "type": "string"
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "maxDataMovementBytes": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "protectWorkspaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "objective": {
+      "enum": [
+        "minimize_completion_time",
+        "minimize_latency",
+        "maximize_throughput",
+        "minimize_energy",
+        "minimize_cost",
+        "custom"
+      ]
+    },
+    "mobility": {
+      "type": "object"
+    },
+    "fusion": {
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,56 @@
+schema_version: 1
+workspace_id: workspace://koosha/main-desk
+nodes:
+  - id: device://main
+    kind: device
+    labels: [trusted, main-pc]
+  - id: realm://main/linux-host
+    kind: realm
+    parent: device://main
+  - id: realm://main/windows-vfio
+    kind: realm
+    parent: device://main
+  - id: device://macbook
+    kind: device
+    labels: [trusted, portable]
+  - id: display://main/c27hg70
+    kind: display
+    parent: device://main
+  - id: display://macbook/panel
+    kind: display
+    parent: device://macbook
+  - id: seat://desk
+    kind: seat
+  - id: seat://couch
+    kind: seat
+ports:
+  - id: realm://main/windows-vfio/display/0
+    node: realm://main/windows-vfio
+    type: video.out
+    capabilities:
+      pixel_formats: [rgba8, p010]
+      transfer_functions: [srgb, pq]
+  - id: display://main/c27hg70/video
+    node: display://main/c27hg70
+    type: video.in
+  - id: display://macbook/panel/video
+    node: display://macbook/panel
+    type: video.in
+links:
+  - id: link://main-windows-to-c27
+    source: realm://main/windows-vfio/display/0
+    sink: display://main/c27hg70/video
+    policy:
+      profile: gaming
+      locality: prefer_nearest
+      hard:
+        preserve_focus_safety: true
+        no_uncontrolled_queue_growth: true
+  - id: link://macbook-third-display
+    source: realm://main/windows-vfio/display/virtual-macbook
+    sink: display://macbook/panel/video
+    enabled: false
+    policy:
+      profile: desktop-text
+      prefer_refresh_hz: 120
+      hdr: preserve_if_valid

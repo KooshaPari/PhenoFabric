@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package phenotype.fabric.v1;
+
+message EventEnvelope {
+  string event_id = 1;
+  string event_type = 2;
+  string schema_version = 3;
+  string producer_id = 4;
+  string principal_id = 5;
+  string correlation_id = 6;
+  string causation_id = 7;
+  int64 observed_unix_nanos = 8;
+  uint64 topology_epoch = 9;
+  bytes payload = 10;
+  bytes signature = 11;
+}
+
+message RouteDecision {
+  string route_id = 1;
+  string link_id = 2;
+  repeated string selected_stages = 3;
+  repeated Candidate alternatives = 4;
+  map<string, double> predicted_cost = 5;
+  map<string, double> actual_cost = 6;
+  repeated string requirement_ids = 7;
+  repeated string work_ids = 8;
+}
+
+message Candidate {
+  string id = 1;
+  bool valid = 2;
+  repeated string rejected_constraints = 3;
+  map<string, double> cost = 4;
+}
+
+message PlacementDecision {
+  string region_id = 1;
+  string resource_id = 2;
+  repeated string input_object_ids = 3;
+  repeated string considered_resource_ids = 4;
+  map<string, double> predicted_cost = 5;
+  double confidence = 6;
+}

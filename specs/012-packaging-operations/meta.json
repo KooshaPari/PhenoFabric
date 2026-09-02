@@ -1,0 +1,28 @@
+{
+  "id": "012-packaging-operations",
+  "title": "Packaging, Deployment, Upgrade, and Recovery",
+  "created": "2026-08-28",
+  "state": "specified",
+  "scope": "Cross-platform install, signed components, configuration, coordinator topology, updates, rollback, diagnostics, OOB recovery",
+  "requirements": [
+    "PF-FR-001",
+    "PF-FR-003",
+    "PF-FR-006",
+    "PF-FR-084",
+    "PF-FR-088"
+  ],
+  "source_intent": [
+    "INT-P001",
+    "INT-P002",
+    "INT-P003",
+    "INT-P004",
+    "INT-P005",
+    "INT-P006",
+    "INT-P007",
+    "INT-P008"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true
+  }
+}

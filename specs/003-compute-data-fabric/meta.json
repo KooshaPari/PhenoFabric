@@ -1,0 +1,33 @@
+{
+  "id": "003-compute-data-fabric",
+  "title": "Adaptive Heterogeneous Compute and Data Fabric",
+  "created": "2026-08-28",
+  "state": "specified",
+  "scope": "Resource inventory, task/object model, placement, residency, fusion/fission, mobility, predictive prefetch",
+  "requirements": [
+    "PF-FR-060",
+    "PF-FR-061",
+    "PF-FR-062",
+    "PF-FR-063",
+    "PF-FR-064",
+    "PF-FR-065",
+    "PF-FR-066",
+    "PF-FR-067",
+    "PF-FR-068",
+    "PF-FR-069"
+  ],
+  "source_intent": [
+    "INT-P001",
+    "INT-P002",
+    "INT-P003",
+    "INT-P004",
+    "INT-P005",
+    "INT-P006",
+    "INT-P007",
+    "INT-P008"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true
+  }
+}

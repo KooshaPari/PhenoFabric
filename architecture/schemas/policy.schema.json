@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phenotype.dev/schemas/fabric/policy.schema.json",
+  "title": "Fabric Policy",
+  "type": "object",
+  "required": [
+    "id",
+    "subject",
+    "effect",
+    "actions",
+    "resources"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "effect": {
+      "enum": [
+        "allow",
+        "deny",
+        "require_confirmation"
+      ]
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "view",
+          "input",
+          "audio_out",
+          "microphone",
+          "clipboard_read",
+          "clipboard_write",
+          "file_send",
+          "file_mount",
+          "usb",
+          "realm_create",
+          "compute_place",
+          "migrate",
+          "focus_take",
+          "oob"
+        ]
+      }
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "conditions": {
+      "type": "object"
+    },
+    "expiresAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "priority": {
+      "type": "integer"
+    }
+  }
+}

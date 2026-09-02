@@ -1,0 +1,114 @@
+[
+  {
+    "id": "PF-BM-001",
+    "domain": "Input",
+    "scenario": "Local focus transfer among host and 1\u20138 VMs",
+    "metrics": "switch p50/p95/p99/max; stuck/lost/duplicate events; broker CPU",
+    "loads": "idle, cargo build, game, hotplug, target crash",
+    "initial_gate": "p95 \u226450 ms after prepared; zero correctness failures in 1M randomized transitions"
+  },
+  {
+    "id": "PF-BM-002",
+    "domain": "Same-host video",
+    "scenario": "VFIO VM to Linux display via LG/KVMFR and alternatives",
+    "metrics": "input\u2192photon; capture/compositor stage; frame age; CPU/GPU/copies",
+    "loads": "1440p60/120/144 SDR/HDR; idle and mixed",
+    "initial_gate": "LG selected when valid; no unexplained codec/copy; p99 frame age bounded to declared profile"
+  },
+  {
+    "id": "PF-BM-003",
+    "domain": "LAN video",
+    "scenario": "Main/VM to M1 Pro over wired LAN",
+    "metrics": "stage latency, dropped/late frames, bitrate, encode/decode utilization, thermals",
+    "loads": "desktop 4:4:4, game, HDR video, Mac local load",
+    "initial_gate": "1440p120 preferred profile meets no-stall/frame-age target or compiler selects explicit lower profile"
+  },
+  {
+    "id": "PF-BM-004",
+    "domain": "Color/HDR",
+    "scenario": "Source intent to C27HG70 and M1 Pro",
+    "metrics": "metadata, bit depth, transfer/gamut mapping, clipping, banding, color error where instrumented",
+    "loads": "SDR, PQ, desktop text, game, video",
+    "initial_gate": "Transform is explicit and no worse than native/reference path within declared tolerance"
+  },
+  {
+    "id": "PF-BM-005",
+    "domain": "Audio local",
+    "scenario": "Ableton/ASIO protected island",
+    "metrics": "xruns, callback time/deadline, round trip, scheduler/DPC spikes",
+    "loads": "64/128/256 samples; compile, inference, storage, game E2E",
+    "initial_gate": "zero xruns in 4 h within admitted reference envelope"
+  },
+  {
+    "id": "PF-BM-006",
+    "domain": "Audio LAN",
+    "scenario": "PC\u2194Mac/bench clocked audio/MIDI",
+    "metrics": "one/two-way latency, drift, ASRC ratio, jitter, glitches, MIDI ordering",
+    "loads": "1/8/24 h; induced jitter/skew",
+    "initial_gate": "stable buffer and zero discontinuities within admitted profile"
+  },
+  {
+    "id": "PF-BM-007",
+    "domain": "Queue isolation",
+    "scenario": "Bulk files/clipboard during input/audio/video",
+    "metrics": "RT p99/worst and bulk throughput",
+    "loads": "1/2.5/10GbE; loss/jitter; SSD saturation",
+    "initial_gate": "bulk cannot violate admitted RT routes"
+  },
+  {
+    "id": "PF-BM-008",
+    "domain": "Compute placement",
+    "scenario": "Build/test/inference/encode/compress across nodes",
+    "metrics": "completion, transfer, queue, energy, cache, foreground externality",
+    "loads": "cold/warm data; CPU/GPU pressure; LAN/WAN",
+    "initial_gate": "selected plan beats local/default by policy margin or explains no move"
+  },
+  {
+    "id": "PF-BM-009",
+    "domain": "Object plane",
+    "scenario": "SHM/cache/replica/spill/restore",
+    "metrics": "copy count, lookup, throughput, recovery, authority correctness",
+    "loads": "memory pressure, node crash, corrupt replica",
+    "initial_gate": "no authority/version error and positive cache value"
+  },
+  {
+    "id": "PF-BM-010",
+    "domain": "Adaptive regions",
+    "scenario": "atomic vs static vs fusion/fission",
+    "metrics": "decision cost, completion, migrations, oscillation, wasted work",
+    "loads": "local/VM/LAN/WAN RTT and changing load",
+    "initial_gate": "adaptive beats both baselines on target corpus without SLO regression"
+  },
+  {
+    "id": "PF-BM-011",
+    "domain": "Seamless surfaces",
+    "scenario": "1\u201332 Windows/Linux app windows",
+    "metrics": "interaction latency, window correctness, encoder sessions, bandwidth, IME/DPI errors",
+    "loads": "static/motion/video/popups/protected surfaces",
+    "initial_gate": "route-specific compatibility recorded; deterministic fallback"
+  },
+  {
+    "id": "PF-BM-012",
+    "domain": "Agent realms",
+    "scenario": "N ephemeral VM/native realms",
+    "metrics": "time-to-ready, resource overhead, cleanup, focus theft, evidence completeness",
+    "loads": "1/8/32 realms and provider failures",
+    "initial_gate": "zero unauthorized focus; bounded resource leakage"
+  },
+  {
+    "id": "PF-BM-013",
+    "domain": "WAN",
+    "scenario": "Roaming and impaired media/control",
+    "metrics": "resume, quality adaptation, latency distribution, route safety",
+    "loads": "20\u2013150ms RTT, loss, jitter, bandwidth steps",
+    "initial_gate": "no stale focus; graceful explicit degradation and recovery"
+  },
+  {
+    "id": "PF-BM-014",
+    "domain": "OOB",
+    "scenario": "BIOS/no-boot/hang/driver failure",
+    "metrics": "time-to-control, success, action count",
+    "loads": "each important host and failure type",
+    "initial_gate": "documented successful recovery path"
+  }
+]

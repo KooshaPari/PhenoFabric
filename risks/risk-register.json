@@ -1,0 +1,380 @@
+[
+  {
+    "id": "R-001",
+    "category": "Scope",
+    "risk": "Everything-product never reaches useful release",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Slice releases; one shell over existing adapters first; research off critical path",
+    "state": "Open"
+  },
+  {
+    "id": "R-002",
+    "category": "Performance",
+    "risk": "Idle demo collapses under real background load",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Mixed-load gates from first transport; reserve RT resources",
+    "state": "Open"
+  },
+  {
+    "id": "R-003",
+    "category": "Performance",
+    "risk": "Atomic routing overhead exceeds benefit",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Explicit TaskSpec baseline; fusion; graduate bounded cases only",
+    "state": "Open"
+  },
+  {
+    "id": "R-004",
+    "category": "Correctness",
+    "risk": "Remote memory/VRAM presented as uniform and causes pathological latency/coherence",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Explicit locality/consistency/cost in every object descriptor",
+    "state": "Mitigated by design"
+  },
+  {
+    "id": "R-005",
+    "category": "Input",
+    "risk": "Stuck keys/buttons or dual focus damages user state",
+    "impact": "Critical",
+    "likelihood": "Medium",
+    "mitigation": "Pressed-state ledger, prepare/commit, fencing, break-glass input",
+    "state": "Open"
+  },
+  {
+    "id": "R-006",
+    "category": "Audio",
+    "risk": "Ableton recording/monitoring xruns under contention",
+    "impact": "Critical",
+    "likelihood": "Medium",
+    "mitigation": "RT admission, isolation, local authoritative path, mixed-load soak",
+    "state": "Open"
+  },
+  {
+    "id": "R-007",
+    "category": "Video",
+    "risk": "High average FPS hides bad frame-age tail",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Frame age/p99/bursts and hardware visible latency, not average FPS",
+    "state": "Open"
+  },
+  {
+    "id": "R-008",
+    "category": "Color",
+    "risk": "HDR/color transforms silently clip or mis-map",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Explicit intent/capability/transform graph and reference patterns",
+    "state": "Open"
+  },
+  {
+    "id": "R-009",
+    "category": "Platform",
+    "risk": "macOS permissions/secure input block seamless behavior",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Use supported APIs, explicit consent, feature fallback",
+    "state": "Open"
+  },
+  {
+    "id": "R-010",
+    "category": "Platform",
+    "risk": "Windows driver/helper signing and maintenance becomes dominant",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Minimize privileged code, defer true VHF/virtual display where existing adapters suffice",
+    "state": "Open"
+  },
+  {
+    "id": "R-011",
+    "category": "Virtualization",
+    "risk": "IOMMU/PCIe/P2P topology differs from assumptions",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Probe and benchmark exact topology; no name-based capability claims",
+    "state": "Open"
+  },
+  {
+    "id": "R-012",
+    "category": "Network",
+    "risk": "WAN jitter/loss creates unsafe input/audio state",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Independent queues, fencing, adaptation, local RT independence",
+    "state": "Open"
+  },
+  {
+    "id": "R-013",
+    "category": "Security",
+    "risk": "Global input/capture service becomes keylogger/surveillance vector",
+    "impact": "Critical",
+    "likelihood": "High",
+    "mitigation": "Narrow privileged helper, capabilities, local indicators, audit, red team",
+    "state": "Open"
+  },
+  {
+    "id": "R-014",
+    "category": "Security",
+    "risk": "Pairing/relay compromise grants remote control",
+    "impact": "Critical",
+    "likelihood": "Medium",
+    "mitigation": "ECDH-confirmed enrollment, mTLS, revocation, no plain-secret bootstrap",
+    "state": "Open"
+  },
+  {
+    "id": "R-015",
+    "category": "Security",
+    "risk": "Malicious endpoint advertises false capabilities/cost",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Signed descriptors plus active probes and policy bounds",
+    "state": "Open"
+  },
+  {
+    "id": "R-016",
+    "category": "Security",
+    "risk": "Clipboard/file route exfiltrates secrets",
+    "impact": "Critical",
+    "likelihood": "Medium",
+    "mitigation": "Typed sensitivity/provenance, WAN prompt/deny, limits and redaction",
+    "state": "Open"
+  },
+  {
+    "id": "R-017",
+    "category": "Security",
+    "risk": "OOB KVM exposed to public network",
+    "impact": "Critical",
+    "likelihood": "Medium",
+    "mitigation": "Management VLAN/overlay ACL, no port-forward default, separate credentials",
+    "state": "Open"
+  },
+  {
+    "id": "R-018",
+    "category": "Data",
+    "risk": "Object authority split or stale replica returned",
+    "impact": "Critical",
+    "likelihood": "Medium",
+    "mitigation": "Version/epoch authority, immutable replication, fail closed for mutable writes",
+    "state": "Open"
+  },
+  {
+    "id": "R-019",
+    "category": "Data",
+    "risk": "Object plane duplicates filesystem/database badly",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Limit to runtime objects; bridge conventional authoritative stores",
+    "state": "Mitigated by design"
+  },
+  {
+    "id": "R-020",
+    "category": "Scheduler",
+    "risk": "Prediction causes migration/cache thrash",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Hysteresis, cooldown, min residency, uncertainty margin, regret telemetry",
+    "state": "Open"
+  },
+  {
+    "id": "R-021",
+    "category": "Scheduler",
+    "risk": "Resource model misses memory/PCIe/encoder externality",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Probe and pressure telemetry; counterfactual mixed-load benchmark",
+    "state": "Open"
+  },
+  {
+    "id": "R-022",
+    "category": "Scheduler",
+    "risk": "Moving background work slows it without protecting foreground",
+    "impact": "Medium",
+    "likelihood": "Medium",
+    "mitigation": "Measure both SLO benefit and displaced completion cost",
+    "state": "Open"
+  },
+  {
+    "id": "R-023",
+    "category": "Surface",
+    "risk": "Owned windows/popups/IME/DPI fail for arbitrary apps",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Semantic route first; per-app compatibility and full-desktop fallback",
+    "state": "Open"
+  },
+  {
+    "id": "R-024",
+    "category": "Surface",
+    "risk": "Protected/DRM/UAC surface appears blank at critical time",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Detect/fail explicitly and offer console/OOB/local confirmation",
+    "state": "Open"
+  },
+  {
+    "id": "R-025",
+    "category": "Media",
+    "risk": "Encoder-session exhaustion with many app proxies",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Atlas, dedicated-stream selection, session admission and fallback",
+    "state": "Open"
+  },
+  {
+    "id": "R-026",
+    "category": "Clock",
+    "risk": "Cross-device clock drift causes audio glitches or bad timestamps",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Clock domains, drift estimator, ASRC, uncertainty bounds, soak",
+    "state": "Open"
+  },
+  {
+    "id": "R-027",
+    "category": "Operations",
+    "risk": "Upgrade mismatches core/helper/adapter and strands control",
+    "impact": "Critical",
+    "likelihood": "Medium",
+    "mitigation": "Compatibility manifest, canary, transactional upgrade and rollback",
+    "state": "Open"
+  },
+  {
+    "id": "R-028",
+    "category": "Operations",
+    "risk": "Coordinator loss leaves routes in split-brain state",
+    "impact": "Critical",
+    "likelihood": "Low-Medium",
+    "mitigation": "Fenced lease epoch, data-plane lease expiry and warm replica",
+    "state": "Open"
+  },
+  {
+    "id": "R-029",
+    "category": "Operations",
+    "risk": "Recovery depends on same failed software stack",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Independent OOB and local emergency route",
+    "state": "Open"
+  },
+  {
+    "id": "R-030",
+    "category": "Product",
+    "risk": "Expert graph overwhelms ordinary workflow",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Simple workspace mode; patchbay optional; scenario usability tests",
+    "state": "Open"
+  },
+  {
+    "id": "R-031",
+    "category": "Product",
+    "risk": "One shell hides important quality/security changes",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Route explanation and explicit profile/fallback indicators",
+    "state": "Open"
+  },
+  {
+    "id": "R-032",
+    "category": "Ecosystem",
+    "risk": "Fabric duplicates thegent/NVMS/ShareCLI authority",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Boundary ADRs, shared contracts, repo consolidation decision",
+    "state": "Open"
+  },
+  {
+    "id": "R-033",
+    "category": "Ecosystem",
+    "risk": "Universal DB/ontology creates coupling and contested truth",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Independent stores/authority and event/API reconciliation",
+    "state": "Mitigated by design"
+  },
+  {
+    "id": "R-034",
+    "category": "Vendor",
+    "risk": "Parsec/Apple/Microsoft/NVIDIA API or licensing changes",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Adapter isolation, open alternatives, support matrix and exit plan",
+    "state": "Open"
+  },
+  {
+    "id": "R-035",
+    "category": "Open source",
+    "risk": "License combinations prevent packaged distribution",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "SBOM/license gate, process-boundary adapters, legal review before release",
+    "state": "Open"
+  },
+  {
+    "id": "R-036",
+    "category": "Anti-cheat/DRM",
+    "risk": "Input/capture/VM mechanisms conflict with games/content",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Per-title/app compatibility; do not bypass protections; local/full console fallback",
+    "state": "Open"
+  },
+  {
+    "id": "R-037",
+    "category": "Research",
+    "risk": "Benchmark cherry-picking overstates novelty",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Predeclared hypotheses, failed runs, counterfactuals and raw data",
+    "state": "Open"
+  },
+  {
+    "id": "R-038",
+    "category": "Hardware",
+    "risk": "Reference devices insufficient for general claims",
+    "impact": "Medium",
+    "likelihood": "High",
+    "mitigation": "Fingerprint-scoped support and broadened preview matrix over time",
+    "state": "Open"
+  },
+  {
+    "id": "R-039",
+    "category": "Thermal/power",
+    "risk": "Sustained media+compute throttles laptops/GPUs",
+    "impact": "High",
+    "likelihood": "High",
+    "mitigation": "Thermal/power as resource dimensions; profile adaptation",
+    "state": "Open"
+  },
+  {
+    "id": "R-040",
+    "category": "Privacy",
+    "risk": "Evidence bundles capture titles, audio, clipboard or files",
+    "impact": "Critical",
+    "likelihood": "Medium",
+    "mitigation": "Content-off default, redaction, explicit test consent and retention",
+    "state": "Open"
+  },
+  {
+    "id": "R-041",
+    "category": "Availability",
+    "risk": "External adapter project is archived/abandoned",
+    "impact": "Medium",
+    "likelihood": "High",
+    "mitigation": "Version pin, minimal fork policy, replaceable adapter contract",
+    "state": "Open"
+  },
+  {
+    "id": "R-042",
+    "category": "Business",
+    "risk": "No clear adoption wedge outside full ecosystem",
+    "impact": "High",
+    "likelihood": "Medium",
+    "mitigation": "Ship standalone seat/workspace/VM/Mac sink utility first",
+    "state": "Open"
+  }
+]

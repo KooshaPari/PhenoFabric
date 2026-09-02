@@ -1,0 +1,258 @@
+docs/
+├── adr/
+│   ├── 0001-fabric-product-boundary.md
+│   ├── 0002-one-shell-modular-runtime.md
+│   ├── 0003-universal-typed-graph.md
+│   ├── 0004-locality-first-route-selection.md
+│   ├── 0005-atomic-capability-adaptive-regions.md
+│   ├── 0006-multi-projection-shared-identity.md
+│   ├── 0007-no-universal-database.md
+│   ├── 0008-protected-realtime-islands.md
+│   ├── 0009-shared-memory-before-codecs.md
+│   ├── 0010-semantic-before-pixel.md
+│   ├── 0011-mobility-hierarchy.md
+│   ├── 0012-exclusive-route-leases.md
+│   ├── 0013-independent-media-clocks.md
+│   ├── 0014-color-hdr-first-class.md
+│   ├── 0015-sharecli-boundary.md
+│   ├── 0016-ecosystem-authority.md
+│   ├── 0017-agent-non-stealing.md
+│   ├── 0018-oob-independent-recovery.md
+│   ├── 0019-mutual-pairing-privileged-isolation.md
+│   ├── 0020-provisional-name.md
+│   ├── 0021-object-authority-immutability.md
+│   ├── 0022-control-data-plane-separation.md
+│   └── INDEX.md
+├── architecture/
+│   ├── schemas/
+│   │   ├── capability.schema.json
+│   │   ├── event.proto
+│   │   ├── graph.schema.json
+│   │   ├── policy.schema.json
+│   │   ├── route.schema.json
+│   │   ├── task.schema.json
+│   │   └── workspace.schema.json
+│   ├── api.md
+│   ├── control-plane.md
+│   ├── files-clipboard.md
+│   ├── graph-runtime.md
+│   ├── input.md
+│   ├── network-lan-wan.md
+│   ├── object-plane.md
+│   ├── openapi.yaml
+│   ├── platform-linux.md
+│   ├── platform-macos.md
+│   ├── platform-windows.md
+│   ├── protocols.md
+│   ├── README.md
+│   ├── realtime-audio.md
+│   ├── route-compiler.md
+│   ├── scheduler.md
+│   ├── security.md
+│   ├── state-machines.md
+│   ├── surface-proxy.md
+│   ├── system-context.md
+│   └── video-hdr.md
+├── ecosystem/
+│   ├── agileplus.md
+│   ├── agslag.md
+│   ├── boundaries.md
+│   ├── event-contracts.json
+│   ├── event-contracts.md
+│   ├── integration-matrix.md
+│   ├── ledgers.md
+│   ├── nvms-labs-compute.md
+│   ├── README.md
+│   ├── sharecli.md
+│   ├── thegent.md
+│   └── tracera.md
+├── examples/
+│   ├── ableton.md
+│   ├── agent-game-e2e.md
+│   ├── desk-to-couch.md
+│   ├── gaming.md
+│   ├── graph-config.yaml
+│   ├── macbook-third-display.md
+│   ├── multi-vm.md
+│   ├── README.md
+│   ├── user-environment.md
+│   ├── wan.md
+│   └── workspace-config.yaml
+├── intent/
+│   ├── 000-source-prompts.md
+│   ├── 001-intent-synthesis.md
+│   ├── 002-human-to-requirement-map.md
+│   ├── 003-assumptions-and-ambiguities.md
+│   ├── 004-nonnegotiables.md
+│   ├── 005-alternatives-and-falsification.md
+│   ├── prompt-map.yaml
+│   └── README.md
+├── operations/
+│   ├── config-and-policy.md
+│   ├── deployment-topologies.md
+│   ├── incident-response.md
+│   ├── observability.md
+│   ├── packaging.md
+│   ├── README.md
+│   ├── recovery.md
+│   ├── slo-sla.md
+│   ├── support-matrix.md
+│   └── upgrades.md
+├── references/
+│   ├── BIBLIOGRAPHY.md
+│   ├── README.md
+│   ├── source-map.md
+│   ├── source-status.md
+│   └── url-inventory.txt
+├── research/
+│   ├── experiments.json
+│   ├── experiments.md
+│   ├── graduation-gates.md
+│   ├── hypotheses.json
+│   ├── hypotheses.md
+│   ├── literature-map.md
+│   ├── open-questions.md
+│   ├── README.md
+│   ├── research-program.md
+│   └── source-register.md
+├── risks/
+│   ├── feasibility-boundaries.md
+│   ├── legal-licensing.md
+│   ├── README.md
+│   ├── risk-register.json
+│   ├── risk-register.md
+│   ├── threat-model.md
+│   └── vendor-dependency.md
+├── sota/
+│   ├── audio-network-class.md
+│   ├── build-buy-wrap.md
+│   ├── compute-runtime-class.md
+│   ├── deskflow-class.md
+│   ├── evdev-class.md
+│   ├── executive-differentiation.md
+│   ├── looking-glass-class.md
+│   ├── moat-and-risk.md
+│   ├── parsec-class.md
+│   ├── README.md
+│   ├── seamless-application-class.md
+│   ├── standards-and-primitives.md
+│   ├── storage-memory-fabric-class.md
+│   └── user-facing-differentiators.md
+├── specs/
+│   ├── 001-unified-product-shell/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 002-universal-io-graph/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 003-compute-data-fabric/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 004-locality-route-compiler/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 005-realtime-qos/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 006-seamless-surface-presentation/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 007-platform-continuity-adapters/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 008-agent-ephemeral-realms/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 009-security-identity-evidence/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 010-ecosystem-integration/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 011-observability-verification/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   ├── 012-packaging-operations/
+│   │   ├── meta.json
+│   │   ├── plan.md
+│   │   ├── spec.md
+│   │   └── tasks.md
+│   └── INDEX.md
+├── verification/
+│   ├── acceptance-gates.md
+│   ├── audio-rt-test-plan.md
+│   ├── benchmark-catalog.json
+│   ├── benchmark-plan.md
+│   ├── compatibility-matrix.md
+│   ├── fault-catalog.json
+│   ├── fault-injection.md
+│   ├── latency-methodology.md
+│   ├── README.md
+│   ├── requirements-traceability-matrix.md
+│   ├── requirements-traceability.json
+│   ├── security-test-plan.md
+│   ├── test-strategy.md
+│   └── video-hdr-test-plan.md
+├── work/
+│   ├── backlog.md
+│   ├── build-order.md
+│   ├── cost-model.md
+│   ├── critical-path.md
+│   ├── dag.md
+│   ├── dependency-register.md
+│   ├── milestones.md
+│   ├── pert.md
+│   ├── README.md
+│   ├── release-plan.md
+│   ├── staffing-agent-plan.md
+│   ├── tasks.json
+│   ├── wbs.csv
+│   └── wbs.md
+├── ALD.md
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── DEVELOPMENT_GUIDE.md
+├── DOMAIN_MODEL.md
+├── FUNCTIONAL_REQUIREMENTS.md
+├── GLOSSARY.md
+├── GOVERNANCE.md
+├── HLD.md
+├── INDEX.md
+├── LLD.md
+├── MANIFEST.sha256
+├── NON_FUNCTIONAL_REQUIREMENTS.md
+├── PLAN.md
+├── PRD.md
+├── README.md
+├── ROADMAP.md
+├── SECURITY.md
+├── SPECIFICATION.md
+├── STATUS.md
+├── SYSTEM_REQUIREMENTS.md
+├── TRACEABILITY.md
+├── TREE.txt
+├── UX_SPECIFICATION.md
+├── VALIDATION_REPORT.md
+└── WORKLOG.md

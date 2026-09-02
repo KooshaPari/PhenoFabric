@@ -1,0 +1,95 @@
+openapi: 3.1.0
+info:
+  title: Phenotype Fabric API
+  version: 0.1.0
+  description: Intent, graph, route, placement, realm, and evidence API.
+servers:
+  - url: https://localhost:7443/v1
+paths:
+  /nodes:
+    get:
+      operationId: listNodes
+      responses:
+        "200":
+          description: Registered nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+  /workspaces/{workspaceId}/activate:
+    post:
+      operationId: activateWorkspace
+      parameters:
+        - in: path
+          name: workspaceId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dryRun: {type: boolean, default: false}
+      responses:
+        "202": {description: Activation prepared or committed}
+        "409": {description: Version, lease, or admission conflict}
+  /graph/patch:
+    post:
+      operationId: patchGraph
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseVersion, operations]
+              properties:
+                baseVersion: {type: integer}
+                operations:
+                  type: array
+                  items: {type: object}
+                dryRun: {type: boolean}
+      responses:
+        "200": {description: Dry-run plan}
+        "202": {description: Committed transaction}
+        "409": {description: Stale graph or lease conflict}
+  /placements:
+    post:
+      operationId: requestPlacement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/task.schema.json
+      responses:
+        "202": {description: Placement admitted}
+        "422": {description: No valid candidate}
+  /routes/{routeId}/explain:
+    get:
+      operationId: explainRoute
+      parameters:
+        - in: path
+          name: routeId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Selected candidate, alternatives, costs, and evidence}
+  /realms:
+    post:
+      operationId: createRealm
+      responses:
+        "202": {description: Realm provisioning started}
+  /surfaces/publish:
+    post:
+      operationId: publishSurface
+      responses:
+        "202": {description: Surface catalog entry created}
+  /diagnostics/export:
+    post:
+      operationId: exportDiagnostics
+      responses:
+        "202": {description: Redacted diagnostic bundle generated}

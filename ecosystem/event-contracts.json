@@ -1,0 +1,79 @@
+[
+  {
+    "event": "fabric.device.capability.changed.v1",
+    "producer": "Fabric endpoint",
+    "consumer": "thegent, ShareCLI, hwLedger, UI",
+    "payload": "device/realm ID, descriptor version/hash, changed capabilities, probe evidence",
+    "authority": "Fabric live probe"
+  },
+  {
+    "event": "fabric.route.committed.v1",
+    "producer": "Fabric coordinator",
+    "consumer": "SessionLedger, Tracera, UI",
+    "payload": "desired link, compiled stages, lease/fencing token, quality/security policy, evidence refs",
+    "authority": "Fabric"
+  },
+  {
+    "event": "fabric.route.failed.v1",
+    "producer": "Fabric coordinator/adapter",
+    "consumer": "SessionLedger, Tracera, AgilePlus when gated",
+    "payload": "stage, reason, fallback, rollback result, trace ID",
+    "authority": "Fabric execution fact"
+  },
+  {
+    "event": "fabric.execution.placed.v1",
+    "producer": "Fabric scheduler",
+    "consumer": "thegent, SessionLedger, Tracera, AGSLAG usage view",
+    "payload": "TaskSpec/region, node, objects, cost terms, alternatives, uncertainty",
+    "authority": "Fabric"
+  },
+  {
+    "event": "fabric.execution.completed.v1",
+    "producer": "Fabric runtime",
+    "consumer": "thegent, Tracera, ledgers",
+    "payload": "result/artifacts, usage, topology, timing, failure/cancel state",
+    "authority": "Fabric fact; thegent owns task interpretation"
+  },
+  {
+    "event": "fabric.object.residency.changed.v1",
+    "producer": "Fabric object plane",
+    "consumer": "scheduler, observability",
+    "payload": "object version, authority, replica/cache locations, transfer cause",
+    "authority": "Fabric runtime object plane"
+  },
+  {
+    "event": "fabric.realm.ready.v1",
+    "producer": "Fabric provider",
+    "consumer": "thegent, agent, UI, SessionLedger",
+    "payload": "realm/seat/surface IDs, TTL, capabilities, fallback console",
+    "authority": "Fabric provider"
+  },
+  {
+    "event": "fabric.attention.requested.v1",
+    "producer": "agent/thegent via Fabric",
+    "consumer": "UI/user policy",
+    "payload": "surface/reason/urgency/expiry; no focus grant",
+    "authority": "requesting principal; user policy decides"
+  },
+  {
+    "event": "agileplus.work.authorized.v1",
+    "producer": "AgilePlus",
+    "consumer": "thegent, Fabric budget/policy cache",
+    "payload": "WorkPackage, requirement/evidence IDs, budget, policy",
+    "authority": "AgilePlus"
+  },
+  {
+    "event": "thegent.task.requested.v1",
+    "producer": "thegent",
+    "consumer": "Fabric",
+    "payload": "TaskSpec, dependencies, desired surfaces, evidence refs",
+    "authority": "thegent execution intent"
+  },
+  {
+    "event": "tracera.evidence.accepted.v1",
+    "producer": "Tracera",
+    "consumer": "AgilePlus, AGSLAG, UI",
+    "payload": "requirement/decision/run/artifact linkage and conclusion",
+    "authority": "Tracera evidence graph"
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "id": "006-seamless-surface-presentation",
+  "title": "Seamless Surface and Application Presentation",
+  "created": "2026-08-28",
+  "state": "specified",
+  "scope": "Full desktops, virtual monitors, semantic app remoting, native pixel proxies, window graphs, MacBook third-display workflow",
+  "requirements": [
+    "PF-FR-030",
+    "PF-FR-031",
+    "PF-FR-032",
+    "PF-FR-033",
+    "PF-FR-034",
+    "PF-FR-035",
+    "PF-FR-036",
+    "PF-FR-037",
+    "PF-FR-040",
+    "PF-FR-043"
+  ],
+  "source_intent": [
+    "INT-P001",
+    "INT-P002",
+    "INT-P003",
+    "INT-P004",
+    "INT-P005",
+    "INT-P006",
+    "INT-P007",
+    "INT-P008"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true
+  }
+}
