@@ -13,8 +13,10 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct BoundManifest {
     /// Unique ID for this binding (UUIDv7).
+    #[schemars(with = "String")]
     pub binding_id: Uuid,
     /// The host this manifest is bound to.
+    #[schemars(with = "String")]
     pub host_node_id: Uuid,
     /// The host's descriptor epoch at the time of binding.
     pub host_epoch: u64,
