@@ -1,0 +1,42 @@
+name: Spec Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "specs/**/*.md"
+      - "specs/**/*.json"
+      - "adr/**/*.md"
+      - "architecture/**/*.md"
+      - "architecture/**/*.yaml"
+      - ".github/workflows/spec-validation.yml"
+  pull_request:
+    paths:
+      - "specs/**/*.md"
+      - "specs/**/*.json"
+      - "adr/**/*.md"
+      - "architecture/**/*.md"
+      - "architecture/**/*.yaml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate spec JSON schemas
+        run: python3 program/scripts/check_json_schemas.py
+
+      - name: Validate OpenAPI spec
+        run: python3 program/scripts/check_openapi.py
+
+      - name: Validate spec links
+        run: python3 program/scripts/check_links.py
+
+      - name: Validate MANIFEST matches file tree
+        run: python3 program/scripts/check_manifest.py

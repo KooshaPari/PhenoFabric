@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "id": "phenotype-fabric.program.boundaries/v1",
+  "title": "Phenotype Fabric Product Boundaries and Authority Map",
+  "description": "Machine-readable product boundary and authority map for Phenotype Fabric. Defines what is in scope (in_scope: true) and what is in scope of adjacent products (in_scope: false). Source of truth: spec 013-fabric-program-baseline. Cross-referenced from ecosystem/boundaries.md.",
+  "version": "1.0.0",
+  "generated_at": "2026-09-01T00:00:00Z",
+  "in_scope_specs": [
+    {
+      "spec_id": "001-unified-product-shell",
+      "title": "Unified Product Shell and Workspace Model",
+      "responsibility": "Cross-platform packaged UI, CLI, SDK, installer, discovery, graph canvas, simple workspace controls",
+      "release_gate": "R1+",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "002-universal-io-graph",
+      "title": "Universal I/O Graph, Seats, and Focus",
+      "responsibility": "Typed ports, graph transactions, input/output leases, HID/MIDI/audio/video/clipboard/file endpoint semantics",
+      "release_gate": "R2+",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "003-compute-data-fabric",
+      "title": "Adaptive Heterogeneous Compute and Data Fabric",
+      "responsibility": "Resource inventory, task/object model, placement, residency, fusion/fission, mobility, predictive prefetch",
+      "release_gate": "R2+",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "004-locality-route-compiler",
+      "title": "Locality-Aware Route Compiler and Transport Plane",
+      "responsibility": "L0-L8 locality tiers, stage elimination, shared-memory/PCIe/LAN/WAN/OOB paths, dynamic replanning",
+      "release_gate": "R2+",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "005-realtime-qos",
+      "title": "Real-Time QoS, Admission, and Contention Control",
+      "responsibility": "RT0-Bulk classes, resource reservations, Ableton/gaming protection, adaptive degradation, thermal/power policy",
+      "release_gate": "R3+",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "006-seamless-surface-presentation",
+      "title": "Seamless Surface and Application Presentation",
+      "responsibility": "Full desktops, virtual monitors, semantic app remoting, native pixel proxies, window graphs, MacBook third-display workflow",
+      "release_gate": "R3+",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "007-platform-continuity-adapters",
+      "title": "Cross-Platform Continuity, Audio, Clipboard, and Files",
+      "responsibility": "Linux/Windows/macOS endpoint adapters, PipeWire/JACK/CoreAudio/WASAPI, typed clipboard, file send/sync/mount, platform permissions",
+      "release_gate": "R3+",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "008-agent-ephemeral-realms",
+      "title": "Agent-Created Realms and Non-Stealing Surface Publication",
+      "responsibility": "Realm provisioning, enrollment, TTL, surface publication, attention requests, resource budgets, fallback consoles",
+      "release_gate": "R4+",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "009-security-identity-evidence",
+      "title": "Security, Identity, Leases, Audit, and Evidence",
+      "responsibility": "Mutual identity, capability authorization, privileged helper isolation, route leases, evidence bundles, OOB isolation",
+      "release_gate": "R2+ (cross-cutting)",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "010-ecosystem-integration",
+      "title": "Phenotype Ecosystem Integration and Product Boundaries",
+      "responsibility": "AgilePlus, thegent, AGSLAG, Tracera, SessionLedger, ShareCLI, NVMS, labs-compute, event contracts",
+      "release_gate": "R1+ (cross-cutting)",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "011-observability-verification",
+      "title": "Observability, Benchmarking, and Verification",
+      "responsibility": "Measurement boundaries, telemetry, benchmark harness, fault injection, compatibility, evidence",
+      "release_gate": "R1+ (cross-cutting)",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "012-packaging-operations",
+      "title": "Packaging, Deployment, Upgrade, and Recovery",
+      "responsibility": "Cross-platform install, signed components, configuration, coordinator topology, updates, rollback, diagnostics, OOB recovery",
+      "release_gate": "R1+ (cross-cutting)",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "013-fabric-program-baseline",
+      "title": "Fabric Program Baseline (R0 Foundation)",
+      "responsibility": "Product boundary freeze, identifier normalization, documentation-as-code checks, source-confidence policy, release evidence contract",
+      "release_gate": "R0 (foundational)",
+      "owner": "phenotype-fabric"
+    },
+    {
+      "spec_id": "014-capability-inventory",
+      "title": "Capability Inventory and Topology Probe",
+      "responsibility": "Detect, classify, sign, and publish graph-native capability descriptor: CPU/NUMA/cache, GPU/NPU/codec/display/PCIe, audio/MIDI/input/storage/NIC, link metrics",
+      "release_gate": "R0 (foundational)",
+      "owner": "phenotype-fabric"
+    }
+  ],
+  "adjacent_products": [
+    {
+      "product": "AgilePlus",
+      "repo": "KooshaPari/AgilePlus",
+      "in_scope": false,
+      "responsibility": "Governed intent: work packages, plans, evidence contracts, AgilePlus-shaped feature specs. Fabric is governed BY AgilePlus.",
+      "interface": "kitty-specs/ meta.json+spec.md+plan.md+tasks.md format"
+    },
+    {
+      "product": "thegent",
+      "repo": "KooshaPari/thegent",
+      "in_scope": false,
+      "responsibility": "Agent dispatch: task routing, scheduling, thegent-mcp. Fabric accepts TaskSpec from thegent.",
+      "interface": "ecosystem/event-contracts.json#TaskSpec"
+    },
+    {
+      "product": "AGSLAG",
+      "repo": "TBD",
+      "in_scope": false,
+      "responsibility": "Economic allocation: who pays for what, cost attribution, capacity bidding. Fabric is unaware of cost.",
+      "interface": "ecosystem/event-contracts.json#AllocationRequest (optional)"
+    },
+    {
+      "product": "Tracera",
+      "repo": "KooshaPari/Tracera",
+      "in_scope": false,
+      "responsibility": "Evidence graph: DAG, atomic claim/lease, presets, queries. Fabric emits evidence references; Tracera owns the graph.",
+      "interface": "ecosystem/event-contracts.json#EvidenceReference"
+    },
+    {
+      "product": "SessionLedger",
+      "repo": "KooshaPari/SessionLedger",
+      "in_scope": false,
+      "responsibility": "Time-ordered session log. Fabric emits session events; SessionLedger owns the time index.",
+      "interface": "ecosystem/event-contracts.json#SessionEvent"
+    },
+    {
+      "product": "ShareCLI",
+      "repo": "KooshaPari/sharecli",
+      "in_scope": false,
+      "responsibility": "Process supervision: FUSE driver, runtime-process, sharing. Fabric routes go through ShareCLI for process lifecycle.",
+      "interface": "ecosystem/event-contracts.json#ProcessSpec"
+    },
+    {
+      "product": "NVMS",
+      "repo": "KooshaPari/nanovms",
+      "in_scope": false,
+      "responsibility": "Low-level runtime inventory: resource/process/network discovery. Fabric wraps NVMS for capability inventory (per ADR-0020 provisional).",
+      "interface": "Go API + Rust FFI"
+    },
+    {
+      "product": "labs-compute",
+      "repo": "TBD",
+      "in_scope": false,
+      "responsibility": "Remote computation substrates. Fabric can route to labs-compute nodes if reachable.",
+      "interface": "ecosystem/event-contracts.json#ComputeOffer"
+    },
+    {
+      "product": "ResearchLedger",
+      "repo": "KooshaPari/ResearchLedger",
+      "in_scope": false,
+      "responsibility": "Source provenance for research claims. Fabric cites research sources via ResearchLedger.",
+      "interface": "research/source-status.md cross-link"
+    },
+    {
+      "product": "RepoLedger",
+      "repo": "KooshaPari/RepoLedger",
+      "in_scope": false,
+      "responsibility": "Repo metadata: ownership, status, ADR, worklog, dep graph. This file is referenced by RepoLedger.",
+      "interface": "REPO.json + WORKLOG.md"
+    },
+    {
+      "product": "hwLedger",
+      "repo": "KooshaPari/hwLedger",
+      "in_scope": false,
+      "responsibility": "Hardware inventory: per-machine inventory of capabilities. Fabric's capability descriptor is a more dynamic version of hwLedger's snapshot.",
+      "interface": "ecosystem/event-contracts.json#HardwareProfile"
+    },
+    {
+      "product": "no-mistakes",
+      "repo": "kunchenguid/no-mistakes",
+      "in_scope": false,
+      "responsibility": "Push validation, code review, evidence gates. Used for the phenotype-fabric release pipeline.",
+      "interface": ".no-mistakes.toml + release.yml"
+    },
+    {
+      "product": "phenotype-fleet-ops",
+      "repo": "KooshaPari/phenotype-fleet-ops",
+      "in_scope": false,
+      "responsibility": "Fleet operations: signing, packaging, distribution, telemetry collection. Fabric owns product packaging; fleet-ops owns fleet operations.",
+      "interface": "ecosystem/event-contracts.json#FleetOperation"
+    }
+  ],
+  "decision_rules": {
+    "adding_new_in_scope": "Requires an ADR (ADR-0023+) and updates this file plus ecosystem/boundaries.md. PR cannot merge without both updates.",
+    "changing_adjacent_interface": "Requires coordination with the adjacent product's owner. Cross-repo PR and joint review.",
+    "name_resolution": "ADR-0020 ('provisional name') is intentionally unresolved. Until resolved, the working name 'phenotype-fabric' is canonical."
+  }
+}

@@ -1,230 +1,249 @@
-1cec29c8aef61e1580a0e8dbaf4a018506101c9f790181e09b1addf730891001  ALD.md
-680266e93bfb71224901cc9ff8ee9bb09ba24eeb820ef578212d0aff9b8370a5  CHANGELOG.md
-1fa6f1dc77286b5bbcf685fe6dcf27c6cef4e462695f698e92c5c482d4675f03  CONTRIBUTING.md
-1ff12169a714ab131e960507709fff0ac3ac00e518496e65e30652357ade477f  DEVELOPMENT_GUIDE.md
-658864d02595e7ccf2b7a2c2339658b0aa0165f20719dcc77f680027aa36747e  DOMAIN_MODEL.md
-eb5408713c45a41151444b0374b282bd85ab0de4b9970a33401bfb70fd09a5d8  FUNCTIONAL_REQUIREMENTS.md
-5a563faf7e014f561d46449a11c8abc16f022fa92e1e9bab45ca436ed52c8058  GLOSSARY.md
-2c655b762ca897fb424645ffe7b1379a59564830caa2c7295869607783b322c2  GOVERNANCE.md
-5cdb8f03f1ef04970bdf0a1f8b1b33153e6b1ca861e0f1b40f6396a3d6d4903d  HLD.md
-c0532aa16d34398046afe5ee90fe07cfa6ad62bcb86d09330ad8b9a27a5ab941  INDEX.md
-dabe86e7c1eb06a2ec389ea5881c91a3ec9c1be00c7d9904998fa6b860c0b204  LLD.md
-cdd355eb78b0c34a5eeac13ef496c056125b3dde390fc05eb166e6a755d10123  NON_FUNCTIONAL_REQUIREMENTS.md
-9f52efcae86f1137f6a9294babde92c12620b131fe7392265d7f3ed87e3cfe17  PLAN.md
-8e1525428d22ad0a4ba8f481518df49681e64364c4d3c62256cf9f528adb9370  PRD.md
-920f2622b0b0ab3cd04ba1c1d5c16c47bf86c1d9d797ac126ce9bd131dd5d2e8  README.md
-becb5925023f59699c6bff6f2099bf7fcfba89e7a2dcec6c9a9bfea8412bfe13  ROADMAP.md
-201862b4b4c87690e7db5877e3ef56059eedda75c1790ff60b52cd6903ef1f41  SECURITY.md
-98bcf78237d2c2af4cf51b7c5caefaf171d4b0ebb9a94839d9a9e299493588cc  SPECIFICATION.md
-f3cd9b881efb4633bc03881ebc30b0f25612f5eb31aa2da1b0cd9374a63b63c0  STATUS.md
-e4bd42885b8efbbfe9309c08a22c1fa79563a36cf2c08a48726dcad56255b2cf  SYSTEM_REQUIREMENTS.md
-98e4f00c71a33e8b025397f8f2ae438e92eff409de6bd1edf9ae9088915ea130  TRACEABILITY.md
-273cecada9703bc25a464627882cffd2b6c4a99b016dd9b90db2872a186b0fbc  TREE.txt
-81cf5f8966ee895b193ba2b45a948a850fc13afe6766cba2d437512e4a151d00  UX_SPECIFICATION.md
-979b74736d5c5c8376531e6d6c100f870b1ddae9c8de0807002cd609278d7e27  VALIDATION_REPORT.md
-aba6c774c28a774d39b6cd2eb34a80a120b5231dbbb06bc68062ee297dce54c7  WORKLOG.md
-6dd452f0f5295ba9d68e89ac59410400a1107da8efab14fe23bc6080356aa4b7  adr/0001-fabric-product-boundary.md
-3304ffdfebea5b49709d27203083440db41312e1dac647b7cb4b093ce4b3b8a1  adr/0002-one-shell-modular-runtime.md
-63da6662298e68bec0f180834a0c901cd8ee944346ef9a3fd478e8c13369f2f7  adr/0003-universal-typed-graph.md
-403902aeb24f28ac6fd333b57703da9bcfad4ec5768d2b79158e767a06b12d5e  adr/0004-locality-first-route-selection.md
-d69c84280faa56dacc66a12c568e400a57b5f30877d8336448e7fc255d00edef  adr/0005-atomic-capability-adaptive-regions.md
-e0c10ab0e2fefbe2ae0f535340652e3ecaf456d3310e85f5564f508c37f6e926  adr/0006-multi-projection-shared-identity.md
-89cc0ddbe85cafa93a35062e967d166e14a9dcd71b1781e2c840536a46a4c599  adr/0007-no-universal-database.md
-6d84a9883088a9041a146cd92402b7dafc645e53927e998b41f6e998705e4dc2  adr/0008-protected-realtime-islands.md
-ef2b09f733cc4cb7f4ab4a1ed3d8b581411fbe1ae7304701a704c67d3c739578  adr/0009-shared-memory-before-codecs.md
-8affb2f40fae09a6b96ec64df223b1ea95f8db43d21de89f3d48cc8a1c183615  adr/0010-semantic-before-pixel.md
-a97def972892b1dd602e2dda6f87ecbd9dfa79e6e79de1e810b0097df7eb4518  adr/0011-mobility-hierarchy.md
-2cbea7ab8f22f52735fb0a93438c22b00f3939b05635693cfcc014b6edb9e9d3  adr/0012-exclusive-route-leases.md
-0c789c536b8c0e3497f3e3410a5b58e3f9254522b1fc8404f153a0a8d971c5fc  adr/0013-independent-media-clocks.md
-e06630368238176c5aa031715a80e66159d6a616f93ae3ac9a877dd0d58bec7a  adr/0014-color-hdr-first-class.md
-d117cf0460b90d10530a1e768cac213f2d404a05d8b95edb7c90f62beb0f77d1  adr/0015-sharecli-boundary.md
-955ad3ee5f1bc3a77f2e0d4d4beec12f9f20575ce7011ed1141d9a8ca7a19fbf  adr/0016-ecosystem-authority.md
-c01c164757c0317db69ea2b1877ab1c56cd948c86e9eddc258b7b88290787002  adr/0017-agent-non-stealing.md
-99be4508e5852c3bd1ae7b236a0c97330101ab5786b99fbbc37110a8a0697b1e  adr/0018-oob-independent-recovery.md
-1a45515087c4190b5aa868674c32d4cde072651d7767a376923f8cf3eb8bdf00  adr/0019-mutual-pairing-privileged-isolation.md
-cc94b9951cb4f4c66d89ed192007d7a300cc8584bfe833da8a7bb0fa9074240d  adr/0020-provisional-name.md
-7906d51e7fb4f8cb6892db9de7bee2663f247de1a7ce373170288da4cc08111e  adr/0021-object-authority-immutability.md
-73f6034188d6cdfd3b14597d7ed374054f8d8bbd89edd47155f0c30c5820e371  adr/0022-control-data-plane-separation.md
-85ab31ff6aaae69b69981d601f27392544eef5056642100716aaf147c6e057d1  adr/INDEX.md
-79189bfa29009217417a0c6176bb7236edd0d336b91c94a882aff747ef42d8e4  architecture/README.md
-c348c5c410ff324b24fec2f4efb695e9fd8b46688096c62c8f23ec0908f5b4e4  architecture/api.md
-6e9606713de7c850ec60fbf7b06a200dfd1cc54e4b5f6a40c79de6c512c38055  architecture/control-plane.md
-3521427835e6f29808801e5aa44f76a4536d969111c303ea17fba5dd0dc4f10a  architecture/files-clipboard.md
-3f2c89190e04f3c7d838578a00bc71816398c282e573e551938952b97cdf33d8  architecture/graph-runtime.md
-da4744599a8e5d151e544b438c94545597312d71c624de64ecc047a8988e7502  architecture/input.md
-63606d65ff387acc0c78bf5074423da1d03bbed8a61a52af12e3fdedf58d25c5  architecture/network-lan-wan.md
-e2b66cc30e865854dd689003bf5828d8ce5bc0c0b3efa6b0862bb0e993981003  architecture/object-plane.md
-f13ecf804c5a6885a0d781debc9b208397fe58fd648699b12239cdfb7ce323d4  architecture/openapi.yaml
-8221fbf639f0861605f81d68d123d4442e8dd0e073a32cfadfac8b1075543e65  architecture/platform-linux.md
-a745fc4c5f3b03c8de9382c0aaf635a5386e7667e339bdd096f770f3d5fd3579  architecture/platform-macos.md
-b2df4b9bb57be15dcb342fd14e7f0c39f90a5743d46f60f0fa657ea67775ca36  architecture/platform-windows.md
-e3d84f9332f24428452970a43c6ce735e5c9740c717e6706662b3fadfd59474c  architecture/protocols.md
-7debf70643f6d576a534bb4544aa416d7003ed7a1e837bd6eab50ffbc7db2cc1  architecture/realtime-audio.md
-7272c811ac5df964148ff3d1a52e536737013b4cc059403d65a5bc2f10de8cae  architecture/route-compiler.md
-2a3f11a2fd81607976acf911e4bd838acc7afb104e49aecc4c1711c50e86ab73  architecture/scheduler.md
-a3e220d24aca5cf6fc312c667f37ea3b485444d7c52e8b1619b18f67bfc0fa48  architecture/schemas/capability.schema.json
-1b0d8f8c27a0b84a30ef4c4af4cb503689ebde91c1ee0de768e1c8b2023b31a9  architecture/schemas/event.proto
-b161d92d39937f543e65c3dcdcf187011dceac95a837fc04deec59cd4caec86a  architecture/schemas/graph.schema.json
-457d6a668192594a4564cb67c1dd73615e0dce37df9c8f56ae8633070b2a9ab2  architecture/schemas/policy.schema.json
-0b0747e8e319182a0752da89fc15d5977af646a829872d2cade74d7ab43d4461  architecture/schemas/route.schema.json
-be2fab35774c946b13876e91c151e4544bd965033140b3a80641f3cea2136939  architecture/schemas/task.schema.json
-e9e29950ba5ac9ec1381df74e30d000d615febfd2f420755458eb35430da105e  architecture/schemas/workspace.schema.json
-cec5943758fa1430e872fcc7c5419fe7f5703786e110b306bee7cecd921fe999  architecture/security.md
-29f1ff85b42a9ab4c32beaa95db4cc12ee0f3b48d32e9b5a0ef2a81e5db02876  architecture/state-machines.md
-9d0171361baef22d7b9ea758630ce7ed50527008d64f54696088a73503219c2a  architecture/surface-proxy.md
-d9c47bd0c843382605542deb3b9ce51e64ffeeec460480ca273f64e5bc616bb2  architecture/system-context.md
-63712d06d5ad2ae29cc425adf9a4885e1b0c967334b572ea9ef1554409bf71c7  architecture/video-hdr.md
-c9bae2d3523105c291b1de54876015879efd613751cca51f091311f079c03738  ecosystem/README.md
-cb8393ead18971045f7b12c11071a27fc24c2e35ee0810130dacf8b19b7dab8b  ecosystem/agileplus.md
-716e9ba067641b6aebd89e350354f1c01cab8e58ff309dd232748f259adb4c7e  ecosystem/agslag.md
-48b2d9bdd544f7f478e863c55c750772716896ba7dce201c1dc46a1abacfed88  ecosystem/boundaries.md
-46af6df71448236f8d64eba6fc2ae4efbc6e0a231c1c6f92c884e57c52fc2402  ecosystem/event-contracts.json
-3ee51d9f7649b36608f488dffeb2bddf9dada88964d46bf095b98df24a6f11ed  ecosystem/event-contracts.md
-0c4f33ddc35358abf13932238d922f0aff0d753b15b66526722f02de9a5a22f0  ecosystem/integration-matrix.md
-c4230dc8fa027b96a3d36f8a6f220eddaad0be36ad51b45e778932d889ad6031  ecosystem/ledgers.md
-ce4d03c0f07c80b5aed0463467c627335c4d24bc0305f70b977e656882ae47c6  ecosystem/nvms-labs-compute.md
-91c133afa8b864a1c00aefc26ed5abc68b77cdc10a836344b900c197df3c61ca  ecosystem/sharecli.md
-3a153957a4b13168b15295a3f0f71ec9179bdc20986ac8a4506d7a43ba153db3  ecosystem/thegent.md
-1c340240dbd952b56c92f7d4557deed4c7a9ee3c774c876dac85b936149e0171  ecosystem/tracera.md
-c248f2ec017327df733444e6984fbe956e358c8b7f93a65f7d415f72e6857549  examples/README.md
-041767aca65892830e3ad8992b1977aa4001df756d83a1c343f2e972357a7531  examples/ableton.md
-66ac8fa15db27838f97649f65f15f0c6156a48e3e753858b035c532081f67172  examples/agent-game-e2e.md
-4b61ed863e750ca064eff2e81d82d406adbda94b518bc3ea12cfcf5a548f2ff4  examples/desk-to-couch.md
-9a0b8579f045edb7a1d2beac20c0b9ba294a38f524498a7a140257623227a571  examples/gaming.md
-9eb1160b33b798a5518bbe6a94a9a9f0b756fb6410dcadd64b0bcf44f946fa51  examples/graph-config.yaml
-6242f28103d87375d644131c78a8c740c6ac325d0a004263a052f168650a3f83  examples/macbook-third-display.md
-222958f7b5a81e8e55f94274f99e99c126b2b67d4a76dc066d96bc8457694380  examples/multi-vm.md
-933bfcc6442d2f5a2b48800cc1fadadbf21d97a9d31b2a071d497fef94df05e4  examples/user-environment.md
-91bd244cc212894f5433e63a0aa29f71d902f4cef3c4b68e1de9ebf5188c9f3e  examples/wan.md
-dd5c5830b583075b4ffae804f70bf89a30798f729ebe1fe814352def7e1c004b  examples/workspace-config.yaml
-a4342f8500bf73383b70837731e9f07d832b63cb25cc4b0c9faa49276bd7fb31  intent/000-source-prompts.md
-0e513646701e42d6ca9b546881ba46108ff29b75717c31564e8cecb5f829fcd9  intent/001-intent-synthesis.md
-abfb12cf5580543959bbe0b66683feb943f7949cfd9f418425f2d8dd48c8e1ed  intent/002-human-to-requirement-map.md
-dcc2ae0abe3d55e162425cb849f732c66fd45aa09beb4735e32f5d23bab98cf1  intent/003-assumptions-and-ambiguities.md
-2f714b3d420172d6441b1be4420cc1df8a7992ba95bca3ecf2850dcaef1b26ac  intent/004-nonnegotiables.md
-d8ceb2941179453222ac80d2d4e4b6d36010aa1379248d41981a3688ffd83b4b  intent/005-alternatives-and-falsification.md
-ae857b8a2c3bba503698ddce0e38b06d57de01c49575efd18f9079190471726d  intent/README.md
-c707780ed552b347f5f8e0ca72f35eb75969c95491f2e3def45c396fd06ced52  intent/prompt-map.yaml
-ea884e5afe7d9799c726ab3c89d34adad588bf598740745f7ed8e0988777087d  operations/README.md
-5e78f168f6afeb0f08640751c0bb13314d8b972e86b982887ebd9e327829c0eb  operations/config-and-policy.md
-d5306909812555bec965cbe3e4a0b2b555162aeb7ab33187f4cc5218a247161e  operations/deployment-topologies.md
-91632227fa4ea0d4fe1202fe73b334c3b0b4bea2717692f0df033cd44ef0d5e6  operations/incident-response.md
-a5c4d8c0927674301f98a8dd00aa2ffb76fa5421199fd0e4f8065d19bd7493f6  operations/observability.md
-11b23d7111af606853f921a063af9398ce3bb38c5de5557f3ffb202becef3a06  operations/packaging.md
-025dd383fef014c4c72f0697cc13024cea63ddb15a3d3bf01511b1a473b46d79  operations/recovery.md
-a255882512041ca5b902759fff16edf2e3f4bd77d8cde1aab6ebc6e90d030a51  operations/slo-sla.md
-713ae4f2f8d874f98656e5428b33a4d8ba1663414943133f95c28dd836165714  operations/support-matrix.md
-6b32ec1bfa59c3ddf034c3d663133931308f4c5381673fb7ffcd5655877dc07d  operations/upgrades.md
-694227f1c9c88c8e1e710f10b2f23f450c6649c759a3d8f53797e978e6ed2827  references/BIBLIOGRAPHY.md
-e6ce4f1a65c56a037cf3291f26f11378ce033de6c55b148f7a1785c8ab998249  references/README.md
-8919eb2ca5bff06c71f09228791d318ad6f9e2497af768255e5db50fdf8ac2a6  references/source-map.md
-4eed4acce5396f0059aceabf04ffd29c356aee8962735d4743b3dcfa55513faf  references/source-status.md
-2bd2bab520589f05297ff0c8bbaf7de6403488e9541102580022dea9af6b6c7a  references/url-inventory.txt
-110604971091ba97cec2b548d7b23a73deb7d52978c6dc2a75386505b859c7e3  research/README.md
-59624e14ffeb59e8790f44683ecbe17ccf3a0d736bd3235330e5f878c0b39c26  research/experiments.json
-a38b514aef3d43f21a89d7e76088b8bb045db1bb1cdeab6a702efbb7f3464d7f  research/experiments.md
-9674c758785aced66427ce41a1ba18641dd33de47a87a040275a03936bffc1e3  research/graduation-gates.md
-84be9cc0faf47d23217a556a07ab72a69aedc15bf4c726c6535c88c89db5c045  research/hypotheses.json
-db5acd6862774069682a0ba7b3ee34837a6ffa9ec440719547a56f178dc1e64e  research/hypotheses.md
-85f42931a07a0ee1e19cfcf070f206073c4dd4c6b72652d05b4bd72ad79e6d7e  research/literature-map.md
-f13c8a55350c47d86c0889c24cdab86acba98e6c884469d36ac5eda1a1fd0bcb  research/open-questions.md
-2e478a10b6075430ab1852634d56c580753013fae90efa14b697b5496b417f23  research/research-program.md
-6a818e53706082461dee984f2f1ddd734672f6883820f95054e62517c4cac107  research/source-register.md
-a95efe1f51815b9802db1e1bb03f2bd6d635728dbe3a9f85b95ef30ad0a3529d  risks/README.md
-b3dd0f439adbd77d753d8ed75834c587b1ccf105003df7d5f572012354833f72  risks/feasibility-boundaries.md
-a8fc841d45fbf6ec61e2656d62bbcfd4fc7696729091ae1417adcc34d50dab66  risks/legal-licensing.md
-b4375c20ed6c3a28dbb0f0fbed52cf8541b20f311f8629f3eca48046252fdd7e  risks/risk-register.json
-ba2ed3f0fb08a31006ac0ff8e95f2432787c8477a8d2aceaf64c9d226493aefd  risks/risk-register.md
-3f42fee722047a3867c91d9335dfda44866850bc68eb9cd0090915093cb4ba97  risks/threat-model.md
-a0377eefd06c3bb3b31fedeb5fbdfef14b043f94dc472e69ec9366968e5e61f0  risks/vendor-dependency.md
-48df22f2ba457ce0b2e6a96a6366e8651debac9603c2ce37ecd0163f5a65c04c  sota/README.md
-1535770bc189e58733e1b891f50a56b0c283cf1abaea1d95e27de55ba097d9d4  sota/audio-network-class.md
-a7f7952229a40db35d7b8f88eb2303187b743c6d1c7a6d1a99bc7269bc7d7f87  sota/build-buy-wrap.md
-efea99742c773ba6b9216d13df1b6b1d1be421a98196e6d3f7ac99a216a243a8  sota/compute-runtime-class.md
-982efac88254f98dc76f8ce18df7b5101b2754921c4fd2046b66490116b54c7f  sota/deskflow-class.md
-100b7951f64a473e04fede70a1a49df0d09397aaa4333a9aa578def01fa02a87  sota/evdev-class.md
-e0404fd9d570815180fdf6e8b48f622c92924f76e7174014dee9e875657a9861  sota/executive-differentiation.md
-4a6c9cf84bb74f05c1a0fd1ba87db5acdebbefb92787ba88a8ca0714a3165f91  sota/looking-glass-class.md
-368e6a1a698980a5395fb27fc4268837576f6f8588fa14bd0a3bfa325841e82c  sota/moat-and-risk.md
-a9dcd8fa2b9753668b401419f377586faf5f60109d03c2ecc92be43f9f9f5e4f  sota/parsec-class.md
-ed20c726a879440b74d3071382f97d50a133019f055e0fc3deaa8cdaf9caa6df  sota/seamless-application-class.md
-3c2ae8ac8fa975829c4978d90d8cd55ccecf786cb93742f1922249090b89be6b  sota/standards-and-primitives.md
-57b51b00f10243c78f208dc80099c773ba46ff6a87d9d712b81f4c7dfdb705a1  sota/storage-memory-fabric-class.md
-fa47b8c284d4c6eebc5ca9a4c43fe7e3de3f04f04640159a83da935584b6ec8a  sota/user-facing-differentiators.md
-3fcb0deb9d9c7d434486c65a717c51911bab3606e7169be58e496824232b699d  specs/001-unified-product-shell/meta.json
-ae20e8e4369d78a1369b2c04a9a2465bb4e035db940d3a7a6c1511a49a962016  specs/001-unified-product-shell/plan.md
-511e258969980507e38043de58f9725459da3fd533b8832218a1af1a7ff1d878  specs/001-unified-product-shell/spec.md
-f0e420513b64625489a091d0dafb105bc4a7103cb38cfe79c63d1ebe768d55b3  specs/001-unified-product-shell/tasks.md
-6c5d8fc4cdbee605eff15cbd3bf11ecf3fb0861d374cfd1a90d9ef9ff4e3bbd3  specs/002-universal-io-graph/meta.json
-9a7ce102f40d312b60ba55a156a3b855f4171e1b54e5fffd3577d0b17e13cd44  specs/002-universal-io-graph/plan.md
-4bc39666c5a36dedaca837a20463fe84c4136781f329f56f44d5143d56e974d0  specs/002-universal-io-graph/spec.md
-b865d2bf176fc089a17a14ac778c6452ce9be19c615835c2909e0e70ff0d714a  specs/002-universal-io-graph/tasks.md
-8cd7c2bdcd746c087c0e98c84f7155f014ab540ebf80d900afedb3a085b9b51b  specs/003-compute-data-fabric/meta.json
-ae8a5978fc31946c47fea527da1b2e7241db76260fc5465caac396eb716c0f01  specs/003-compute-data-fabric/plan.md
-0bbc0ada287f6a5c35e2868214f29dfe8492b25be5ae69ccc2aa48f90c7b3a6a  specs/003-compute-data-fabric/spec.md
-0d8c7fb6ec482c831bed48ce52daea0b06852d2079cedc99efe5f234a27b977c  specs/003-compute-data-fabric/tasks.md
-f8bffeb14627c779cc10bb3cdb9b3ac4802126045a61f488cc8fe71b6a46344d  specs/004-locality-route-compiler/meta.json
-efd077aee77eabe06c3386741a219a34080b232d6a40e85c59321f7c0a49a7af  specs/004-locality-route-compiler/plan.md
-7ef48748689919d2945723061bd9158e0d3b7ffe14c5d11b5afa4af99959c493  specs/004-locality-route-compiler/spec.md
-6883f0750b9d383a5b97eb651b94eabec86400d32981ddfc097e79047d0bc54e  specs/004-locality-route-compiler/tasks.md
-562a791f6e36946ac86cbe066731b3002023df7b578daf54daa91e3f95a09a11  specs/005-realtime-qos/meta.json
-e30c93ccb61a8c8d001490e58b8fcfe24673f22650eec81c6336194e2c23eae1  specs/005-realtime-qos/plan.md
-ecda4c5a7f64506bcb76f0b167c70cdf067fe1d11fdc57b4b9cd665cd5fb7c21  specs/005-realtime-qos/spec.md
-ce825c1e25e53bc4714969a162f641028bf1062be82706e2966598ba050eb6a0  specs/005-realtime-qos/tasks.md
-127f151b88be95ba802850756993df8b5d0bc73f2ed0e88125c3833b86290992  specs/006-seamless-surface-presentation/meta.json
-6ef9dc514d622141e836e6e025de8a5d55e6daa4bdb9e63599954fe11ef8aa38  specs/006-seamless-surface-presentation/plan.md
-511b96c1792490b20eebedef23101cf0985b700ba06245308de7d154df99e6bc  specs/006-seamless-surface-presentation/spec.md
-e0433d4cffb3afc1ae4e5835ea8c06a5ca46428eba3b58b30ac20e1587284bf7  specs/006-seamless-surface-presentation/tasks.md
-3e8458469ea61f8dee06444ab56da2ec35a79f4ba5432646b4ad432181203ae8  specs/007-platform-continuity-adapters/meta.json
-0cf598ad940700797565c4a58cfc73de9c0bd418d993138d3f7c34e258d24626  specs/007-platform-continuity-adapters/plan.md
-6592a18d793021e315150cec3006abf365330243e4c5d7a5a48e5c825d0a9f5c  specs/007-platform-continuity-adapters/spec.md
-97641010f924abaa838c43dba00c86420ee25721ca482816c8914773995a2b15  specs/007-platform-continuity-adapters/tasks.md
-55189fd30dde7340d776b932f18953c398ce75312f4934e77a1c44597c82355e  specs/008-agent-ephemeral-realms/meta.json
-5fd5e8c2703d82d7fc455ed2e2a8c235ad13dbfb6485a8204720e6c59ba356ff  specs/008-agent-ephemeral-realms/plan.md
-51638266f0e5467fe564082dc21e6e6b40f80ec10ae6dbd4c31ee84d2d1f90e8  specs/008-agent-ephemeral-realms/spec.md
-0b0d621cbb6462f8571d055a5678e1f1fa5513481b09fafedbb5e3450a59bb15  specs/008-agent-ephemeral-realms/tasks.md
-bf72f5bb033280d4a5ca515e9e9a524eceeaca2a6db70ad9fcc4e0b1b2ba87b2  specs/009-security-identity-evidence/meta.json
-7745a188396b6cbe678b9ac2884c4d2a22bdddcba22ba3ee744d04063ffa3b05  specs/009-security-identity-evidence/plan.md
-3f4bb232bcabd0942a7df64dc737c825faafaece15da619abfd86926182fdea1  specs/009-security-identity-evidence/spec.md
-1c2db6e88d0adf0da0a57730b22cd61fe4f119ec81ac6f59cda8e2ab1f71f610  specs/009-security-identity-evidence/tasks.md
-16cbc2583ed6b62509138b9cc1adde51d55a490b90626b76bf3be5e4ff5a3aa9  specs/010-ecosystem-integration/meta.json
-05be35b3194aa42f7d76657d69db60b490c77bf51988223981dd3a9038d589c4  specs/010-ecosystem-integration/plan.md
-d4549f0ccb88e47569c9442f60f77dc354fd22e1b4ec28336d65b904613c6404  specs/010-ecosystem-integration/spec.md
-7fd4571d45da19367334d922f1c91bdf49bd46ab75e34270fa7b308b9621306a  specs/010-ecosystem-integration/tasks.md
-a439ca118fe94ce645f794b963fdf9f53f9745d055a7f1f484e6d3d48a4242ad  specs/011-observability-verification/meta.json
-8d473e615a426c40ec56be1f3c13a30767b465fd2ec090c6937f226580f2c0bc  specs/011-observability-verification/plan.md
-4ae334ce69839d3c8777bcd76152114243ea387fb70b1fdd2fe54c33fe1fadee  specs/011-observability-verification/spec.md
-d830d020d0a2b3e6869efd74cc380088678a1407c478c888aac6cccbbbeab1b2  specs/011-observability-verification/tasks.md
-273e0fcbb2ade897eca29029ab61aff4841c3b6da5a2a784e77d9837079905cb  specs/012-packaging-operations/meta.json
-b432a060952dcb75d23ca1a3b64f13875bbbd564c0637f6638b7773f0de769df  specs/012-packaging-operations/plan.md
-db80ecaa2bd0bfeda91c6c6da431734ac78da11a299db9226ec3f3648eec6aec  specs/012-packaging-operations/spec.md
-5ce79940850f771ab4dd2d19036ba3df86d32aee416bc9d98f398c0ec86de0d3  specs/012-packaging-operations/tasks.md
-3ed1163edf6d6772b73b97b716d796358a66d313fe91d5f26bea23d553ee37a2  specs/INDEX.md
-921dc0acb6e48569aee639f91d74b441c7d9025a913b903a1262dea07c6412d9  verification/README.md
-2c5a449ed05d16f1e8352b16e25738ce12b1e12ff9283992d86bcc91408b45e4  verification/acceptance-gates.md
-a35bf17b54e6fa615c7f034227a2a67aff0ea41e0ffc6bd606c9a0b2254e29f1  verification/audio-rt-test-plan.md
-cf981ebcb82de809f08299fd81025f9e7811836aaa24e31ac6bfb7e88038fcc4  verification/benchmark-catalog.json
-e7a2ed46de202588c90ace3118a19fc4499fbfc65e45c6f04c41e08561904bce  verification/benchmark-plan.md
-8b19aebedb6753b3331395cdd3ccefaff5703fa3d9b52e9b1cc23efe1e9ef6dd  verification/compatibility-matrix.md
-b081e531c32f03059be2cdc85b036e456faa85ad8e72b4348f377aacdd983964  verification/fault-catalog.json
-637266a9a19eb45e20397eaeb0defa2e5619f950a8b14b491f47c12e07944c4f  verification/fault-injection.md
-1099af08ccb9ab906f22c2e0698e2de5aa268126c0d516f53c8454d9f20cdfcc  verification/latency-methodology.md
-1b31007cdc91b5817a6c8da2dbf31b08f93612331e3f751c64978d187922a4ea  verification/requirements-traceability-matrix.md
-dcd06b259feea3759f04219f00db7b322a5ab02f6184e1fdc97e6f73f7a251a6  verification/requirements-traceability.json
-45d7bde6f7647a7d394d8cb77cc9ed942cd5584a629d6a420310ea24ed02e902  verification/security-test-plan.md
-44a3e4caadb3bf529631e3efda02768c7ab79af1a9174d00ba07d17b854f1a2b  verification/test-strategy.md
-a2cc8df629e5d568449aa7c0934c148ddad1067e0281e0b3736858bfdd895075  verification/video-hdr-test-plan.md
-22525afdd3918ecdce899f665d012650c2c0200c154838125d8face350869e71  work/README.md
-85a260b77377b906a4507113729a46eee4668e9a5051fdae18e6b036fe54379b  work/backlog.md
-48d3bfaf649bfcd19525868153472343832f566652883c4d0f19bf82d508e1ca  work/build-order.md
-b8ff9f61db4758a7f17a730f5f1d8541abb11433cabff06ccf81bab55fe79f51  work/cost-model.md
-65fb991ce8ff9308baa8cd9fde755074ec0a90aa4c22153a71507f44810e03ba  work/critical-path.md
-5211e8a56d39449d465c05871a319637e8c7d607d0019693ea8a19cc42b186dd  work/dag.md
-f7bb5ff5a52b1d1873162f04cbe5c470c1704a009d00cc018622874b3beced1b  work/dependency-register.md
-01a61896f57e0867bbf2ec24425169c4a52e77a4182a61dfbc748b4a1a3f908f  work/milestones.md
-01f46c1f62e0eadb20d84755fc26fee130f3759f7117b4ec2145bfb4bc01df9d  work/pert.md
-0933812421ee6d9e4ef8a2607e4217291554693e64c7c5260617174c2a7912a4  work/release-plan.md
-02ffd696c9ad02fb546fe337b25ce3ae2ee82a648a1a8137eb3453668abfe57b  work/staffing-agent-plan.md
-8a7fdf2dc69afbab60d805ccd6a03d24b33b95bf1a50aeba3d45848c81621028  work/tasks.json
-3f32352def7bd46228a5a1edb93d86f7b063cbd95b8156e857ca9915137eadfc  work/wbs.csv
-117c774470f693b6e50358f040a98babec1117e05793a67ae33f1e3eec4d320f  work/wbs.md
+{
+  ".github/workflows/spec-validation.yml": "0b3c6f150af8a36b55150e32712f75a2e3df122b35332dc62281348339b6db15",
+  "ALD.md": "1cec29c8aef61e1580a0e8dbaf4a018506101c9f790181e09b1addf730891001",
+  "ARCHITECTURE.md": "8f149bfc32d13848704e270b89e71aa4e9a760cf8e9d9859ad9e6cb8bdab6244",
+  "CHANGELOG.md": "680266e93bfb71224901cc9ff8ee9bb09ba24eeb820ef578212d0aff9b8370a5",
+  "CONTRIBUTING.md": "fb1fd032e7e68e37386e4a9142b530fe76f7d916abd3e817d8ff6d4e0ee1bb5d",
+  "DEVELOPMENT_GUIDE.md": "1ff12169a714ab131e960507709fff0ac3ac00e518496e65e30652357ade477f",
+  "DOMAIN_MODEL.md": "658864d02595e7ccf2b7a2c2339658b0aa0165f20719dcc77f680027aa36747e",
+  "FUNCTIONAL_REQUIREMENTS.md": "eb5408713c45a41151444b0374b282bd85ab0de4b9970a33401bfb70fd09a5d8",
+  "GLOSSARY.md": "5a563faf7e014f561d46449a11c8abc16f022fa92e1e9bab45ca436ed52c8058",
+  "GOVERNANCE.md": "2c655b762ca897fb424645ffe7b1379a59564830caa2c7295869607783b322c2",
+  "HLD.md": "5cdb8f03f1ef04970bdf0a1f8b1b33153e6b1ca861e0f1b40f6396a3d6d4903d",
+  "INDEX.md": "c0532aa16d34398046afe5ee90fe07cfa6ad62bcb86d09330ad8b9a27a5ab941",
+  "LLD.md": "dabe86e7c1eb06a2ec389ea5881c91a3ec9c1be00c7d9904998fa6b860c0b204",
+  "NON_FUNCTIONAL_REQUIREMENTS.md": "cdd355eb78b0c34a5eeac13ef496c056125b3dde390fc05eb166e6a755d10123",
+  "PLAN.md": "9f52efcae86f1137f6a9294babde92c12620b131fe7392265d7f3ed87e3cfe17",
+  "PRD.md": "8e1525428d22ad0a4ba8f481518df49681e64364c4d3c62256cf9f528adb9370",
+  "README.md": "920f2622b0b0ab3cd04ba1c1d5c16c47bf86c1d9d797ac126ce9bd131dd5d2e8",
+  "ROADMAP.md": "becb5925023f59699c6bff6f2099bf7fcfba89e7a2dcec6c9a9bfea8412bfe13",
+  "SECURITY.md": "201862b4b4c87690e7db5877e3ef56059eedda75c1790ff60b52cd6903ef1f41",
+  "SPECIFICATION.md": "98bcf78237d2c2af4cf51b7c5caefaf171d4b0ebb9a94839d9a9e299493588cc",
+  "STATUS.md": "f3cd9b881efb4633bc03881ebc30b0f25612f5eb31aa2da1b0cd9374a63b63c0",
+  "SYSTEM_REQUIREMENTS.md": "e4bd42885b8efbbfe9309c08a22c1fa79563a36cf2c08a48726dcad56255b2cf",
+  "TRACEABILITY.md": "98e4f00c71a33e8b025397f8f2ae438e92eff409de6bd1edf9ae9088915ea130",
+  "TREE.txt": "273cecada9703bc25a464627882cffd2b6c4a99b016dd9b90db2872a186b0fbc",
+  "UX_SPECIFICATION.md": "81cf5f8966ee895b193ba2b45a948a850fc13afe6766cba2d437512e4a151d00",
+  "VALIDATION_REPORT.md": "979b74736d5c5c8376531e6d6c100f870b1ddae9c8de0807002cd609278d7e27",
+  "WORKLOG.md": "aba6c774c28a774d39b6cd2eb34a80a120b5231dbbb06bc68062ee297dce54c7",
+  "adr/0001-fabric-product-boundary.md": "6dd452f0f5295ba9d68e89ac59410400a1107da8efab14fe23bc6080356aa4b7",
+  "adr/0002-one-shell-modular-runtime.md": "3304ffdfebea5b49709d27203083440db41312e1dac647b7cb4b093ce4b3b8a1",
+  "adr/0003-universal-typed-graph.md": "63da6662298e68bec0f180834a0c901cd8ee944346ef9a3fd478e8c13369f2f7",
+  "adr/0004-locality-first-route-selection.md": "403902aeb24f28ac6fd333b57703da9bcfad4ec5768d2b79158e767a06b12d5e",
+  "adr/0005-atomic-capability-adaptive-regions.md": "d69c84280faa56dacc66a12c568e400a57b5f30877d8336448e7fc255d00edef",
+  "adr/0006-multi-projection-shared-identity.md": "e0c10ab0e2fefbe2ae0f535340652e3ecaf456d3310e85f5564f508c37f6e926",
+  "adr/0007-no-universal-database.md": "89cc0ddbe85cafa93a35062e967d166e14a9dcd71b1781e2c840536a46a4c599",
+  "adr/0008-protected-realtime-islands.md": "6d84a9883088a9041a146cd92402b7dafc645e53927e998b41f6e998705e4dc2",
+  "adr/0009-shared-memory-before-codecs.md": "ef2b09f733cc4cb7f4ab4a1ed3d8b581411fbe1ae7304701a704c67d3c739578",
+  "adr/0010-semantic-before-pixel.md": "8affb2f40fae09a6b96ec64df223b1ea95f8db43d21de89f3d48cc8a1c183615",
+  "adr/0011-mobility-hierarchy.md": "a97def972892b1dd602e2dda6f87ecbd9dfa79e6e79de1e810b0097df7eb4518",
+  "adr/0012-exclusive-route-leases.md": "2cbea7ab8f22f52735fb0a93438c22b00f3939b05635693cfcc014b6edb9e9d3",
+  "adr/0013-independent-media-clocks.md": "0c789c536b8c0e3497f3e3410a5b58e3f9254522b1fc8404f153a0a8d971c5fc",
+  "adr/0014-color-hdr-first-class.md": "e06630368238176c5aa031715a80e66159d6a616f93ae3ac9a877dd0d58bec7a",
+  "adr/0015-sharecli-boundary.md": "d117cf0460b90d10530a1e768cac213f2d404a05d8b95edb7c90f62beb0f77d1",
+  "adr/0016-ecosystem-authority.md": "955ad3ee5f1bc3a77f2e0d4d4beec12f9f20575ce7011ed1141d9a8ca7a19fbf",
+  "adr/0017-agent-non-stealing.md": "c01c164757c0317db69ea2b1877ab1c56cd948c86e9eddc258b7b88290787002",
+  "adr/0018-oob-independent-recovery.md": "99be4508e5852c3bd1ae7b236a0c97330101ab5786b99fbbc37110a8a0697b1e",
+  "adr/0019-mutual-pairing-privileged-isolation.md": "1a45515087c4190b5aa868674c32d4cde072651d7767a376923f8cf3eb8bdf00",
+  "adr/0020-provisional-name.md": "cc94b9951cb4f4c66d89ed192007d7a300cc8584bfe833da8a7bb0fa9074240d",
+  "adr/0021-object-authority-immutability.md": "7906d51e7fb4f8cb6892db9de7bee2663f247de1a7ce373170288da4cc08111e",
+  "adr/0022-control-data-plane-separation.md": "73f6034188d6cdfd3b14597d7ed374054f8d8bbd89edd47155f0c30c5820e371",
+  "adr/INDEX.md": "85ab31ff6aaae69b69981d601f27392544eef5056642100716aaf147c6e057d1",
+  "architecture/README.md": "79189bfa29009217417a0c6176bb7236edd0d336b91c94a882aff747ef42d8e4",
+  "architecture/api.md": "c348c5c410ff324b24fec2f4efb695e9fd8b46688096c62c8f23ec0908f5b4e4",
+  "architecture/control-plane.md": "6e9606713de7c850ec60fbf7b06a200dfd1cc54e4b5f6a40c79de6c512c38055",
+  "architecture/files-clipboard.md": "3521427835e6f29808801e5aa44f76a4536d969111c303ea17fba5dd0dc4f10a",
+  "architecture/graph-runtime.md": "3f2c89190e04f3c7d838578a00bc71816398c282e573e551938952b97cdf33d8",
+  "architecture/input.md": "da4744599a8e5d151e544b438c94545597312d71c624de64ecc047a8988e7502",
+  "architecture/network-lan-wan.md": "63606d65ff387acc0c78bf5074423da1d03bbed8a61a52af12e3fdedf58d25c5",
+  "architecture/object-plane.md": "e2b66cc30e865854dd689003bf5828d8ce5bc0c0b3efa6b0862bb0e993981003",
+  "architecture/openapi.yaml": "f13ecf804c5a6885a0d781debc9b208397fe58fd648699b12239cdfb7ce323d4",
+  "architecture/platform-linux.md": "8221fbf639f0861605f81d68d123d4442e8dd0e073a32cfadfac8b1075543e65",
+  "architecture/platform-macos.md": "a745fc4c5f3b03c8de9382c0aaf635a5386e7667e339bdd096f770f3d5fd3579",
+  "architecture/platform-windows.md": "b2df4b9bb57be15dcb342fd14e7f0c39f90a5743d46f60f0fa657ea67775ca36",
+  "architecture/protocols.md": "e3d84f9332f24428452970a43c6ce735e5c9740c717e6706662b3fadfd59474c",
+  "architecture/realtime-audio.md": "7debf70643f6d576a534bb4544aa416d7003ed7a1e837bd6eab50ffbc7db2cc1",
+  "architecture/route-compiler.md": "7272c811ac5df964148ff3d1a52e536737013b4cc059403d65a5bc2f10de8cae",
+  "architecture/scheduler.md": "2a3f11a2fd81607976acf911e4bd838acc7afb104e49aecc4c1711c50e86ab73",
+  "architecture/schemas/capability.schema.json": "a3e220d24aca5cf6fc312c667f37ea3b485444d7c52e8b1619b18f67bfc0fa48",
+  "architecture/schemas/event.proto": "1b0d8f8c27a0b84a30ef4c4af4cb503689ebde91c1ee0de768e1c8b2023b31a9",
+  "architecture/schemas/graph.schema.json": "b161d92d39937f543e65c3dcdcf187011dceac95a837fc04deec59cd4caec86a",
+  "architecture/schemas/policy.schema.json": "457d6a668192594a4564cb67c1dd73615e0dce37df9c8f56ae8633070b2a9ab2",
+  "architecture/schemas/route.schema.json": "0b0747e8e319182a0752da89fc15d5977af646a829872d2cade74d7ab43d4461",
+  "architecture/schemas/task.schema.json": "be2fab35774c946b13876e91c151e4544bd965033140b3a80641f3cea2136939",
+  "architecture/schemas/workspace.schema.json": "e9e29950ba5ac9ec1381df74e30d000d615febfd2f420755458eb35430da105e",
+  "architecture/security.md": "cec5943758fa1430e872fcc7c5419fe7f5703786e110b306bee7cecd921fe999",
+  "architecture/state-machines.md": "29f1ff85b42a9ab4c32beaa95db4cc12ee0f3b48d32e9b5a0ef2a81e5db02876",
+  "architecture/surface-proxy.md": "9d0171361baef22d7b9ea758630ce7ed50527008d64f54696088a73503219c2a",
+  "architecture/system-context.md": "d9c47bd0c843382605542deb3b9ce51e64ffeeec460480ca273f64e5bc616bb2",
+  "architecture/video-hdr.md": "63712d06d5ad2ae29cc425adf9a4885e1b0c967334b572ea9ef1554409bf71c7",
+  "ecosystem/README.md": "c9bae2d3523105c291b1de54876015879efd613751cca51f091311f079c03738",
+  "ecosystem/agileplus.md": "cb8393ead18971045f7b12c11071a27fc24c2e35ee0810130dacf8b19b7dab8b",
+  "ecosystem/agslag.md": "716e9ba067641b6aebd89e350354f1c01cab8e58ff309dd232748f259adb4c7e",
+  "ecosystem/boundaries.md": "48b2d9bdd544f7f478e863c55c750772716896ba7dce201c1dc46a1abacfed88",
+  "ecosystem/event-contracts.json": "46af6df71448236f8d64eba6fc2ae4efbc6e0a231c1c6f92c884e57c52fc2402",
+  "ecosystem/event-contracts.md": "3ee51d9f7649b36608f488dffeb2bddf9dada88964d46bf095b98df24a6f11ed",
+  "ecosystem/integration-matrix.md": "0c4f33ddc35358abf13932238d922f0aff0d753b15b66526722f02de9a5a22f0",
+  "ecosystem/ledgers.md": "c4230dc8fa027b96a3d36f8a6f220eddaad0be36ad51b45e778932d889ad6031",
+  "ecosystem/nvms-labs-compute.md": "ce4d03c0f07c80b5aed0463467c627335c4d24bc0305f70b977e656882ae47c6",
+  "ecosystem/sharecli.md": "91c133afa8b864a1c00aefc26ed5abc68b77cdc10a836344b900c197df3c61ca",
+  "ecosystem/thegent.md": "3a153957a4b13168b15295a3f0f71ec9179bdc20986ac8a4506d7a43ba153db3",
+  "ecosystem/tracera.md": "1c340240dbd952b56c92f7d4557deed4c7a9ee3c774c876dac85b936149e0171",
+  "examples/README.md": "c248f2ec017327df733444e6984fbe956e358c8b7f93a65f7d415f72e6857549",
+  "examples/ableton.md": "041767aca65892830e3ad8992b1977aa4001df756d83a1c343f2e972357a7531",
+  "examples/agent-game-e2e.md": "66ac8fa15db27838f97649f65f15f0c6156a48e3e753858b035c532081f67172",
+  "examples/desk-to-couch.md": "4b61ed863e750ca064eff2e81d82d406adbda94b518bc3ea12cfcf5a548f2ff4",
+  "examples/gaming.md": "9a0b8579f045edb7a1d2beac20c0b9ba294a38f524498a7a140257623227a571",
+  "examples/graph-config.yaml": "9eb1160b33b798a5518bbe6a94a9a9f0b756fb6410dcadd64b0bcf44f946fa51",
+  "examples/macbook-third-display.md": "6242f28103d87375d644131c78a8c740c6ac325d0a004263a052f168650a3f83",
+  "examples/multi-vm.md": "222958f7b5a81e8e55f94274f99e99c126b2b67d4a76dc066d96bc8457694380",
+  "examples/user-environment.md": "933bfcc6442d2f5a2b48800cc1fadadbf21d97a9d31b2a071d497fef94df05e4",
+  "examples/wan.md": "91bd244cc212894f5433e63a0aa29f71d902f4cef3c4b68e1de9ebf5188c9f3e",
+  "examples/workspace-config.yaml": "dd5c5830b583075b4ffae804f70bf89a30798f729ebe1fe814352def7e1c004b",
+  "intent/000-source-prompts.md": "a4342f8500bf73383b70837731e9f07d832b63cb25cc4b0c9faa49276bd7fb31",
+  "intent/001-intent-synthesis.md": "0e513646701e42d6ca9b546881ba46108ff29b75717c31564e8cecb5f829fcd9",
+  "intent/002-human-to-requirement-map.md": "abfb12cf5580543959bbe0b66683feb943f7949cfd9f418425f2d8dd48c8e1ed",
+  "intent/003-assumptions-and-ambiguities.md": "dcc2ae0abe3d55e162425cb849f732c66fd45aa09beb4735e32f5d23bab98cf1",
+  "intent/004-nonnegotiables.md": "2f714b3d420172d6441b1be4420cc1df8a7992ba95bca3ecf2850dcaef1b26ac",
+  "intent/005-alternatives-and-falsification.md": "d8ceb2941179453222ac80d2d4e4b6d36010aa1379248d41981a3688ffd83b4b",
+  "intent/README.md": "ae857b8a2c3bba503698ddce0e38b06d57de01c49575efd18f9079190471726d",
+  "intent/prompt-map.yaml": "c707780ed552b347f5f8e0ca72f35eb75969c95491f2e3def45c396fd06ced52",
+  "operations/README.md": "ea884e5afe7d9799c726ab3c89d34adad588bf598740745f7ed8e0988777087d",
+  "operations/config-and-policy.md": "5e78f168f6afeb0f08640751c0bb13314d8b972e86b982887ebd9e327829c0eb",
+  "operations/deployment-topologies.md": "d5306909812555bec965cbe3e4a0b2b555162aeb7ab33187f4cc5218a247161e",
+  "operations/incident-response.md": "91632227fa4ea0d4fe1202fe73b334c3b0b4bea2717692f0df033cd44ef0d5e6",
+  "operations/observability.md": "a5c4d8c0927674301f98a8dd00aa2ffb76fa5421199fd0e4f8065d19bd7493f6",
+  "operations/packaging.md": "11b23d7111af606853f921a063af9398ce3bb38c5de5557f3ffb202becef3a06",
+  "operations/recovery.md": "025dd383fef014c4c72f0697cc13024cea63ddb15a3d3bf01511b1a473b46d79",
+  "operations/slo-sla.md": "a255882512041ca5b902759fff16edf2e3f4bd77d8cde1aab6ebc6e90d030a51",
+  "operations/support-matrix.md": "713ae4f2f8d874f98656e5428b33a4d8ba1663414943133f95c28dd836165714",
+  "operations/upgrades.md": "6b32ec1bfa59c3ddf034c3d663133931308f4c5381673fb7ffcd5655877dc07d",
+  "program/boundaries.json": "20ed8bbf5489b8278887ba039fe8ec213a8b2ab996980dcc4180fd9cb30dba48",
+  "program/identifiers.md": "fc4951e30ef35d77544b791eb1dd3baba15b9776a77270f9f67c996d6bd4af9d",
+  "program/scripts/check_json_schemas.py": "ed8cc324510c43c8fad26c08a5216a05bba98425cbadc9c72ac29bd3a64e2ad5",
+  "program/scripts/check_links.py": "b5857a95b434ca5a982ceed72139f2a6c457e6393c76009cd40c9670d4f64e85",
+  "program/scripts/check_manifest.py": "8f1824d8467b3cb610ab4c1b3359107b9e578ac6a8883469881c965cde5ca6b1",
+  "program/scripts/check_openapi.py": "f918d71a19781d7b0f67d414569f06e706d910ea73877b5c0255ee2bbbc8965f",
+  "references/BIBLIOGRAPHY.md": "694227f1c9c88c8e1e710f10b2f23f450c6649c759a3d8f53797e978e6ed2827",
+  "references/README.md": "e6ce4f1a65c56a037cf3291f26f11378ce033de6c55b148f7a1785c8ab998249",
+  "references/source-map.md": "8919eb2ca5bff06c71f09228791d318ad6f9e2497af768255e5db50fdf8ac2a6",
+  "references/source-status.md": "4eed4acce5396f0059aceabf04ffd29c356aee8962735d4743b3dcfa55513faf",
+  "references/url-inventory.txt": "2bd2bab520589f05297ff0c8bbaf7de6403488e9541102580022dea9af6b6c7a",
+  "research/README.md": "110604971091ba97cec2b548d7b23a73deb7d52978c6dc2a75386505b859c7e3",
+  "research/experiments.json": "59624e14ffeb59e8790f44683ecbe17ccf3a0d736bd3235330e5f878c0b39c26",
+  "research/experiments.md": "a38b514aef3d43f21a89d7e76088b8bb045db1bb1cdeab6a702efbb7f3464d7f",
+  "research/graduation-gates.md": "9674c758785aced66427ce41a1ba18641dd33de47a87a040275a03936bffc1e3",
+  "research/hypotheses.json": "84be9cc0faf47d23217a556a07ab72a69aedc15bf4c726c6535c88c89db5c045",
+  "research/hypotheses.md": "db5acd6862774069682a0ba7b3ee34837a6ffa9ec440719547a56f178dc1e64e",
+  "research/literature-map.md": "85f42931a07a0ee1e19cfcf070f206073c4dd4c6b72652d05b4bd72ad79e6d7e",
+  "research/open-questions.md": "f13c8a55350c47d86c0889c24cdab86acba98e6c884469d36ac5eda1a1fd0bcb",
+  "research/research-program.md": "2e478a10b6075430ab1852634d56c580753013fae90efa14b697b5496b417f23",
+  "research/source-register.md": "6a818e53706082461dee984f2f1ddd734672f6883820f95054e62517c4cac107",
+  "research/source-status.md": "896d9fec9027bbebae005c979f1fe47ffad80ebe3672e3c1437112c189e7c07a",
+  "risks/README.md": "a95efe1f51815b9802db1e1bb03f2bd6d635728dbe3a9f85b95ef30ad0a3529d",
+  "risks/feasibility-boundaries.md": "b3dd0f439adbd77d753d8ed75834c587b1ccf105003df7d5f572012354833f72",
+  "risks/legal-licensing.md": "a8fc841d45fbf6ec61e2656d62bbcfd4fc7696729091ae1417adcc34d50dab66",
+  "risks/risk-register.json": "b4375c20ed6c3a28dbb0f0fbed52cf8541b20f311f8629f3eca48046252fdd7e",
+  "risks/risk-register.md": "ba2ed3f0fb08a31006ac0ff8e95f2432787c8477a8d2aceaf64c9d226493aefd",
+  "risks/threat-model.md": "3f42fee722047a3867c91d9335dfda44866850bc68eb9cd0090915093cb4ba97",
+  "risks/vendor-dependency.md": "a0377eefd06c3bb3b31fedeb5fbdfef14b043f94dc472e69ec9366968e5e61f0",
+  "sota/README.md": "48df22f2ba457ce0b2e6a96a6366e8651debac9603c2ce37ecd0163f5a65c04c",
+  "sota/audio-network-class.md": "1535770bc189e58733e1b891f50a56b0c283cf1abaea1d95e27de55ba097d9d4",
+  "sota/build-buy-wrap.md": "a7f7952229a40db35d7b8f88eb2303187b743c6d1c7a6d1a99bc7269bc7d7f87",
+  "sota/compute-runtime-class.md": "efea99742c773ba6b9216d13df1b6b1d1be421a98196e6d3f7ac99a216a243a8",
+  "sota/deskflow-class.md": "982efac88254f98dc76f8ce18df7b5101b2754921c4fd2046b66490116b54c7f",
+  "sota/evdev-class.md": "100b7951f64a473e04fede70a1a49df0d09397aaa4333a9aa578def01fa02a87",
+  "sota/executive-differentiation.md": "e0404fd9d570815180fdf6e8b48f622c92924f76e7174014dee9e875657a9861",
+  "sota/looking-glass-class.md": "4a6c9cf84bb74f05c1a0fd1ba87db5acdebbefb92787ba88a8ca0714a3165f91",
+  "sota/moat-and-risk.md": "368e6a1a698980a5395fb27fc4268837576f6f8588fa14bd0a3bfa325841e82c",
+  "sota/parsec-class.md": "a9dcd8fa2b9753668b401419f377586faf5f60109d03c2ecc92be43f9f9f5e4f",
+  "sota/seamless-application-class.md": "ed20c726a879440b74d3071382f97d50a133019f055e0fc3deaa8cdaf9caa6df",
+  "sota/standards-and-primitives.md": "3c2ae8ac8fa975829c4978d90d8cd55ccecf786cb93742f1922249090b89be6b",
+  "sota/storage-memory-fabric-class.md": "57b51b00f10243c78f208dc80099c773ba46ff6a87d9d712b81f4c7dfdb705a1",
+  "sota/user-facing-differentiators.md": "fa47b8c284d4c6eebc5ca9a4c43fe7e3de3f04f04640159a83da935584b6ec8a",
+  "specs/001-unified-product-shell/meta.json": "3fcb0deb9d9c7d434486c65a717c51911bab3606e7169be58e496824232b699d",
+  "specs/001-unified-product-shell/plan.md": "ae20e8e4369d78a1369b2c04a9a2465bb4e035db940d3a7a6c1511a49a962016",
+  "specs/001-unified-product-shell/spec.md": "511e258969980507e38043de58f9725459da3fd533b8832218a1af1a7ff1d878",
+  "specs/001-unified-product-shell/tasks.md": "f0e420513b64625489a091d0dafb105bc4a7103cb38cfe79c63d1ebe768d55b3",
+  "specs/002-universal-io-graph/meta.json": "6c5d8fc4cdbee605eff15cbd3bf11ecf3fb0861d374cfd1a90d9ef9ff4e3bbd3",
+  "specs/002-universal-io-graph/plan.md": "9a7ce102f40d312b60ba55a156a3b855f4171e1b54e5fffd3577d0b17e13cd44",
+  "specs/002-universal-io-graph/spec.md": "4bc39666c5a36dedaca837a20463fe84c4136781f329f56f44d5143d56e974d0",
+  "specs/002-universal-io-graph/tasks.md": "b865d2bf176fc089a17a14ac778c6452ce9be19c615835c2909e0e70ff0d714a",
+  "specs/003-compute-data-fabric/meta.json": "8cd7c2bdcd746c087c0e98c84f7155f014ab540ebf80d900afedb3a085b9b51b",
+  "specs/003-compute-data-fabric/plan.md": "ae8a5978fc31946c47fea527da1b2e7241db76260fc5465caac396eb716c0f01",
+  "specs/003-compute-data-fabric/spec.md": "0bbc0ada287f6a5c35e2868214f29dfe8492b25be5ae69ccc2aa48f90c7b3a6a",
+  "specs/003-compute-data-fabric/tasks.md": "0d8c7fb6ec482c831bed48ce52daea0b06852d2079cedc99efe5f234a27b977c",
+  "specs/004-locality-route-compiler/meta.json": "f8bffeb14627c779cc10bb3cdb9b3ac4802126045a61f488cc8fe71b6a46344d",
+  "specs/004-locality-route-compiler/plan.md": "efd077aee77eabe06c3386741a219a34080b232d6a40e85c59321f7c0a49a7af",
+  "specs/004-locality-route-compiler/spec.md": "7ef48748689919d2945723061bd9158e0d3b7ffe14c5d11b5afa4af99959c493",
+  "specs/004-locality-route-compiler/tasks.md": "6883f0750b9d383a5b97eb651b94eabec86400d32981ddfc097e79047d0bc54e",
+  "specs/005-realtime-qos/meta.json": "562a791f6e36946ac86cbe066731b3002023df7b578daf54daa91e3f95a09a11",
+  "specs/005-realtime-qos/plan.md": "e30c93ccb61a8c8d001490e58b8fcfe24673f22650eec81c6336194e2c23eae1",
+  "specs/005-realtime-qos/spec.md": "ecda4c5a7f64506bcb76f0b167c70cdf067fe1d11fdc57b4b9cd665cd5fb7c21",
+  "specs/005-realtime-qos/tasks.md": "ce825c1e25e53bc4714969a162f641028bf1062be82706e2966598ba050eb6a0",
+  "specs/006-seamless-surface-presentation/meta.json": "127f151b88be95ba802850756993df8b5d0bc73f2ed0e88125c3833b86290992",
+  "specs/006-seamless-surface-presentation/plan.md": "6ef9dc514d622141e836e6e025de8a5d55e6daa4bdb9e63599954fe11ef8aa38",
+  "specs/006-seamless-surface-presentation/spec.md": "511b96c1792490b20eebedef23101cf0985b700ba06245308de7d154df99e6bc",
+  "specs/006-seamless-surface-presentation/tasks.md": "e0433d4cffb3afc1ae4e5835ea8c06a5ca46428eba3b58b30ac20e1587284bf7",
+  "specs/007-platform-continuity-adapters/meta.json": "3e8458469ea61f8dee06444ab56da2ec35a79f4ba5432646b4ad432181203ae8",
+  "specs/007-platform-continuity-adapters/plan.md": "0cf598ad940700797565c4a58cfc73de9c0bd418d993138d3f7c34e258d24626",
+  "specs/007-platform-continuity-adapters/spec.md": "6592a18d793021e315150cec3006abf365330243e4c5d7a5a48e5c825d0a9f5c",
+  "specs/007-platform-continuity-adapters/tasks.md": "97641010f924abaa838c43dba00c86420ee25721ca482816c8914773995a2b15",
+  "specs/008-agent-ephemeral-realms/meta.json": "55189fd30dde7340d776b932f18953c398ce75312f4934e77a1c44597c82355e",
+  "specs/008-agent-ephemeral-realms/plan.md": "5fd5e8c2703d82d7fc455ed2e2a8c235ad13dbfb6485a8204720e6c59ba356ff",
+  "specs/008-agent-ephemeral-realms/spec.md": "51638266f0e5467fe564082dc21e6e6b40f80ec10ae6dbd4c31ee84d2d1f90e8",
+  "specs/008-agent-ephemeral-realms/tasks.md": "0b0d621cbb6462f8571d055a5678e1f1fa5513481b09fafedbb5e3450a59bb15",
+  "specs/009-security-identity-evidence/meta.json": "bf72f5bb033280d4a5ca515e9e9a524eceeaca2a6db70ad9fcc4e0b1b2ba87b2",
+  "specs/009-security-identity-evidence/plan.md": "7745a188396b6cbe678b9ac2884c4d2a22bdddcba22ba3ee744d04063ffa3b05",
+  "specs/009-security-identity-evidence/spec.md": "3f4bb232bcabd0942a7df64dc737c825faafaece15da619abfd86926182fdea1",
+  "specs/009-security-identity-evidence/tasks.md": "1c2db6e88d0adf0da0a57730b22cd61fe4f119ec81ac6f59cda8e2ab1f71f610",
+  "specs/010-ecosystem-integration/meta.json": "16cbc2583ed6b62509138b9cc1adde51d55a490b90626b76bf3be5e4ff5a3aa9",
+  "specs/010-ecosystem-integration/plan.md": "05be35b3194aa42f7d76657d69db60b490c77bf51988223981dd3a9038d589c4",
+  "specs/010-ecosystem-integration/spec.md": "d4549f0ccb88e47569c9442f60f77dc354fd22e1b4ec28336d65b904613c6404",
+  "specs/010-ecosystem-integration/tasks.md": "7fd4571d45da19367334d922f1c91bdf49bd46ab75e34270fa7b308b9621306a",
+  "specs/011-observability-verification/meta.json": "a439ca118fe94ce645f794b963fdf9f53f9745d055a7f1f484e6d3d48a4242ad",
+  "specs/011-observability-verification/plan.md": "8d473e615a426c40ec56be1f3c13a30767b465fd2ec090c6937f226580f2c0bc",
+  "specs/011-observability-verification/spec.md": "4ae334ce69839d3c8777bcd76152114243ea387fb70b1fdd2fe54c33fe1fadee",
+  "specs/011-observability-verification/tasks.md": "d830d020d0a2b3e6869efd74cc380088678a1407c478c888aac6cccbbbeab1b2",
+  "specs/012-packaging-operations/meta.json": "273e0fcbb2ade897eca29029ab61aff4841c3b6da5a2a784e77d9837079905cb",
+  "specs/012-packaging-operations/plan.md": "b432a060952dcb75d23ca1a3b64f13875bbbd564c0637f6638b7773f0de769df",
+  "specs/012-packaging-operations/spec.md": "db80ecaa2bd0bfeda91c6c6da431734ac78da11a299db9226ec3f3648eec6aec",
+  "specs/012-packaging-operations/tasks.md": "5ce79940850f771ab4dd2d19036ba3df86d32aee416bc9d98f398c0ec86de0d3",
+  "specs/013-fabric-program-baseline/meta.json": "cee06bba27e214a312fd3e1860a648a3fd0ad9b0ec9b8d557b0ef816370df53a",
+  "specs/013-fabric-program-baseline/plan.md": "f90ed3cce850d599fe831520d188ffaf069b59fc143dcdaa358517765961d345",
+  "specs/013-fabric-program-baseline/spec.md": "fbe70cf58fd2e8bdbdda7cde142c49879506f86cf3a0084480c6186c8ddc139e",
+  "specs/013-fabric-program-baseline/tasks.md": "a7ad9d7e06ab5eac85a5dad8de41c6873454c0ed844d21723e80e21440f01ad2",
+  "specs/014-capability-inventory/meta.json": "3e4203a2188170d5b100e74fde7134ee897db0f8182be9328dc1f34019613e75",
+  "specs/014-capability-inventory/plan.md": "9d64da7d60ff7eeaa05520bb16d9c33ed71cb8cc5f6d81365eecdd648d0ac0c0",
+  "specs/014-capability-inventory/spec.md": "00f2038517b13e4c8a605f0b015aae678d805a340175e9df084b8daa803030d2",
+  "specs/014-capability-inventory/tasks.md": "5148e68739e6ce475431b6f13c340ac409d7cb288899ee1de86e410e6f5e8525",
+  "specs/INDEX.md": "836bcdda975661b02f778c6916752561c99b73790851a7b70df75a97d7eaf544",
+  "verification/README.md": "921dc0acb6e48569aee639f91d74b441c7d9025a913b903a1262dea07c6412d9",
+  "verification/acceptance-gates.md": "2c5a449ed05d16f1e8352b16e25738ce12b1e12ff9283992d86bcc91408b45e4",
+  "verification/audio-rt-test-plan.md": "a35bf17b54e6fa615c7f034227a2a67aff0ea41e0ffc6bd606c9a0b2254e29f1",
+  "verification/benchmark-catalog.json": "cf981ebcb82de809f08299fd81025f9e7811836aaa24e31ac6bfb7e88038fcc4",
+  "verification/benchmark-plan.md": "e7a2ed46de202588c90ace3118a19fc4499fbfc65e45c6f04c41e08561904bce",
+  "verification/compatibility-matrix.md": "8b19aebedb6753b3331395cdd3ccefaff5703fa3d9b52e9b1cc23efe1e9ef6dd",
+  "verification/fault-catalog.json": "b081e531c32f03059be2cdc85b036e456faa85ad8e72b4348f377aacdd983964",
+  "verification/fault-injection.md": "637266a9a19eb45e20397eaeb0defa2e5619f950a8b14b491f47c12e07944c4f",
+  "verification/latency-methodology.md": "1099af08ccb9ab906f22c2e0698e2de5aa268126c0d516f53c8454d9f20cdfcc",
+  "verification/requirements-traceability-matrix.md": "1b31007cdc91b5817a6c8da2dbf31b08f93612331e3f751c64978d187922a4ea",
+  "verification/requirements-traceability.json": "dcd06b259feea3759f04219f00db7b322a5ab02f6184e1fdc97e6f73f7a251a6",
+  "verification/security-test-plan.md": "45d7bde6f7647a7d394d8cb77cc9ed942cd5584a629d6a420310ea24ed02e902",
+  "verification/test-strategy.md": "44a3e4caadb3bf529631e3efda02768c7ab79af1a9174d00ba07d17b854f1a2b",
+  "verification/video-hdr-test-plan.md": "a2cc8df629e5d568449aa7c0934c148ddad1067e0281e0b3736858bfdd895075",
+  "work/README.md": "22525afdd3918ecdce899f665d012650c2c0200c154838125d8face350869e71",
+  "work/backlog.md": "85a260b77377b906a4507113729a46eee4668e9a5051fdae18e6b036fe54379b",
+  "work/build-order.md": "48d3bfaf649bfcd19525868153472343832f566652883c4d0f19bf82d508e1ca",
+  "work/cost-model.md": "b8ff9f61db4758a7f17a730f5f1d8541abb11433cabff06ccf81bab55fe79f51",
+  "work/critical-path.md": "65fb991ce8ff9308baa8cd9fde755074ec0a90aa4c22153a71507f44810e03ba",
+  "work/dag.md": "5211e8a56d39449d465c05871a319637e8c7d607d0019693ea8a19cc42b186dd",
+  "work/dependency-register.md": "f7bb5ff5a52b1d1873162f04cbe5c470c1704a009d00cc018622874b3beced1b",
+  "work/milestones.md": "01a61896f57e0867bbf2ec24425169c4a52e77a4182a61dfbc748b4a1a3f908f",
+  "work/pert.md": "01f46c1f62e0eadb20d84755fc26fee130f3759f7117b4ec2145bfb4bc01df9d",
+  "work/release-plan.md": "0933812421ee6d9e4ef8a2607e4217291554693e64c7c5260617174c2a7912a4",
+  "work/staffing-agent-plan.md": "02ffd696c9ad02fb546fe337b25ce3ae2ee82a648a1a8137eb3453668abfe57b",
+  "work/tasks.json": "8a7fdf2dc69afbab60d805ccd6a03d24b33b95bf1a50aeba3d45848c81621028",
+  "work/wbs.csv": "3f32352def7bd46228a5a1edb93d86f7b063cbd95b8156e857ca9915137eadfc",
+  "work/wbs.md": "117c774470f693b6e50358f040a98babec1117e05793a67ae33f1e3eec4d320f"
+}
