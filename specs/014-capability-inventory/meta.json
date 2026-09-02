@@ -1,0 +1,24 @@
+{
+  "id": "014-capability-inventory",
+  "title": "Capability Inventory and Topology Probe (R0 Runtime Foundation)",
+  "created": "2026-09-01",
+  "state": "specified",
+  "scope": "Detect, classify, sign, and publish a graph-native capability inventory of CPU/NUMA/cache/memory/GPU/NPU/codec/display/PCIe/audio/MIDI/input/storage/NIC/link topology. First R0 runtime code (Rust library + Go reference adapter via NVMS).",
+  "requirements": [
+    "PF-FR-007",
+    "PF-FR-008",
+    "PF-FR-009"
+  ],
+  "source_intent": [
+    "INT-P012",
+    "INT-P013",
+    "INT-P014"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true,
+    "release_gate": "R0",
+    "runtime_languages": ["Rust", "Go"],
+    "depends_on": "PF-WP-000 (program baseline)"
+  }
+}

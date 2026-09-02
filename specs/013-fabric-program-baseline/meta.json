@@ -1,0 +1,21 @@
+{
+  "id": "013-fabric-program-baseline",
+  "title": "Fabric Program Baseline (R0 Foundation)",
+  "created": "2026-09-01",
+  "state": "specified",
+  "scope": "Program-level rules and contracts that the rest of Fabric is built on: product boundary freeze, identifier normalization, documentation-as-code enforcement, source-confidence policy, and release evidence contract. No runtime code — meta-contract that all other specs inherit.",
+  "requirements": [
+    "PF-FR-098",
+    "PF-FR-099"
+  ],
+  "source_intent": [
+    "INT-P009",
+    "INT-P010",
+    "INT-P011"
+  ],
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true,
+    "release_gate": "R0"
+  }
+}

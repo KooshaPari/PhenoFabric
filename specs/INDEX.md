@@ -16,6 +16,19 @@ These feature folders follow the live AgilePlus `kitty-specs` pattern: `meta.jso
 | 010 | [`010-ecosystem-integration`](010-ecosystem-integration/spec.md) | Phenotype Ecosystem Integration and Product Boundaries | AgilePlus, thegent, AGSLAG, Tracera, SessionLedger, ShareCLI, NVMS, labs-compute, event contracts |
 | 011 | [`011-observability-verification`](011-observability-verification/spec.md) | Observability, Benchmarking, and Verification | Measurement boundaries, telemetry, benchmark harness, fault injection, compatibility, evidence |
 | 012 | [`012-packaging-operations`](012-packaging-operations/spec.md) | Packaging, Deployment, Upgrade, and Recovery | Cross-platform install, signed components, configuration, coordinator topology, updates, rollback, diagnostics, OOB recovery |
+| 013 | [`013-fabric-program-baseline`](013-fabric-program-baseline/spec.md) | Fabric Program Baseline (R0 Foundation) | Product boundary freeze, identifier normalization, documentation-as-code checks, source-confidence policy, release evidence contract. Unblocks all other WPs. |
+| 014 | [`014-capability-inventory`](014-capability-inventory/spec.md) | Capability Inventory and Topology Probe | Detect, classify, sign, and publish graph-native capability descriptor: CPU/NUMA/cache, GPU/NPU/codec/display/PCIe, audio/MIDI/input/storage/NIC, link metrics. First R0 runtime code. |
+
+## R0 Program Baselines (work packages PF-WP-000 and PF-WP-010)
+
+The two R0 work packages are program-level infrastructure and runtime
+foundations. They do not implement feature behavior — they create the
+contracts that all subsequent WPs depend on.
+
+| WP | Spec | Title | Release gate |
+|---|---|---|---|
+| PF-WP-000 | [`013-fabric-program-baseline`](013-fabric-program-baseline/spec.md) | Program Baseline | R0 → R1 |
+| PF-WP-010 | [`014-capability-inventory`](014-capability-inventory/spec.md) | Capability Inventory | R0 → R1 |
 
 ## Dependency spine
 
@@ -33,6 +46,10 @@ flowchart TD
     S010[010 Ecosystem]
     S011[011 Observability]
     S012[012 Packaging]
+    R000[013 Program Baseline]:::r0
+    R010[014 Capability Inventory]:::r0
+
+    classDef r0 fill:#1a1a2e,stroke:#0f3460,color:#e94560
 
     S001 --> S002
     S002 --> S004
@@ -54,4 +71,10 @@ flowchart TD
     S012 --> S001
     S012 --> S007
     S012 --> S009
+    R000 --> R010
+    R010 --> S003
+    R010 --> S004
+
+    style R000 fill:#1a3a1a,stroke:#4caf50,color:#fff
+    style R010 fill:#1a3a1a,stroke:#4caf50,color:#fff
 ```
