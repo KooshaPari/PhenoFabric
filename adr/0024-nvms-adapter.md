@@ -1,6 +1,6 @@
 # ADR-0024: NVMS Adapter — Mapping `odin.nvms` to Fabric `CapabilityDescriptor`
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-09-01
 **Deciders:** Session 01a04c3e continuation (2026-09-01)
 **Supersedes:** None
