@@ -11,3 +11,119 @@
 7. Added research falsification, performance/fault/security evidence requirements and exact reference scenarios.
 8. Added packaging, recovery, support and legal/vendor risk material.
 9. Generated manifest, link/schema checks and archive validation as the final packaging step.
+
+## 2026-09-01 — R0 cut, session resume
+
+### Context
+
+Session `01a04c3e-7645-75e2-92f2-591fb21157a9` hit Codex usage limits
+on 2026-09-01 11:00 UTC. This entry captures the state at hand-off
+to the next session (Codex resume, 2026-09-06) or to the GLM-backed
+continuation session.
+
+### Inherited state
+
+- **`agileplus-recovery-wtrees/core-mcp-runtime-linear2-20260829` worktree** —
+  rebase against `fc47cbb4` completed. Branch ref updated.
+  17 files had embedded conflict markers; all resolved.
+  Full workspace: clean build, ~1,300 tests passing.
+- **`phenotype-fabric/`** — R0 release complete. See `releases/2026-09-01-R0.md`.
+- **17 phenotype-* repos** — audit captured in
+  `meta/PHENOTYPE_ARCHITECTURE.md` (lives in Phenotype root, not in
+  any individual repo).
+
+### Decisions made this session
+
+1. **Fabric is a new repo, not grafted onto any existing one.** Rationale
+   in `releases/2026-09-01-R0.md` and `meta/PHENOTYPE_ARCHITECTURE.md`.
+2. **Capability descriptors use UUIDv7 + BLAKE3 topology hash + Ed25519 signatures.**
+   Documented in `program/identifiers.md` and `crates/fabric-capability/src/signing.rs`.
+3. **Canonical bytes for signing strip the `signatures` field.** This means
+   a signature cannot sign itself, but it also means a descriptor can be
+   re-signed by appending to the signatures array without invalidating
+   earlier signatures.
+4. **Cross-language adapter is Go, not C.** C FFI provided as a convenience.
+5. **R0 stability is "good enough" not "maximal".** Uses serde_json::Value
+   round-trip for canonical bytes; RFC 8785 (deterministic JSON) is R1.
+
+### Open threads
+
+#### High priority
+
+- [ ] **ShareCLI dirty state resolution.** `sharecli/` has uncommitted
+  changes from a macos-signing WIP. The signing work needs to either
+  be completed or backed out before ShareCLI can be used as a Fabric
+  integration. See `sharecli/WORKLOG.md`.
+- [ ] **NVMS → Fabric adapter.** The existing `nanovms/` repo has a
+  low-level inventory that should emit a Fabric descriptor. ADR-0020
+  in `docs/adr/` flags this as provisional until R0.5. Implementation
+  owner: TBD.
+
+#### Medium priority
+
+- [ ] **PF-WP-010.05 link metrics.** Stub struct only in R0. Full
+  implementation (RTT probe, bandwidth, loss) is R1 work and a
+  dependency for PF-WP-020 (route compiler).
+- [ ] **Cross-link the rest of the spec/ directory.** The R0 spec/plan/tasks
+  for PF-WP-000 and PF-WP-010 are in `specs/013-` and `specs/014-`.
+  Existing 12 specs in `specs/001-` through `specs/012-` reference
+  PF-WP-IDs but not the new specs. Cross-link sweep is R0.5.
+- [ ] **Update ADR-0007 (capability inventory).** Currently describes
+  the pre-R0 plan. Should be updated to reflect the actual R0 schema
+  + signing approach.
+- [ ] **Update ADR-0014 (canonical bytes).** Currently references
+  "TBD". Now resolved: strip signatures field.
+
+#### Low priority
+
+- [ ] **Move MANIFEST.sha256 from JSON to sha256sum format.** The
+  current JSON format is fine for tooling but the original format
+  was plain text. Align with sha256sum for compatibility.
+- [ ] **Add `phenotype fabric` CLI command.** Currently no CLI; Go
+  adapter is the only entry point. R1 will add a proper CLI.
+- [ ] **Update CONTRIBUTING.md CI section.** Now that the
+  `spec-validation.yml` workflow is real, document what each check
+  does and how to fix failures.
+- [ ] **Re-add `links` check to catch `MARKDOWN-LINK-PATTERNS.md` style
+  links.** Some links use `path/to/file.md:line` style that the
+  current regex misses.
+
+### Carried-over threads (from session 01a04c3e-...)
+
+- [ ] **macOS code signing wave** across ~10 phenotype-* repos. Coordinated
+  cert + notarization rollout. Out of scope for Fabric but blocks
+  production deploys.
+- [ ] **Phenotype-traceability-spine** — repo created but mostly empty.
+  Needs initial schemas and an export tool from Tracera/ResearchLedger.
+
+### Risks
+
+- **R0 has not been tested on Windows.** Linux + macOS only.
+  Windows probe would need `windows-rs` or `winapi` integration. R1.
+- **R0 has not been tested in a hostile network environment.** All
+  work has been local. R3+ will validate.
+- **No adversary model for signed descriptors.** A node can lie about
+  its capabilities. R0 has a trust model (direct key) but no
+  revocation. R1 needs a trust-root or CA model.
+
+### Statistics
+
+- Files in `phenotype-fabric/`: 266 (excluding target/, .git/)
+- Lines of Rust: ~1,400 in `fabric-capability/` (lib + tests)
+- Lines of Go: ~120 in `cmd/capprobe/main.go`
+- Lines of Markdown (spec + plan + tasks + evidence): ~6,000 across
+  the 12 pre-existing + 2 new specs
+- Test count: 11 (capability) + 6 (descriptor roundtrip) + 6 (signature)
+  + 0 (Go, not yet)
+
+### Next session plan
+
+1. Read this worklog + `releases/2026-09-01-R0.md`.
+2. Validate that the R0 state is intact: `git log --oneline | head -10`
+   should show the 5 commits for the import + 2 R0 commits.
+3. Pick from the open threads. **Recommended: NVMS → Fabric adapter
+   (high priority, R0.5 deliverable, not in current scope).**
+4. Alternatively, **update ShareCLI to emit a Fabric process-supervisor
+   capability** — also high priority and integrates with PF-WP-010
+   by exercising the reference adapter.
+5. Commit early and often. Do not batch.
