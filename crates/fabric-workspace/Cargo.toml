@@ -1,0 +1,19 @@
+[package]
+name = "fabric-workspace"
+version = "0.1.0"
+edition = "2021"
+authors = ["Phenotype OSS <oss@phenotype.dev>"]
+description = "Fabric seat-leases and workspace state management"
+license = "MIT OR Apache-2.0"
+rust-version = "1.81"
+
+[dependencies]
+fabric-graph = { path = "../fabric-graph" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+thiserror = "1.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tokio = { version = "1.0", features = ["sync", "rt"] }
+tracing = "0.1"
