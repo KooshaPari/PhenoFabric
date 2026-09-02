@@ -17,7 +17,7 @@ blake3 = "1.5"
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 rand = "0.8"
 thiserror = "2.0"
-schemars = { version = "0.8", features = ["derive", "uuid1", "chrono"] }
+schemars = { version = "0.8", features = ["derive", "chrono"] }
 jsonschema = "0.27"
 base64 = "0.22"
 

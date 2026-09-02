@@ -11,6 +11,8 @@ use crate::locality::{CopyPath, LocalityTier};
 /// The top-level capability descriptor for a Fabric node.
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CapabilityDescriptor {
+    /// The unique node identifier (UUIDv7 for time-ordered locality).
+    #[schemars(with = "String")]
     pub node_id: Uuid,
     pub epoch: u64,
     pub schema_version: String,
@@ -196,6 +198,7 @@ pub struct TopologyCapabilities {
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct TopologyEdge {
+    #[schemars(with = "String")]
     pub target_node_id: Uuid,
     pub locality_tier: LocalityTier,
     pub link_metrics: LinkMetrics,

@@ -1,0 +1,35 @@
+{
+  "id": "015-route-compiler-cli",
+  "title": "Route Compiler and Reference CLI",
+  "created": "2026-09-01",
+  "state": "in-progress",
+  "scope": "Canonical graph objects (node/port/link/domain), capability/format negotiation, graph prepare/commit/abort/rollback, lease/fencing primitives, workspace snapshots, recursion/hop prevention, CLI/SDK/API surface",
+  "requirements": [
+    "PF-FR-007",
+    "PF-FR-008",
+    "PF-FR-009",
+    "PF-FR-010",
+    "PF-FR-011",
+    "PF-FR-012",
+    "PF-FR-013",
+    "PF-FR-014",
+    "PF-FR-015"
+  ],
+  "source_intent": [
+    "INT-P009",
+    "INT-P010",
+    "INT-P011",
+    "INT-P012",
+    "INT-P013",
+    "INT-P014"
+  ],
+  "depends_on": [
+    "014-capability-inventory"
+  ],
+  "release_gate": "R1",
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true,
+    "cli_well_known": true
+  }
+}

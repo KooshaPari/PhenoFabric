@@ -18,6 +18,17 @@ These feature folders follow the live AgilePlus `kitty-specs` pattern: `meta.jso
 | 012 | [`012-packaging-operations`](012-packaging-operations/spec.md) | Packaging, Deployment, Upgrade, and Recovery | Cross-platform install, signed components, configuration, coordinator topology, updates, rollback, diagnostics, OOB recovery |
 | 013 | [`013-fabric-program-baseline`](013-fabric-program-baseline/spec.md) | Fabric Program Baseline (R0 Foundation) | Product boundary freeze, identifier normalization, documentation-as-code checks, source-confidence policy, release evidence contract. Unblocks all other WPs. |
 | 014 | [`014-capability-inventory`](014-capability-inventory/spec.md) | Capability Inventory and Topology Probe | Detect, classify, sign, and publish graph-native capability descriptor: CPU/NUMA/cache, GPU/NPU/codec/display/PCIe, audio/MIDI/input/storage/NIC, link metrics. First R0 runtime code. |
+| 015 | [`015-route-compiler-cli`](015-route-compiler-cli/spec.md) | Route Compiler and Reference CLI | Canonical graph objects (node/port/link/domain), capability/format negotiation, prepare/commit/abort/rollback, lease/fencing, workspace snapshots, recursion/hop prevention, reference CLI and JSON-RPC. R1. |
+| 016 | [`016-nvms-manifest-adapter`](016-nvms-manifest-adapter/spec.md) | NVMS Manifest Adapter (R0.5) | Map odin.nvms v0.2 application manifests to Fabric `CapabilityDescriptor`. Path dep on archived nanovms `phenotype-manifest`. R0.5 → R1. |
+
+## R0.5 / R1 (intermediate work packages)
+
+These work packages ship after R0 (capability inventory) and before the full feature set, providing the minimum runtime infrastructure needed for surface presentation and agent work.
+
+| WP | Spec | Title | Release gate |
+|---|---|---|---|
+| PF-WP-020 | [`015-route-compiler-cli`](015-route-compiler-cli/spec.md) | Route Compiler + CLI | R1 |
+| PF-WP-011 | [`016-nvms-manifest-adapter`](016-nvms-manifest-adapter/spec.md) | NVMS Adapter | R0.5 |
 
 ## R0 Program Baselines (work packages PF-WP-000 and PF-WP-010)
 

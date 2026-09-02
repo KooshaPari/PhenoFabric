@@ -1,0 +1,22 @@
+[package]
+name = "fabric-graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Fabric topology graph model and route compilation"
+
+[dependencies]
+fabric-capability = { workspace = true }
+serde = { workspace = true }
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+blake3.workspace = true
+thiserror.workspace = true
+schemars.workspace = true
+anyhow = "1.0"
+tracing = "0.1"
+url = "2.5"

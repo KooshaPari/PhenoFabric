@@ -1,0 +1,26 @@
+{
+  "id": "016-nvms-manifest-adapter",
+  "title": "NVMS Manifest Adapter (R0.5)",
+  "created": "2026-09-01",
+  "state": "in-progress",
+  "scope": "Adapt odin.nvms v0.2 application manifests to Fabric CapabilityDescriptor. Path dependency on archived nanovms `phenotype-manifest`. Provides the lower-bound capability set an application requires, the upper-bound it requests, and the format mapping table.",
+  "requirements": [
+    "PF-FR-007",
+    "PF-FR-008",
+    "PF-FR-009"
+  ],
+  "source_intent": [
+    "INT-P012",
+    "INT-P013",
+    "INT-P014"
+  ],
+  "depends_on": [
+    "014-capability-inventory"
+  ],
+  "release_gate": "R0.5",
+  "governance": {
+    "format": "AgilePlus-compatible",
+    "evidence_required": true,
+    "stability": "Proposed (awaiting first integration use)"
+  }
+}
