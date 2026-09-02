@@ -29,6 +29,7 @@ Format follows the existing ecosystem ADR convention: status/date/deciders/super
 | [0023 — Signed Capability Descriptor Schema and FFI](0023-capability-inventory-schema.md) | CapabilityDescriptor uses Ed25519 signatures, blake3 canonical-bytes for identity, a hand-authored C ABI, and JSON Schema validation. Canonical-bytes strips signatures before hashing. | Accepted |
 | [0024 — NVMS Adapter — Mapping `odin.nvms` to Fabric CapabilityDescriptor](0024-nvms-adapter.md) | `crates/phenotype-nvms-adapter` translates odin.nvms v0.2 YAML manifests into Fabric `CapabilityDescriptor` instances. Required/bounds model separates minimum viable from acceptable range. | Accepted |
 | [0025 — Route Plan Semantic Model](0025-route-lease-semantic-model.md) | RoutePlan and SeatLease model captures compile decisions, locality tier enforcement, negotiation score, RT island protection, preferred-node hints, and multi-step sequences. Lease semantics use monotonic fencing tokens. | Accepted |
+| [0026 — Workspace Persistence File Format](0026-workspace-persistence-format.md) | JSONL workspace state file at `${XDG_STATE_HOME}/phenotype/fabric/workspace.jsonl` with header + append-only lease records, Ed25519 signatures, blake3 canonical-bytes, atomic write, advisory flock, schema validation on load. Drift detection via `topology_epoch` and `policy_fingerprint`. |
 
 ## Decision themes
 
@@ -38,3 +39,4 @@ Format follows the existing ecosystem ADR convention: status/date/deciders/super
 - Real-time media and quality: 0008, 0013, 0014.
 - Safety and authority: 0007, 0012, 0017–0019.
 - Capability inventory and integration: 0023, 0024.
+- Workspace persistence: 0026.

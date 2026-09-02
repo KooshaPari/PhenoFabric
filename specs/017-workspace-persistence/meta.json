@@ -1,0 +1,39 @@
+{
+  "id": "017",
+  "slug": "workspace-persistence",
+  "title": "Workspace persistence and seat-lease lifecycle",
+  "status": "proposed",
+  "lifecycle": "specified",
+  "release_gate": "R1",
+  "created": "2026-09-01",
+  "supersedes": null,
+  "superseded_by": null,
+  "wp_id": "PF-WP-022",
+  "depends_on": [
+    "PF-WP-020",
+    "PF-WP-021"
+  ],
+  "implements_requirements": [
+    "PF-FR-031",
+    "PF-FR-032",
+    "PF-FR-033"
+  ],
+  "adrs": [
+    "0025"
+  ],
+  "touches": [
+    "crates/fabric-workspace",
+    "crates/fabric-cli",
+    "specs/INDEX.md"
+  ],
+  "intent": "Persistent seat-lease lifecycle backed by an on-disk journal. Workspace stores own the conflict-detection and TTL-expiry loop. CLI commands fabric workspace {list,show,acquire,release,gc} become the user-facing surface for interacting with the lease system.",
+  "non_goals": [
+    "Cross-host lease replication (deferred to R2 — ADR-0025 trust_scope is currently Ephemeral only)",
+    "Lease-aware route compilation (route compiler is read-only with respect to the lease store in R1)",
+    "Surface plane integration (PF-WP-015) — the lease store is independent of surface presentation"
+  ],
+  "open_questions": [
+    "Should workspace.json be human-editable or written atomically via temp file + rename only? (current plan: atomic write)",
+    "Should conflict detection be per-seat-id or per-(seat-id × locality-tier)? (current plan: per-(seat-id × locality-tier))"
+  ]
+}

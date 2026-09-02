@@ -20,6 +20,7 @@ These feature folders follow the live AgilePlus `kitty-specs` pattern: `meta.jso
 | 014 | [`014-capability-inventory`](014-capability-inventory/spec.md) | Capability Inventory and Topology Probe | Detect, classify, sign, and publish graph-native capability descriptor: CPU/NUMA/cache, GPU/NPU/codec/display/PCIe, audio/MIDI/input/storage/NIC, link metrics. First R0 runtime code. |
 | 015 | [`015-route-compiler-cli`](015-route-compiler-cli/spec.md) | Route Compiler and Reference CLI | Canonical graph objects (node/port/link/domain), capability/format negotiation, prepare/commit/abort/rollback, lease/fencing, workspace snapshots, recursion/hop prevention, reference CLI and JSON-RPC. R1. |
 | 016 | [`016-nvms-manifest-adapter`](016-nvms-manifest-adapter/spec.md) | NVMS Manifest Adapter (R0.5) | Map odin.nvms v0.2 application manifests to Fabric `CapabilityDescriptor`. Path dep on archived nanovms `phenotype-manifest`. R0.5 → R1. |
+| 017 | [`017-workspace-persistence`](017-workspace-persistence/spec.md) | Workspace Persistence (lease FSM + JSON store) | Per-user workspace state, seat-lease FSM, JSON file persistence, conflict detection. Source preserved untracked. R1. |
 
 ## R0.5 / R1 (intermediate work packages)
 
@@ -29,6 +30,7 @@ These work packages ship after R0 (capability inventory) and before the full fea
 |---|---|---|---|
 | PF-WP-020 | [`015-route-compiler-cli`](015-route-compiler-cli/spec.md) | Route Compiler + CLI | R1 |
 | PF-WP-011 | [`016-nvms-manifest-adapter`](016-nvms-manifest-adapter/spec.md) | NVMS Adapter | R0.5 |
+| PF-WP-022 | [`017-workspace-persistence`](017-workspace-persistence/spec.md) | Workspace Persistence (lease FSM + JSON store) | R1 |
 
 ## R0 Program Baselines (work packages PF-WP-000 and PF-WP-010)
 
