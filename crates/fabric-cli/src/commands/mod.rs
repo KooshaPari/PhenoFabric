@@ -1,4 +1,4 @@
-//! CLI command dispatch.
+//! Subcommand dispatchers for the fabric CLI.
 
 pub mod cap;
 pub mod graph;

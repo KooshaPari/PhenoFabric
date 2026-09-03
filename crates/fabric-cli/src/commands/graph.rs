@@ -1,137 +1,192 @@
-//! `fabric graph` — topology graph build / inspect commands.
-//!
-//! PF-WP-020.02: builds a CapabilityDescriptor graph from a topology
-//! description (YAML/JSON) and validates it against the topology schema.
-
-use std::path::{Path, PathBuf};
+//! `fabric graph` subcommand.
 
 use anyhow::{Context, Result};
-use clap::Subcommand;
-use fabric_graph::model::{CapabilityRef, Edge, EdgeId, Node, NodeId, Topology, TopologyMeta};
-use fabric_graph::score::score_intent;
-use fabric_graph::model::Intent;
-use fabric_graph::model::IntentRequirements;
-use fabric_graph::builder::IntentBuilder;
-use fabric_graph::negotiation::negotiate;
+use clap::Args;
+use std::path::{Path, PathBuf};
 
-use crate::output::{self, OutputFormat};
+use fabric_capability::descriptor::CapabilityDescriptor;
+use fabric_capability::locality::LocalityTier;
+use fabric_graph::builder::TopologyBuilder;
+use fabric_graph::model::{CapabilityRef, Edge, LinkMetrics, Node, NodeId, Topology};
 
-#[derive(Subcommand, Debug)]
-pub enum GraphCommand {
-    /// Build a sample topology and emit it as JSON
-    Sample,
+use crate::output;
 
-    /// Load a topology from a JSON or YAML file and validate it
-    Load {
-        /// Path to the topology file
-        path: PathBuf,
-    },
-
-    /// Print a brief summary of a topology
-    Inspect {
-        /// Path to the topology file
-        path: PathBuf,
-    },
+#[derive(Args, Debug)]
+pub struct BuildArgs {
+    #[arg(short, long)]
+    pub name: String,
+    #[arg(short, long, num_args = 1..)]
+    pub descriptors: Vec<PathBuf>,
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
+    #[arg(long)]
+    pub json: bool,
 }
 
-impl GraphCommand {
-    pub fn run(self, format: OutputFormat) -> Result<()> {
-        match self {
-            Self::Sample => run_sample(format),
-            Self::Load { path } => run_load(&path, format),
-            Self::Inspect { path } => run_inspect(&path, format),
+#[derive(Args, Debug)]
+pub struct ShowArgs {
+    #[arg(short, long)]
+    pub input: PathBuf,
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct AddNodeArgs {
+    #[arg(short, long)]
+    pub input: PathBuf,
+    #[arg(short, long)]
+    pub node_id: String,
+    #[arg(long)]
+    pub tier: String,
+    #[arg(short, long)]
+    pub label: Option<String>,
+    #[arg(short, long)]
+    pub descriptor: Option<PathBuf>,
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
+}
+
+#[derive(Args, Debug)]
+pub struct AddEdgeArgs {
+    #[arg(short, long)]
+    pub input: PathBuf,
+    #[arg(long)]
+    pub from: String,
+    #[arg(long)]
+    pub to: String,
+    #[arg(long, default_value_t = 1_000_000_000)]
+    pub bandwidth: u64,
+    #[arg(long, default_value_t = 1_000)]
+    pub max_latency_us: u32,
+    #[arg(long, default_value_t = 0.0)]
+    pub loss: f64,
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
+}
+
+pub fn dispatch(sub: &super::GraphCommand, workspace: &Path) -> Result<()> {
+    match sub {
+        super::GraphCommand::Build(a) => build(a, workspace),
+        super::GraphCommand::Show(a) => show(a),
+        super::GraphCommand::AddNode(a) => add_node(a),
+        super::GraphCommand::AddEdge(a) => add_edge(a),
+    }
+}
+
+fn build(args: &BuildArgs, workspace: &Path) -> Result<()> {
+    let mut builder = TopologyBuilder::new().with_name(&args.name);
+    for path in &args.descriptors {
+        let json = std::fs::read_to_string(path)
+            .with_context(|| format!("read {}", path.display()))?;
+        let desc: CapabilityDescriptor = serde_json::from_str(&json).context("parse descriptor")?;
+        let node_id = NodeId::new(desc.node_id.to_string());
+        let locality = LocalityTier::L0SameProcess;
+        let cap_ref = CapabilityRef::new(desc.node_id.to_string())
+            .with_trust(fabric_graph::model::TrustLevel::Provided);
+        let mut node = Node::new(node_id, locality).with_capability(cap_ref);
+        if let Some(label) = &args.label {
+            node = node.with_label(label);
         }
+        builder = builder.add(node);
     }
-}
-
-fn run_sample(format: OutputFormat) -> Result<()> {
-    let topo = sample_topology();
-    if format.is_json() {
-        println!("{}", serde_json::to_string_pretty(&topo)?);
+    let topology = builder.build();
+    save_topology(&topology, args.output.as_deref(), workspace, &args.name)?;
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&topology)?);
     } else {
-        output::print_topology_summary(&topo);
+        output::print_topology_summary(&args.name, topology.node_count(), topology.edge_count());
     }
     Ok(())
 }
 
-fn run_load(path: &Path, format: OutputFormat) -> Result<()> {
-    let s = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-    let topo: Topology = parse_any(&s)
-        .with_context(|| format!("parse topology {}", path.display()))?;
-    if format.is_json() {
-        println!("{}", serde_json::to_string_pretty(&topo)?);
+fn show(args: &ShowArgs) -> Result<()> {
+    let topology = load_topology(&args.input)?;
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&topology)?);
     } else {
-        output::print_topology_summary(&topo);
+        output::print_topology_summary(
+            &topology.meta.name,
+            topology.node_count(),
+            topology.edge_count(),
+        );
+        println!("{:#?}", topology);
     }
     Ok(())
 }
 
-fn run_inspect(path: &Path, _format: OutputFormat) -> Result<()> {
-    let s = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-    let topo: Topology = parse_any(&s).context("parse topology")?;
-    output::print_topology_summary(&topo);
+fn add_node(args: &AddNodeArgs) -> Result<()> {
+    let mut topology = load_topology(&args.input)?;
+    let tier = LocalityTier::from_short_code(&args.tier)
+        .ok_or_else(|| anyhow::anyhow!("unknown locality tier code: {}", args.tier))?;
+    let cap_ref = if let Some(desc_path) = &args.descriptor {
+        let json = std::fs::read_to_string(desc_path)
+            .with_context(|| format!("read {}", desc_path.display()))?;
+        let desc: CapabilityDescriptor = serde_json::from_str(&json)?;
+        Some(
+            CapabilityRef::new(desc.node_id.to_string())
+                .with_trust(fabric_graph::model::TrustLevel::Provided),
+        )
+    } else {
+        None
+    };
+    let mut node = Node::new(NodeId::new(args.node_id.clone()), tier);
+    if let Some(label) = &args.label {
+        node = node.with_label(label);
+    }
+    if let Some(cr) = cap_ref {
+        node = node.with_capability(cr);
+    }
+    topology.add_node(node);
+    save_topology(
+        &topology,
+        args.output.as_deref().or(Some(args.input.as_path())),
+        args.input.parent().unwrap_or(Path::new(".")),
+        &topology.meta.name,
+    )?;
+    println!("added node {} to topology", args.node_id);
     Ok(())
 }
 
-fn parse_any(s: &str) -> Result<Topology> {
-    if s.trim_start().starts_with('{') {
-        Ok(serde_json::from_str(s)?)
-    } else {
-        Ok(serde_yaml::from_str(s)?)
-    }
+fn add_edge(args: &AddEdgeArgs) -> Result<()> {
+    let mut topology = load_topology(&args.input)?;
+    let metrics = LinkMetrics::new(args.bandwidth, args.max_latency_us, args.loss);
+    let edge = Edge::new(NodeId::new(args.from.clone()), NodeId::new(args.to.clone()))
+        .with_metrics(metrics);
+    topology.add_edge(edge);
+    save_topology(
+        &topology,
+        args.output.as_deref().or(Some(args.input.as_path())),
+        args.input.parent().unwrap_or(Path::new(".")),
+        &topology.meta.name,
+    )?;
+    println!("added edge {} -> {}", args.from, args.to);
+    Ok(())
 }
 
-/// Build a small 2-node sample topology for the `sample` command and tests.
-pub fn sample_topology() -> Topology {
-    let mut topo = Topology::with_meta(TopologyMeta {
-        schema_version: 1,
-        source: "fabric-cli sample".into(),
-        trust: fabric_capability::TrustLevel::SelfReported,
-        ..Default::default()
-    });
-
-    let mut gpu = Node::new(NodeId::new("gpu-0"));
-    gpu.add_capability(CapabilityRef::gpu("nvidia-rtx-4090"));
-    gpu.add_tag("cuda");
-    gpu.add_tag("host");
-    gpu.add_metric("memory_gb", 24.0);
-    topo.add_node(gpu);
-
-    let mut cpu = Node::new(NodeId::new("cpu-0"));
-    cpu.add_capability(CapabilityRef::cpu(16, 32_000));
-    cpu.add_tag("host");
-    topo.add_node(cpu);
-
-    let edge = Edge::new(
-        EdgeId::new("gpu-0->cpu-0"),
-        NodeId::new("gpu-0"),
-        NodeId::new("cpu-0"),
-    )
-    .with_latency_us(50)
-    .with_bandwidth_mbps(10_000);
-    topo.add_edge(edge);
-
-    topo
+fn load_topology(path: &Path) -> Result<Topology> {
+    let json = std::fs::read_to_string(path)
+        .with_context(|| format!("read {}", path.display()))?;
+    serde_json::from_str(&json).context("parse topology JSON")
 }
 
-/// Build a sample intent for the route planner.
-pub fn sample_intent() -> Intent {
-    IntentBuilder::new("demo-intent")
-        .name("demo intent")
-        .require_tag_for("compute", "cuda")
-        .require_min_cores(8)
-        .require_min_ram(8_000)
-        .set_latency_budget(10_000)
-        .build()
+fn save_topology(
+    topology: &Topology,
+    output: Option<&Path>,
+    workspace: &Path,
+    name: &str,
+) -> Result<()> {
+    let out_path = match output {
+        Some(p) => p.to_path_buf(),
+        None => {
+            let dir = workspace.join("topologies");
+            std::fs::create_dir_all(&dir)?;
+            dir.join(format!("{}.json", name))
+        }
+    };
+    let json = serde_json::to_string_pretty(topology)?;
+    std::fs::write(&out_path, json)
+        .with_context(|| format!("write {}", out_path.display()))?;
+    eprintln!("wrote {}", out_path.display());
+    Ok(())
 }
-
-/// Score the sample topology against the sample intent (helper for tests / docs).
-#[allow(dead_code)]
-pub fn demo_negotiation(topo: &Topology, intent: &Intent) {
-    let scored = score_intent(intent, topo);
-    let result = negotiate(intent, topo, &scored);
-    println!("{} candidates", result.candidates.len());
-}
-
-/// Re-export `IntentRequirements` so external callers can construct one directly.
-pub use fabric_graph::model::IntentRequirements as GraphIntentRequirements;

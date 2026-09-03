@@ -1,106 +1,112 @@
-//! Shared output formatting utilities.
-
-use console::{style, Ansi256, Color};
+//! Output formatting helpers for the fabric CLI.
+use anyhow::Result;
+use fabric_capability::CapabilityDescriptor;
+use fabric_capability::locality::LocalityTier;
+use fabric_graph::model::TrustLevel;
 use serde::Serialize;
 
-/// Output format for CLI display.
-#[derive(Debug, Clone, Copy, Default, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
-    /// Human-readable text output (default).
-    #[default]
     Text,
-    /// JSON output.
     Json,
-    /// YAML output.
-    Yaml,
+    JsonPretty,
 }
 
 impl OutputFormat {
-    pub fn print<T: Serialize>(&self, value: &T) -> anyhow::Result<()> {
-        match self {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(value)?);
-            }
-            OutputFormat::Yaml => {
-                println!("{}", serde_yaml::to_string(value)?);
-            }
-            OutputFormat::Text => {
-                // Fall through — commands handle their own text formatting.
-            }
-        }
-        Ok(())
+    pub fn is_json(&self) -> bool {
+        matches!(self, Self::Json | Self::JsonPretty)
     }
 }
 
-/// Print a section header.
-pub fn section(title: &str) {
-    println!("\n{}", style(format!("── {title} ")).cyan().dim().bold());
+pub fn resolve_format(json: bool, pretty: bool) -> OutputFormat {
+    if pretty {
+        OutputFormat::JsonPretty
+    } else if json {
+        OutputFormat::Json
+    } else {
+        OutputFormat::Text
+    }
 }
 
-/// Print a key-value pair.
-pub fn kv(key: &str, value: &str) {
-    print!("  {}  ", style(key).cyan());
-    println!("{value}");
-}
-
-/// Print a key with a styled value.
-pub fn kv_styled<F>(key: &str, f: F)
+pub fn emit<T, F>(format: OutputFormat, value: &T, text_fn: F) -> Result<()>
 where
+    T: Serialize,
     F: FnOnce() -> String,
 {
-    print!("  {}  ", style(key).cyan());
-    println!("{}", f());
-}
-
-/// Print a success message.
-pub fn success(msg: &str) {
-    println!("  {} {}", style("✓").green().bold(), msg);
-}
-
-/// Print an info message.
-pub fn info(msg: &str) {
-    println!("  {} {}", style("ℹ").blue().bold(), msg);
-}
-
-/// Print a warning message.
-pub fn warning(msg: &str) {
-    println!("  {} {}", style("⚠").yellow().bold(), msg);
-}
-
-/// Print a failure message.
-pub fn failure(msg: &str) {
-    println!("  {} {}", style("✗").red().bold(), msg);
-}
-
-/// Print a localized tier with color coding.
-pub fn locality_tier(tier: &fabric_capability::LocalityTier) -> String {
-    match tier.as_f64() {
-        0.0 => style("L0 · same-process").green().to_string(),
-        0.1..=0.3 => style("L1 · same-host").cyan().to_string(),
-        0.3..=0.6 => style("L2 · same-rack").blue().to_string(),
-        0.6..=0.9 => style("L3 · same-datacenter").magenta().to_string(),
-        _ => style(format!("{tier}")).dim().to_string(),
+    match format {
+        OutputFormat::Json => println!("{}", serde_json::to_string(value)?),
+        OutputFormat::JsonPretty => println!("{}", serde_json::to_string_pretty(value)?),
+        OutputFormat::Text => print!("{}", text_fn()),
     }
+    Ok(())
 }
 
-/// Print a trust level with color coding.
-pub fn trust_level(level: &fabric_capability::TrustLevel) -> String {
-    match level {
-        fabric_capability::TrustLevel::Provided => style("provided").yellow().to_string(),
-        fabric_capability::TrustLevel::Verified => style("verified").green().to_string(),
-        fabric_capability::TrustLevel::Audited => style("audited").cyan().to_string(),
-    }
-}
-
-/// Print a table row with aligned columns.
-pub fn table_row(cols: &[&str], widths: &[usize]) {
-    for (col, width) in cols.iter().zip(widths.iter()) {
-        print!("{:<width$}  ", col, width = *width);
-    }
+pub fn print_descriptor_table(desc: &CapabilityDescriptor) {
+    println!(
+        "{:<18} {}",
+        console::style("Node ID:").cyan().bold(),
+        desc.node_id
+    );
+    println!(
+        "{:<18} {}",
+        console::style("Epoch:").cyan().bold(),
+        desc.epoch
+    );
+    println!(
+        "{:<18} {}",
+        console::style("Schema:").cyan().bold(),
+        desc.schema_version
+    );
+    println!(
+        "{:<18} {}",
+        console::style("Probed:").cyan().bold(),
+        desc.probed_at.to_rfc3339()
+    );
+    println!(
+        "{:<18} {}",
+        console::style("Probe ver:").cyan().bold(),
+        desc.probe_version
+    );
+    println!(
+        "{:<18} {}",
+        console::style("Topology hash:").cyan().bold(),
+        desc.topology_hash
+    );
+    println!(
+        "{:<18} {}",
+        console::style("Signatures:").cyan().bold(),
+        desc.signatures.len()
+    );
     println!();
+    println!("{}", console::style("Capabilities").green().bold());
+    println!("  {:#?}", desc.capabilities);
 }
 
-/// Print a horizontal rule.
-pub fn rule() {
-    println!("{}", style("─".repeat(60)).dim());
+pub fn print_topology_summary(name: &str, node_count: usize, edge_count: usize) {
+    println!(
+        "{} {} ({} nodes, {} edges)",
+        console::style("Topology:").cyan().bold(),
+        name,
+        node_count,
+        edge_count
+    );
+}
+
+pub fn format_tier(tier: LocalityTier) -> String {
+    let code = tier.short_code();
+    let numeric = tier.as_f64();
+    format!("{} ({:.1})", code, numeric)
+}
+
+pub fn format_trust(level: TrustLevel) -> String {
+    let name = match level {
+        TrustLevel::Provided => "provided",
+        TrustLevel::Verified => "verified",
+        TrustLevel::Audited => "audited",
+    };
+    match level {
+        TrustLevel::Provided => console::style(name).yellow().to_string(),
+        TrustLevel::Verified => console::style(name).green().to_string(),
+        TrustLevel::Audited => console::style(name).cyan().to_string(),
+    }
 }
