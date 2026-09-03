@@ -1,0 +1,19 @@
+[package]
+name = "fabric-checker"
+version = "0.1.0"
+edition = "2021"
+description = "PF-WP-011: cross-checks a Fabric capability probe against an NVMS manifest and emits a structured admission decision."
+license = "Apache-2.0"
+
+[dependencies]
+fabric-capability = { path = "../fabric-capability" }
+fabric-graph = { path = "../fabric-graph" }
+phenotype-nvms-adapter = { path = "../phenotype-nvms-adapter" }
+phenotype-manifest = { path = "../../../nanovms/crates/phenotype-manifest" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+
+[dev-dependencies]
+proptest = "1"

@@ -1,0 +1,30 @@
+{
+  "spec_id": "018-fabric-checker-pf-wp-011",
+  "title": "Fabric checker: capability probe vs NVMS manifest cross-check (PF-WP-011)",
+  "version": "0.1.0-draft",
+  "lifecycle_state": "specified",
+  "depends_on": [
+    "specs/014-capability-inventory",
+    "specs/016-nvms-manifest-adapter"
+  ],
+  "blocks": [
+    "specs/017-workspace-persistence"
+  ],
+  "release_gate": "R1",
+  "wp": "PF-WP-011",
+  "requirements": [
+    "PF-FR-007",
+    "PF-FR-008",
+    "PF-FR-009",
+    "INT-P009",
+    "INT-P010",
+    "INT-P011"
+  ],
+  "non_goals": [
+    "Runtime migration (handled by PF-WP-022)",
+    "Auth/identity (handled by 009-security-identity-evidence)",
+    "Telemetry aggregation (handled by 011-observability-verification)"
+  ],
+  "owner": "phenotype-fabric",
+  "languages": ["rust", "go"]
+}
