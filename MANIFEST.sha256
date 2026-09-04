@@ -1,6 +1,6 @@
 {
   ".github/workflows/spec-validation.yml": "f8d6ead1f3d76cab400e35eb4168c5e477b9fb481ff4b5fd1d1adc7c579ba9a1",
-  ".gitignore": "1c5c5fe690394d6ec4c373628b7bcce44efb1caa8c06182d8b8eddd5d131e065",
+  ".gitignore": "f75b020224c7dbcc078ce1f25da0b3743b51e066441f8d13e5f2878d036e776b",
   "ALD.md": "1cec29c8aef61e1580a0e8dbaf4a018506101c9f790181e09b1addf730891001",
   "ARCHITECTURE.md": "8f149bfc32d13848704e270b89e71aa4e9a760cf8e9d9859ad9e6cb8bdab6244",
   "CHANGELOG.md": "680266e93bfb71224901cc9ff8ee9bb09ba24eeb820ef578212d0aff9b8370a5",
@@ -91,7 +91,6 @@
   "cmd/capprobe/parse.go": "5cfb460bfbbd4e570bbb46700ce323fcc3fe000c9fd369ce9a00e4039ddded93",
   "cmd/capprobe/parse_test.go": "6954b394f4d2e2893cdd62e2cce7e51e90d6f9261a89798637b4e86d4b4b3270",
   "cmd/capprobe/probe_unix_test.go": "3a5ae571228d52c0c3f0176b1adbc5f534ef173d489a4665f6faf38dfa9b722d",
-  "cmd/checker/checker": "ca4dec4b0b938dfbfb87e5872d29ad919ccbe7c5373c987be6e8ae3f0fc78d9d",
   "cmd/checker/checks.go": "9daab4e22edb91f14ec120c18f6d7ecb6d018e555cc149bd90d018adcd1022e9",
   "cmd/checker/checks_test.go": "916730a3940663eaa31dbc5d44e66b4a28b4220ef20ffc8f7da31639627ea3cc",
   "cmd/checker/decision.go": "5fb4f20047f5a2e0ecea4a70d1c9e885ced5dec675d7325ad5f442a6419509c3",
