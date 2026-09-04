@@ -2,11 +2,14 @@
 
 ## Status
 
-Proposed — 2026-09-02.
+Accepted — 2026-09-03. **Reference implementation is Go-only** (`cmd/checker`,
+stdlib-only, 9 tests passing). The Rust implementation was attempted twice
+in spec 018 but hit cascading type-mismatch loops; the Go path was a clean
+break and is now the authoritative contract.
 
 ## Date
 
-2026-09-02.
+2026-09-02 (originally Proposed). Accepted 2026-09-03.
 
 ## Deciders
 

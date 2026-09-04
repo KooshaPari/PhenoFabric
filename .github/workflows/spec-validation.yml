@@ -9,7 +9,13 @@ on:
       - "adr/**/*.md"
       - "architecture/**/*.md"
       - "architecture/**/*.yaml"
+      - "cmd/capprobe/**/*.go"
+      - "cmd/capprobe/go.mod"
+      - "cmd/checker/**/*.go"
+      - "cmd/checker/go.mod"
+      - "program/scripts/**"
       - ".github/workflows/spec-validation.yml"
+      - "MANIFEST.sha256"
   pull_request:
     paths:
       - "specs/**/*.md"
@@ -17,9 +23,16 @@ on:
       - "adr/**/*.md"
       - "architecture/**/*.md"
       - "architecture/**/*.yaml"
+      - "cmd/capprobe/**/*.go"
+      - "cmd/capprobe/go.mod"
+      - "cmd/checker/**/*.go"
+      - "cmd/checker/go.mod"
+      - "program/scripts/**"
+      - "MANIFEST.sha256"
 
 jobs:
   validate:
+    name: Validate specs and manifests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,3 +53,55 @@ jobs:
 
       - name: Validate MANIFEST matches file tree
         run: python3 program/scripts/check_manifest.py
+
+  check-go:
+    name: Go test (capprobe + checker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: false
+
+      - name: Go vet (capprobe)
+        run: go vet ./cmd/capprobe/...
+
+      - name: Go test (capprobe)
+        run: go test -count=1 ./cmd/capprobe/...
+
+      - name: Go vet (checker)
+        run: go vet ./cmd/checker/...
+
+      - name: Go test (checker)
+        run: go test -count=1 ./cmd/checker/...
+
+      - name: Run fabric checker against acceptance fixture
+        run: |
+          go build -o /tmp/fabric-checker ./cmd/checker
+          # Admit fixture
+          go run ./cmd/checker cmd/checker/testdata/admit/descriptor.json cmd/checker/testdata/admit/manifest.yaml || true
+
+  rust-check:
+    name: Rust test (workspace)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Cargo test (workspace)
+        run: cargo test --workspace --no-fail-fast

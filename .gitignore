@@ -31,3 +31,4 @@ Cargo.lock.bak
 # Local env
 .env
 .env.local
+cmd/checker/checker

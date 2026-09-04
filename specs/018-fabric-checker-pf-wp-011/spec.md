@@ -1,7 +1,10 @@
 # Spec 018 — Fabric checker: capability probe vs NVMS manifest cross-check
 
 **WP**: PF-WP-011  
-**Status**: specified (0.1.0-draft)  
+**Status**: specified (0.1.0-draft) **Status:** Go-first, Rust stub preserved untracked (cascade-failures deferred). See `cmd/checker/` for the canonical implementation.
+
+**Runtime:** Go 1.21 (stdlib-only) — Reference adapter.
+**Deferred to R1:** Rust `fabric-checker` crate (source preserved at `crates/fabric-checker/`, workspace-excluded).
 **Depends on**: specs/014 (capability inventory), specs/016 (NVMS adapter)  
 **Blocks**: specs/017 (workspace persistence), PF-WP-022 (runtime migration)  
 **Release gate**: R1

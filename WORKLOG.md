@@ -201,3 +201,50 @@ Codex usage limits reset (~5 days).
 4. **Promote ADR-0024 and ADR-0025 to Accepted** after review.
 5. Start R1: PF-WP-021 (route failover), PF-WP-015 (surface plane),
    NVMS→Fabric deep integration (PF-WP-011 cross-check probe vs manifest).
+
+---
+
+## 2026-09-02/03 — PF-WP-011 Go-native checker delivered
+
+### What was built
+
+`cmd/checker/` — complete Go implementation of the capability-probe vs
+NVMS-manifest cross-checker (spec 018 / ADR-0027):
+
+| File | LoC | Contents |
+|:--|---|:--|
+| types.go | ~150 | Descriptor + Manifest mirrors (probe contract, k8s-style requests) |
+| decision.go | 43 | Decision (Admit/AdmitWithNotes/Reject), Severity (Block/Warn/Info), ReasonCode, Finding, Report |
+| checks.go | ~120 | Pure check functions (memory, cores, audio, host-probed, empty-manifest) + reduce() severity→decision |
+| required.go | ~80 | Manifest→Required mapping incl. parseK8sMemory (Ki/Mi/Gi/Ti/Pi/Ei) |
+| checks_test.go | ~180 | 9 tests: per-reason-code + reduce + k8s memory parsing + end-to-end |
+| main.go | ~90 | CLI: `checker <descriptor.json> --manifest <manifest.yaml>` |
+| go.mod | 3 | go 1.21, stdlib-only, zero deps |
+
+**Verification: go vet clean, go build clean, 9/9 tests passing.**
+
+CI: `spec-validation.yml` restored (was corrupted) + go-test jobs for
+cmd/checker and cmd/capprobe added.
+
+spec 018: marked Go-first; Rust fabric-checker deferred to R1 (source
+preserved untracked at crates/fabric-checker/).
+
+### Decision: stop fighting the Rust API drift
+
+Third consecutive crate (fabric-workspace → fabric-cli → fabric-checker)
+hit 50-80 cascading type mismatches against invented APIs. Root cause each
+time: writing against planned API instead of verified real API. The Go
+path has no serde-derive drift — types were grounded by reading
+`crates/fabric-capability/src/descriptor.rs` + `phenotype-nvms-adapter/src/required.rs` first.
+
+Rule for next session: **read the authoritative source before writing any
+mirroring type. Do not write from memory or from spec text alone.**
+
+### State at end
+
+- Rust: 80 passed / 0 failed
+- Go capprobe: 7 sub-tests passing
+- Go checker: 9 sub-tests passing
+- Spec checks: 4/4
+- MANIFEST: 333 files
+- Working tree: clean after this commit
