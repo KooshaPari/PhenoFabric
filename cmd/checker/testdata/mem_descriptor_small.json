@@ -1,5 +1,5 @@
 {
-  "node_id": "019200a8-0000-7000-8000-000000000001",
+  "node_id": "019200a8-b4c2-7e9d-b3a1-0f9e7c8a1b40",
   "epoch": 1,
   "schema_version": "phenotype.fabric.capability_descriptor/1",
   "probed_at": "2026-09-05T12:00:00Z",
@@ -8,11 +8,15 @@
   "signatures": [],
   "capabilities": {
     "compute": {
-      "cpu_count_physical": 8,
-      "cpu_count_logical": 16,
-      "cpu_arch": "x86_64",
-      "memory_total_bytes": 17179869184,
-      "numa_topology": []
+      "processor": "amd64",
+      "cores_physical": 8,
+      "cores_logical": 16,
+      "numa_nodes": 1,
+      "cache": [],
+      "memory_bytes": 17179869184,
+      "memory_bandwidth_mbps": null,
+      "hyperthread_pairs": [],
+      "tdp_watts": null
     }
   }
 }

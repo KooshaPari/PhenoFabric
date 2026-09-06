@@ -1,0 +1,1 @@
+{"name":"soft-mismatch","agent":{"name":"soft-mismatch","image":"ghcr.io/example/x:1.0"},"network":{"ports":[]},"runtime":{"endpoint":"/usr/local/bin/x"},"runtime_args":[],"runtime_env":[],"cpu":{"cores":16},"memory":32768}

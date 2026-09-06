@@ -1,10 +1,10 @@
 {
-  "node_id": "019200a8-0000-7000-8000-000000000002",
-  "epoch": 1,
+  "node_id": "019200a8-0000-7000-8000-000000000005",
+  "epoch": 0,
   "schema_version": "phenotype.fabric.capability_descriptor/1",
-  "probed_at": "2026-09-05T12:00:00Z",
-  "probe_version": "fabric-capability-0.1.0",
-  "topology_hash": "blake3:audio00",
+  "probed_at": "2026-01-01T00:00:00Z",
+  "probe_version": "fabric-capability-0.0.1",
+  "topology_hash": "blake3:stalenew",
   "signatures": [],
   "capabilities": {
     "compute": {
@@ -13,7 +13,7 @@
       "cores_logical": 16,
       "numa_nodes": 1,
       "cache": [],
-      "memory_bytes": 17179869184,
+      "memory_bytes": 34359738368,
       "memory_bandwidth_mbps": null,
       "hyperthread_pairs": [],
       "tdp_watts": null

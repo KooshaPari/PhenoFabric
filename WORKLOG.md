@@ -248,3 +248,41 @@ mirroring type. Do not write from memory or from spec text alone.**
 - Spec checks: 4/4
 - MANIFEST: 333 files
 - Working tree: clean after this commit
+
+---
+
+## 2026-09-05 — Fixture verification + Rust integration test + ADRs
+
+### What was built this turn
+
+- **ADR-0028** `testdata-verification-pattern.md` (Accepted) — `cargo run --example verify_fixtures -p fabric-capability -- ./cmd/checker/testdata` is the canonical regression gate. **Any future fixture change** must round-trip through `serde_json::from_str::<CapabilityDescriptor>`.
+- **ADR-0029** `rust-vs-go-port-policy.md` (Accepted) — **Go `cmd/checker/` is canonical for R0.** Rust `fabric-checker` port is R1 only if Rust-side serde path is needed. **No parallel implementations** during R0.
+- `crates/fabric-capability/examples/verify_fixtures.rs` (90 LoC) — executable verifier; CLI arg = testdata dir; reports per-fixture parse status.
+- `crates/fabric-capability/tests/fixtures_roundtrip.rs` (4 tests, all passing) — 7 descriptor fixtures + 5 manifest fixtures verified against the real `CapabilityDescriptor` type and JSON parseable.
+- **Field-name drift caught + repaired**: 7 descriptor fixtures originally used `cpu_count_physical`/`cpu_count_logical`/`memory_total_bytes`/`numa_topology` (invented); rewritten to real fields `processor`/`cores_physical`/`cores_logical`/`memory_bytes`/`numa_nodes`/`hyperthread_pairs`/`tdp_watts`. Verifier confirmed parse after fix.
+
+### Verified working state (truth-tested at end)
+
+| Repo | HEAD | Tests |
+|:--|:--|:--|
+| `phenotype-fabric/` | `a946b73` | **84 Rust passed / 0 failed** (was 80; +4 integration), 7 Go capprobe, 9 Go checker |
+| Spec checks | manifest ✓, schemas ✓, openapi ✓, links ✓ |
+
+### Honest open threads (unchanged from prior cockpit)
+
+1. `fabric-workspace` (Rust) — WIP, source untracked
+2. `fabric-cli` (Rust) — WIP, source untracked (commands/mod.rs enum-ownership fix landed)
+3. `fabric-checker` (Rust port) — deferred per ADR-0029; Go checker is canonical
+
+### Root-cause rule (now codified in ADR-0028 + WORKLOG entry 2026-09-02)
+
+When mirroring types between languages or fixing fixture drift, **always read the authoritative source first** (`crates/fabric-capability/src/descriptor.rs` here). Writing against invented type shapes is the #1 cause of cascading compile errors. The verifier catches drift at fixture-creation time; the Rust integration test catches it at compile time.
+
+### File map (final)
+
+- `phenotype-fabric/cmd/checker/testdata/*.json` — 12 fixtures (7 descriptors + 5 manifests), all parse
+- `phenotype-fabric/crates/fabric-capability/examples/verify_fixtures.rs` — runtime verifier
+- `phenotype-fabric/crates/fabric-capability/tests/fixtures_roundtrip.rs` — compile-time test
+- `phenotype-fabric/adr/0028-testdata-verification-pattern.md` (Accepted)
+- `phenotype-fabric/adr/0029-rust-vs-go-port-policy.md` (Accepted)
+- `phenotype-fabric/adr/INDEX.md` — rows 0028, 0029 added

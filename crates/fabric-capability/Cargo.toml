@@ -32,3 +32,11 @@ path = "tests/descriptor_roundtrip.rs"
 [[test]]
 name = "signature"
 path = "tests/signature.rs"
+
+[[test]]
+name = "fixtures_roundtrip"
+path = "tests/fixtures_roundtrip.rs"
+
+[[example]]
+name = "verify_fixtures"
+path = "examples/verify_fixtures.rs"
