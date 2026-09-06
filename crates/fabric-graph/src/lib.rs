@@ -13,6 +13,7 @@
 //! - [`compile`]: produce route plans from intents against a topology
 //! - [`score`]: scoring functions (locality, latency, capability, trust)
 //! - [`planner`]: long-horizon planner for batch/sequence intents
+//! - [`failover`]: re-plan around failed nodes when a route's steps fail (PF-WP-021, spec 019)
 //!
 //! ## Non-negotiable invariants (PF-FR-002..005)
 //!
@@ -32,6 +33,7 @@ pub use fabric_capability::LocalityTier;
 
 pub mod builder;
 pub mod compile;
+pub mod failover;
 pub mod model;
 pub mod negotiation;
 pub mod planner;

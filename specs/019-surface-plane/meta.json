@@ -1,0 +1,17 @@
+{
+  "id": "019",
+  "title": "Surface Plane",
+  "wp": "PF-WP-015",
+  "status": "draft",
+  "release_gate": "R1",
+  "depends_on": ["PF-WP-020", "PF-WP-021"],
+  "enables": ["PF-WP-021", "PF-WP-022"],
+  "rationale": "PF-WP-020 produces static RoutePlans. R1 needs a dynamic layer: which step in the plan a user actually attaches to (a seat, a window, an audio sink), how that binding is leased, and what happens when the binding fails. This is the R1 surface layer.",
+  "interfaces_touched": ["fabric-graph::SurfaceSpec", "fabric-graph::RouteBinding", "fabric-graph::SurfaceLease", "fabric-graph::SurfaceError"],
+  "acceptance_signals": [
+    "SurfaceSpec serializes round-trip via serde_json",
+    "RouteBinding references a real RouteStep.node by id",
+    "SurfaceLease has 3 states (Pending, Active, Revoked) with explicit transitions",
+    "fabric::check_admit for surface uses the same Decision/ReasonCode contract as PF-WP-011"
+  ]
+}
