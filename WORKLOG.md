@@ -286,3 +286,50 @@ When mirroring types between languages or fixing fixture drift, **always read th
 - `phenotype-fabric/adr/0028-testdata-verification-pattern.md` (Accepted)
 - `phenotype-fabric/adr/0029-rust-vs-go-port-policy.md` (Accepted)
 - `phenotype-fabric/adr/INDEX.md` — rows 0028, 0029 added
+
+---
+
+## 2026-09-06 — R1 failover (PF-WP-021) delivered
+
+### What landed
+
+- **ADR-0030** `route-failover-model` (Proposed → Accepted): triggers (link_down, host_oom, latency_spike, plan_epoch_drift), jittered-exp backoff, lease revocation cascade, blast-radius matrix, "what stays usable" semantics.
+- **`crates/fabric-graph/src/failover.rs`** (177 LoC, 4 tests passing): `replan(topology, intent, &failed_node_ids) -> Result<RoutePlan, Error>` — filters failed nodes, re-runs `compile()` against the pruned graph, returns the new plan (or `ReplanFailed` if no candidates remain). Validator fails fast on empty `intent.name`.
+- **`crates/fabric-graph/src/lib.rs`**: `pub mod failover;` + docstring entry referencing PF-WP-021 / spec 019.
+- **specs/019-surface-plane/** already authored earlier; INDEX entries for 0030 added.
+- **adr/INDEX.md**: rows 0027/0028/0029/0030 all present and consistent (0030 now Accepted).
+
+### Tests (4 unit tests in failover.rs)
+
+1. `replan_after_node_pruning_produces_new_route`
+2. `replan_with_no_survivors_returns_no_replacement`
+3. `empty_blacklist_returns_old_plan` (idempotent on empty input)
+4. `empty_intent_name_returns_error` (validator fail-fast)
+
+### Verified state
+
+- **Rust**: 88 passed / 0 failed (was 84; +4 from failover module)
+- **Go capprobe**: 7 sub-tests
+- **Go checker**: 9 sub-tests
+- **Spec checks (4/4)**: manifest ✓ schemas ✓ openapi ✓ links ✓
+- HEAD: `b164efa` — `feat(failover): implement R1 failover module (PF-WP-021, spec 019)`
+
+### Root-cause rules exercised this turn
+
+1. **Read authoritative source first** — re-checked `fabric-graph/src/{model,builder}.rs` before any sed.
+2. **One coherent sed pass** for import-path fixes (`crate::model::*` → `crate::*`), then a manual fix for the `TopologyBuilder::add_simple_node` ownership rule (consumes `self`, returns `Self` — must reassign).
+3. **Did NOT re-read in a loop** — ran build → 6 errors → read each error → fix → build → 4/4 tests green.
+
+### Open threads
+
+- `fabric-workspace`, `fabric-cli` source still untracked (WIP, 5+ prior attempts each)
+- Surface plane impl (PF-WP-015) — spec 019 contract exists, no impl
+- Route lease integration (PF-WP-022) — multi-tenant fairness
+- Trust-root model for descriptor signatures
+
+### Cockpit
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──██████████░░░░░░░ 35% (failover delivered; surface plane + leases pending)
+```

@@ -1,6 +1,6 @@
 # ADR-0030 — Route Failover Model (PF-WP-021, R1)
 
-**Status:** Proposed
+**Status:** Accepted (impl landed 2026-09-06; see crates/fabric-graph/src/failover.rs)
 **Date:** 2026-09-05
 **Deciders:** fabric-runtime
 
