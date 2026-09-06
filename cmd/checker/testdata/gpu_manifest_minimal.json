@@ -1,0 +1,19 @@
+{
+  "name": "gpu-burn-minimal",
+  "agent": {
+    "name": "gpu-burn",
+    "image": "ghcr.io/example/gpu-burn:1.0",
+    "mcp_tools": [],
+    "a2a_skills": []
+  },
+  "network": {
+    "ports": []
+  },
+  "infra": {
+    "resources": {
+      "cpu": 8,
+      "memory": "32Gi"
+    }
+  },
+  "audio": null
+}

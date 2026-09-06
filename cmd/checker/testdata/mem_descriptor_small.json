@@ -1,0 +1,18 @@
+{
+  "node_id": "019200a8-0000-7000-8000-000000000001",
+  "epoch": 1,
+  "schema_version": "phenotype.fabric.capability_descriptor/1",
+  "probed_at": "2026-09-05T12:00:00Z",
+  "probe_version": "fabric-capability-0.1.0",
+  "topology_hash": "blake3:mem0001",
+  "signatures": [],
+  "capabilities": {
+    "compute": {
+      "cpu_count_physical": 8,
+      "cpu_count_logical": 16,
+      "cpu_arch": "x86_64",
+      "memory_total_bytes": 17179869184,
+      "numa_topology": []
+    }
+  }
+}

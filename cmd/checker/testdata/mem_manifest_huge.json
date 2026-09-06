@@ -1,0 +1,18 @@
+{
+  "name": "mem-hungry",
+  "agent": {
+    "name": "mem-hungry",
+    "image": "ghcr.io/example/mem-hungry:1.0",
+    "mcp_tools": [],
+    "a2a_skills": []
+  },
+  "network": {
+    "ports": []
+  },
+  "infra": {
+    "resources": {
+      "cpu": 4,
+      "memory": "64Gi"
+    }
+  }
+}

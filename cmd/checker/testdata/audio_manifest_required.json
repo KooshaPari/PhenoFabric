@@ -1,0 +1,25 @@
+{
+  "name": "audio-only",
+  "agent": {
+    "name": "audio-only",
+    "image": "ghcr.io/example/audio-only:1.0"
+  },
+  "network": {"ports": []},
+  "runtime": {
+    "endpoint": "/usr/local/bin/audio-only"
+  },
+  "runtime_args": [],
+  "runtime_env": [],
+  "audio": {
+    "devices": [
+      {
+        "index": 0,
+        "name": "Built-in Audio",
+        "channels": 2,
+        "sample_rate": 48000
+      }
+    ]
+  },
+  "cpu": {"cores": 2},
+  "memory": 4096
+}

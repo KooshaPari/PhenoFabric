@@ -1,0 +1,15 @@
+{
+  "name": "cores-hungry",
+  "agent": {
+    "name": "cores-hungry",
+    "image": "ghcr.io/example/cores-hungry:1.0"
+  },
+  "network": {"ports": []},
+  "runtime": {
+    "endpoint": "/usr/local/bin/cores-hungry"
+  },
+  "runtime_args": [],
+  "runtime_env": [],
+  "cpu": {"cores": 64},
+  "memory": 8192
+}
