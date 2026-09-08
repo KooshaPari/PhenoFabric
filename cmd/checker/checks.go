@@ -4,7 +4,28 @@ import "fmt"
 
 // check runs the full cross-check between a host descriptor and a manifest's
 // required capabilities, returning a placement decision.
-func check(host *Descriptor, m Manifest) Report {
+//
+// If `blacklist` is non-nil and contains the host's NodeID, the host is
+// rejected with ReasonBlacklisted (R1 failover contract per ADR-0030). This
+// is the single-host decision equivalent of fabric_graph::failover::replan
+// returning FailoverOutcome::NoReplacement: at the level the checker
+// operates (no topology available), a blacklisted node is one we cannot
+// place on.
+func check(host *Descriptor, m Manifest, blacklist map[string]struct{}) Report {
+	// R1 failover pre-check: blacklisted hosts always reject.
+	if host != nil && len(blacklist) > 0 {
+		if _, denied := blacklist[host.NodeID]; denied {
+			return Report{
+				Decision: DecisionReject,
+				Findings: []Finding{{
+					Code:     ReasonBlacklisted,
+					Severity: SeverityBlock,
+					Message:  fmt.Sprintf("host %q is on the failover blacklist", host.NodeID),
+				}},
+			}
+		}
+	}
+
 	required := deriveRequired(m)
 
 	// Short-circuit: empty manifest → nothing is required → Admit.

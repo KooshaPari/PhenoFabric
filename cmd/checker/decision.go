@@ -27,6 +27,7 @@ const (
 	ReasonAudioMissing       ReasonCode = "AUDIO_MISSING"
 	ReasonHostNotProbed      ReasonCode = "HOST_NOT_PROBED"
 	ReasonEmptyManifest      ReasonCode = "EMPTY_MANIFEST"
+	ReasonBlacklisted        ReasonCode = "BLACKLISTED" // R1 failover (ADR-0030)
 )
 
 // Finding is a single check result.

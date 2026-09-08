@@ -18,7 +18,7 @@ func host(cores uint32, memoryBytes uint64) *Descriptor {
 func TestCheckEmptyManifestAdmits(t *testing.T) {
 	m := Manifest{}
 	h := host(8, 8*1024*1024*1024)
-	report := check(h, m)
+	report := check(h, m, nil)
 	if report.Decision != DecisionAdmit {
 		t.Fatalf("expected Admit, got %s", report.Decision)
 	}
@@ -31,7 +31,7 @@ func TestCheckNilHostRejects(t *testing.T) {
 	m := Manifest{
 		Infra: Infra{Resources: &Resources{CPU: 4.0}},
 	}
-	report := check(nil, m)
+	report := check(nil, m, nil)
 	if report.Decision != DecisionReject {
 		t.Fatalf("expected Reject, got %s", report.Decision)
 	}
@@ -45,7 +45,7 @@ func TestCheckSufficientAdmits(t *testing.T) {
 		Infra: Infra{Resources: &Resources{CPU: 2.0, Memory: strPtr("512Mi")}},
 	}
 	h := host(4, 4*1024*1024*1024)
-	report := check(h, m)
+	report := check(h, m, nil)
 	if report.Decision != DecisionAdmit {
 		t.Fatalf("expected Admit, got %s (%+v)", report.Decision, report.Findings)
 	}
@@ -56,7 +56,7 @@ func TestCheckInsufficientCoresRejects(t *testing.T) {
 		Infra: Infra{Resources: &Resources{CPU: 8.0}},
 	}
 	h := host(2, 4*1024*1024*1024)
-	report := check(h, m)
+	report := check(h, m, nil)
 	if report.Decision != DecisionReject {
 		t.Fatalf("expected Reject, got %s", report.Decision)
 	}
@@ -70,12 +70,59 @@ func TestCheckInsufficientMemoryRejects(t *testing.T) {
 		Infra: Infra{Resources: &Resources{Memory: strPtr("8Gi")}},
 	}
 	h := host(8, 1*1024*1024*1024)
-	report := check(h, m)
+	report := check(h, m, nil)
 	if report.Decision != DecisionReject {
 		t.Fatalf("expected Reject, got %s", report.Decision)
 	}
 	if report.Findings[0].Code != ReasonMemoryInsufficient {
 		t.Fatalf("expected MEMORY_INSUFFICIENT, got %s", report.Findings[0].Code)
+	}
+}
+
+func TestCheckBlacklistedHostRejects(t *testing.T) {
+	// R1 failover (ADR-0030): a host whose NodeID is on the failover
+	// blacklist must be rejected even if it has plenty of resources.
+	m := Manifest{
+		Infra: Infra{Resources: &Resources{CPU: 1.0, Memory: strPtr("256Mi")}},
+	}
+	h := host(64, 128*1024*1024*1024) // generous
+	blacklist := map[string]struct{}{h.NodeID: {}}
+	report := check(h, m, blacklist)
+	if report.Decision != DecisionReject {
+		t.Fatalf("expected Reject, got %s (%+v)", report.Decision, report.Findings)
+	}
+	if len(report.Findings) != 1 || report.Findings[0].Code != ReasonBlacklisted {
+		t.Fatalf("expected single BLACKLISTED finding, got %+v", report.Findings)
+	}
+}
+
+func TestCheckBlacklistPrecedesResourceChecks(t *testing.T) {
+	// Even if the host has insufficient cores, the blacklist reason should
+	// win (because we short-circuit on it before resource comparison).
+	m := Manifest{
+		Infra: Infra{Resources: &Resources{CPU: 16.0}},
+	}
+	h := host(2, 256*1024*1024)
+	blacklist := map[string]struct{}{h.NodeID: {}}
+	report := check(h, m, blacklist)
+	if report.Decision != DecisionReject {
+		t.Fatalf("expected Reject, got %s", report.Decision)
+	}
+	if report.Findings[0].Code != ReasonBlacklisted {
+		t.Fatalf("expected BLACKLISTED as first finding, got %s", report.Findings[0].Code)
+	}
+}
+
+func TestCheckNonBlacklistedHostAdmits(t *testing.T) {
+	// A blacklist containing OTHER nodes must not affect this host.
+	m := Manifest{
+		Infra: Infra{Resources: &Resources{CPU: 2.0, Memory: strPtr("512Mi")}},
+	}
+	h := host(4, 4*1024*1024*1024)
+	blacklist := map[string]struct{}{"host-99": {}, "host-100": {}}
+	report := check(h, m, blacklist)
+	if report.Decision != DecisionAdmit {
+		t.Fatalf("expected Admit, got %s (%+v)", report.Decision, report.Findings)
 	}
 }
 

@@ -7,9 +7,14 @@
 // Usage:
 //
 //	checker -descriptor host.json -manifest app.yaml
+//	checker -descriptor host.json -manifest app.yaml -failover-blacklist host-1,host-3
 //
 // The descriptor is a Fabric CapabilityDescriptor JSON document; the
 // manifest is the odin.nvms manifest (JSON-encoded serde shape).
+//
+// The -failover-blacklist flag (R1, ADR-0030) lists node IDs that have
+// failed and must not be placed on. Any descriptor whose NodeID matches a
+// blacklisted ID is rejected with ReasonBlacklisted.
 package main
 
 import (
@@ -17,15 +22,17 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func main() {
 	descriptorPath := flag.String("descriptor", "", "path to host capability descriptor JSON")
 	manifestPath := flag.String("manifest", "", "path to NVMS manifest JSON")
+	blacklistFlag := flag.String("failover-blacklist", "", "comma-separated node IDs that have failed (R1, ADR-0030)")
 	flag.Parse()
 
 	if *descriptorPath == "" || *manifestPath == "" {
-		fmt.Fprintln(os.Stderr, "usage: checker -descriptor <host.json> -manifest <app.json>")
+		fmt.Fprintln(os.Stderr, "usage: checker -descriptor <host.json> -manifest <app.json> [-failover-blacklist id1,id2,...]")
 		os.Exit(2)
 	}
 
@@ -41,7 +48,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	report := check(host, m)
+	blacklist := parseBlacklist(*blacklistFlag)
+	report := check(host, m, blacklist)
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
@@ -53,6 +61,22 @@ func main() {
 	if report.Decision == DecisionReject {
 		os.Exit(1)
 	}
+}
+
+// parseBlacklist splits a comma-separated node ID list into a set for
+// O(1) lookup. Empty/whitespace entries are skipped.
+func parseBlacklist(s string) map[string]struct{} {
+	if s == "" {
+		return nil
+	}
+	out := make(map[string]struct{})
+	for _, id := range strings.Split(s, ",") {
+		id = strings.TrimSpace(id)
+		if id != "" {
+			out[id] = struct{}{}
+		}
+	}
+	return out
 }
 
 func loadDescriptor(path string) (*Descriptor, error) {
