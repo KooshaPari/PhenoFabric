@@ -37,6 +37,10 @@ pub mod failover;
 pub mod model;
 pub mod negotiation;
 pub mod planner;
+pub mod surface;
+pub mod surface_ops;
+pub mod lease_fsm;
+pub mod decision;
 pub mod score;
 
 pub use crate::builder::IntentBuilder;

@@ -146,12 +146,16 @@
   "crates/fabric-graph/Cargo.toml": "474c8c14b2efa6fbd5ac9a28aad9f2f5af98f6c265bd7c810d6e25f528d8fca1",
   "crates/fabric-graph/src/builder.rs": "d2dfe38ed3a8c01ec1f0898495c7a7613f0794d1a14b8eddb3c589a18473d459",
   "crates/fabric-graph/src/compile.rs": "04f997c1aae557c50eb4c49c672465c9a540c6ca6d15963992a1d9de18bf35bf",
+  "crates/fabric-graph/src/decision.rs": "57b486d098cb1f0b1ab5ad806bdc65eecd4c9d145c863a21a70fec47015656c2",
   "crates/fabric-graph/src/failover.rs": "be5a29e06f81c8782b57fff9fb9037e6e4e33a8dc7caf2c13fa1cb73d7a42ff1",
-  "crates/fabric-graph/src/lib.rs": "be073b4ff3034d7aad12e4487a9a655ddb6e1b9d5cf6ad320dfff0b5d1c26bc6",
+  "crates/fabric-graph/src/lease_fsm.rs": "5c8f4c2158a895ba68b9a0e6652ceb732ead01d2cd6b8fa1cb555c3d97d52268",
+  "crates/fabric-graph/src/lib.rs": "bfbfc8844fd8eb9bf68ae61eda1e6860b60893480ddea105eb62912697dd87a8",
   "crates/fabric-graph/src/model.rs": "9ede2e3eeee057e1e5fb17667d5a682bbe42fe4746dac8c67b3f2e715eb3e8be",
   "crates/fabric-graph/src/negotiation.rs": "33169d628a630c9fbee56852d0267c9ee33fcbf68e541ab5063da320fadcc6f9",
   "crates/fabric-graph/src/planner.rs": "2f88df79098a2e240687da6dc9e9721599ec3567da945812581cbce1947e6c90",
   "crates/fabric-graph/src/score.rs": "4002c773426915b570f70536e8afd14daee695b8fa7afa9566684672fe3fcd4a",
+  "crates/fabric-graph/src/surface.rs": "52208b3d9319af5f85fc6bfa171f75055eb4cda1c0e9d5b54135952b453938ab",
+  "crates/fabric-graph/src/surface_ops.rs": "f49df5c6a5405cc7b340adfac4685afc5cdc35cf858aba7e276282e696d59c1e",
   "crates/fabric-workspace/Cargo.toml": "3c63188d54d223a7f4cfe7f9477584a7620eed1e85095cf6f10db7e6bbf1ddd8",
   "crates/fabric-workspace/src/error.rs": "725e24559e132f680883624aefb2e76436dc0dae913388c901b884e3c697f53f",
   "crates/fabric-workspace/src/lease.rs": "fa29be3772e30f96a180c52d23f09fea561e7db69f8faaccb438dc76ac284f37",
@@ -352,5 +356,6 @@
   "work/staffing-agent-plan.md": "02ffd696c9ad02fb546fe337b25ce3ae2ee82a648a1a8137eb3453668abfe57b",
   "work/tasks.json": "8a7fdf2dc69afbab60d805ccd6a03d24b33b95bf1a50aeba3d45848c81621028",
   "work/wbs.csv": "3f32352def7bd46228a5a1edb93d86f7b063cbd95b8156e857ca9915137eadfc",
-  "work/wbs.md": "117c774470f693b6e50358f040a98babec1117e05793a67ae33f1e3eec4d320f"
+  "work/wbs.md": "117c774470f693b6e50358f040a98babec1117e05793a67ae33f1e3eec4d320f",
+  "crates/fabric-graph/tests/surface_plane_integration.rs": "b692091a58c2b9837cbe02883be2b8093288ae530afafbdf0dd3bbb8cfe0b0c2"
 }
