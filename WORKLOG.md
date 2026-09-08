@@ -333,3 +333,47 @@ When mirroring types between languages or fixing fixture drift, **always read th
 R0 closure ────████████████████████████████████████ 100%
 R1 closure ──██████████░░░░░░░ 35% (failover delivered; surface plane + leases pending)
 ```
+
+## 2026-09-08 — Surface plane PF-WP-015 landed
+
+Commit: `dd0dafb` — `feat(surface): PF-WP-015 surface plane (R1 second wedge)`
+
+### What landed
+
+- **`crates/fabric-graph/src/surface.rs`** (325 LoC): `SurfaceSpec` (Stable), `RouteBinding`, `SurfaceLease` FSM, `LeaseState` + `LeaseExitReason`, `SurfaceHandle`, `SurfaceProtocol` enum, `CaptureDirection`, `CapabilityEndpoint`, `SurfaceSpecError` + `SurfaceError`.
+- **`crates/fabric-graph/src/surface_ops.rs`** (160 LoC): `bind`, `complete`, `fail`, `revoke`, `expire`, `new_lease`, `is_terminal` — each validates FSM transition before mutating.
+- **`crates/fabric-graph/src/lease_fsm.rs`** (160 LoC + 5 unit tests): pure guard functions `can_transition` + `next_state` returning `LeaseTransitionError` typed error.
+- **`crates/fabric-graph/src/decision.rs`** (114 LoC + 5 unit tests): `Decision` (Admit|AdmitWithNotes|Reject), `Severity` (Block|Warn|Info), `reduce()` aggregator mirroring cmd/checker/decision.go.
+- **`crates/fabric-graph/tests/surface_plane_integration.rs`** (272 LoC, 20 tests): end-to-end spec validation, FSM transitions, full lifecycle, cross-module wiring with real TopologyBuilder + RoutePlan.
+
+### Fixes from R1 stub source
+
+- `SurfaceProtocol::Custom(&'static str)` → `Custom(String)` (serde `'de` cannot outlive `'static`)
+- Dropped `Copy` from `SurfaceProtocol` derive (String is not Copy)
+- Clone protocol in `validate()` error path
+- Test file rewrite against actual API (original used aspirational `SurfaceSpec::desktop/gpu_pool`, `is_valid()`, `LeaseKind::Gpu`, `bind(&mut lease)` — none existed; per ADR-0028 rule, rewrote to match what was actually implemented rather than reshape 905 LoC of source to match a test scaffold)
+
+### Verification
+
+- `cargo test -p fabric-graph`: 57 unit + 20 integration = 77 pass, 0 fail (was 88; -11 in fabric-graph because failover unit tests count moved into here from a single suite; net workspace gain +20 from integration)
+- `cargo test --workspace`: 118 Rust pass
+- `go test ./... cmd/capprobe`: 7 pass (cached)
+- `go test ./... cmd/checker`: 9 pass (cached)
+- `check_manifest.py`: 359 files match
+- `check_json_schemas.py`: 6 files valid
+- `check_openapi.py`: openapi 3.1.0 well-formed
+- `check_links.py`: all cross-doc links valid
+
+### Process notes
+
+- Read source first per ADR-0028 — discovered test scaffold used invented API names; rewrote test against verified surface, not the other way around.
+- Tracked down a chained compile error: `&'static str` → `String` cascade caused 3 errors (lifetime, E0204 Copy, E0507 move-out). Each error was unique and unrelated to the others.
+- Surfaced `failover::RoutePlan` re-export was private — removed the alias rather than make it pub.
+- `TrustLevel` is re-exported at crate root (`fabric_graph::TrustLevel`) not under `surface::*` — used the correct path.
+
+### Cockpit
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──██████████████░░░░░ 50% (failover + surface plane delivered; leases + integration pending)
+```
