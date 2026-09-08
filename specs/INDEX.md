@@ -22,6 +22,8 @@ These feature folders follow the live AgilePlus `kitty-specs` pattern: `meta.jso
 | 016 | [`016-nvms-manifest-adapter`](016-nvms-manifest-adapter/spec.md) | NVMS Manifest Adapter (R0.5) | Map odin.nvms v0.2 application manifests to Fabric `CapabilityDescriptor`. Path dep on archived nanovms `phenotype-manifest`. R0.5 → R1. |
 | 017 | [`017-workspace-persistence`](017-workspace-persistence/spec.md) | Workspace Persistence (lease FSM + JSON store) | Per-user workspace state, seat-lease FSM, JSON file persistence, conflict detection. Source preserved untracked. R1. |
 | 018 | [`018-fabric-checker-pf-wp-011`](018-fabric-checker-pf-wp-011/spec.md) | Fabric Checker (probe vs NVMS cross-check) | Cross-check Fabric capability probe against NVMS manifest requirements before workspace creation. Decision taxonomy (Admit/AdmitWithNotes/Reject) + reason codes. Source preserved untracked. R1. |
+| 019 | [`019-surface-plane`](019-surface-plane/spec.md) | Surface Plane (PF-WP-015) | Declarative `SurfaceSpec`, route binding, lease FSM (Pending/Active/Completed/Failed/Revoked/Expired), surface ops (bind/fail/revoke/expire). Stable per ADR-0027. R1. |
+| 020 | [`020-route-lease-integration`](020-route-lease-integration/spec.md) | Route Lease Integration (PF-WP-022) | The single integration entry point `rebind_or_fail` that ties failover::replan (ADR-0030) to the surface plane (spec 019). Strict-epoch-binding enforcement. `cmd/checker -failover-blacklist` ratified as the operator-facing half. R1. |
 
 ## R0.5 / R1 (intermediate work packages)
 

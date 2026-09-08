@@ -326,7 +326,7 @@
   "specs/019-surface-plane/plan.md": "94ac3ac03fd98f20ce9598498c1b8b7a0ad0b012b1956df1ff579d9a9c4b32c0",
   "specs/019-surface-plane/spec.md": "2e670f93efe559530f20da03fc47737d62cbb3df7c5c893e725996158dddc0c0",
   "specs/019-surface-plane/tasks.md": "1971f5f072c092ab36b5044cc55d741b7bcfa99f60fae0fb47714ae3d5a1e4a8",
-  "specs/INDEX.md": "38488dc91f42acaa18cbc0a8aaf8ec5c267fd0402c81d91e0777803ef4afb263",
+  "specs/INDEX.md": "d0f6afd861b282f07235889371ecbab31bd027095329aab09cf6b9fb142b7c93",
   "verification/README.md": "921dc0acb6e48569aee639f91d74b441c7d9025a913b903a1262dea07c6412d9",
   "verification/acceptance-gates.md": "2c5a449ed05d16f1e8352b16e25738ce12b1e12ff9283992d86bcc91408b45e4",
   "verification/audio-rt-test-plan.md": "a35bf17b54e6fa615c7f034227a2a67aff0ea41e0ffc6bd606c9a0b2254e29f1",
@@ -357,5 +357,9 @@
   "work/tasks.json": "8a7fdf2dc69afbab60d805ccd6a03d24b33b95bf1a50aeba3d45848c81621028",
   "work/wbs.csv": "3f32352def7bd46228a5a1edb93d86f7b063cbd95b8156e857ca9915137eadfc",
   "work/wbs.md": "117c774470f693b6e50358f040a98babec1117e05793a67ae33f1e3eec4d320f",
-  "crates/fabric-graph/tests/surface_plane_integration.rs": "b692091a58c2b9837cbe02883be2b8093288ae530afafbdf0dd3bbb8cfe0b0c2"
+  "crates/fabric-graph/tests/surface_plane_integration.rs": "b692091a58c2b9837cbe02883be2b8093288ae530afafbdf0dd3bbb8cfe0b0c2",
+  "specs/020-route-lease-integration/meta.json": "66bac6e18e522e055cb3e2122d1380154921d05c8cf172b6203100ca9fb4a6bd",
+  "specs/020-route-lease-integration/spec.md": "09b63d83dc79674261cc33e01dc652f1c3b86f1bf339cc541a02a9c6c774ec34",
+  "specs/020-route-lease-integration/plan.md": "244c2f46854c94cd57798a2f64aca70873f2a009507bab4904aeb69debcd887e",
+  "specs/020-route-lease-integration/tasks.md": "51cb33c0aceb47a37214b98c05189d23c65434ed8fbd5cceef426f9d3fe9557c"
 }

@@ -1,0 +1,33 @@
+{
+  "id": "020",
+  "title": "Route Lease Integration (surface plane + failover + checker)",
+  "wp": "PF-WP-022",
+  "status": "draft",
+  "release_gate": "R1",
+  "depends_on": [
+    "PF-WP-015",
+    "PF-WP-020",
+    "PF-WP-021"
+  ],
+  "enables": [
+    "PF-WP-017"
+  ],
+  "languages": ["rust", "go"],
+  "owner": "phenotype-fabric",
+  "rationale": "Spec 019 (surface plane) defines the lease FSM. ADR-0030 (route failover) defines replan(). This spec wires the two: when the underlying RouteStep fails, the surface lease transitions Pending/Active -> Failed (with LeaseExitReason::HostFailure); when replan() succeeds the surface is re-bound silently (history grows, handle is stable); when replan() returns NoReplacement the surface is Failed and the user is told to re-admit. This is the integration spec PF-WP-017 (workspace persistence) blocks on.",
+  "interfaces_touched": [
+    "fabric-graph::failover::replan",
+    "fabric-graph::surface::SurfaceLease",
+    "fabric-graph::surface_ops::{bind, fail, revoke, expire}",
+    "fabric-graph::lease_fsm::{can_transition, next_state}",
+    "fabric-graph::surface::{LeaseExitReason, LeaseState, SurfaceError}",
+    "cmd/checker::main -failover-blacklist"
+  ],
+  "acceptance_signals": [
+    "fabric_graph::leases::rebind_or_fail(lease, plan, intent, failed_nodes) -> Result<SurfaceLease, SurfaceError> exists and is exercised by integration tests",
+    "failover::replan() returning FailoverOutcome::NoReplacement causes surface lease to transition to Failed with LeaseExitReason::HostFailure (single-call path)",
+    "failover::replan() returning FailoverOutcome::Replaced(new_plan) causes surface lease to be silently re-bound (current -> history, new binding installed, handle stable, state remains Active)",
+    "cmd/checker -failover-blacklist <node-id> rejects the host with ReasonBlacklisted severity Block, before any resource comparison",
+    "Strict epoch binding surface invalidates when SurfaceSpec::strict_epoch_binding is true and the topology epoch drifts between bind and re-bind"
+  ]
+}

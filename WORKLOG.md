@@ -454,3 +454,61 @@ demonstration of the failover contract.
 R1 closure ──████████████████░░░░ 60% (failover + surface plane + checker blacklist delivered;
                                         leases integration + topology-driven replan pending)
 ```
+
+## 2026-09-08 — Spec 020 Route Lease Integration authored (PF-WP-022)
+
+Wrote `specs/020-route-lease-integration/{meta.json,spec.md,plan.md,tasks.md}`.
+This is the **contract** for the next R1 wedge — the actual `crates/fabric-graph/src/leases.rs`
+implementation is not in this turn, but the spec pins down:
+
+1. **The single integration entry point**: `fabric_graph::leases::rebind_or_fail(lease,
+   plan_id, new_step, post_failure_topology, intent, old_plan, failed_nodes) -> Result<RebindOutcome, SurfaceError>`.
+2. **The outcome type**: `RebindOutcome::{Rebound{new_plan_id}, Failed{reason}}` — both
+   the silent re-bind and the loud fail paths return this.
+3. **The strict-epoch enforcement**: when `SurfaceSpec::strict_epoch_binding` is true and
+   the topology epoch drifts between bind and re-bind, the surface is invalidated with
+   `SurfaceError::EpochDrift { previous, current }` — no silent re-bind even when
+   `failover::replan` succeeds. This is the spec 019 "no-steal" invariant formalized at
+   the integration seam.
+4. **The Go checker contract ratification**: `-failover-blacklist` (commit `93b30f4`)
+   is now pinned as the operator-facing half of the integration. The runtime-facing half
+   (`rebind_or_fail`) is the Rust module spec 020 defines.
+
+### Why spec 020 lands before the implementation
+
+Without spec 020 there is no documented way for `fabric-workspace` (PF-WP-017) to wire
+its workspace event log to `LeaseState::Failed` events from the runtime side. The
+workspace would have to invent the wire format — exactly the silent-divergence failure
+mode ADR-0030 §6 warns against. Spec 020 closes that gap.
+
+### Files added
+
+- `specs/020-route-lease-integration/meta.json` (33 lines)
+- `specs/020-route-lease-integration/spec.md` (216 lines)
+- `specs/020-route-lease-integration/plan.md` (113 lines)
+- `specs/020-route-lease-integration/tasks.md` (50 lines)
+- `specs/INDEX.md` (2 new rows: 019, 020)
+
+### Verification
+
+- `check_manifest.py`: 363 files match (was 359; +4 for the spec 020 files)
+- `check_json_schemas.py`: 6 files valid
+- `check_openapi.py`: 3.1.0 well-formed
+- `check_links.py`: all cross-doc links valid
+- `cargo test --workspace`: 118 Rust pass (unchanged baseline; this turn ships spec only)
+- `go test -count=1 ./... cmd/capprobe`: ok
+- `go test -count=1 ./... cmd/checker`: ok
+
+### Next R1 wedge (this spec's deliverable for the next session)
+
+`crates/fabric-graph/src/leases.rs` per plan.md Phase 1, reading the 6 source files in
+`plan.md §Phase 0` end-to-end first per ADR-0028. Target: 5 unit tests + 4 integration
+tests, all green, no false claims. The 50-error cascade that bit spec 019's first stub
+is the direct failure mode if Phase 0 is skipped — codified in the plan.
+
+### Cockpit
+
+```
+R1 closure ──██████████████████░░ 70% (failover + surface plane + checker blacklist + spec 020 contract delivered;
+                                           leases implementation + workspace persistence + multi-tenant fairness pending)
+```
