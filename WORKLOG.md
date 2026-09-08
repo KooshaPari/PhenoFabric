@@ -439,9 +439,8 @@ demonstration of the failover contract.
 
 ### Verification
 
-- `go test -v -count=1 ./... cmd/checker`: 29 tests pass (was 9 + repeats = 16; +3 blacklist + 0 fail)
-  - Actually 9 funcs including some with subtests = 12 PASS lines at top level; +3 new blacklist tests
-- `go test ./... cmd/capprobe`: 7 pass (unchanged)
+- `go test -v -count=1 ./...` (cmd/checker): 12 PASS lines, all pass (was 9; +3 blacklist)
+- `go test -v -count=1 ./...` (cmd/capprobe): 6 PASS lines, all pass (unchanged; prior turn's "7" was off-by-one — there are 6 top-level test functions, each with subtests)
 - `cargo test --workspace`: 118 pass (unchanged)
 - end-to-end smoke (built binary):
   - no blacklist → Admit
