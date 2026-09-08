@@ -377,3 +377,23 @@ Commit: `dd0dafb` — `feat(surface): PF-WP-015 surface plane (R1 second wedge)`
 R0 closure ────████████████████████████████████████ 100%
 R1 closure ──██████████████░░░░░ 50% (failover + surface plane delivered; leases + integration pending)
 ```
+
+## 2026-09-08 — fabric-cli deferred (per ADR-0028)
+
+Attempted to add `crates/fabric-cli/` to the workspace to unblock the
+Tier 3 deliverable. Result: `cargo check -p fabric-cli` reports 50
+cascading compile errors (E0061, E0277, E0382, E0425, E0432, E0433,
+E0599, E0609) — the exact same pattern documented as the failure mode
+of the prior 5 attempts. Source files in `crates/fabric-cli/src/commands/`
+reference API surface that doesn't match current `fabric-capability`
+exports (e.g. `default_probe()` returns `Box<dyn Probe>`, not used as
+value; `signing::sign(&mut descriptor, &key)` doesn't match the
+current `signing` module's free-fn signature).
+
+Per ADR-0028 ("Stuck loop (>3 identical failures): switch tactic" +
+"ship spec + ADR + stub source untracked when stuck"), reverted the
+workspace addition and the incidental Cargo.lock churn. fabric-cli
+remains Tier 3 / deferred to fresh-context session.
+
+Honest accounting: 0 lines changed in fabric-cli this turn; the prior
+WIP source stays as-is. No false "all green" claim.
