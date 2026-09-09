@@ -27,7 +27,12 @@ const (
 	ReasonAudioMissing       ReasonCode = "AUDIO_MISSING"
 	ReasonHostNotProbed      ReasonCode = "HOST_NOT_PROBED"
 	ReasonEmptyManifest      ReasonCode = "EMPTY_MANIFEST"
-	ReasonBlacklisted        ReasonCode = "BLACKLISTED" // R1 failover (ADR-0030)
+	ReasonBlacklisted        ReasonCode = "BLACKLISTED"     // R1 failover (ADR-0030)
+	ReasonNoRoute            ReasonCode = "NO_ROUTE"        // R2 -replan (spec 023): replan returned NoReplacement
+	ReasonReplanReplaced     ReasonCode = "REPLANNED"       // R2 -replan: replan succeeded, new plan received
+	ReasonReplanNoReplacement ReasonCode = "REPLAN_NO_REPLACEMENT" // R2 -replan: no replacement available
+	ReasonReplanError        ReasonCode = "REPLAN_ERROR"    // R2 -replan: binary failed (exit code != 0/1/2/20/21)
+	ReasonReplanUnknown      ReasonCode = "REPLAN_UNKNOWN_STATUS" // R2 -replan: response status wasn't a known variant
 )
 
 // Finding is a single check result.

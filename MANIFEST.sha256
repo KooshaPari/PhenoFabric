@@ -96,9 +96,9 @@
   "cmd/capprobe/probe_unix_test.go": "3a5ae571228d52c0c3f0176b1adbc5f534ef173d489a4665f6faf38dfa9b722d",
   "cmd/checker/checks.go": "f8fcdaf84d437158daeb3a10b97cabd218996403d3171a8ee9be9d72c0ebcbf0",
   "cmd/checker/checks_test.go": "7383ef1ac680718178e4e3bb2a6e0e389eb8b2bedd576299947d3fa279ee6820",
-  "cmd/checker/decision.go": "f5426375ab764d32a14c20a30f947c3a45cc6ab618ebf538b99912e581362310",
+  "cmd/checker/decision.go": "af287fa2d7dbf629283d112df6af5a4bf61f96ef6637529c93b426a8aed692ee",
   "cmd/checker/go.mod": "6786a160192d40f9e923e2b75673432b260cdb6c53601eec6233db3d928cc1b1",
-  "cmd/checker/main.go": "5be43b4f1fb9a6035508b5c80df61cf8c1c486a20c077a1e30336635412e5001",
+  "cmd/checker/main.go": "ff1218f4672c0b7aeada1e23e63cc551ead587eec8ce31ee148e3c2f48ad337c",
   "cmd/checker/required.go": "b1401578844db994c43720b0e99906d2ecaf7f1e100a96d00b08991082a4a58a",
   "cmd/checker/testdata/audio_manifest_required.json": "f02f841f41ff19bea0f2c23354ee215963c88732d61be0d79b0358a808c58513",
   "cmd/checker/testdata/cores_descriptor_small.json": "28a9d4dd470fa81efc8a5bd6aa5634af9e9d5e250b1c2e3922eb7ce64a7b8149",
@@ -386,5 +386,7 @@
   "specs/023-fabric-graph-cli-replan/meta.json": "8234f00208e58243ec62fd00a49d8c1fe05c0c446f0514bdbfea514211a6037d",
   "specs/023-fabric-graph-cli-replan/spec.md": "5d6ac3e304570cced4f1f9d683fad229c56183168993d0f081c0e0bfa7aad995",
   "specs/023-fabric-graph-cli-replan/plan.md": "4810f2f29d7f041b2337c3ce083021cb1639620090dae69ed94c71413ab9e6b9",
-  "specs/023-fabric-graph-cli-replan/tasks.md": "45206d5ffe10f2c0fed19322811afc9e7d449fdb6acb8fb8f67b20715e3bd3f6"
+  "specs/023-fabric-graph-cli-replan/tasks.md": "45206d5ffe10f2c0fed19322811afc9e7d449fdb6acb8fb8f67b20715e3bd3f6",
+  "cmd/checker/replan.go": "73cdd5ec33ee4d4752c376ed47f95a324a089a7ccacb668052d43752b25c3485",
+  "cmd/checker/replan_test.go": "b2d64a2dad4be0450d5f96a27c411b2e2aff49a3910064ac4d8b1f6a5b7fc87e"
 }

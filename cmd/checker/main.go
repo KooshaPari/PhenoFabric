@@ -8,6 +8,9 @@
 //
 //	checker -descriptor host.json -manifest app.yaml
 //	checker -descriptor host.json -manifest app.yaml -failover-blacklist host-1,host-3
+//	checker -descriptor host.json -manifest app.yaml -replan-binary ./fabric-graph-cli \
+//	        -topology topo.json -intent intent.json -old-plan plan.json \
+//	        -failover-blacklist host-1,host-3
 //
 // The descriptor is a Fabric CapabilityDescriptor JSON document; the
 // manifest is the odin.nvms manifest (JSON-encoded serde shape).
@@ -15,6 +18,14 @@
 // The -failover-blacklist flag (R1, ADR-0030) lists node IDs that have
 // failed and must not be placed on. Any descriptor whose NodeID matches a
 // blacklisted ID is rejected with ReasonBlacklisted.
+//
+// The -replan-binary flag (R2, Q1-C, spec 023) delegates the failover
+// decision to a thin Rust binary that exposes fabric-graph::failover::replan
+// over stdin/stdout JSON. When set, -topology, -intent, -old-plan must
+// point to JSON files matching fabric_graph's wire format. The checker
+// builds a ReplanRequest { topology, intent, old_plan, failed_nodes =
+// blacklist } and translates the Replaced/NoReplacement response into the
+// existing Report shape.
 package main
 
 import (
@@ -29,10 +40,14 @@ func main() {
 	descriptorPath := flag.String("descriptor", "", "path to host capability descriptor JSON")
 	manifestPath := flag.String("manifest", "", "path to NVMS manifest JSON")
 	blacklistFlag := flag.String("failover-blacklist", "", "comma-separated node IDs that have failed (R1, ADR-0030)")
+	replanBinary := flag.String("replan-binary", "", "path to fabric-graph-cli binary for topology-driven failover (R2, spec 023)")
+	topologyPath := flag.String("topology", "", "path to topology JSON (used with -replan-binary)")
+	intentPath := flag.String("intent", "", "path to intent JSON (used with -replan-binary)")
+	oldPlanPath := flag.String("old-plan", "", "path to old RoutePlan JSON (used with -replan-binary)")
 	flag.Parse()
 
 	if *descriptorPath == "" || *manifestPath == "" {
-		fmt.Fprintln(os.Stderr, "usage: checker -descriptor <host.json> -manifest <app.json> [-failover-blacklist id1,id2,...]")
+		fmt.Fprintln(os.Stderr, "usage: checker -descriptor <host.json> -manifest <app.json> [-failover-blacklist id1,id2,...] [-replan-binary <path> -topology <t.json> -intent <i.json> -old-plan <p.json>]")
 		os.Exit(2)
 	}
 
@@ -49,7 +64,28 @@ func main() {
 	}
 
 	blacklist := parseBlacklist(*blacklistFlag)
-	report := check(host, m, blacklist)
+
+	var report Report
+	if *replanBinary != "" {
+		// R2 wedge: topology-driven replan via fabric-graph-cli
+		if *topologyPath == "" || *intentPath == "" || *oldPlanPath == "" {
+			fmt.Fprintln(os.Stderr, "when -replan-binary is set, -topology, -intent, and -old-plan are required")
+			os.Exit(2)
+		}
+		rr, err := buildReplanRequest(*topologyPath, *intentPath, *oldPlanPath, blacklist)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "build replan request: %v\n", err)
+			os.Exit(1)
+		}
+		rep, err := invokeReplan(*replanBinary, rr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invoke replan: %v\n", err)
+			os.Exit(1)
+		}
+		report = reportFromReplan(host, rep)
+	} else {
+		report = check(host, m, blacklist)
+	}
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
