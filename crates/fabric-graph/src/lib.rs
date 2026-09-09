@@ -17,6 +17,7 @@
 //! - [`surface`] / [`surface_ops`] / [`lease_fsm`]: surface plane types + lease FSM (PF-WP-015, spec 019)
 //! - [`decision`]: Admit / AdmitWithNotes / Reject + Severity reducer (mirrors cmd/checker/decision.go)
 //! - [`leases`]: single integration entry point that wires `failover::replan` to the surface plane (PF-WP-022, spec 020)
+//! - [`leases_fairness`]: multi-tenant fairness queue + `pardon()` operator escape hatch (PF-WP-022 v2, spec 022)
 //!
 //! ## Non-negotiable invariants (PF-FR-002..005)
 //!
@@ -37,6 +38,7 @@ pub use fabric_capability::LocalityTier;
 pub mod builder;
 pub mod compile;
 pub mod failover;
+pub mod leases_fairness;
 pub mod model;
 pub mod negotiation;
 pub mod planner;
@@ -46,6 +48,11 @@ pub mod leases;
 pub mod score;
 pub mod surface;
 pub mod surface_ops;
+
+pub use crate::leases_fairness::{
+    FairnessDecision, FairnessPolicy, FairnessQueue, FairnessSnapshot,
+    PardonError, TenantAccounting, TenantId, DenyReason, pardon,
+};
 
 pub use crate::builder::IntentBuilder;
 pub use crate::compile::{compile, compile_all};

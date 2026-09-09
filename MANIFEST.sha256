@@ -149,7 +149,7 @@
   "crates/fabric-graph/src/decision.rs": "57b486d098cb1f0b1ab5ad806bdc65eecd4c9d145c863a21a70fec47015656c2",
   "crates/fabric-graph/src/failover.rs": "be5a29e06f81c8782b57fff9fb9037e6e4e33a8dc7caf2c13fa1cb73d7a42ff1",
   "crates/fabric-graph/src/lease_fsm.rs": "5c8f4c2158a895ba68b9a0e6652ceb732ead01d2cd6b8fa1cb555c3d97d52268",
-  "crates/fabric-graph/src/lib.rs": "f493cdad1ccedf281468f8a4776b70bda7e12d2242ef099478f7bea1389ae1ac",
+  "crates/fabric-graph/src/lib.rs": "f366fd906941aef3058a916d93d2de6c11754f5cdb43939f25c069e9a96e064a",
   "crates/fabric-graph/src/model.rs": "9ede2e3eeee057e1e5fb17667d5a682bbe42fe4746dac8c67b3f2e715eb3e8be",
   "crates/fabric-graph/src/negotiation.rs": "33169d628a630c9fbee56852d0267c9ee33fcbf68e541ab5063da320fadcc6f9",
   "crates/fabric-graph/src/planner.rs": "2f88df79098a2e240687da6dc9e9721599ec3567da945812581cbce1947e6c90",
@@ -326,7 +326,7 @@
   "specs/019-surface-plane/plan.md": "94ac3ac03fd98f20ce9598498c1b8b7a0ad0b012b1956df1ff579d9a9c4b32c0",
   "specs/019-surface-plane/spec.md": "2e670f93efe559530f20da03fc47737d62cbb3df7c5c893e725996158dddc0c0",
   "specs/019-surface-plane/tasks.md": "1971f5f072c092ab36b5044cc55d741b7bcfa99f60fae0fb47714ae3d5a1e4a8",
-  "specs/INDEX.md": "1e6db219d0ae4ea9fe26bd6fc643402caadd1b41eae62708b2040753d70a16ac",
+  "specs/INDEX.md": "cc479420644b1ad6febce53019d428461755ac6e76b2ebceda5efef065854ade",
   "verification/README.md": "921dc0acb6e48569aee639f91d74b441c7d9025a913b903a1262dea07c6412d9",
   "verification/acceptance-gates.md": "2c5a449ed05d16f1e8352b16e25738ce12b1e12ff9283992d86bcc91408b45e4",
   "verification/audio-rt-test-plan.md": "a35bf17b54e6fa615c7f034227a2a67aff0ea41e0ffc6bd606c9a0b2254e29f1",
@@ -371,5 +371,11 @@
   "specs/021-trust-root-descriptor-signatures/plan.md": "987f0fb364150d540965ca9644ee8c94305fa460a9591fae59e81a2791a7bba0",
   "specs/021-trust-root-descriptor-signatures/spec.md": "d2b6dc01dc38c2140a5905d900703b33802f9a7d525b993f1c01cac3b451b8ff",
   "specs/021-trust-root-descriptor-signatures/tasks.md": "e26218e13ae45877ff2803cee3b9d3833230617d2ca145dfdbadff1df230454e",
-  "releases/2026-09-08-R1.md": "991155be4f78fe5e77f2ad3e228dda45ffc08c20fc04e15ff1d61db1da7ef619"
+  "releases/2026-09-08-R1.md": "991155be4f78fe5e77f2ad3e228dda45ffc08c20fc04e15ff1d61db1da7ef619",
+  "crates/fabric-graph/src/leases_fairness.rs": "58d99cb01959f7a0f8dcc40f0dbeffb9506f6bd785f275ef3ba0da4887835e7b",
+  "crates/fabric-graph/tests/lease_fairness_integration.rs": "72b3d9377a81695bb0a980c6cbb63212a77d3457e9e65a92cfc4daefa2af5424",
+  "specs/022-lease-multi-tenant-fairness/meta.json": "a127cf54cd6bde3537cfdb673877696d557ec3d47260097b44bab57e8200a46c",
+  "specs/022-lease-multi-tenant-fairness/spec.md": "57ea63dc9a2ff40530b6e185e4818f0a77dcf5ea821eead7d05fda3389bfcf92",
+  "specs/022-lease-multi-tenant-fairness/plan.md": "064ef0f7824e87a0e61168cbb5fd50fe54620b243ac1315e8f2bfe2b89ff9177",
+  "specs/022-lease-multi-tenant-fairness/tasks.md": "9a490f34a416c68ae78b585bf96614d9f48e77c3c28922b8b9039e36a689df8d"
 }

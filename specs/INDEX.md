@@ -25,6 +25,7 @@ These feature folders follow the live AgilePlus `kitty-specs` pattern: `meta.jso
 | 019 | [`019-surface-plane`](019-surface-plane/spec.md) | Surface Plane (PF-WP-015) | Declarative `SurfaceSpec`, route binding, lease FSM (Pending/Active/Completed/Failed/Revoked/Expired), surface ops (bind/fail/revoke/expire). Stable per ADR-0027. R1. |
 | 020 | [`020-route-lease-integration`](020-route-lease-integration/spec.md) | Route Lease Integration (PF-WP-022) | The single integration entry point `rebind_or_fail` that ties failover::replan (ADR-0030) to the surface plane (spec 019). Strict-epoch-binding enforcement. `cmd/checker -failover-blacklist` ratified as the operator-facing half. R1. |
 | 021 | [`021-trust-root-descriptor-signatures`](021-trust-root-descriptor-signatures/spec.md) | Trust-Root Model for Descriptor Signatures (PF-WP-016) | Single trust-root anchors an optional 2-level authority chain over CapabilityDescriptor signatures; signed RevocationList catches compromised keys; bounded chain depth (cap = 2). Closes the R0 "no revocation" risk. ADR-0031 Accepted. R1. |
+| 022 | [`022-lease-multi-tenant-fairness`](022-lease-multi-tenant-fairness/spec.md) | Lease Multi-Tenant Fairness (PF-WP-022 v2) | `FairnessQueue` + 4 `FairnessPolicy` variants (Fifo/FairShare/PriorityWeighted/WeightedRoundRobin) for multi-tenant capacity arbitration; `lease::pardon()` operator escape hatch for Q4-C. Closes the last 5% of R1. R1-closeout. |
 
 ## R0.5 / R1 (intermediate work packages)
 

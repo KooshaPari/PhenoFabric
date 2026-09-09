@@ -1,0 +1,29 @@
+{
+  "wp": "PF-WP-022-v2",
+  "title": "Lease Multi-Tenant Fairness",
+  "release_gate": "R1-closeout",
+  "status": "draft",
+  "supersedes": null,
+  "depends_on": [
+    "specs/020-route-lease-integration/spec.md",
+    "specs/019-surface-plane/spec.md"
+  ],
+  "enables": [
+    "PF-WP-050 (audio surface runtime)",
+    "PF-WP-060 (video surface runtime)",
+    "specs/017 (workspace persistence — fairness audit log)"
+  ],
+  "scope": "in",
+  "scope_out": [
+    "Cross-tenant priority inheritance (R3)",
+    "Per-tenant budget enforcement in microseconds (spec deferred)",
+    "Distributed fairness across multiple fabric-graph instances (out of scope, single-instance only)"
+  ],
+  "acceptance_signals": [
+    "cargo test -p fabric-graph --lib leases_fairness:: passes (8 unit tests)",
+    "cargo test -p fabric-graph --test lease_fairness_integration passes (5 integration tests)",
+    "check_manifest.py: 0 mismatches",
+    "check_json_schemas / check_openapi / check_links: all green"
+  ],
+  "authored_date": "2026-09-08"
+}
