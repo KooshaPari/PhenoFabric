@@ -1,0 +1,34 @@
+{
+  "work_package": "PF-WP-030",
+  "title": "Surface-plane runtime registry",
+  "release": "R2",
+  "status": "accepted",
+  "depends_on": [
+    "PF-WP-015",
+    "PF-WP-021",
+    "PF-WP-022"
+  ],
+  "adr": [
+    "ADR-0030",
+    "ADR-0028"
+  ],
+  "acceptance_signals": [
+    "SurfaceRegistry tracks active leases by handle",
+    "notify_node_failure() invalidates leases touching the failed node",
+    "Topology-aware bind_with_topology() replaces surface_ops placeholder",
+    "cargo test --workspace passes",
+    "4/4 spec checks pass"
+  ],
+  "scope_in": [
+    "SurfaceRegistry (in-memory, no persistence)",
+    "notify_node_failure(failed_nodes) → vec of (SurfaceHandle, LeaseExitReason) invalidated",
+    "bind_with_topology(lease, plan_id, new_step, topology) additive in surface_ops",
+    "5 unit + 5 integration tests"
+  ],
+  "scope_out": [
+    "Replacement selector (separate spec)",
+    "leases_fairness integration (separate spec)",
+    "Persistence (R3)",
+    "Cross-process registry (R3)"
+  ]
+}
