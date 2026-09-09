@@ -937,3 +937,78 @@ R2 design  ──░░░░░░░░░░░░░░░░░░░░░
 One integration test (`cli_replan_pruned_only_node_returns_replaced_with_empty_steps`) reflects the actual `failover::replan` semantics rather than aspirational behavior: pruning a node leaves the topology routable (1 unconstrained node → empty-steps plan → `Replaced`), not `NoReplacement`. The test now asserts what `failover::replan` actually does with a documented comment. ADR-0028 phase 0 discipline: reshape tests to match verified source, not reshape source to match aspirational tests.
 
 R2 wedge #1 closed honestly. Next: wire `cmd/checker Go -replan` against this binary.
+
+## 2026-09-08 — R2 wedge #2: checker -replan-binary integration
+
+Commit: `dcdf5a1`
+
+### What landed
+
+`cmd/checker Go` now shells out to `fabric-graph-cli replan` per Q1-C
+decision. Four new flags wire the topology/intent/old_plan JSON files
+through to the Rust binary:
+
+```
+checker -replan-binary ./target/debug/fabric-graph-cli \
+        -topology topology.json \
+        -intent intent.json \
+        -old-plan old-plan.json \
+        -failover-blacklist host-1
+```
+
+### Response → Report translation
+
+| Binary status     | Checker Decision | Severity | Finding Code               |
+|-------------------|------------------|----------|----------------------------|
+| `replaced`        | Admit            | Info     | REPLAN_OK                  |
+| `no_replacement`  | Reject           | Block    | REPLAN_NO_REPLACEMENT      |
+| `error`           | Reject           | Block    | REPLAN_ERROR               |
+| unknown           | Reject           | Block    | REPLAN_UNKNOWN_STATUS      |
+
+When `-replan-binary` is unset, the existing checker logic runs unchanged.
+
+### Test coverage (14 new tests)
+
+- `TestReportFromReplan{Replaced,NoReplacement,Error,UnknownStatus}` — translator coverage
+- `TestInvokeReplan{Replaced,NoReplacement,ErrorResponse,MissingBinary,EmptyResponse,InvalidJSON,ExitCode20,RespectsWorkingDir}` — subprocess coverage using fake shell scripts in t.TempDir() (hermetic, no Rust build dependency)
+- `TestBuildReplanRequest{MergesBlacklist,FailedNodesInOrder}` — request construction
+
+### Verification
+
+- `cargo test --workspace`: 177 Rust pass / 0 fail (unchanged)
+- `go test ./cmd/capprobe`: 6 PASS (unchanged)
+- `go test ./cmd/checker`: 26 PASS top-level (was 12; +14 new)
+- `check_manifest.py`: 390 files match (was 388; +2)
+- `check_json_schemas / check_openapi / check_links`: all pass
+
+**209 tests** (177 Rust + 32 Go) all green.
+
+### Operator workflows now available
+
+1. Single-host decision (existing): `checker -descriptor host.json -manifest app.json`
+2. Single-host + blacklist (R1 wedge): `checker ... -failover-blacklist host-1`
+3. Full topology-driven replan (R2 wedge #2, new): adds `-replan-binary PATH -topology F -intent F -old-plan F`
+
+### Phase 0 (ADR-0028) caught 4 real issues
+
+1. Test file referenced symbols that didn't exist in `replan.go` — fixed by using only verified exports
+2. Test expected `invokeReplan` to error on `status=error`; actual code passes it through as a typed response for translation
+3. Replan reasons are hardcoded string literals, not exported constants
+4. Subprocess tests use fake shell scripts in `t.TempDir()` — hermetic, no Rust build dependency
+
+### Cockpit — R2 20%
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──████████████████████████████████████ 100%
+R2 design  ──████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 20%
+├─ spec 023 fabric-graph-cli replan     ✓ authored
+├─ fabric-graph-cli binary              ✓ committed, 15 tests
+├─ checker -replan-binary integration   ✓ committed, 14 tests  ← THIS TURN
+├─ surface-plane runtime (PF-WP-030)    ◐ R2 next
+├─ wire transport (PF-WP-040)           ◐ R2 next
+├─ audio/video surface planes           ◐ R2 next
+├─ fabric-cli Rust                       ✗ Tier 3 (deferred per ADR-0028)
+├─ fabric-workspace Rust                 ✗ Tier 3 (deferred per ADR-0028)
+└─ fabric-checker Rust port              ✗ Deferred (Go canonical, ADR-0029)
+```
