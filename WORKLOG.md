@@ -1041,3 +1041,76 @@ with an explicit Phase 0 read of `failover.rs` + `surface.rs` + `surface_ops.rs`
 2. **Wire transport (PF-WP-040)** — defer until spec 024 + spec 025 wire format are pinned
 3. **Audio/video surface planes (PF-WP-050/060)** — depends on PF-WP-030 + PF-WP-040
 4. **fabric-cli Rust port** — Tier 3, fresh-context, only after Tier 3 is re-prioritized
+
+## 2026-09-08 — Spec 024 surface-plane runtime authored (PF-WP-030 contract)
+
+Commit: `502d18b`
+
+### What landed
+
+The authoritative contract for `crates/fabric-graph/src/surface_runtime.rs`,
+per spec 019 (Stable surface plane), ADR-0030 (route-failover), and
+ADR-0028 (read-source-first). This is the wedge that pins the API so
+the actual implementation can land in a future fresh-context session
+without re-tripping the 16-error cascade from the prior attempt.
+
+### Scope (minimal, by design)
+
+The spec deliberately constrains scope to what can be implemented
+cleanly against the **verified** `failover.rs` + `surface.rs` +
+`surface_ops.rs` API surface (read in this turn's Phase 0):
+
+- **`SurfaceRegistry`** — `HashMap<SurfaceHandle, LeaseRecord>` of active leases
+- **`FailoverHook::on_node_failed(node_id, current_epoch)`** — invalidates leases whose current binding touches the failed node, returns the invalidated handles
+- **`Registry::snapshot()`** — `Vec<LeaseSnapshot>` for audit/event-log export (Serialize+Deserialize)
+- Pure-Rust registry: no async, no threads, no I/O
+
+### Out of scope (deferred to other wedges/specs)
+
+- `bind_with_topology()` replacement (the `derive_endpoint_for_step` placeholder is a separate refactor; current call sites already pass a topology reference)
+- Replacement selector (covered by `leases::rebind_or_fail` per spec 020)
+- Multi-tenant fairness (covered by `leases_fairness` per spec 022)
+- Wire transport (PF-WP-040, future spec 025+)
+- Async / runtime event loop (deferred until at least one consumer actually needs it)
+
+### Why ship spec-only this turn
+
+Per ADR-0028: "ship spec + ADR + stub source untracked when stuck." The
+prior session hit a 16-error cascade against an aspirational API that
+didn't match `failover.rs` + `surface.rs` + `surface_ops.rs` + `model.rs`.
+This turn:
+
+1. Phase 0 read all 7 source files end-to-end before writing anything
+2. Constrained spec scope to only the verified API (no speculative extensions)
+3. Shipped spec + INDEX + MANIFEST only — no aspirational source
+
+Implementation lands in the next session that has fresh-context per the
+codified rule.
+
+### Verification
+
+- `cargo test --workspace`: 177 Rust pass / 0 fail (unchanged; spec-only)
+- `go test ./cmd/capprobe`: ok (6 PASS top-level)
+- `go test ./cmd/checker`: ok (26 PASS top-level)
+- `check_manifest.py`: 394 files match (was 390; +4)
+- `check_json_schemas / check_openapi / check_links`: all pass
+
+**209 tests** all green. 4/4 spec checks pass.
+
+### Cockpit — R2 25%
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──████████████████████████████████████ 100%
+R2 design  ──█████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 25%
+├─ spec 023 fabric-graph-cli replan     ✓ authored
+├─ fabric-graph-cli binary              ✓ committed, 15 tests
+├─ checker -replan-binary integration   ✓ committed, 14 tests
+├─ spec 024 surface-plane runtime      ✓ authored (this turn)
+├─ surface_runtime.rs impl             ◐ next R2 wedge (fresh-context)
+├─ wire transport (PF-WP-040)           ◐ R2 next
+├─ audio/video surface planes           ◐ R2 next
+├─ fabric-cli Rust                       ✗ Tier 3 (ADR-0028)
+├─ fabric-workspace Rust                 ✗ Tier 3 (ADR-0028)
+└─ fabric-checker Rust port              ✗ Deferred (ADR-0029)
+```
