@@ -370,5 +370,6 @@
   "specs/021-trust-root-descriptor-signatures/meta.json": "81c482758570efd696036acf36d96093e3979b162eeb735f370fb13b9d6f19a6",
   "specs/021-trust-root-descriptor-signatures/plan.md": "987f0fb364150d540965ca9644ee8c94305fa460a9591fae59e81a2791a7bba0",
   "specs/021-trust-root-descriptor-signatures/spec.md": "d2b6dc01dc38c2140a5905d900703b33802f9a7d525b993f1c01cac3b451b8ff",
-  "specs/021-trust-root-descriptor-signatures/tasks.md": "e26218e13ae45877ff2803cee3b9d3833230617d2ca145dfdbadff1df230454e"
+  "specs/021-trust-root-descriptor-signatures/tasks.md": "e26218e13ae45877ff2803cee3b9d3833230617d2ca145dfdbadff1df230454e",
+  "releases/2026-09-08-R1.md": "991155be4f78fe5e77f2ad3e228dda45ffc08c20fc04e15ff1d61db1da7ef619"
 }
