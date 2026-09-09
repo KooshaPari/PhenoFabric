@@ -581,3 +581,101 @@ R1 closure ──█████████████████████
 ├─ fabric-workspace Rust               ✗ Tier 3 (deferred per ADR-0028)
 └─ fabric-checker Rust port            ✗ Deferred (Go canonical, ADR-0029)
 ```
+
+## 2026-09-08 — trust-root chain landed (PF-WP-018, spec 021, R1 closeout)
+
+Commit: `f2de8aa`
+
+### What landed
+
+Promotes descriptor verification from "direct key" (one trusted key per peer) to
+a "trust root" (CA-rooted) model. Operators can now rotate intermediate authorities
+without redistributing a new root key, and can revoke compromised leaves via a
+signed revocation list from the root. This closes the last documented R1 risk
+from `WORKLOG.md:107` ("No adversary model for signed descriptors. R0 has a trust
+model (direct key) but no revocation. R1 needs a trust-root or CA model.").
+
+### Artifacts
+
+- `adr/0031-trust-root-descriptor-signatures.md` (Accepted)
+- `specs/021-trust-root-descriptor-signatures/{meta.json,spec.md,plan.md,tasks.md}`
+- `crates/fabric-capability/src/trust_root.rs` (468 LoC, 10 unit tests)
+- `crates/fabric-capability/tests/trust_root_chain.rs` (224 LoC, 7 integration tests)
+- `crates/fabric-capability/src/signing.rs` — additive: VerificationKey now
+  Serialize/Deserialize, plus sign_bytes/verify_bytes free fns for arbitrary
+  byte buffers (used by Authority + RevocationList)
+- `crates/fabric-capability/src/lib.rs` — re-exports for Authority,
+  RevocationEntry, RevocationList, RevocationReason, TrustError, TrustStore,
+  ChainVerification, MAX_CHAIN_DEPTH
+- `crates/fabric-capability/Cargo.toml` — trust_root_chain [[test]] entry
+
+### Public API
+
+```rust
+Authority::trust_root(key, name) -> Authority
+Authority::signed_by(child_key, parent_signing_key, parent, name, not_after) -> Result<Authority>
+RevocationList::build_and_sign(entries, root_signing_key) -> Result<RevocationList>
+TrustStore::new(root) -> Result<TrustStore>
+TrustStore::add_authority(auth) -> Result<()>  // verifies parent sig, enforces depth
+TrustStore::set_revocation_list(list) -> Result<()>  // verifies root sig
+TrustStore::verify_chain(descriptor) -> Result<ChainVerification, TrustError>
+```
+
+### Test totals (verified)
+
+- **Rust workspace**: 147 pass / 0 fail (was 130; +17 = 10 unit + 7 integration)
+- **Go capprobe**: ok (unchanged)
+- **Go checker**: ok (unchanged)
+- **Spec checks (4/4)**: manifest ✓ (372 files; was 365; +7) · schemas ✓ · openapi ✓ · links ✓
+
+### Process notes (Phase 0 caught several real issues)
+
+- **VerificationKey serialization**: only derived Debug+Clone. Added
+  Serialize/Deserialize via to_bytes/from_bytes round-trip on the inner
+  ed25519 key (no API breakage — additive derives).
+- **`signing.rs` was missing `serde::{Serialize, Deserialize}` import** —
+  the trust_root tests pulled it in via their own `use` statement, masking
+  the missing top-level import. Caught when the integration test used
+  `serde_json::to_string(&node)` (no inline `use`). Fixed.
+- **`Authority::signed_by` semantics**: spec §3 step 2 says "parent signs
+  the child", so the function takes a `parent_signing_key: &SigningKey`
+  to produce the child's signature. Three test callsites from an earlier
+  draft needed update.
+- **`ChainTooDeep { depth, cap }`**: not `{ depth, max }` — caught by the
+  compiler.
+- **`ChainVerification` has `node_authority + chain_depth`** — no
+  `trust_root_key_id` field (that's on the store). Test assertion dropped.
+
+### Phase 0 discipline (ADR-0028) working as designed
+
+All five findings above would have produced cascading compile errors per the
+documented failure mode. Phase 0 read of signing/descriptor/error/lib.rs/Cargo.toml
+caught the first one (VerificationKey derives); the compiler caught the rest
+within the same edit cycle. Net: zero false starts.
+
+### Cockpit — R1 95%
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──██████████████████████████████████░ 95%
+├─ ADR-0030 route-failover model       ✓ Accepted
+├─ fabric-graph::failover              ✓ committed, 4 tests
+├─ Surface plane (PF-WP-015)           ✓ committed, 77 tests
+├─ checker --failover-blacklist        ✓ committed, 12 tests
+├─ spec 020 contract (PF-WP-022)       ✓ authored
+├─ leases::rebind_or_fail impl         ✓ committed, 12 tests
+├─ ADR-0031 trust-root model           ✓ Accepted
+├─ spec 021 trust-root contract        ✓ authored
+├─ trust_root chain (PF-WP-018)        ✓ committed, 17 tests  ← THIS TURN
+├─ fabric-graph::leases v2 (R3)        ◐ multi-tenant fairness
+├─ fabric-cli Rust                     ✗ Tier 3 (deferred per ADR-0028)
+├─ fabric-workspace Rust               ✗ Tier 3 (deferred per ADR-0028)
+└─ fabric-checker Rust port            ✗ Deferred (Go canonical, ADR-0029)
+```
+
+### Remaining R1 open threads
+
+- `fabric-graph::leases` v2 (PF-WP-022 R3) — multi-tenant fairness (R3)
+- Tier 3 Rust crates (`fabric-cli`, `fabric-workspace`, `fabric-checker`) —
+  fresh-context per ADR-0028
+- Full topology-driven `-checker-replan -topology <file> -intent <file>` (R2 candidate)
