@@ -1,0 +1,32 @@
+{
+  "id": "021",
+  "title": "Trust-Root Model for Capability Descriptor Signatures",
+  "wp": "PF-WP-016",
+  "status": "draft",
+  "release_gate": "R1",
+  "depends_on": [
+    "PF-WP-010",
+    "ADR-0023",
+    "ADR-0028"
+  ],
+  "enables": [
+    "PF-WP-017",
+    "PF-WP-022"
+  ],
+  "languages": ["rust"],
+  "owner": "phenotype-fabric",
+  "rationale": "R0 ships Ed25519 signatures on CapabilityDescriptor (ADR-0023) but no revocation and no chain — a compromised key is trusted forever. This spec defines the TrustStore model that ADR-0031 ratifies: a single trust-root anchors an optional 2-level authority chain, a signed RevocationList catches compromised keys, and bounded chain depth (cap = 2) prevents runaway delegation. Closes the R0 risk 'no adversary model for signed descriptors' (WORKLOG.md:107).",
+  "interfaces_touched": [
+    "fabric-capability::signing::{sign, verify, SigningKey, VerificationKey}",
+    "fabric-capability::descriptor::CapabilityDescriptor"
+  ],
+  "acceptance_signals": [
+    "fabric_capability::trust_root::TrustStore::new(root) constructs a store from a TrustRoot Authority",
+    "fabric_capability::trust_root::TrustStore::verify_chain(descriptor) returns Ok(ChainVerification) when the descriptor is signed by a key whose Authority chain is anchored at the TrustRoot and not revoked",
+    "verify_chain returns Err(TrustError::KeyRevoked) when the signing key's key_id appears in the active RevocationList",
+    "verify_chain returns Err(TrustError::Expired) when the leaf Authority.not_after < now",
+    "verify_chain returns Err(TrustError::ChainTooDeep) when the chain depth exceeds the cap (2 in R1)",
+    "verify_chain returns Err(TrustError::UnknownAuthority) when the signature key_id is not in the TrustStore",
+    "R0 verify() / sign() / has_trusted_signature() API is unchanged (backwards compatible)"
+  ]
+}

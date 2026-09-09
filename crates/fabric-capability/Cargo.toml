@@ -37,6 +37,10 @@ path = "tests/signature.rs"
 name = "fixtures_roundtrip"
 path = "tests/fixtures_roundtrip.rs"
 
+[[test]]
+name = "trust_root_chain"
+path = "tests/trust_root_chain.rs"
+
 [[example]]
 name = "verify_fixtures"
 path = "examples/verify_fixtures.rs"

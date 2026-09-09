@@ -34,6 +34,7 @@ Format follows the existing ecosystem ADR convention: status/date/deciders/super
 | [0028 — Testdata Verification Pattern](0028-testdata-verification-pattern.md) | All JSON testdata under `cmd/checker/testdata/` is canonical reference material for `cmd/checker` decisions. The verification gate is `cargo run --example verify_fixtures -p fabric-capability -- ./cmd/checker/testdata` (descriptors must round-trip through `serde_json::from_str::<CapabilityDescriptor>` against the real crate types; manifests must round-trip as JSON). The Rust integration test `crates/fabric-capability/tests/fixtures_roundtrip.rs` asserts the same thing in CI. Adding or changing a fixture is forbidden unless both checks pass. | Accepted |
 | [0029 — Rust vs Go Port Policy](0029-rust-vs-go-port-policy.md) | For PF-WP-011 (checker), the Go implementation `cmd/checker` is the canonical reference for R0; the Rust port `crates/fabric-checker` was repeatedly attempted and stalled on invented-API drift. Policy: do not write Rust mirrors of Go tools; if Rust capability is later required, port by reading the Go source AND the authoritative Rust crate source side-by-side, then implement against both — never from a memory/spec paraphrase. Open questions go to the ADR text, not into code. | Accepted |
 | [0030 — Route Failover Model](0030-route-failover-model.md) | RoutePlan is a static compilation artifact. Failover is a separate dynamic layer (PF-WP-021) that detects step failures at runtime, revokes the active SeatLease via the fence token, and re-runs `compile()` with the *failure context* injected (avoided node, used edge, raised rank) to pick the next-best step. Three trigger classes: hard (transport error → immediate revoke), soft (latency > budget → 2 backoffs then revoke), no-route (compile returns `NoCandidate` → surface the *denial* to the user, not a synthetic fallback). Trust scope: per-route, never cross-workspace. | Accepted |
+| [0031 — Trust-Root Model for Descriptor Signatures](0031-trust-root-descriptor-signatures.md) | Promotes the R0 direct-key trust model to single-root with optional intermediates (chain depth cap = 2), a signed RevocationList, and time-bound Authority.not_after. The on-the-wire signature format (ADR-0023) is unchanged — only the verifier gains the new chain + revocation path. R0 verify()/sign()/has_trusted_signature() continue to work; TrustStore::verify_chain is opt-in. Closes the R0 risk "no adversary model for signed descriptors" (WORKLOG.md:107). | Accepted |
 
 ## Decision themes
 
@@ -42,6 +43,6 @@ Format follows the existing ecosystem ADR convention: status/date/deciders/super
 - Compute/data granularity: 0005, 0011, 0021.
 - Real-time media and quality: 0008, 0013, 0014.
 - Safety and authority: 0007, 0012, 0017–0019.
-- Capability inventory and integration: 0023, 0024, 0027, 0028.
+- Capability inventory and integration: 0023, 0024, 0027, 0028, 0031.
 - Workspace persistence: 0026.
 - Implementation policy: 0029.

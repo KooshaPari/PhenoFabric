@@ -3,6 +3,7 @@
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use ed25519_dalek::{Signature as DalekSig, Signer, SigningKey as DalekSigningKey, Verifier};
 use rand::rngs::OsRng;
+use serde::{Deserialize, Serialize};
 
 use crate::descriptor::{CapabilityDescriptor, Signature};
 use crate::error::{Error, Result};
@@ -15,10 +16,40 @@ pub struct SigningKey {
 }
 
 /// A verification key — can be shared with peers.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct VerificationKey {
     inner: ed25519_dalek::VerifyingKey,
     key_id: String,
+}
+
+impl Serialize for VerificationKey {
+    fn serialize<S: serde::Serializer>(&self, ser: S) -> std::result::Result<S::Ok, S::Error> {
+        // Serialize as 32-byte array + key_id so the inner VerifyingKey
+        // (which doesn't impl Serialize) is round-trippable.
+        use serde::ser::SerializeStruct;
+        let mut s = ser.serialize_struct("VerificationKey", 2)?;
+        let bytes = self.inner.to_bytes();
+        s.serialize_field("bytes", &bytes)?;
+        s.serialize_field("key_id", &self.key_id)?;
+        s.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for VerificationKey {
+    fn deserialize<D: serde::Deserializer<'de>>(de: D) -> std::result::Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Repr {
+            bytes: [u8; 32],
+            key_id: String,
+        }
+        let r = Repr::deserialize(de)?;
+        let inner = ed25519_dalek::VerifyingKey::from_bytes(&r.bytes)
+            .map_err(|e| serde::de::Error::custom(format!("invalid verification key: {e}")))?;
+        Ok(Self {
+            inner,
+            key_id: r.key_id,
+        })
+    }
 }
 
 impl SigningKey {
@@ -53,6 +84,19 @@ impl SigningKey {
     pub fn to_bytes(&self) -> [u8; 32] {
         self.inner.to_bytes()
     }
+
+    /// Signs arbitrary bytes, returning a `Signature` record. Used by the
+    /// trust-root module (ADR-0031) to sign `Authority` and `RevocationList`
+    /// payloads without going through a `CapabilityDescriptor`.
+    pub fn sign_bytes(&self, bytes: &[u8]) -> Signature {
+        let sig = self.inner.sign(bytes);
+        Signature {
+            key_id: self.key_id.clone(),
+            alg: "Ed25519".to_string(),
+            sig: B64.encode(sig.to_bytes()),
+            signed_at: chrono::Utc::now(),
+        }
+    }
 }
 
 impl VerificationKey {
@@ -66,6 +110,27 @@ impl VerificationKey {
     /// Returns the key fingerprint.
     pub fn key_id(&self) -> &str {
         &self.key_id
+    }
+
+    /// Verifies a `Signature` over arbitrary bytes. Returns `Ok(())` iff
+    /// the signature is well-formed, was issued by THIS verification key
+    /// (i.e. `signature.key_id == self.key_id`), and the bytes verify
+    /// cryptographically.
+    pub fn verify_bytes(&self, bytes: &[u8], signature: &Signature) -> Result<()> {
+        if signature.key_id != self.key_id {
+            return Err(Error::Signature(format!(
+                "signature key_id {} does not match expected {}",
+                signature.key_id, self.key_id
+            )));
+        }
+        let sig_bytes = B64
+            .decode(&signature.sig)
+            .map_err(|e| Error::Crypto(format!("invalid base64: {e}")))?;
+        let sig = DalekSig::from_slice(&sig_bytes)
+            .map_err(|e| Error::Crypto(format!("invalid signature: {e}")))?;
+        self.inner
+            .verify(bytes, &sig)
+            .map_err(|e| Error::Signature(format!("verification failed: {e}")))
     }
 }
 

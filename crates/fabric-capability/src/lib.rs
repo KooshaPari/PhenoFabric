@@ -47,6 +47,7 @@ pub mod probe;
 pub mod schema;
 pub mod signing;
 pub mod topology;
+pub mod trust_root;
 
 pub use descriptor::CapabilityDescriptor;
 pub use error::Error;
@@ -54,3 +55,7 @@ pub use locality::LocalityTier;
 pub use probe::Probe;
 pub use schema::validate_descriptor;
 pub use signing::{sign, verify, SigningKey, VerificationKey};
+pub use trust_root::{
+    Authority, ChainVerification, RevocationEntry, RevocationList, RevocationReason, TrustError,
+    TrustStore, MAX_CHAIN_DEPTH,
+};
