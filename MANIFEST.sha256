@@ -371,7 +371,7 @@
   "specs/021-trust-root-descriptor-signatures/plan.md": "987f0fb364150d540965ca9644ee8c94305fa460a9591fae59e81a2791a7bba0",
   "specs/021-trust-root-descriptor-signatures/spec.md": "d2b6dc01dc38c2140a5905d900703b33802f9a7d525b993f1c01cac3b451b8ff",
   "specs/021-trust-root-descriptor-signatures/tasks.md": "e26218e13ae45877ff2803cee3b9d3833230617d2ca145dfdbadff1df230454e",
-  "releases/2026-09-08-R1.md": "991155be4f78fe5e77f2ad3e228dda45ffc08c20fc04e15ff1d61db1da7ef619",
+  "releases/2026-09-08-R1.md": "1413e927550bb3b31fab8fbdab6d72a927c3cbfac206179d2b83894e598e5b0d",
   "crates/fabric-graph/src/leases_fairness.rs": "58d99cb01959f7a0f8dcc40f0dbeffb9506f6bd785f275ef3ba0da4887835e7b",
   "crates/fabric-graph/tests/lease_fairness_integration.rs": "72b3d9377a81695bb0a980c6cbb63212a77d3457e9e65a92cfc4daefa2af5424",
   "specs/022-lease-multi-tenant-fairness/meta.json": "a127cf54cd6bde3537cfdb673877696d557ec3d47260097b44bab57e8200a46c",
