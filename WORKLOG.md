@@ -742,3 +742,87 @@ R1 closure ──█████████████████████
 ├─ fabric-workspace Rust               ✗ Tier 3 (deferred per ADR-0028)
 └─ fabric-checker Rust port            ✗ Deferred (Go canonical, ADR-0029)
 ```
+
+## 2026-09-08 — Spec 022 fairness + pardon + Q1-Q4 decisions (R1 100%)
+
+Commit: `bf82c76` + `ba8b797`
+
+### What landed
+
+The remaining 5% of R1, closed aggressively per operator direction ("finish that 5% aggressively"):
+
+1. **Multi-tenant lease fairness** (PF-WP-022 v2, spec 022) — pulled forward from R3 into R1
+   - `crates/fabric-graph/src/leases_fairness.rs` (785 LoC, 8 unit tests)
+   - `crates/fabric-graph/tests/lease_fairness_integration.rs` (198 LoC, 7 integration tests)
+   - FairnessPolicy::{Fifo, FairShare{weight}, WeightedRoundRobin{weight}, PriorityWeighted{priority}}
+   - FairnessQueue::try_acquire / release / set_priority / snapshot
+   - FairnessDecision::{Granted, Denied} with DenyReason::{QueueFull, LowerPriority, EpochDrifted}
+   - FairnessSnapshot Serialize+Deserialize for audit/event-log export
+
+2. **Q4-C escape hatch: `pardon(spec, operator_token)`** — strict-no FSM re-bind, separate out-of-band API that creates a NEW lease from the same spec. Only accepts operator_token `ops:phenotype:default`. Rejected tokens return `PardonError::TokenRejected` (not a panic). Bad specs return `PardonError::SpecInvalid(SurfaceSpecError)`.
+
+3. **4 R1→R2 design decisions made and committed to release doc**:
+   - Q1 — `-checker-replan` binding → C (thin Rust binary, no cgo, no duplicate algorithm)
+   - Q2 — Trust-root key pinning → A (single root + RevocationList; multi-root is R3 only if rotation cadence > 1/year)
+   - Q3 — Surface rotation cadence → D (epoch bump + probe miss + operator override, with `min_rotation_interval_ms` rate-limit on top)
+   - Q4 — Lease FSM recovery → A + C (strict no FSM re-bind; `pardon()` is the only escape, audit-logged, single operator_token)
+
+4. **Updated `releases/2026-09-08-R1.md`** to mark R1 closure 100% with the table of what was open → now closed.
+
+### Why pull fairness v2 forward from R3 into R1
+
+- Spec 022 is fully self-contained: no dependencies on `fabric-workspace` or wire transport
+- `pardon()` closes the only R0 risk that wasn't closed by trust-root: the "what if the operator needs to recover from a Revoked lease" question
+- Multi-tenant fairness was the only R3 wedge that didn't depend on link-metrics, persistent state, or daemon — those remain R3
+- Net: 5% → 0% within the R1 scope; the only remaining work outside R1 is the Tier 3 Rust crates (separate class, fresh-context required)
+
+### Verification
+
+- `cargo test --workspace`: **162 pass / 0 fail** (15 suites; was 147; +15 = 8 unit + 7 integration)
+- `go test ./cmd/capprobe`: ok (6 PASS top-level)
+- `go test ./cmd/checker`: ok (12 PASS top-level)
+- `check_manifest.py`: 379 files match (was 373; +6)
+- `check_json_schemas.py`: 6 schemas valid
+- `check_openapi.py`: 3.1.0 well-formed
+- `check_links.py`: all links valid
+
+**180 tests** all green. 4/4 spec checks pass.
+
+### Process notes (ADR-0028 phase 0 caught 5 real issues)
+
+1. `new_lease` returns `Result<SurfaceLease, SurfaceSpecError>`, not `SurfaceError` — caught at E0308
+2. `SurfaceError` doesn't carry SpecError detail — moved `SpecInvalid(SurfaceSpecError)` into `PardonError` directly (better)
+3. WRR rotation slot count comes from `policy.weight`, not call arg weight — caught by T-F04 wrr_weighted_slots
+4. PriorityWeighted filter must use `acct.priority` (stored), not the policy arg — caught by T-F03 priority_skips_higher_priority_tenant
+5. `accounting` was private — added `FairnessQueue::set_priority()` so external code can change tenant priority without poking private state
+
+### Cockpit — R1 100% (was 95%)
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──████████████████████████████████████ 100%
+├─ ADR-0030 route-failover model       ✓ Accepted
+├─ fabric-graph::failover              ✓ committed, 4 tests
+├─ Surface plane (PF-WP-015)           ✓ committed, 77 tests
+├─ checker --failover-blacklist        ✓ committed, 12 tests
+├─ spec 020 contract (PF-WP-022)       ✓ authored
+├─ leases::rebind_or_fail impl         ✓ committed, 12 tests
+├─ ADR-0031 trust-root model           ✓ Accepted
+├─ spec 021 trust-root contract        ✓ authored
+├─ trust_root chain (PF-WP-018)        ✓ committed, 17 tests
+├─ spec 022 multi-tenant fairness     ✓ authored
+├─ leases_fairness + pardon           ✓ committed, 15 tests
+├─ Q1-Q4 R1→R2 design decisions      ✓ decided (C/A/D/A+C)
+├─ R1 release evidence (PF 0.2.0)      ✓ shipped
+├─ fabric-cli Rust                     ✗ Tier 3 (deferred per ADR-0028)
+├─ fabric-workspace Rust               ✗ Tier 3 (deferred per ADR-0028)
+└─ fabric-checker Rust port            ✗ Deferred (Go canonical, ADR-0029)
+```
+
+### What R1 closing 100% means
+
+R1 is fully closed within the documented scope. The Tier 3 Rust crates (`fabric-cli`, `fabric-workspace`, `fabric-checker` Rust ports) are explicitly not part of "the remaining 5%" — they're a separately classified open work item per ADR-0028 (fresh-context required). Closing those is an R2 / R3 effort, not an R1 close-out.
+
+### Next: R2 starts now
+
+The R2 work packages were listed in `releases/2026-09-08-R1.md` §Roadmap. With Q1-Q4 decided, R2 has no open design questions blocking its implementation. The first R2 wedge is the **thin Rust binary `fabric-graph-cli replan`** per Q1-C — that's the highest-value next deliverable.
