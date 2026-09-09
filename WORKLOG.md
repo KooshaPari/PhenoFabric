@@ -512,3 +512,72 @@ is the direct failure mode if Phase 0 is skipped — codified in the plan.
 R1 closure ──██████████████████░░ 70% (failover + surface plane + checker blacklist + spec 020 contract delivered;
                                            leases implementation + workspace persistence + multi-tenant fairness pending)
 ```
+
+## 2026-09-08 — leases::rebind_or_fail landed (R1 integration, spec 020 implementation)
+
+Commit: `70146c1`
+
+### What landed
+
+- `crates/fabric-graph/src/leases.rs` (518 LoC) — the contract defined in spec 020 implemented:
+  - `RebindOutcome::{Rebound{new_plan_id}, Failed{reason}}` (Serialize + Deserialize)
+  - `rebind_or_fail(lease, plan_id, new_step, post_failure_topology, intent, old_plan, failed_nodes) -> Result<RebindOutcome, SurfaceError>`
+  - Strict-epoch pre-check that short-circuits BEFORE replan() (saves a needless compile())
+  - `map_failover_error` for FailoverError → SurfaceError translation
+  - 5 in-module unit tests
+- `crates/fabric-graph/tests/lease_integration.rs` (407 LoC) — 7 end-to-end integration tests
+- `crates/fabric-graph/src/lib.rs` — `pub mod leases;` + module doc reference
+- `MANIFEST.sha256` — regen for the 3 changed/new files (365 total)
+
+### The integration contract (spec 020 §3)
+
+1. **Strict-epoch pre-check**: If `lease.spec.strict_epoch_binding && post_failure_topology.epoch != prior_bound_epoch`, return `Err(SurfaceError::EpochDrift{previous,current})`. Lease unchanged. Runs *before* `failover::replan` to save a needless compile() on a binding that would be thrown away.
+
+2. **Silent re-bind on `Replaced`**: Call `surface_ops::bind(&mut lease, new_plan.id, new_step)`. Handle preserved. Prior binding rotated to `lease.history`. Lease stays `Active`. Returns `Ok(RebindOutcome::Rebound{new_plan_id})`.
+
+3. **Loud fail on `NoReplacement`**: Call `surface_ops::fail(&mut lease, LeaseExitReason::HostFailure{host_node})`. Lease transitions to `Failed`. Returns `Ok(RebindOutcome::Failed{reason})`. Caller MUST drop the `SurfaceHandle`.
+
+4. **Error propagation**: `FailoverError::EmptyIntent` → `SurfaceError::InvalidSpec(EmptyName)`. `FailoverError::AllCandidatesFailed` → `SurfaceError::NoMatchingRoute`. Lease unchanged.
+
+### Test totals (verified this turn)
+
+- **Rust workspace**: 130 pass / 0 fail (was 118; +12 = 5 unit + 7 integration)
+- **Go capprobe**: 6 PASS (unchanged)
+- **Go checker**: 12 PASS (unchanged)
+- **Spec checks (4/4)**: manifest ✓ (365 files; was 363; +2) · schemas ✓ · openapi ✓ · links ✓
+
+Total: **148 tests** (130 Rust + 18 Go), all green.
+
+### Process notes
+
+**Phase 0 (ADR-0028) read before writing**:
+- `failover.rs` — confirmed `FailoverOutcome::{Replaced, NoReplacement}` + `FailoverError::{EmptyIntent, AllCandidatesFailed}`
+- `surface.rs` — discovered `SurfaceSpec::capture` is `Option<CaptureDirection>` not required
+- `surface_ops.rs` — confirmed `bind(&mut lease, RoutePlanId, RouteStep)` and `fail(&mut lease, LeaseExitReason)` return `Result<_, SurfaceError>`
+- `lease_fsm.rs` — FSM table is implicit; no explicit call from `leases` needed
+- `model.rs` — discovered `NodeId::as_str()` does NOT exist (must use `.0.as_str()`); `TopologyEpoch::default()` is NOT 0 (it's `(N, "v1")` where N counts node additions); `RouteBinding` has public `bound_at_epoch: u64`
+- `lib.rs` — no prior `leases` module
+
+All three "didn't read the source" findings (the `as_str`, the epoch default, the `Option<capture>`) would have caused cascading compile errors per the documented failure mode. Phase 0 caught them.
+
+### What this unblocks
+
+- `fabric-workspace` (PF-WP-017) — has a documented contract to wire `LeaseState::Failed` events into the workspace event log via `RebindOutcome`
+- Future R2 work: surface rotation, audit trail, multi-tenant fairness (PF-WP-022 v2)
+
+### Cockpit — R1 80%
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──████████████████████████░░░░░ 80%
+├─ ADR-0030 route-failover model       ✓ Accepted
+├─ fabric-graph::failover              ✓ committed, 4 tests
+├─ Surface plane (PF-WP-015)           ✓ committed, 77 tests
+├─ checker --failover-blacklist        ✓ committed, 12 tests
+├─ spec 020 contract (PF-WP-022)       ✓ authored
+├─ leases::rebind_or_fail impl         ✓ committed, 12 tests  ← THIS TURN
+├─ fabric-graph::leases v2 (R3)        ◐ multi-tenant fairness
+├─ fabric-cli Rust                     ✗ Tier 3 (deferred per ADR-0028)
+├─ fabric-workspace Rust               ✗ Tier 3 (deferred per ADR-0028)
+└─ fabric-checker Rust port            ✗ Deferred (Go canonical, ADR-0029)
+```
