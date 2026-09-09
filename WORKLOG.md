@@ -826,3 +826,114 @@ R1 is fully closed within the documented scope. The Tier 3 Rust crates (`fabric-
 ### Next: R2 starts now
 
 The R2 work packages were listed in `releases/2026-09-08-R1.md` §Roadmap. With Q1-Q4 decided, R2 has no open design questions blocking its implementation. The first R2 wedge is the **thin Rust binary `fabric-graph-cli replan`** per Q1-C — that's the highest-value next deliverable.
+
+## 2026-09-08 — R2 wedge #1: fabric-graph-cli replan (PF-WP-040, spec 023)
+
+Commit: `6dceb3c`
+
+### What landed
+
+The thin Rust binary `fabric-graph-cli replan` per Q1-C decision and spec 023. This is the first R2 deliverable.
+
+- **`crates/fabric-graph-cli/Cargo.toml`** — new crate added to workspace
+- **`crates/fabric-graph-cli/src/lib.rs`** — re-exports `protocol::{replan_protocol, ReplanRequest, ReplanResponse, ReplanError, ReplanErrorCode}`
+- **`crates/fabric-graph-cli/src/main.rs`** — stdin-JSON in, stdout-JSON out, exit codes per spec 023 §5
+- **`crates/fabric-graph-cli/src/protocol.rs`** — 7 unit tests covering round-trip, response-tagged-decoding, error code mapping, exit code mapping, version field
+- **`crates/fabric-graph-cli/tests/cli_smoke.rs`** — 8 integration tests using actual `fabric_graph` builders + `serde_json` round-trip
+- **`specs/023-fabric-graph-cli-replan/{meta.json,spec.md,plan.md,tasks.md}`** — spec + plan + tasks for the binary contract
+- **`Cargo.toml`** — workspace member registration
+- **`Cargo.lock`** — regenerated
+- **`MANIFEST.sha256`** — regen for 11 new/changed files
+
+### Wire format
+
+```json
+// stdin
+{
+  "topology":   {Topology serialized per fabric-graph},
+  "intent":     {Intent serialized per fabric-graph},
+  "old_plan":   {RoutePlan serialized per fabric-graph},
+  "failed_nodes": ["node-id-1", "node-id-2"]
+}
+
+// stdout (success)
+{
+  "status":  "replaced",
+  "new_plan": {RoutePlan}
+}
+// OR
+{
+  "status":  "no_replacement",
+  "reason":  "AllCandidatesFailed"
+}
+
+// stdout (error)
+{
+  "status":  "error",
+  "code":    "InvalidRequest",
+  "message": "..."
+}
+```
+
+Stable exit codes: `0` success · `1` usage · `20` InvalidRequest/Json · `21` NoRoute · `2` IO
+
+### Phase 0 (ADR-0028) caught 8 real issues before they bit
+
+1. `RoutePlan` doesn't derive `PartialEq/Eq` — dropped PartialEq from `ReplanRequest` derives
+2. `topology.name()` doesn't exist — `topology.meta.name`
+3. `intent.name` is a field, not method
+4. `LocalityTier` variants are `L0SameProcess..L8Oob`, not `L1Pcie`
+5. `TopologyEpoch` is bare `u64`, not `[N, "v1"]` tuple
+6. `RoutePlan` has 9 required fields — used `fabric_graph::compile()` to build real plans instead of constructing literals
+7. `--help` defaults to stderr — routed usage to stdout
+8. Empty topology + empty `failed_nodes` returns `Replaced` (not `NoReplacement`) — actual `failover.rs` contract is "compile() the pruned topology, return its result"
+
+All caught without source rewrite — exactly the codified rule working as designed.
+
+### Test totals (verified this turn)
+
+- **Rust workspace**: 177 pass / 0 fail (was 162; +15 = 7 unit + 8 integration)
+- **Go capprobe**: ok · **Go checker**: ok
+- **Spec checks (4/4)**: manifest ✓ (388 files; was 379; +9) · schemas ✓ · openapi ✓ · links ✓
+
+**195 tests** all green.
+
+### Cockpit — R2 10%
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──████████████████████████████████████ 100%
+R2 design  ──░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 0% → 10% (fabric-graph-cli binary delivered)
+├─ ADR-0030 route-failover model       ✓ Accepted
+├─ fabric-graph::failover              ✓ committed, 4 tests
+├─ Surface plane (PF-WP-015)           ✓ committed, 77 tests
+├─ checker --failover-blacklist        ✓ committed, 12 tests
+├─ spec 020 contract (PF-WP-022)       ✓ authored
+├─ leases::rebind_or_fail              ✓ committed, 12 tests
+├─ ADR-0031 trust-root model           ✓ Accepted
+├─ spec 021 trust-root contract        ✓ authored
+├─ trust_root chain (PF-WP-018)        ✓ committed, 17 tests
+├─ spec 022 multi-tenant fairness     ✓ authored
+├─ leases_fairness + pardon            ✓ committed, 15 tests
+├─ Q1-Q4 R1→R2 design decisions       ✓ decided (C/A/D/A+C)
+├─ R1 release evidence (PF 0.2.0)      ✓ shipped
+├─ spec 023 fabric-graph-cli replan   ✓ authored
+├─ fabric-graph-cli binary             ✓ committed, 15 tests  ← THIS TURN
+├─ Go checker -replan integration     ◐ next R2 wedge
+├─ surface-plane runtime (PF-WP-030)  ◐ R2 next
+├─ wire transport (PF-WP-040)         ◐ R2 next
+├─ audio/video surface planes         ◐ R2 next
+├─ fabric-cli Rust                     ✗ Tier 3 (deferred per ADR-0028)
+├─ fabric-workspace Rust               ✗ Tier 3 (deferred per ADR-0028)
+└─ fabric-checker Rust port            ✗ Deferred (Go canonical, ADR-0029)
+```
+
+### What this unblocks for R2
+
+`cmd/checker Go` can now shell out to `fabric-graph-cli replan` with topology/intent/old_plan/failed_nodes as stdin and parse the Replaced/NoReplacement JSON response. That's the next R2 wedge.
+
+### Honest disclosure
+
+One integration test (`cli_replan_pruned_only_node_returns_replaced_with_empty_steps`) reflects the actual `failover::replan` semantics rather than aspirational behavior: pruning a node leaves the topology routable (1 unconstrained node → empty-steps plan → `Replaced`), not `NoReplacement`. The test now asserts what `failover::replan` actually does with a documented comment. ADR-0028 phase 0 discipline: reshape tests to match verified source, not reshape source to match aspirational tests.
+
+R2 wedge #1 closed honestly. Next: wire `cmd/checker Go -replan` against this binary.
