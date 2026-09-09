@@ -149,7 +149,7 @@
   "crates/fabric-graph/src/decision.rs": "57b486d098cb1f0b1ab5ad806bdc65eecd4c9d145c863a21a70fec47015656c2",
   "crates/fabric-graph/src/failover.rs": "be5a29e06f81c8782b57fff9fb9037e6e4e33a8dc7caf2c13fa1cb73d7a42ff1",
   "crates/fabric-graph/src/lease_fsm.rs": "5c8f4c2158a895ba68b9a0e6652ceb732ead01d2cd6b8fa1cb555c3d97d52268",
-  "crates/fabric-graph/src/lib.rs": "bfbfc8844fd8eb9bf68ae61eda1e6860b60893480ddea105eb62912697dd87a8",
+  "crates/fabric-graph/src/lib.rs": "f493cdad1ccedf281468f8a4776b70bda7e12d2242ef099478f7bea1389ae1ac",
   "crates/fabric-graph/src/model.rs": "9ede2e3eeee057e1e5fb17667d5a682bbe42fe4746dac8c67b3f2e715eb3e8be",
   "crates/fabric-graph/src/negotiation.rs": "33169d628a630c9fbee56852d0267c9ee33fcbf68e541ab5063da320fadcc6f9",
   "crates/fabric-graph/src/planner.rs": "2f88df79098a2e240687da6dc9e9721599ec3567da945812581cbce1947e6c90",
@@ -361,5 +361,7 @@
   "specs/020-route-lease-integration/meta.json": "66bac6e18e522e055cb3e2122d1380154921d05c8cf172b6203100ca9fb4a6bd",
   "specs/020-route-lease-integration/spec.md": "09b63d83dc79674261cc33e01dc652f1c3b86f1bf339cc541a02a9c6c774ec34",
   "specs/020-route-lease-integration/plan.md": "244c2f46854c94cd57798a2f64aca70873f2a009507bab4904aeb69debcd887e",
-  "specs/020-route-lease-integration/tasks.md": "51cb33c0aceb47a37214b98c05189d23c65434ed8fbd5cceef426f9d3fe9557c"
+  "specs/020-route-lease-integration/tasks.md": "51cb33c0aceb47a37214b98c05189d23c65434ed8fbd5cceef426f9d3fe9557c",
+  "crates/fabric-graph/src/leases.rs": "071f78a96699893763f12552e391dc91ecec05477336d1621dfa67b0334b872c",
+  "crates/fabric-graph/tests/lease_integration.rs": "ef730f825e44e070d2cd8a9a161d8e3aabcaf5c0cc2b46afd104578a1e97ab1f"
 }

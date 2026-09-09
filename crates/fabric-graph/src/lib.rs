@@ -14,6 +14,9 @@
 //! - [`score`]: scoring functions (locality, latency, capability, trust)
 //! - [`planner`]: long-horizon planner for batch/sequence intents
 //! - [`failover`]: re-plan around failed nodes when a route's steps fail (PF-WP-021, spec 019)
+//! - [`surface`] / [`surface_ops`] / [`lease_fsm`]: surface plane types + lease FSM (PF-WP-015, spec 019)
+//! - [`decision`]: Admit / AdmitWithNotes / Reject + Severity reducer (mirrors cmd/checker/decision.go)
+//! - [`leases`]: single integration entry point that wires `failover::replan` to the surface plane (PF-WP-022, spec 020)
 //!
 //! ## Non-negotiable invariants (PF-FR-002..005)
 //!
@@ -37,11 +40,12 @@ pub mod failover;
 pub mod model;
 pub mod negotiation;
 pub mod planner;
+pub mod decision;
+pub mod lease_fsm;
+pub mod leases;
+pub mod score;
 pub mod surface;
 pub mod surface_ops;
-pub mod lease_fsm;
-pub mod decision;
-pub mod score;
 
 pub use crate::builder::IntentBuilder;
 pub use crate::compile::{compile, compile_all};
