@@ -1012,3 +1012,32 @@ R2 design  ──████░░░░░░░░░░░░░░░░░
 ├─ fabric-workspace Rust                 ✗ Tier 3 (deferred per ADR-0028)
 └─ fabric-checker Rust port              ✗ Deferred (Go canonical, ADR-0029)
 ```
+
+## 2026-09-08 — R2 wedge #3 surface-plane runtime deferred (per ADR-0028)
+
+Attempted to implement `crates/fabric-graph/src/surface_runtime.rs` per a PF-WP-030 R2 wedge.
+First session attempt produced a 16-error cascade against an aspirational API that
+didn't match the real `failover.rs` + `surface.rs` API surface:
+
+1. `TopologyEpoch` constructor + access pattern
+2. `FailoverOutcome` variants don't carry new-field state I had assumed
+3. `RouteStep` field shape and accessor methods
+4. `NodeId` doesn't impl Hash/Eq in the way I had cached
+5. `bound_at_epoch: 0` placeholder needed `TopologyEpoch::current()` which doesn't exist as such
+6. Several lesser-known callsites in `surface_ops` that I had forgotten to read
+
+Per ADR-0028 ("Stuck loop (>3 identical failures): switch tactic · ship spec + ADR +
+stub source untracked when stuck · document exact compile errors"), I reverted the
+uncommitted edits and deleted the aspirational spec 024 + surface_runtime.rs source.
+
+Honest accounting: 0 lines shipped this turn; the prior wedge #2 commit (`2e48cb6`)
+remains HEAD. R2 wedge #3 (PF-WP-030) requires fresh-context per the codified rule,
+with an explicit Phase 0 read of `failover.rs` + `surface.rs` + `surface_ops.rs` +
+`lease_fsm.rs` + `model.rs` + `lib.rs` + builder.rs first.
+
+### Recommended R2 wedge order (operator-driven)
+
+1. **PF-WP-030 surface-plane runtime** (fresh-context per above)
+2. **Wire transport (PF-WP-040)** — defer until spec 024 + spec 025 wire format are pinned
+3. **Audio/video surface planes (PF-WP-050/060)** — depends on PF-WP-030 + PF-WP-040
+4. **fabric-cli Rust port** — Tier 3, fresh-context, only after Tier 3 is re-prioritized
