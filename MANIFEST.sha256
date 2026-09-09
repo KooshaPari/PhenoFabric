@@ -6,7 +6,7 @@
   "CHANGELOG.md": "680266e93bfb71224901cc9ff8ee9bb09ba24eeb820ef578212d0aff9b8370a5",
   "CONTRIBUTING.md": "fb1fd032e7e68e37386e4a9142b530fe76f7d916abd3e817d8ff6d4e0ee1bb5d",
   "Cargo.lock": "cfbb03b0ec74f254eb7173096103d85191b79202fb785aacd77413e15796794f",
-  "Cargo.toml": "85a10ac5027f7084bfc8783f688b636a1766cbd924ec433d76003805211479cd",
+  "Cargo.toml": "45492cf09c6ad19189d1d4440dcc04953f0953e7d292067aa4c2072ddd074817",
   "DEVELOPMENT_GUIDE.md": "1ff12169a714ab131e960507709fff0ac3ac00e518496e65e30652357ade477f",
   "DOMAIN_MODEL.md": "658864d02595e7ccf2b7a2c2339658b0aa0165f20719dcc77f680027aa36747e",
   "FUNCTIONAL_REQUIREMENTS.md": "eb5408713c45a41151444b0374b282bd85ab0de4b9970a33401bfb70fd09a5d8",
@@ -377,5 +377,14 @@
   "specs/022-lease-multi-tenant-fairness/meta.json": "a127cf54cd6bde3537cfdb673877696d557ec3d47260097b44bab57e8200a46c",
   "specs/022-lease-multi-tenant-fairness/spec.md": "57ea63dc9a2ff40530b6e185e4818f0a77dcf5ea821eead7d05fda3389bfcf92",
   "specs/022-lease-multi-tenant-fairness/plan.md": "064ef0f7824e87a0e61168cbb5fd50fe54620b243ac1315e8f2bfe2b89ff9177",
-  "specs/022-lease-multi-tenant-fairness/tasks.md": "9a490f34a416c68ae78b585bf96614d9f48e77c3c28922b8b9039e36a689df8d"
+  "specs/022-lease-multi-tenant-fairness/tasks.md": "9a490f34a416c68ae78b585bf96614d9f48e77c3c28922b8b9039e36a689df8d",
+  "crates/fabric-graph-cli/Cargo.toml": "15ad6b79ab3e42de163b3e1ae48843a0df4b39c641bd111d1e58a253080ed45b",
+  "crates/fabric-graph-cli/src/lib.rs": "48b4604f74dc3b037954238b0e7a274f9b049d62f68f95fa5269fbb8b30b090d",
+  "crates/fabric-graph-cli/src/main.rs": "16ba6f0e0cfd673b1f59e61f21dd2f7516bf1a38f3c69025e34f7f55922ed31d",
+  "crates/fabric-graph-cli/src/protocol.rs": "d2595b56a9a56e2116bea48d6da6a91dc629157a9ce824cc7d3197a463ce3f9e",
+  "crates/fabric-graph-cli/tests/cli_smoke.rs": "59eac504e294a15406bb6d1f67ad50138a603f6d97c6e9bb638787013f1b6c1f",
+  "specs/023-fabric-graph-cli-replan/meta.json": "8234f00208e58243ec62fd00a49d8c1fe05c0c446f0514bdbfea514211a6037d",
+  "specs/023-fabric-graph-cli-replan/spec.md": "5d6ac3e304570cced4f1f9d683fad229c56183168993d0f081c0e0bfa7aad995",
+  "specs/023-fabric-graph-cli-replan/plan.md": "4810f2f29d7f041b2337c3ce083021cb1639620090dae69ed94c71413ab9e6b9",
+  "specs/023-fabric-graph-cli-replan/tasks.md": "45206d5ffe10f2c0fed19322811afc9e7d449fdb6acb8fb8f67b20715e3bd3f6"
 }

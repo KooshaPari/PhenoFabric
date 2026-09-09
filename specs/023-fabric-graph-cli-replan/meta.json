@@ -1,0 +1,32 @@
+{
+  "wp": "PF-WP-040",
+  "title": "fabric-graph-cli replan (Q1-C thin Rust binary)",
+  "release_gate": "R2-first-wedge",
+  "status": "draft",
+  "supersedes": null,
+  "depends_on": [
+    "specs/019-surface-plane/spec.md",
+    "specs/020-route-lease-integration/spec.md",
+    "ADR-0030 (route failover model)",
+    "ADR-0029 (rust-vs-go-port policy)"
+  ],
+  "enables": [
+    "cmd/checker -checker-replan (full topology-driven failover path)",
+    "R2 wedge #2: wire fabric-graph-cli replan into cmd/checker Go"
+  ],
+  "scope": "in",
+  "scope_out": [
+    "fabric-cli (PF-WP-016, Tier 3 / fresh-context per ADR-0028 — NOT this binary)",
+    "Long-running daemon mode (PF-WP-090, R3)",
+    "Multi-instance routing (R3)",
+    "REST or gRPC transport (out of scope; subprocess + JSON is the Q1-C choice)"
+  ],
+  "acceptance_signals": [
+    "cargo test -p fabric-graph-cli passes (>= 4 unit tests)",
+    "cargo build --release -p fabric-graph-cli produces a binary that exits 0 on the documented JSON contract",
+    "End-to-end smoke: pipe JSON request in, parse JSON response out, verify all 4 documented outcomes",
+    "check_manifest.py: 0 mismatches",
+    "check_json_schemas / check_openapi / check_links: all green"
+  ],
+  "authored_date": "2026-09-09"
+}

@@ -1,0 +1,32 @@
+[package]
+name = "fabric-graph-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Thin CLI binary that calls fabric_graph::failover::replan() and prints JSON. Bridges the Go cmd/checker and the Rust failover module without cgo or algorithm duplication."
+
+[lints]
+workspace = true
+
+[dependencies]
+fabric-graph.workspace = true
+fabric-capability.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+fabric-graph.workspace = true
+fabric-capability.workspace = true
+fabric-graph-cli = { path = "." }
+serde_json.workspace = true
+uuid.workspace = true
+
+[[bin]]
+name = "fabric-graph-cli"
+path = "src/main.rs"

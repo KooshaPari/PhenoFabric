@@ -374,6 +374,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "fabric-graph-cli"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "fabric-capability",
+ "fabric-graph",
+ "fabric-graph-cli",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "fancy-regex"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

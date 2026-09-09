@@ -4,6 +4,7 @@ members = [
     "crates/fabric-capability",
     "crates/fabric-capability-ffi",
     "crates/fabric-graph",
+    "crates/fabric-graph-cli",
     "crates/phenotype-nvms-adapter",
 ]
 
