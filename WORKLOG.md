@@ -679,3 +679,66 @@ R1 closure ──█████████████████████
 - Tier 3 Rust crates (`fabric-cli`, `fabric-workspace`, `fabric-checker`) —
   fresh-context per ADR-0028
 - Full topology-driven `-checker-replan -topology <file> -intent <file>` (R2 candidate)
+
+## 2026-09-08 — R1 release evidence shipped (PF Fabric 0.2.0)
+
+Commit: `e60bb59` — `docs(release): R1 release evidence (Phenotype Fabric 0.2.0)`
+
+### What landed
+
+The formal R1 release evidence document at `releases/2026-09-08-R1.md`,
+mirroring `releases/2026-09-01-R0.md`. This is the deliverable that
+formally closes R1 at 95% with three honest deferrals documented.
+
+### Sections covered
+
+- **Scope** — what R1 is (decision phase) and what it is not (wire transport, RT, multi-tenant v2, Tier 3 Rust)
+- **Delivered** — 5 work packages broken down by sub-task with evidence pointers
+- **Validation evidence** — full test sweep output (147 Rust + 18 Go = 165) + 4/4 spec checks
+- **Architectural decisions ratified** — 6 ADRs in scope (0023-0031 with 0026, 0029 still pending)
+- **What's intentionally not in R1** — R2/R3 roadmap + the three honest deferrals
+- **R0 → R1 risks: closed** — table mapping each R0 risk to its R1 closure mechanism
+- **Roadmap to R2** — 6 work packages for the next release
+- **Adoption plan** — operator-facing workflows unlocked (blacklist, trust-root, workspace event log contract)
+- **Open questions for R2** — 4 design questions the R2 session needs to answer
+- **Commit trail** — 15 commits this session chain
+
+### Why this closes R1 at 95% (not 100%)
+
+The remaining 5% is honestly deferrable:
+1. `fabric-cli` / `fabric-workspace` Rust ports — Tier 3, fresh-context per ADR-0028
+2. `fabric-checker` Rust port — ADR-0029, Go is canonical
+3. `fabric-graph::leases` v2 multi-tenant fairness — explicitly R3
+
+Per the operator direction in the handoff ("you are to fully own their domain/scope of work/repos and continue their defined goal and tasks + derive more"), R1 was the defined goal. R1 is now formally closed with honest accounting. The next session — operator-handoff-requested or fresh-context — picks up R2.
+
+### Verification
+
+- `cargo test --workspace`: 147 Rust pass / 0 fail (unchanged baseline)
+- `go test ./cmd/capprobe`: 6 PASS (unchanged)
+- `go test ./cmd/checker`: 12 PASS (unchanged)
+- `check_manifest.py`: 373 files match (was 372; +1 for the release file)
+- `check_json_schemas.py`: 6 files valid
+- `check_openapi.py`: 3.1.0 well-formed
+- `check_links.py`: all cross-doc links valid
+
+### Cockpit — R1 95% formally closed
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──██████████████████████████████████░ 95% (release evidence shipped, deferrals documented)
+├─ ADR-0030 route-failover model       ✓ Accepted
+├─ fabric-graph::failover              ✓ committed, 4 tests
+├─ Surface plane (PF-WP-015)           ✓ committed, 77 tests
+├─ checker --failover-blacklist        ✓ committed, 12 tests
+├─ spec 020 contract (PF-WP-022)       ✓ authored
+├─ leases::rebind_or_fail impl         ✓ committed, 12 tests
+├─ ADR-0031 trust-root model           ✓ Accepted
+├─ spec 021 trust-root contract        ✓ authored
+├─ trust_root chain (PF-WP-018)        ✓ committed, 17 tests
+├─ R1 release evidence (0.2.0)         ✓ shipped (this turn)
+├─ fabric-graph::leases v2 (R3)        ◐ multi-tenant fairness
+├─ fabric-cli Rust                     ✗ Tier 3 (deferred per ADR-0028)
+├─ fabric-workspace Rust               ✗ Tier 3 (deferred per ADR-0028)
+└─ fabric-checker Rust port            ✗ Deferred (Go canonical, ADR-0029)
+```
