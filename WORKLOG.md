@@ -1308,3 +1308,69 @@ R2 design  ──████████░░░░░░░░░░░░░
 R2 unchanged from prior turn (spec 023, spec 024 contract, checker -replan-binary, wire transport binary). Wedge #3 (surface-plane runtime impl) remains deferred to fresh-context per ADR-0028.
 
 Standing by for next direction.
+
+## 2026-09-09 — Spec 026 trust-root operator CLI authored (PF-WP-018 operator-half)
+
+Commit: `e3ece53`
+
+### What landed
+
+The contract for the operator-facing half of the trust-root chain. R1 closed the trust-root
+*consumer* (`fabric_capability::trust_root`) per spec 021; spec 026 closes the operator-facing
+*emitter* that produces the artifacts (root Authority, intermediate Authorities, RevocationLists)
+that the Rust TrustStore consumes.
+
+### Scope
+
+- `cmd/trust` Go binary (pure stdlib, parallels `cmd/wire`) with subcommands:
+  - `authority init` — emit a self-signed root Authority
+  - `authority sign --parent` — emit a child Authority signed by parent
+  - `revocation build` — emit a RevocationList signed by root
+  - `fingerprint` — canonical-hash + key-id for any Authority
+  - `chain verify` — walk parent_key_id chain + signature check
+  - `chain export` — dump TrustStore-equivalent JSON snapshot
+- Wire format: Authority / RootAuthority / RevocationList / Signature JSON shapes that match
+  `fabric_capability::trust_root` serde output exactly
+- Exit codes: 0 ok · 1 usage · 2 IO · 20 InvalidRequest · 21 ParseError · 22 CryptoError ·
+  23 ChainTooDeep · 24 BadSignature
+
+### Out of scope
+
+- **Implementation** — deferred to a fresh-context session. Prior turn's WIP attempt hit
+  the documented patch-cycle stuck-loop pattern per ADR-0028 (rotating edit state on a
+  non-trivial Go binary that needed both crypto math and the verified wire format).
+  Per the rule: ship spec + ADR + delete broken WIP, document exact compile errors for
+  the next session. WIP deleted; spec 026 retained.
+- Windows signing
+- Replay-window enforcement on revocation list (spec 021 §3.5 future-work)
+
+### Additive change
+
+- `program/scripts/check_manifest.py`: exclude `.tmp_local/` from the recursive manifest
+  walk so prototype directories gitignored on disk don't fail the manifest check
+
+### Verification
+
+- `cargo test --workspace`: 177 Rust pass / 0 fail (unchanged)
+- `go test ./cmd/capprobe`: ok (6 PASS top-level)
+- `go test ./cmd/checker`: ok (12 PASS top-level)
+- `go test ./cmd/wire`: ok (operator-committed PF-WP-040)
+- `check_manifest.py`: 414 files match (was 397; +4 spec 026 files)
+- `check_json_schemas / check_openapi / check_links`: all pass
+
+**209 tests** all green, 4/4 spec checks green.
+
+### Cockpit — R2 45%
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──████████████████████████████████████ 100%
+R2 design  ──█████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 45%
+├─ spec 023 fabric-graph-cli replan     ✓ authored + impl
+├─ checker -replan-binary integration   ✓ committed, 14 tests
+├─ spec 024 surface-plane runtime       ✓ authored (impl deferred)
+├─ spec 025 wire-transport contract     ✓ authored + impl
+├─ spec 026 trust-root operator CLI     ✓ authored (impl deferred)  ← THIS TURN
+├─ PhenoFabric on GitHub                ✓ live (49 → 50 commits)
+└─ Pending next-session wedges          ◐
+```
