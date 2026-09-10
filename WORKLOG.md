@@ -1246,3 +1246,65 @@ Reversal: `mv tmp_local/wire-transport-r3-prototype-2026-09-09 cmd/wire-transpor
 
 This is **not** part of spec 025 — per spec 025 §2.2, the actual CLI
 shim is an R3 deliverable that needs a real consumer first.
+
+## 2026-09-09 — PhenoFabric GitHub repo created + 48 commits pushed
+
+Per operator direction ("ensure a repo exists and tracks this on github, PhenoFabric"),
+the Phenotype Fabric repo is now live at **https://github.com/KooshaPari/PhenoFabric**.
+
+### What landed
+
+- **Created repo**: `KooshaPari/PhenoFabric` (public) — described as "Phenotype Fabric 0.2.0 (R1 closed): capability descriptors, route compiler, failover, surface plane, trust-root, multi-tenant fairness"
+- **Pushed 48 commits**: full git history from initial R0 closure through R1 release evidence + R2 wedges #1-#4
+- **HEAD on remote**: `027661fdb478700659d56f8d0b0d242c92c7adec` (matching local `main`)
+- **Default branch**: `main`
+- **Remote URL**: `git@github.com:KooshaPari/PhenoFabric.git` (SSH)
+- **Updated `.gitignore`** to exclude `tmp_local/` prototype artifacts (commit `027661f`)
+
+### Commit trail (newest first, on remote)
+
+```
+027661f chore: gitignore tmp_local/ prototype artifacts
+ab5cff4 docs(worklog): spec 025 housekeeping note — parallel R3 prototype relocated
+d3c3d2c feat(wire): PF-WP-040 wire transport contract (Go-only stub, R2 wedge #4)
+02c0ec0 docs: WORKLOG 2026-09-08 spec 024 surface-plane runtime authored
+502d18b docs(specs): spec 024 surface-plane runtime (PF-WP-030, R2 wedge #3 contract)
+214fc77 docs: WORKLOG 2026-09-08 R2 wedge #3 surface-plane runtime deferred (ADR-0028)
+2e48cb6 docs: WORKLOG 2026-09-08 R2 wedge #2 checker -replan-binary landed
+dcdf5a1 feat(checker): -replan-binary integration (R2 wedge #2)
+e58d4ea docs: WORKLOG 2026-09-08 R2 wedge #1 fabric-graph-cli landed
+6dceb3c feat(fabric-graph-cli): thin Rust binary exposing failover::replan (PF-WP-040, spec 023)
+... (38 more)
+```
+
+### Auth path used
+
+- `gh auth login --with-token` → restored after `keychain` access
+- `gh repo create KooshaPari/PhenoFabric --public --description ... --source .` → created
+- `git push -u origin main` → 48 commits pushed
+
+### Verification
+
+- `curl https://github.com/KooshaPari/PhenoFabric` → HTTP 200 (live)
+- `curl https://api.github.com/repos/KooshaPari/PhenoFabric/commits` → 48 commits visible to unauthenticated client
+- `git branch -vv` → `main 027661f [origin/main: same]` (clean tracking)
+- Local repo working tree clean, 48 commits on `main`, all 4/4 spec checks still pass
+
+### Operator-facing URL
+
+- **Repo**: https://github.com/KooshaPari/PhenoFabric
+- **Clone (SSH)**: `git clone git@github.com:KooshaPari/PhenoFabric.git`
+- **Clone (HTTPS)**: `git clone https://github.com/KooshaPari/PhenoFabric.git`
+
+### Cockpit — R2 40% + repo published
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──████████████████████████████████████ 100%
+R2 design  ──████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 40%
+└─ PhenoFabric on GitHub        ✓ live (this turn)
+```
+
+R2 unchanged from prior turn (spec 023, spec 024 contract, checker -replan-binary, wire transport binary). Wedge #3 (surface-plane runtime impl) remains deferred to fresh-context per ADR-0028.
+
+Standing by for next direction.
