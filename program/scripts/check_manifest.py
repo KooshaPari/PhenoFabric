@@ -47,7 +47,7 @@ def main():
 
     # Build actual file list
     actual_files = set()
-    exclude_patterns = [".git/", ".archive/", "node_modules/", "__pycache__/", "target/"]
+    exclude_patterns = [".git/", ".archive/", "node_modules/", "__pycache__/", "target/", "tmp_local/"]
     exclude_files = {"MANIFEST.sha256"}
 
     for f in sorted(root.rglob("*")):

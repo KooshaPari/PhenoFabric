@@ -1,0 +1,26 @@
+{
+  "spec": "026-trust-operator-cli",
+  "title": "Trust operator CLI (cmd/trust) — authority generation, inspection, revocation, store bundle",
+  "version": "1.0.0",
+  "status": "Accepted",
+  "wp": "PF-WP-018",
+  "phase": "R2",
+  "depends_on": ["spec-021-trust-root-descriptor-signatures", "spec-019-surface-plane"],
+  "release_gate": "R2 wedge #5 — operator-facing half of trust-root workflow per spec 021 §5",
+  "date": "2026-09-09",
+  "owner": "phenotype-fabric/cmd/trust",
+  "acceptance_signals": [
+    "All 4 subcommands (init, intermediate, inspect, revoke, bundle) execute in <2s on a clean macOS dev box",
+    "All Authority / RevocationList JSON outputs round-trip through `fabric_capability::trust_root` deserialize (verified via parallel Rust binary)",
+    "At least 12 hermetic Go tests covering each subcommand + JSON wire-format round-trip + signature verification",
+    "No external Go dependencies (stdlib only, including crypto/ed25519)",
+    "All output JSON matches the wire format documented in spec 021 §3 + ADR-0031"
+  ],
+  "links": {
+    "spec": "spec.md",
+    "plan": "plan.md",
+    "tasks": "tasks.md",
+    "adr": ["0031-trust-root-descriptor-signatures"],
+    "spec_refs": ["021-trust-root-descriptor-signatures", "019-surface-plane"]
+  }
+}

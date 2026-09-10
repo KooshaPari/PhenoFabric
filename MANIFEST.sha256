@@ -408,5 +408,9 @@
   "work/staffing-agent-plan.md": "02ffd696c9ad02fb546fe337b25ce3ae2ee82a648a1a8137eb3453668abfe57b",
   "work/tasks.json": "8a7fdf2dc69afbab60d805ccd6a03d24b33b95bf1a50aeba3d45848c81621028",
   "work/wbs.csv": "3f32352def7bd46228a5a1edb93d86f7b063cbd95b8156e857ca9915137eadfc",
-  "work/wbs.md": "117c774470f693b6e50358f040a98babec1117e05793a67ae33f1e3eec4d320f"
+  "work/wbs.md": "117c774470f693b6e50358f040a98babec1117e05793a67ae33f1e3eec4d320f",
+  "specs/026-trust-operator-cli/meta.json": "d728d4427fc82416cab5a177d9c6a034868334c45bc519b1911b6722ba5b77de",
+  "specs/026-trust-operator-cli/spec.md": "d2b2783d711d806e28fefc93718373d4a535bdae346776d0bf8602b2100c7406",
+  "specs/026-trust-operator-cli/plan.md": "fab7818e065997402c72c66925670699b04de1d5024a5a183955dc77e006eff6",
+  "specs/026-trust-operator-cli/tasks.md": "62b3f9ea0cd1cf9b79f944d895f53d87cad4ddef2b60ead77d540825e6444a3f"
 }
