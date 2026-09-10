@@ -1117,7 +1117,10 @@ R2 design  ──█████░░░░░░░░░░░░░░░░
 
 ## 2026-09-09 — Spec 025 wire-transport contract authored (PF-WP-040 wedge #4)
 
-Commit: pending (this turn).
+Commits (chronological):
+- `phenotype-fabric` `d3c3d2c` — `feat(wire): PF-WP-040 wire transport contract (Go-only stub, R2 wedge #4)`
+- `phenotype-fabric` (this turn) — `chore(wire): relocate parallel R3 wire-transport CLI prototype to tmp_local`
+- `meta` `f068cad` — `docs(meta): spec 025 wire-transport contract addendum (PF-WP-040 wedge #4)`
 
 ### What landed
 
@@ -1213,10 +1216,33 @@ R2 design  ──██████░░░░░░░░░░░░░░░
 
 ### Recommended next wedge
 
-Surface-plane runtime impl (PF-WP-030) in a fresh-context session, OR
 R3 wire-transport impl (HTTP / gRPC / UDS) behind the `WireClient`/
-`WireServer` interfaces now that the contract is pinned. The wire
-impl wedge only makes sense once at least one consumer is wired up
-(per ADR-0028 — spec-only when there's no measured reason to pick
-HTTP vs gRPC vs UDS).
+`WireServer` interfaces when there is a real consumer. Until then
+the contract stub is enough — operators can already write unit tests
+against `WireCodec` and the `WireMessage` payload types.
 
+### Session housekeeping — parallel R3 prototype relocated
+
+A separate session was actively writing `cmd/wire-transport/` (CLI
+shim on top of the spec 025 contract) — timestamps showed it grew
+across the same window as this session. The files were untracked, so
+they broke `check_manifest.py` ("6 added, 0 removed") without being
+part of any commit.
+
+Per project safety rails (no `rm -rf` against other-agent work, even
+when untracked), the files were **moved**, not deleted, to:
+
+```
+repos/tmp_local/wire-transport-r3-prototype-2026-09-09/
+```
+
+Contents preserved (5 source files): `doc.go`, `go.mod`, `main.go`,
+`main_test.go`, `integration_test.go`. The compiled 3.4 MB binary
+`wire-transport` was a build artifact and was dropped (regeneratable
+via `go build`). A full audit trail is at
+`~/.forge/audit/wire-transport-r3-prototype-relocated-2026-09-09.md`.
+
+Reversal: `mv tmp_local/wire-transport-r3-prototype-2026-09-09 cmd/wire-transport`.
+
+This is **not** part of spec 025 — per spec 025 §2.2, the actual CLI
+shim is an R3 deliverable that needs a real consumer first.
