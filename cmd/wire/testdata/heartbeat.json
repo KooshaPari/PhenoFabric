@@ -1,0 +1,7 @@
+{
+  "envelope_id": "7d3a1b8c4e9f0123a5b6c7d8e9f01234",
+  "tenant_id": "ops-phenotype-default",
+  "msg_type": "heartbeat",
+  "payload": {"node_id": "host-1", "epoch": 42},
+  "sent_at_unix_ms": 1725900000000
+}

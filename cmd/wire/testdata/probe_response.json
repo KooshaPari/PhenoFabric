@@ -1,0 +1,15 @@
+{
+  "envelope_id": "f1e2d3c4b5a69788796a5b4c3d2e1f00",
+  "tenant_id": "ops-phenotype-default",
+  "msg_type": "probe.response",
+  "payload": {
+    "request_id": "11223344556677889900aabbccddeeff",
+    "descriptor": {
+      "node_id": "host-1",
+      "epoch": 42,
+      "schema_version": "v1",
+      "topology_hash": "abc123def456"
+    }
+  },
+  "sent_at_unix_ms": 1725900001050
+}

@@ -1,0 +1,11 @@
+{
+  "envelope_id": "fedcba9876543210fedcba9876543210",
+  "tenant_id": "ops-phenotype-default",
+  "msg_type": "replan.response",
+  "payload": {
+    "request_id": "fedcba9876543210fedcba9876543210",
+    "outcome": "replaced",
+    "new_plan": {"steps": [{"node": "host-2"}]}
+  },
+  "sent_at_unix_ms": 1725900002050
+}

@@ -1,0 +1,54 @@
+{
+  "wp": "PF-WP-040",
+  "title": "Wire transport contract (Go-only stub, R2 wedge #4)",
+  "release_gate": "R2-wedge-contract",
+  "status": "draft",
+  "supersedes": null,
+  "depends_on": [
+    "specs/019-surface-plane/spec.md",
+    "specs/020-route-lease-integration/spec.md",
+    "specs/023-fabric-graph-cli-replan/spec.md",
+    "specs/024-surface-plane-runtime/spec.md",
+    "ADR-0030 (route failover model)",
+    "ADR-0029 (rust-vs-go-port policy — Go is canonical for wire transport)",
+    "ADR-0028 (read-authoritative-source-first)"
+  ],
+  "enables": [
+    "R3 implementation of the actual transport (HTTP / gRPC / UDS) behind the contract",
+    "spec 026+ tenant-scoped wire envelopes",
+    "spec 027+ event-stream wire shape (surface invalidation push, lease state change)",
+    "Fleet-ops integration of fabric-agents (R3)"
+  ],
+  "scope_in": [
+    "WireEnvelope Go type: envelope { envelope_id, tenant_id, msg_type, payload, signature, sent_at_unix_ms }",
+    "WireMessage Go interface: one per msg_type (ProbeRequest/ProbeResponse, ReplanRequest/ReplanResponse, SurfaceInvalidateRequest, LeaseStateChange, Heartbeat)",
+    "Stable JSON wire schema for each WireMessage (the bytes-on-wire contract)",
+    "WireError taxonomy with stable error codes (BadEnvelope/UnsupportedMsgType/AuthFailed/Bug/Io)",
+    "cmd/wire Go package — pure contract, zero net dependencies (no net/http, no grpc, no UDS)",
+    "WireCodec: Marshal/Unmarshal/Validate (deterministic-JSON v1: sorted keys, no whitespace, RFC3339Nano timestamps)",
+    "13 unit tests in cmd/wire/wire_test.go (round-trip per msg_type, error paths, validation)"
+  ],
+  "scope_out": [
+    "Actual network transport (HTTP / gRPC / Unix domain socket) — R3",
+    "TLS / mTLS handshake — R3 (depends on trust_root.rs per spec 021)",
+    "Streaming / backpressure — R3 (event-stream wedge)",
+    "Compression (zstd / gzip) — R3",
+    "Authentication beyond envelope signature — R3 (WireAuth is a separate spec)",
+    "Multi-region relay / federation — R3+",
+    "Rate limiting / QoS shaping — separate spec",
+    "fabric-graph-cli Rust side — Go is canonical for wire transport per ADR-0029",
+    "Replace subprocess model of spec 023 (still subprocess + JSON; wire transport is a different layer)"
+  ],
+  "acceptance_signals": [
+    "go test ./cmd/wire — all 13 tests pass",
+    "go test ./cmd/capprobe — 0 regressions",
+    "go test ./cmd/checker — 0 regressions",
+    "WireCodec.Marshal(WireCodec.Unmarshal(x)) == x round-trip for each of the 5 msg_types",
+    "WireError codes match spec 025 §3.4 stable list",
+    "JSON wire schemas stable: 5 fixtures committed under cmd/wire/testdata/",
+    "check_manifest.py: 0 mismatches",
+    "check_json_schemas / check_openapi / check_links: all green",
+    "No new runtime deps in cmd/wire/go.mod (stdlib only)"
+  ],
+  "authored_date": "2026-09-09"
+}

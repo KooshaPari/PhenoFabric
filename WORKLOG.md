@@ -1114,3 +1114,109 @@ R2 design  ──█████░░░░░░░░░░░░░░░░
 ├─ fabric-workspace Rust                 ✗ Tier 3 (ADR-0028)
 └─ fabric-checker Rust port              ✗ Deferred (ADR-0029)
 ```
+
+## 2026-09-09 — Spec 025 wire-transport contract authored (PF-WP-040 wedge #4)
+
+Commit: pending (this turn).
+
+### What landed
+
+The authoritative **Go-only contract stub** for the inter-node wire envelope —
+the second half of the spec 023 + spec 024 wire-family. Where spec 023 shipped
+the **inter-process** wire (`fabric-graph-cli replan` ↔ `cmd/checker` Go, JSON
+over stdio), spec 025 ships the **inter-node** wire (Fabric node ↔ Fabric node
+over a real network). Per ADR-0029 (Go canonical for wire transport), Rust
+fabric-graph stays source-of-truth for graph-domain types and the wire layer
+is a thin Go façade over JSON.
+
+### Scope (minimal, by design)
+
+Per the wedge pattern recommended in `meta/PHENOTYPE_ARCHITECTURE.md`
+("`fabric-graph-cli replan` — a thin contract that defers actual transport
+to spec 025+"):
+
+- **`WireEnvelope`** struct: `envelope_id` (UUIDv4 lowercase hex) +
+  `tenant_id` (`^[a-z0-9-]{1,64}$`) + `msg_type` (closed enum) +
+  `payload` (`json.RawMessage`) + `signature` (Ed25519 base64, optional) +
+  `sent_at_unix_ms` (int64 millis)
+- **`WireCodec`**: `Marshal` / `Unmarshal` / `Validate` — deterministic
+  JSON (sorted struct keys, no whitespace, RFC3339-Nano-compatible millis)
+- **5 `WireMessage` payload types**: `ProbeRequest`/`ProbeResponse`,
+  `WireReplanRequest`/`WireReplanResponse`, `SurfaceInvalidate`,
+  `Heartbeat` (mirrors spec 024 `SurfaceRegistry::notify_node_failure`)
+- **`WireError`** taxonomy with 7 stable codes (`BadEnvelope`,
+  `UnsupportedMsgType`, `AuthFailed`, `UnknownTenant`, `BadPayload`,
+  `Io`, `Bug`) — receivers/senders agree on a closed list
+- **`WireClient` / `WireServer` interfaces** + `NodeAddress` struct — the
+  R3 target. Interfaces only; no implementations.
+- **`cmd/wire/`** Go module — stdlib only, zero deps
+- **8 JSON fixtures** in `cmd/wire/testdata/` — one per msg_type + 1 error
+  envelope + 1 negative (unknown msg_type) for golden-file testing
+- **13 unit tests** + **8 golden-file tests** in `wire_test.go`
+
+### Out of scope (deferred to R3 or later, per spec 025 §2.2)
+
+- Actual network transport (HTTP / gRPC / UDS / QUIC) — R3
+- TLS / mTLS handshake — R3 (depends on `Authority::not_after` per spec 021 / ADR-0031)
+- Streaming / backpressure — R3 (event-stream wedge, spec 027+)
+- Compression (zstd / gzip) — R3+ (only after measured payload-size problem)
+- Authentication beyond envelope signature — separate WireAuth spec
+- Multi-region relay / federation — R3+
+- Replacing spec 023 subprocess model — `fabric-graph-cli` invocation
+  remains stdin/stdout JSON (spec 023 contract unchanged)
+
+### Why ship contract-stub and not impl this turn
+
+Per the meta ARCHITECTURE recommendation (R2 wedge #4 description): "ship
+a Go-only stub similar to `fabric-graph-cli replan` — a thin contract that
+defers actual transport to spec 025+." This turn's contribution is the
+**bytes-on-wire shape**: future R3 implementers wire HTTP/gRPC/UDS behind
+the `WireClient`/`WireServer` interfaces without changing the codec.
+
+Phase 0 read end-to-end before opening `cmd/wire/wire.go`: `replan.go`,
+`types.go`, `main.go`, `capprobe/main.go`, spec 023, spec 024,
+`architecture/openapi.yaml`, `crates/fabric-graph/src/surface.rs` +
+`failover.rs`, `crates/fabric-capability/src/trust_root.rs`.
+
+### Test totals (verified)
+
+- **`go test ./cmd/wire/`**: 13 unit tests pass + 7 golden-file subtests
+  + 1 negative-fixture test = **21 PASS / 0 FAIL** (all round-trips,
+  validation rejections, determinism, error envelope wrapping)
+- **`go test ./cmd/capprobe`**: 6 PASS / 0 FAIL (unchanged)
+- **`go test ./cmd/checker`**: 26 PASS / 0 FAIL (unchanged)
+- **`cargo test --workspace`**: 177 pass / 0 fail (unchanged; Rust
+  untouched this turn)
+- **`check_manifest.py`**: 8 new files (cmd/wire/{wire.go, wire_test.go,
+  go.mod} + 5 fixtures + 1 negative fixture + 1 error fixture)
+- **`check_json_schemas.py` / `check_openapi.py` / `check_links.py`**:
+  all green (no schema/openapi/links changed)
+
+**231 tests** all green. 4/4 spec checks pass.
+
+### Cockpit — R2 30%
+
+```
+R2 design  ──██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 30%
+├─ spec 023 fabric-graph-cli replan     ✓ authored
+├─ fabric-graph-cli binary              ✓ committed, 15 tests
+├─ checker -replan-binary integration   ✓ committed, 14 tests
+├─ spec 024 surface-plane runtime      ✓ authored
+├─ surface_runtime.rs impl             ◐ next R2 wedge (fresh-context)
+├─ spec 025 wire-transport contract    ✓ authored (this turn)
+├─ wire-transport impl (HTTP/gRPC/UDS)  ◐ R3 — needs consumer
+├─ audio/video surface planes           ◐ R2 next
+├─ fabric-cli Rust                       ✗ Tier 3 (ADR-0028)
+├─ fabric-workspace Rust                 ✗ Tier 3 (ADR-0028)
+└─ fabric-checker Rust port              ✗ Deferred (ADR-0029)
+```
+
+### Recommended next wedge
+
+Surface-plane runtime impl (PF-WP-030) in a fresh-context session, OR
+R3 wire-transport impl (HTTP / gRPC / UDS) behind the `WireClient`/
+`WireServer` interfaces now that the contract is pinned. The wire
+impl wedge only makes sense once at least one consumer is wired up
+(per ADR-0028 — spec-only when there's no measured reason to pick
+HTTP vs gRPC vs UDS).
+

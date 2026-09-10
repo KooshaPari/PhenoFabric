@@ -1,0 +1,13 @@
+{
+  "envelope_id": "0123456789abcdef0123456789abcdef",
+  "tenant_id": "ops-phenotype-default",
+  "msg_type": "replan.request",
+  "payload": {
+    "request_id": "fedcba9876543210fedcba9876543210",
+    "topology": {"nodes": [{"id": "host-1"}, {"id": "host-2"}]},
+    "intent": {"name": "render-1080p"},
+    "old_plan": {"steps": [{"node": "host-1"}]},
+    "failed_nodes": ["host-1"]
+  },
+  "sent_at_unix_ms": 1725900002000
+}

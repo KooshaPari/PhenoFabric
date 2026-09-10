@@ -1,0 +1,7 @@
+{
+  "envelope_id": "deadbeefcafef00ddeadbeefcafef00d",
+  "tenant_id": "ops-phenotype-default",
+  "msg_type": "foo.bar",
+  "payload": {"anything": "goes"},
+  "sent_at_unix_ms": 1725900004000
+}

@@ -13,6 +13,9 @@ on:
       - "cmd/capprobe/go.mod"
       - "cmd/checker/**/*.go"
       - "cmd/checker/go.mod"
+      - "cmd/wire/**/*.go"
+      - "cmd/wire/go.mod"
+      - "cmd/wire/testdata/**/*.json"
       - "program/scripts/**"
       - ".github/workflows/spec-validation.yml"
       - "MANIFEST.sha256"
@@ -27,6 +30,9 @@ on:
       - "cmd/capprobe/go.mod"
       - "cmd/checker/**/*.go"
       - "cmd/checker/go.mod"
+      - "cmd/wire/**/*.go"
+      - "cmd/wire/go.mod"
+      - "cmd/wire/testdata/**/*.json"
       - "program/scripts/**"
       - "MANIFEST.sha256"
 
@@ -55,7 +61,7 @@ jobs:
         run: python3 program/scripts/check_manifest.py
 
   check-go:
-    name: Go test (capprobe + checker)
+    name: Go test (capprobe + checker + wire)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -77,6 +83,12 @@ jobs:
 
       - name: Go test (checker)
         run: go test -count=1 ./cmd/checker/...
+
+      - name: Go vet (wire)
+        run: go vet ./cmd/wire/...
+
+      - name: Go test (wire)
+        run: go test -count=1 ./cmd/wire/...
 
       - name: Run fabric checker against acceptance fixture
         run: |

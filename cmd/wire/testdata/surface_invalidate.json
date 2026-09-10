@@ -1,0 +1,13 @@
+{
+  "envelope_id": "99887766554433221100ffeeddccbbaa",
+  "tenant_id": "ops-phenotype-default",
+  "msg_type": "surface.invalidate",
+  "payload": {
+    "surface_handle": "surf-abc",
+    "lease_id": "lease-xyz",
+    "reason": "HostFailure",
+    "failed_node": "host-1",
+    "epoch": 43
+  },
+  "sent_at_unix_ms": 1725900003000
+}
