@@ -1374,3 +1374,79 @@ R2 design  ──█████████░░░░░░░░░░░░
 ├─ PhenoFabric on GitHub                ✓ live (49 → 50 commits)
 └─ Pending next-session wedges          ◐
 ```
+
+## 2026-09-11 — R2 wedges #3 + #5 landed (spec 024 + spec 026 impl)
+
+### Context
+
+Fresh session targeting the two pinned R2 contracts that were deferred in prior sessions:
+- **spec 024** (PF-WP-030): Surface-plane runtime — `SurfaceRegistry` + `bind_with_topology`
+- **spec 026** (PF-WP-018): Trust-root operator CLI — Go binary at `cmd/trust/`
+
+Prior sessions hit the ADR-0028 stuck-loop pattern on both contracts (8+ attempts on
+fabric-trust-cli Rust binary, which was the wrong language — spec 026 calls for Go).
+
+### What landed
+
+#### Spec 024 — Surface-plane runtime (PF-WP-030)
+
+- `crates/fabric-graph/src/surface_runtime.rs` (329 LoC): `SurfaceRegistry`,
+  `RegistryEntry`, `Invalidation`, `notify_node_failure` + 5 unit tests
+- `crates/fabric-graph/src/surface_ops.rs`: additive `bind_with_topology()` that
+  validates node existence in topology, locality floor compliance, then delegates to `bind()`
+- `crates/fabric-graph/src/surface.rs`: added `SurfaceError::UnknownNode` and
+  `SurfaceError::SpecViolation` variants
+- `crates/fabric-graph/src/lib.rs`: `pub mod surface_runtime` + re-exports
+- `crates/fabric-graph/tests/surface_runtime_integration.rs` (189 LoC): 5 integration tests
+
+Acceptance criteria met:
+- `cargo test -p fabric-graph --lib surface_runtime` — 5 pass
+- `cargo test -p fabric-graph --test surface_runtime_integration` — 5 pass
+- `cargo test --workspace` — 187 Rust tests, 0 regressions (+10 from spec 024)
+
+#### Spec 026 — Trust-root operator CLI (PF-WP-018)
+
+- `cmd/trust/trust.go` (~600 LoC): 5 subcommands (init, intermediate, inspect, revoke, bundle)
+  using `crypto/ed25519`, stdlib only, wire-compatible with `fabric_capability::trust_root`
+- `cmd/trust/trust_test.go` (~370 LoC): 12 tests covering all subcommands + round-trip
+- `cmd/trust/go.mod`: standalone module
+
+Acceptance criteria met:
+- `go build ./... cmd/trust/` — builds clean
+- `go test -v ./... cmd/trust/` — 12 pass
+
+### Verification
+
+- `cargo test --workspace`: 187 Rust pass / 0 fail (was 177; +10 from spec 024)
+- `go test ./cmd/capprobe`: ok
+- `go test ./cmd/checker`: ok
+- `go test ./cmd/wire`: ok
+- `go test ./cmd/trust`: ok (12 PASS — new)
+- `check_manifest.py`: regenerated (427 entries; 7 stale from prior deletions)
+- `check_json_schemas / check_openapi / check_links`: all pass
+- PhenoFabric local HEAD matches remote (277f76bce9)
+
+**199 tests** (187 Rust + 32 Go including 12 new trust) all green, 4/4 spec checks green.
+
+### Cockpit — R2 70%
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──████████████████████████████████████ 100%
+R2 design  ──██████████████████░░░░░░░░░░░░░░░░░░░░ 70%
+├─ spec 023 fabric-graph-cli replan     ✓ authored + impl, 15 tests
+├─ checker -replan-binary integration   ✓ committed, 14 tests
+├─ spec 024 surface-plane runtime       ✓ authored + impl, 10 tests  ← THIS TURN
+├─ spec 025 wire-transport contract     ✓ authored + impl
+├─ spec 026 trust-root operator CLI     ✓ authored + impl, 12 tests  ← THIS TURN
+├─ PhenoFabric on GitHub                ✓ live (52+ commits)
+└─ Remaining R2 wedges                 ◐ surface notification, audio/video stubs
+```
+
+### Lessons
+
+- Spec 026 was always a Go CLI (cmd/trust/), not a Rust binary. Prior sessions confused
+  the Cargo.toml fabric-trust-cli crate scaffold (an error) with the actual spec.
+  Reading the spec first would have avoided 8 wasted attempts.
+- Worker model availability is unreliable — built both implementations directly when
+  subagents failed.

@@ -48,6 +48,7 @@ pub mod leases;
 pub mod score;
 pub mod surface;
 pub mod surface_ops;
+pub mod surface_runtime;
 
 pub use crate::leases_fairness::{
     FairnessDecision, FairnessPolicy, FairnessQueue, FairnessSnapshot,
@@ -64,3 +65,5 @@ pub use crate::model::{
 pub use crate::negotiation::negotiate;
 pub use crate::planner::plan_sequence;
 pub use crate::score::ScoringWeights;
+pub use crate::surface_runtime::{Invalidation, RegistryEntry, SurfaceRegistry};
+pub use crate::surface::{SurfaceHandle, SurfaceSpec};

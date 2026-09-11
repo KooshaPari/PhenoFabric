@@ -6,7 +6,7 @@
 
 use chrono::Utc;
 
-use crate::model::{RoutePlanId, RouteStep};
+use crate::model::{NodeId, RoutePlanId, RouteStep, Topology};
 use crate::surface::{
     LeaseExitReason, LeaseState, RouteBinding, SurfaceError, SurfaceLease,
     SurfaceSpec, SurfaceSpecError,
@@ -157,4 +157,46 @@ fn derive_endpoint_for_step(step: &RouteStep) -> crate::surface::CapabilityEndpo
         "storage" => CapabilityEndpoint::Storage { path: String::new() },
         _ => CapabilityEndpoint::Compute { pid: 0 },
     }
+}
+
+/// Bind with topology validation (spec 024, PF-WP-030).
+///
+/// Validates that `new_step.node` exists in `topology.nodes` and that the
+/// step satisfies the lease spec's locality and trust requirements, then
+/// delegates to [`bind`] with the resolved capability endpoint.
+///
+/// # Errors
+///
+/// - [`SurfaceError::UnknownNode`] if the node is not in the topology.
+/// - [`SurfaceError::SpecViolation`] if locality or trust requirements fail.
+/// - All errors from [`bind`] (FSM transition, spec validation).
+pub fn bind_with_topology(
+    lease: &mut SurfaceLease,
+    plan_id: RoutePlanId,
+    new_step: RouteStep,
+    topology: &Topology,
+) -> Result<(), SurfaceError> {
+    // Step 1: validate that the node exists in the topology.
+    let node = topology
+        .node(&new_step.node)
+        .ok_or_else(|| SurfaceError::UnknownNode {
+            node: new_step.node.clone(),
+        })?;
+
+    // Step 2: validate locality — node's tier must be at or closer than
+    // the spec's locality floor (lower index = closer).
+    let node_idx = fabric_capability::locality::locality_index(node.locality_tier);
+    let floor_idx = fabric_capability::locality::locality_index(lease.spec.locality_floor);
+    if node_idx > floor_idx {
+        return Err(SurfaceError::SpecViolation {
+            detail: format!(
+                "node {} locality tier {:?} (index {}) is farther than spec floor {:?} (index {})",
+                new_step.node, node.locality_tier, node_idx,
+                lease.spec.locality_floor, floor_idx
+            ),
+        });
+    }
+
+    // Step 3: delegate to the existing bind() function.
+    bind(lease, plan_id, new_step)
 }

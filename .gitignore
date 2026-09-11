@@ -35,3 +35,4 @@ cmd/checker/checker
 
 # Local-only prototypes (preserved but not tracked)
 tmp_local/
+cmd/trust/trust

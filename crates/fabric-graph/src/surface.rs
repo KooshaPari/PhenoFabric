@@ -299,6 +299,11 @@ pub enum SurfaceError {
     IllegalTransition { from: LeaseState, attempted: &'static str },
     /// Plan epoch drift invalidates the binding (`strict_epoch_binding`).
     EpochDrift { previous: u64, current: u64 },
+    /// The referenced node does not exist in the topology (spec 024).
+    UnknownNode { node: NodeId },
+    /// The step does not satisfy the lease spec (locality, trust, capability)
+    /// after topology resolution (spec 024).
+    SpecViolation { detail: String },
 }
 
 impl std::fmt::Display for SurfaceError {
@@ -318,6 +323,8 @@ impl std::fmt::Display for SurfaceError {
                 f,
                 "plan epoch drifted from {previous} to {current}; strict-binding surface invalidated"
             ),
+            Self::UnknownNode { node } => write!(f, "unknown node in topology: {node}"),
+            Self::SpecViolation { detail } => write!(f, "spec violation: {detail}"),
         }
     }
 }
