@@ -439,6 +439,90 @@ func NewEnvelopeFromPayload(msgType, tenantID string, payload interface{}) (Wire
 	}, nil
 }
 
+// ---------------------------------------------------------------------------
+// Type-safe envelope constructors (spec 024 ↔ 025 bridge)
+// ---------------------------------------------------------------------------
+
+// NewSurfaceInvalidateEnvelope builds a surface.invalidate envelope from
+// the fields produced by Rust SurfaceRegistry::notify_node_failure.
+//
+// The tenant_id is the target tenant that should receive this push.
+// This is the primary bridge between the Rust SurfaceRegistry and the
+// Go wire transport layer.
+func NewSurfaceInvalidateEnvelope(
+	tenantID string,
+	surfaceHandle string,
+	leaseID string,
+	reason string,
+	failedNode string,
+	epoch uint64,
+) (WireEnvelope, error) {
+	if !IsWireMsgType(MsgTypeSurfaceInvalidate) {
+		return WireEnvelope{}, fmt.Errorf("wire: surface.invalidate not in wire msg type set")
+	}
+	if !tenantIDRegex.MatchString(tenantID) {
+		return WireEnvelope{}, fmt.Errorf("wire: invalid tenant_id %q", tenantID)
+	}
+
+	// Validate reason is one of the known constants.
+	switch reason {
+	case SurfaceInvalidateReasonHostFailure, SurfaceInvalidateReasonRevoked,
+		SurfaceInvalidateReasonExpired, SurfaceInvalidateReasonFailed:
+		// known reason
+	default:
+		return WireEnvelope{}, fmt.Errorf("wire: unknown SurfaceInvalidate reason %q", reason)
+	}
+
+	payload := SurfaceInvalidate{
+		SurfaceHandle: surfaceHandle,
+		LeaseID:       leaseID,
+		Reason:        reason,
+		FailedNode:    failedNode,
+		Epoch:         epoch,
+	}
+
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return WireEnvelope{}, fmt.Errorf("wire: marshal surface.invalidate payload: %w", err)
+	}
+
+	return WireEnvelope{
+		EnvelopeID:   newUUIDv4(),
+		TenantID:     tenantID,
+		MsgType:      MsgTypeSurfaceInvalidate,
+		Payload:      raw,
+		SentAtUnixMs: time.Now().UnixMilli(),
+	}, nil
+}
+
+// NewProbeRequestEnvelope builds a probe.request envelope.
+func NewProbeRequestEnvelope(tenantID string) (WireEnvelope, error) {
+	return NewEnvelopeFromPayload(MsgTypeProbeRequest, tenantID, ProbeRequest{
+		RequestID: newUUIDv4(),
+	})
+}
+
+// NewHeartbeatEnvelope builds a heartbeat envelope.
+func NewHeartbeatEnvelope(tenantID string, nodeID string, epoch uint64) (WireEnvelope, error) {
+	return NewEnvelopeFromPayload(MsgTypeHeartbeat, tenantID, Heartbeat{
+		NodeID: nodeID,
+		Epoch:  epoch,
+	})
+}
+
+// InvalidationReasonToWire maps a Go-side reason string to the wire
+// constants. Passes through known constants unchanged; maps unknown
+// values to "Failed" as a safe default.
+func InvalidationReasonToWire(reason string) string {
+	switch reason {
+	case SurfaceInvalidateReasonHostFailure, SurfaceInvalidateReasonRevoked,
+		SurfaceInvalidateReasonExpired, SurfaceInvalidateReasonFailed:
+		return reason
+	default:
+		return SurfaceInvalidateReasonFailed
+	}
+}
+
 // -----------------------------------------------------------------------------
 // Determinism helpers
 // -----------------------------------------------------------------------------

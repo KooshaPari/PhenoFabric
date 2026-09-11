@@ -381,3 +381,131 @@ func TestGoldenFile_UnsupportedRejected(t *testing.T) {
 		t.Errorf("error should mention msg_type; got: %v", err)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Type-safe envelope constructor tests (spec 024 ↔ 025 bridge)
+// ---------------------------------------------------------------------------
+
+func TestNewSurfaceInvalidateEnvelope(t *testing.T) {
+	env, err := NewSurfaceInvalidateEnvelope(
+		"tenant-a",
+		"0123456789abcdef0123456789abcdef",
+		"aabbccdd00112233aabbccdd00112233",
+		SurfaceInvalidateReasonHostFailure,
+		"gpu-node-1",
+		42,
+	)
+	if err != nil {
+		t.Fatalf("NewSurfaceInvalidateEnvelope: %v", err)
+	}
+	if env.MsgType != MsgTypeSurfaceInvalidate {
+		t.Errorf("MsgType = %q, want %q", env.MsgType, MsgTypeSurfaceInvalidate)
+	}
+	if env.TenantID != "tenant-a" {
+		t.Errorf("TenantID = %q, want %q", env.TenantID, "tenant-a")
+	}
+
+	// Decode and verify payload.
+	var payload SurfaceInvalidate
+	if err := DecodePayload(env, MsgTypeSurfaceInvalidate, &payload); err != nil {
+		t.Fatalf("DecodePayload: %v", err)
+	}
+	if payload.SurfaceHandle != "0123456789abcdef0123456789abcdef" {
+		t.Errorf("SurfaceHandle = %q, want hex uuid", payload.SurfaceHandle)
+	}
+	if payload.LeaseID != "aabbccdd00112233aabbccdd00112233" {
+		t.Errorf("LeaseID = %q, want hex uuid", payload.LeaseID)
+	}
+	if payload.Reason != SurfaceInvalidateReasonHostFailure {
+		t.Errorf("Reason = %q, want %q", payload.Reason, SurfaceInvalidateReasonHostFailure)
+	}
+	if payload.FailedNode != "gpu-node-1" {
+		t.Errorf("FailedNode = %q, want %q", payload.FailedNode, "gpu-node-1")
+	}
+	if payload.Epoch != 42 {
+		t.Errorf("Epoch = %d, want 42", payload.Epoch)
+	}
+
+	// Round-trip through codec.
+	codec := WireCodec{}
+	data, err := codec.Marshal(env)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	env2, err := codec.Unmarshal(data)
+	if err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if env2.MsgType != MsgTypeSurfaceInvalidate {
+		t.Errorf("round-trip MsgType = %q, want %q", env2.MsgType, MsgTypeSurfaceInvalidate)
+	}
+}
+
+func TestNewSurfaceInvalidateEnvelope_RejectsUnknownReason(t *testing.T) {
+	_, err := NewSurfaceInvalidateEnvelope(
+		"tenant-a", "handle", "lease", "UnknownReason", "", 0,
+	)
+	if err == nil {
+		t.Fatal("NewSurfaceInvalidateEnvelope accepted unknown reason; want error")
+	}
+	if !strings.Contains(err.Error(), "unknown") {
+		t.Errorf("error should mention unknown; got: %v", err)
+	}
+}
+
+func TestNewProbeRequestEnvelope(t *testing.T) {
+	env, err := NewProbeRequestEnvelope("tenant-b")
+	if err != nil {
+		t.Fatalf("NewProbeRequestEnvelope: %v", err)
+	}
+	if env.MsgType != MsgTypeProbeRequest {
+		t.Errorf("MsgType = %q, want %q", env.MsgType, MsgTypeProbeRequest)
+	}
+	var payload ProbeRequest
+	if err := DecodePayload(env, MsgTypeProbeRequest, &payload); err != nil {
+		t.Fatalf("DecodePayload: %v", err)
+	}
+	if payload.RequestID == "" {
+		t.Error("RequestID should not be empty")
+	}
+}
+
+func TestNewHeartbeatEnvelope(t *testing.T) {
+	env, err := NewHeartbeatEnvelope("tenant-c", "node-x", 99)
+	if err != nil {
+		t.Fatalf("NewHeartbeatEnvelope: %v", err)
+	}
+	if env.MsgType != MsgTypeHeartbeat {
+		t.Errorf("MsgType = %q, want %q", env.MsgType, MsgTypeHeartbeat)
+	}
+	var payload Heartbeat
+	if err := DecodePayload(env, MsgTypeHeartbeat, &payload); err != nil {
+		t.Fatalf("DecodePayload: %v", err)
+	}
+	if payload.NodeID != "node-x" {
+		t.Errorf("NodeID = %q, want %q", payload.NodeID, "node-x")
+	}
+	if payload.Epoch != 99 {
+		t.Errorf("Epoch = %d, want 99", payload.Epoch)
+	}
+}
+
+func TestInvalidationReasonToWire(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{SurfaceInvalidateReasonHostFailure, SurfaceInvalidateReasonHostFailure},
+		{SurfaceInvalidateReasonRevoked, SurfaceInvalidateReasonRevoked},
+		{SurfaceInvalidateReasonExpired, SurfaceInvalidateReasonExpired},
+		{SurfaceInvalidateReasonFailed, SurfaceInvalidateReasonFailed},
+		{"UnknownReason", SurfaceInvalidateReasonFailed},
+		{"", SurfaceInvalidateReasonFailed},
+	}
+	for _, tt := range tests {
+		got := InvalidationReasonToWire(tt.input)
+		if got != tt.want {
+			t.Errorf("InvalidationReasonToWire(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}

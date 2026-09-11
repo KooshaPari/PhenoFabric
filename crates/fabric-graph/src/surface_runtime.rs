@@ -16,6 +16,8 @@
 
 use std::collections::HashMap;
 
+use uuid::Uuid;
+
 use crate::model::NodeId;
 use crate::surface::{
     LeaseExitReason, LeaseState, SurfaceError, SurfaceHandle, SurfaceLease, SurfaceSpec,
@@ -44,12 +46,79 @@ pub struct RegistryEntry {
 
 /// Returned by [`SurfaceRegistry::notify_node_failure`] for each surface
 /// that was invalidated.
+///
+/// Field names match the Go `cmd/wire` `SurfaceInvalidate` wire shape
+/// (spec 025 §3.3) to enable zero-copy JSON bridging.
 #[derive(Debug, Clone)]
 pub struct Invalidation {
     /// The handle whose lease was terminated.
     pub handle: SurfaceHandle,
+    /// The route binding id that was active at invalidation time.
+    /// Maps to `SurfaceInvalidate.lease_id` on the wire.
+    pub binding_id: Uuid,
     /// Why the surface was invalidated.
     pub reason: LeaseExitReason,
+    /// The topology epoch at binding time.
+    /// Maps to `SurfaceInvalidate.epoch` on the wire.
+    pub epoch: u64,
+}
+
+impl Invalidation {
+    /// Serialize to the Go `cmd/wire` `SurfaceInvalidate` JSON wire shape.
+    ///
+    /// The output is ready to be wrapped in a `WireEnvelope` with
+    /// `msg_type: "surface.invalidate"` by the Go wire codec.
+    ///
+    /// ```json
+    /// {
+    ///   "surface_handle": "01abcdef...",
+    ///   "lease_id": "01112233...",
+    ///   "reason": "HostFailure",
+    ///   "failed_node": "gpu-node-1",
+    ///   "epoch": 42
+    /// }
+    /// ```
+    pub fn to_wire_json(&self) -> serde_json::Value {
+        let reason_str = match &self.reason {
+            LeaseExitReason::NormalCompletion => "NormalCompletion",
+            LeaseExitReason::HostFailure { .. } => "HostFailure",
+            LeaseExitReason::EpochDrift { .. } => "EpochDrift",
+            LeaseExitReason::OperatorRevoked => "Revoked",
+            LeaseExitReason::Expired => "Expired",
+            LeaseExitReason::WorkloadReported { .. } => "Failed",
+        };
+
+        let failed_node = match &self.reason {
+            LeaseExitReason::HostFailure { host_node } => host_node.to_string(),
+            _ => String::new(),
+        };
+
+        let mut map = serde_json::Map::new();
+        map.insert(
+            "surface_handle".into(),
+            serde_json::Value::String(self.handle.0.to_string()),
+        );
+        map.insert(
+            "lease_id".into(),
+            serde_json::Value::String(self.binding_id.to_string()),
+        );
+        map.insert(
+            "reason".into(),
+            serde_json::Value::String(reason_str.into()),
+        );
+        if !failed_node.is_empty() {
+            map.insert(
+                "failed_node".into(),
+                serde_json::Value::String(failed_node),
+            );
+        }
+        map.insert(
+            "epoch".into(),
+            serde_json::Value::Number(self.epoch.into()),
+        );
+
+        serde_json::Value::Object(map)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -167,10 +236,24 @@ impl SurfaceRegistry {
                     .unwrap_or_else(|| NodeId::new(""));
                 let reason = LeaseExitReason::HostFailure { host_node };
 
+                // Extract binding_id and epoch from the current binding
+                // before failing the lease.
+                let (binding_id, epoch) = entry
+                    .lease
+                    .current
+                    .as_ref()
+                    .map(|b| (b.binding_id, b.bound_at_epoch))
+                    .unwrap_or_else(|| (Uuid::nil(), 0));
+
                 // Fail the lease (Active → Failed).
                 let _ = surface_ops::fail(&mut entry.lease, reason.clone());
 
-                invalidations.push(Invalidation { handle, reason });
+                invalidations.push(Invalidation {
+                    handle,
+                    binding_id,
+                    reason,
+                    epoch,
+                });
             }
 
             // Remove from registry (entry is now in Failed state).
@@ -325,5 +408,52 @@ mod tests {
         );
         assert!(matches!(result, Err(SurfaceError::UnknownNode { .. })));
         assert_eq!(lease.state, LeaseState::Pending);
+    }
+
+    #[test]
+    fn invalidation_to_wire_json_matches_spec025_shape() {
+        use crate::model::RoutePlanId;
+
+        let (topo, _a, _b) = two_node_topology();
+        let mut reg = SurfaceRegistry::new();
+
+        let spec = sample_spec("rt-wire");
+        let mut lease = new_lease(spec.clone()).unwrap();
+        let plan = crate::compile(
+            &topo,
+            &crate::builder::IntentBuilder::new()
+                .name("t")
+                .min_trust(TrustLevel::Untrusted)
+                .build(),
+        )
+        .unwrap();
+        bind(&mut lease, plan.id.clone(), make_step("node-a", "compute")).unwrap();
+
+        let binding_id = lease.current.as_ref().unwrap().binding_id;
+        let epoch = lease.current.as_ref().unwrap().bound_at_epoch;
+        let handle = lease.handle;
+        reg.insert(handle, lease, spec);
+
+        let invalidations = reg.notify_node_failure(&[NodeId::new("node-a")]);
+        assert_eq!(invalidations.len(), 1);
+
+        let wire = invalidations[0].to_wire_json();
+
+        // Verify wire shape matches spec 025 SurfaceInvalidate
+        assert!(wire.get("surface_handle").is_some());
+        assert!(wire.get("lease_id").is_some());
+        assert_eq!(wire["reason"], "HostFailure");
+        assert_eq!(wire["failed_node"], "node-a");
+        assert_eq!(wire["epoch"], epoch);
+
+        // Verify UUIDs are strings
+        assert!(wire["surface_handle"].is_string());
+        assert!(wire["lease_id"].is_string());
+
+        // Verify lease_id matches the binding_id from the lease
+        assert_eq!(
+            wire["lease_id"].as_str().unwrap(),
+            binding_id.to_string()
+        );
     }
 }
