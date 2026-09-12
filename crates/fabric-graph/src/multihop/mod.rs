@@ -8,11 +8,12 @@ pub mod cost;
 pub mod validate;
 pub mod fallback;
 
+pub use stages::{builtin_stages, TransportStage};
+pub use cost::{compute_route_cost, RouteCost};
+pub use validate::{validate_multihop, RouteValidationError};
+
 use crate::model::{EdgeId, Intent, NodeId, RoutePlan, RoutePlanId, RouteStep, Topology, TopologyEpoch};
 use crate::LocalityTier;
-use stages::{builtin_stages, TransportStage};
-use cost::{compute_route_cost, RouteCost};
-use validate::{validate_multihop, RouteValidationError};
 use fallback::generate_fallbacks;
 use chrono::Utc;
 use thiserror::Error;
