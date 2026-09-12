@@ -1518,22 +1518,24 @@ syntax across all error enums in multihop and validate modules.
 - `go test ./cmd/trust`: ok (12 PASS)
 - HEAD: `c2b3a53` — `feat(graph): add multihop route compiler (R3)`
 
-**297 tests** all green.
+**311 tests** all green.
 
-### Cockpit — R3 40%
+### Cockpit — R3 60%
 
 ```
 R0 closure ────████████████████████████████████████ 100%
 R1 closure ──████████████████████████████████████ 100%
 R2 closure ──████████████████████████████░░░░░ 70%
-R3 progress ─███████░░░░░░░░░░░░░░░░░░░░░░░░░░░ 40%
+R3 progress ─███████████████░░░░░░░░░░░░░░░░░░ 60%
 ├─ fabric-persist (SQLite persistence)     ✓ committed, 21 tests
-├─ fabric-daemon (service daemon)          ✓ committed, 15 tests
+├─ fabric-daemon (service daemon)          ✓ committed, 21 tests (+compile_request)
 ├─ multihop route compiler                 ✓ committed, 24 tests
+├─ failover replan_multihop integration    ✓ committed, 4 tests
+├─ surface plane rotation (epoch bump)     ✓ committed, 4 tests
 ├─ ADR-0032/0033/0034                      ✓ authored
 ├─ wire transport integration (daemon↔Go)  ◐ next
 ├─ topology-driven checker replan (Go)     ◐ next
-├─ surface plane rotation (epoch bump)     ◐ R3 next
-├─ multi-hop failover (fallback routes)    ◐ R3 next
 └─ fabric-cli Rust                         ✗ Tier 3 (ADR-0028)
 ```
+
+267 Rust tests + 44 Go tests = 311 total, all green.
