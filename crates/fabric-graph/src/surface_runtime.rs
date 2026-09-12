@@ -262,6 +262,69 @@ impl SurfaceRegistry {
 
         invalidations
     }
+
+    /// Invalidate all leases with `strict_epoch_binding: true` whose
+    /// `bound_at_epoch` does not match `new_epoch`.
+    ///
+    /// This is called when the topology epoch advances (e.g. after a
+    /// probe cycle updates the topology). Surfaces that were bound to
+    /// a previous epoch are invalidated with `LeaseExitReason::EpochDrift`.
+    ///
+    /// Returns the list of [`Invalidation`]s performed.
+    pub fn notify_epoch_change(&mut self, new_epoch: u64) -> Vec<Invalidation> {
+        let handles_to_invalidate: Vec<SurfaceHandle> = self
+            .inner
+            .iter()
+            .filter_map(|(handle, entry)| {
+                if !entry.spec.strict_epoch_binding {
+                    return None;
+                }
+                let binding = entry.lease.current.as_ref()?;
+                if binding.bound_at_epoch != new_epoch {
+                    Some(*handle)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let mut invalidations = Vec::with_capacity(handles_to_invalidate.len());
+
+        for handle in handles_to_invalidate {
+            if let Some(entry) = self.inner.get_mut(&handle) {
+                let previous_epoch = entry
+                    .lease
+                    .current
+                    .as_ref()
+                    .map(|b| b.bound_at_epoch)
+                    .unwrap_or(0);
+                let reason = LeaseExitReason::EpochDrift {
+                    previous_epoch,
+                    new_epoch,
+                };
+
+                let (binding_id, epoch) = entry
+                    .lease
+                    .current
+                    .as_ref()
+                    .map(|b| (b.binding_id, b.bound_at_epoch))
+                    .unwrap_or_else(|| (Uuid::nil(), 0));
+
+                let _ = surface_ops::fail(&mut entry.lease, reason.clone());
+
+                invalidations.push(Invalidation {
+                    handle,
+                    binding_id,
+                    reason,
+                    epoch,
+                });
+            }
+
+            self.inner.remove(&handle);
+        }
+
+        invalidations
+    }
 }
 
 // ===========================================================================
@@ -528,5 +591,100 @@ mod tests {
         assert_eq!(wire["reason"], "EpochDrift");
         assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
         assert_eq!(wire["epoch"], 5);
+    }
+
+    // ── notify_epoch_change tests ──
+
+    #[test]
+    fn epoch_change_invalidates_strict_binding() {
+        let (topo, _a, _b) = two_node_topology();
+        let mut reg = SurfaceRegistry::new();
+
+        let mut spec = sample_spec("rt-strict");
+        spec.strict_epoch_binding = true;
+        let mut lease = new_lease(spec.clone()).unwrap();
+        let plan = crate::compile(
+            &topo,
+            &crate::builder::IntentBuilder::new()
+                .name("t")
+                .min_trust(TrustLevel::Untrusted)
+                .build(),
+        )
+        .unwrap();
+        bind(&mut lease, plan.id.clone(), make_step("node-a", "compute")).unwrap();
+
+        // Simulate binding at epoch 1.
+        lease.current.as_mut().unwrap().bound_at_epoch = 1;
+        let handle = lease.handle;
+        reg.insert(handle, lease, spec);
+
+        // Epoch changes to 2 → strict-bound surface should be invalidated.
+        let invalidations = reg.notify_epoch_change(2);
+        assert_eq!(invalidations.len(), 1);
+        assert_eq!(invalidations[0].handle, handle);
+        assert!(reg.is_empty());
+    }
+
+    #[test]
+    fn epoch_change_preserves_non_strict_binding() {
+        let (topo, _a, _b) = two_node_topology();
+        let mut reg = SurfaceRegistry::new();
+
+        let spec = sample_spec("rt-nonstrict");
+        // strict_epoch_binding is false (default).
+        let mut lease = new_lease(spec.clone()).unwrap();
+        let plan = crate::compile(
+            &topo,
+            &crate::builder::IntentBuilder::new()
+                .name("t")
+                .min_trust(TrustLevel::Untrusted)
+                .build(),
+        )
+        .unwrap();
+        bind(&mut lease, plan.id.clone(), make_step("node-a", "compute")).unwrap();
+
+        let handle = lease.handle;
+        reg.insert(handle, lease, spec);
+
+        // Epoch changes → non-strict surface should NOT be invalidated.
+        let invalidations = reg.notify_epoch_change(99);
+        assert_eq!(invalidations.len(), 0);
+        assert_eq!(reg.len(), 1);
+    }
+
+    #[test]
+    fn epoch_change_preserves_matching_epoch() {
+        let (topo, _a, _b) = two_node_topology();
+        let mut reg = SurfaceRegistry::new();
+
+        let mut spec = sample_spec("rt-matching");
+        spec.strict_epoch_binding = true;
+        let mut lease = new_lease(spec.clone()).unwrap();
+        let plan = crate::compile(
+            &topo,
+            &crate::builder::IntentBuilder::new()
+                .name("t")
+                .min_trust(TrustLevel::Untrusted)
+                .build(),
+        )
+        .unwrap();
+        bind(&mut lease, plan.id.clone(), make_step("node-a", "compute")).unwrap();
+
+        // Bind at epoch 5.
+        lease.current.as_mut().unwrap().bound_at_epoch = 5;
+        let handle = lease.handle;
+        reg.insert(handle, lease, spec);
+
+        // Epoch changes to 5 (same) → should NOT be invalidated.
+        let invalidations = reg.notify_epoch_change(5);
+        assert_eq!(invalidations.len(), 0);
+        assert_eq!(reg.len(), 1);
+    }
+
+    #[test]
+    fn epoch_change_empty_registry() {
+        let mut reg = SurfaceRegistry::new();
+        let invalidations = reg.notify_epoch_change(42);
+        assert!(invalidations.is_empty());
     }
 }
