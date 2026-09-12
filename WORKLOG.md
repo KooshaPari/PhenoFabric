@@ -1518,9 +1518,9 @@ syntax across all error enums in multihop and validate modules.
 - `go test ./cmd/trust`: ok (12 PASS)
 - HEAD: `c2b3a53` — `feat(graph): add multihop route compiler (R3)`
 
-**311 tests** all green.
+**344 tests** all green.
 
-### Cockpit — R3 60%
+### Cockpit — R3 85%
 
 ```
 R0 closure ────████████████████████████████████████ 100%
@@ -1538,4 +1538,4 @@ R3 progress ─███████████████░░░░░░�
 └─ fabric-cli Rust                         ✗ Tier 3 (ADR-0028)
 ```
 
-267 Rust tests + 44 Go tests = 311 total, all green.
+267 Rust + 77 Go = 344 tests, all green.
