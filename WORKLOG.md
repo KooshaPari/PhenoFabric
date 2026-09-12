@@ -1450,3 +1450,90 @@ R2 design  ──██████████████████░░░
   Reading the spec first would have avoided 8 wasted attempts.
 - Worker model availability is unreliable — built both implementations directly when
   subagents failed.
+
+## 2026-09-12 — R3 wedges: fabric-persist + fabric-daemon + multihop compiler
+
+### Context
+
+Fresh session targeting R3 deliverables: persistent state, service daemon,
+and multi-hop route compilation. Prior R2 sessions established the wire
+transport contract (spec 025), surface-plane runtime (spec 024), and
+trust-root operator CLI (spec 026). R3 grounds these into a running service.
+
+### What landed
+
+#### fabric-persist (21 tests)
+
+`crates/fabric-persist/` — SQLite-backed persistence layer:
+- `topology.rs` — persist/load/update_topology_meta for Topology nodes/edges/meta
+- `leases.rs` — full SurfaceLease lifecycle (insert/update/get/get_by_node/expire/cleanup_history)
+- `routes.rs` — RoutePlan storage (insert/get/get_by_epoch/replace/expire)
+- `schema.rs` — version-tracked schema with incremental migrations
+- `recovery.rs` — recover_state() single entry point for daemon startup
+- `lib.rs` — re-exports all public API
+
+Key type mismatches fixed from R1/R2 source:
+- `SurfaceLease` has handle/spec/current/history/state/exit_reason (not flat)
+- `LocalityTier::from_index` not `from_f64`
+- `TopologyMeta` has no `description` field
+- `RoutePlan.estimated_latency_us` is `Option<f64>`
+- `IntentId.0` is `Uuid`
+- `SurfaceSpec` has no `Default` — explicit field construction for deserialization fallback
+
+#### fabric-daemon (15 tests)
+
+`crates/fabric-daemon/` — service daemon:
+- `config.rs` — TOML config with CLI override merging (Server/Database/Topology/Lease/Logging)
+- `coordinator.rs` — Mutex<CoordinatorState> with topology/lease/plan ownership, graceful shutdown via AtomicBool, dirty-state flush to SQLite
+- `wire_server.rs` — TCP wire transport server per spec 025 (heartbeat/health_check/probe_request), connection limiting, per-connection timeout, stream.try_clone() for concurrent read/write
+- `health.rs` — JSON health response (status, uptime, epoch, lease/plan counts)
+- `logging.rs` — tracing-subscriber setup (json/pretty/compact)
+- `main.rs` — clap CLI with start/health/status subcommands, ctrlc handler
+
+#### multihop route compiler (24 tests)
+
+`crates/fabric-graph/src/multihop/` — multi-hop compilation:
+- `stages.rs` — 9 transport stage catalog (identity, shm_copy, hevc/av1 encode/decode, quic/tcp/unix_socket) with MediaFormat, StageCost, StageClaims
+- `cost.rs` — composite route cost computation from topology edge metrics
+- `validate.rs` — cycle detection, node existence, edge verification, epoch matching
+- `fallback.rs` — alternative route generation using alternative edges and degraded paths
+- `mod.rs` — BFS pathfinding compiler with per-hop stage selection by locality tier gap
+
+thiserror 2.0 fix: named `{source}`/`{dest}` format fields treated as
+error sources, not display values. Switched to positional `{0}`/`{1}`
+syntax across all error enums in multihop and validate modules.
+
+### ADRs authored
+
+- `adr/0032-multihop-route-compiler.md` (Proposed) — BFS + stage catalog + cost + validation + fallback
+- `adr/0033-fabric-daemon-architecture.md` (Proposed) — TOML config + coordinator + wire server + health
+- `adr/0034-sqlite-backed-persistent-state.md` (Proposed) — SQLite/WAL + schema migrations + recovery
+
+### Verification
+
+- `cargo test --workspace`: **253 pass / 0 fail** (was 187; +66 = 21 persist + 15 daemon + 24 multihop + 6 misc)
+- `go test ./cmd/capprobe`: ok (6 PASS top-level)
+- `go test ./cmd/checker`: ok (26 PASS top-level)
+- `go test ./cmd/wire`: ok
+- `go test ./cmd/trust`: ok (12 PASS)
+- HEAD: `c2b3a53` — `feat(graph): add multihop route compiler (R3)`
+
+**297 tests** all green.
+
+### Cockpit — R3 40%
+
+```
+R0 closure ────████████████████████████████████████ 100%
+R1 closure ──████████████████████████████████████ 100%
+R2 closure ──████████████████████████████░░░░░ 70%
+R3 progress ─███████░░░░░░░░░░░░░░░░░░░░░░░░░░░ 40%
+├─ fabric-persist (SQLite persistence)     ✓ committed, 21 tests
+├─ fabric-daemon (service daemon)          ✓ committed, 15 tests
+├─ multihop route compiler                 ✓ committed, 24 tests
+├─ ADR-0032/0033/0034                      ✓ authored
+├─ wire transport integration (daemon↔Go)  ◐ next
+├─ topology-driven checker replan (Go)     ◐ next
+├─ surface plane rotation (epoch bump)     ◐ R3 next
+├─ multi-hop failover (fallback routes)    ◐ R3 next
+└─ fabric-cli Rust                         ✗ Tier 3 (ADR-0028)
+```
