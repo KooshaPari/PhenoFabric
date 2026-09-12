@@ -11,6 +11,7 @@ members = [
     "crates/fabric-tray",
     "crates/fabric-gui",
     "crates/fabric-web",
+    "crates/fabric-frame-transport",
     "crates/phenotype-nvms-adapter",
 ]
 
