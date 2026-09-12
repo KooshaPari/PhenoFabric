@@ -140,6 +140,26 @@ impl Coordinator {
         self.shutdown.clone()
     }
 
+    /// Compile a multihop route using the current in-memory topology.
+    ///
+    /// Locks the state mutex, clones the topology, releases the lock,
+    /// then runs `compile_multihop`. This avoids holding the lock during
+    /// the (potentially expensive) compilation.
+    pub fn compile_multihop(
+        &self,
+        source: &fabric_graph::model::NodeId,
+        destination: &fabric_graph::model::NodeId,
+        intent: &fabric_graph::model::Intent,
+        catalog: &[fabric_graph::multihop::TransportStage],
+    ) -> Result<fabric_graph::multihop::MultihopResult, CoordinatorError> {
+        let topo = {
+            let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            state.topology.clone()
+        };
+        fabric_graph::multihop::compile_multihop(&topo, source, destination, intent, catalog)
+            .map_err(|e| CoordinatorError::Compile(e.to_string()))
+    }
+
     /// Insert a lease into the active set.
     pub fn insert_lease(&self, lease: SurfaceLease) {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
@@ -193,6 +213,8 @@ pub enum CoordinatorError {
     Recovery(String),
     #[error("flush error: {0}")]
     Flush(String),
+    #[error("compile error: {0}")]
+    Compile(String),
 }
 
 #[cfg(test)]

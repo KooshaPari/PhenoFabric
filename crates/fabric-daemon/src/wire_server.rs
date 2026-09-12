@@ -179,11 +179,76 @@ fn process_message(message: &str, coordinator: &Coordinator) -> Option<String> {
                 epoch.0
             ))
         }
+        "compile_request" | "CompileRequest" => {
+            handle_compile_request(&parsed, coordinator)
+        }
         _ => Some(format!(
             r#"{{"error":"unknown_message","type":"{}"}}"#,
             msg_type
         )),
     }
+}
+
+/// Handle a compile_request message: run compile_multihop on the current topology.
+fn handle_compile_request(
+    parsed: &serde_json::Value,
+    coordinator: &Coordinator,
+) -> Option<String> {
+    let source = match parsed.get("source").and_then(|v| v.as_str()) {
+        Some(s) => fabric_graph::model::NodeId::new(s),
+        None => {
+            return Some(
+                r#"{"type":"compile_error","error":"missing_source","message":"source field required"}"#.into(),
+            );
+        }
+    };
+    let destination = match parsed.get("destination").and_then(|v| v.as_str()) {
+        Some(s) => fabric_graph::model::NodeId::new(s),
+        None => {
+            return Some(
+                r#"{"type":"compile_error","error":"missing_destination","message":"destination field required"}"#.into(),
+            );
+        }
+    };
+
+    // Build a minimal intent from the request (or use defaults).
+    let intent_name = parsed
+        .get("intent_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("wire-compile");
+    let intent = fabric_graph::builder::IntentBuilder::new()
+        .name(intent_name)
+        .min_trust(fabric_graph::TrustLevel::Untrusted)
+        .build();
+
+    let catalog = fabric_graph::multihop::builtin_stages();
+
+    match compile_with_coordinator(coordinator, &source, &destination, &intent, &catalog) {
+        Ok(result) => {
+            let plan_json = serde_json::to_string(&result.primary).unwrap_or_default();
+            Some(format!(
+                r#"{{"type":"compile_response","plan":{},"status":"ok"}}"#,
+                plan_json
+            ))
+        }
+        Err(e) => Some(format!(
+            r#"{{"type":"compile_error","error":"compile_failed","message":"{}"}}"#,
+            e
+        )),
+    }
+}
+
+/// Compile a multihop route using the coordinator's current topology.
+fn compile_with_coordinator(
+    coordinator: &Coordinator,
+    source: &fabric_graph::model::NodeId,
+    destination: &fabric_graph::model::NodeId,
+    intent: &fabric_graph::model::Intent,
+    catalog: &[fabric_graph::multihop::TransportStage],
+) -> Result<fabric_graph::multihop::MultihopResult, String> {
+    coordinator
+        .compile_multihop(source, destination, intent, catalog)
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -284,5 +349,60 @@ mod tests {
         let msg = r#"{"type":"foo_bar"}"#;
         let resp = process_message(msg, &coord).unwrap();
         assert!(resp.contains("unknown_message"));
+    }
+
+    #[test]
+    fn process_compile_request_missing_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+
+        let msg = r#"{"type":"compile_request","destination":"b"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("missing_source"));
+    }
+
+    #[test]
+    fn process_compile_request_missing_destination() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+
+        let msg = r#"{"type":"compile_request","source":"a"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("missing_destination"));
+    }
+
+    #[test]
+    fn process_compile_request_empty_topology_returns_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+
+        // Empty topology → compile fails.
+        let msg = r#"{"type":"compile_request","source":"a","destination":"b"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("compile_error") || resp.contains("compile_failed"));
     }
 }
