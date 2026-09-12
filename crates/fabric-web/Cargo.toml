@@ -2,14 +2,29 @@
 name = "fabric-web"
 version = "0.1.0"
 edition = "2021"
-description = "Phenotype Fabric web frontend shared types and API contracts"
+description = "Phenotype Fabric web frontend — Leptos WASM SPA"
 license = "MIT OR Apache-2.0"
 publish = false
+
+[lib]
+name = "fabric_web"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
 
 [dependencies]
 fabric-graph = { path = "../fabric-graph" }
 fabric-tray = { path = "../fabric-tray" }
+fabric-frame-transport = { path = "../fabric-frame-transport" }
 
+leptos = { version = "0.7", features = [] }
+leptos_meta = "0.7"
+leptos_router = "0.7"
+console_error_panic_hook = "0.1"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Window", "Document", "HtmlElement", "Request", "Response", "RequestInit", "Location"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-anyhow = "1.0"
+
+[features]
+hydrate = ["leptos/hydrate"]
