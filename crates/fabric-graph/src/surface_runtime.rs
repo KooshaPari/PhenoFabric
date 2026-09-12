@@ -456,4 +456,77 @@ mod tests {
             binding_id.to_string()
         );
     }
+
+    #[test]
+    fn invalidation_operator_revoked_maps_to_revoked_wire_reason() {
+        let inv = Invalidation {
+            handle: SurfaceHandle::new(),
+            binding_id: Uuid::nil(),
+            reason: LeaseExitReason::OperatorRevoked,
+            epoch: 7,
+        };
+        let wire = inv.to_wire_json();
+        assert_eq!(wire["reason"], "Revoked");
+        assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
+        assert_eq!(wire["epoch"], 7);
+    }
+
+    #[test]
+    fn invalidation_expired_maps_to_expired_wire_reason() {
+        let inv = Invalidation {
+            handle: SurfaceHandle::new(),
+            binding_id: Uuid::nil(),
+            reason: LeaseExitReason::Expired,
+            epoch: 0,
+        };
+        let wire = inv.to_wire_json();
+        assert_eq!(wire["reason"], "Expired");
+        assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
+    }
+
+    #[test]
+    fn invalidation_workload_reported_maps_to_failed_wire_reason() {
+        let inv = Invalidation {
+            handle: SurfaceHandle::new(),
+            binding_id: Uuid::nil(),
+            reason: LeaseExitReason::WorkloadReported {
+                code: "OOM".to_string(),
+                message: "out of memory".to_string(),
+            },
+            epoch: 0,
+        };
+        let wire = inv.to_wire_json();
+        assert_eq!(wire["reason"], "Failed");
+        assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
+    }
+
+    #[test]
+    fn invalidation_normal_completion_maps_to_normal_completion() {
+        let inv = Invalidation {
+            handle: SurfaceHandle::new(),
+            binding_id: Uuid::nil(),
+            reason: LeaseExitReason::NormalCompletion,
+            epoch: 0,
+        };
+        let wire = inv.to_wire_json();
+        assert_eq!(wire["reason"], "NormalCompletion");
+        assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
+    }
+
+    #[test]
+    fn invalidation_epoch_drift_maps_to_epoch_drift() {
+        let inv = Invalidation {
+            handle: SurfaceHandle::new(),
+            binding_id: Uuid::nil(),
+            reason: LeaseExitReason::EpochDrift {
+                previous_epoch: 1,
+                new_epoch: 5,
+            },
+            epoch: 5,
+        };
+        let wire = inv.to_wire_json();
+        assert_eq!(wire["reason"], "EpochDrift");
+        assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
+        assert_eq!(wire["epoch"], 5);
+    }
 }

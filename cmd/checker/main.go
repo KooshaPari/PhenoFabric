@@ -19,6 +19,11 @@
 // failed and must not be placed on. Any descriptor whose NodeID matches a
 // blacklisted ID is rejected with ReasonBlacklisted.
 //
+// The -trust-root flag (R2, spec 021) loads a root Authority JSON and
+// verifies the descriptor's Ed25519 signature before running checks.
+// Descriptors with no/invalid/untrusted signatures are rejected with
+// ReasonUntrusted.
+//
 // The -replan-binary flag (R2, Q1-C, spec 023) delegates the failover
 // decision to a thin Rust binary that exposes fabric-graph::failover::replan
 // over stdin/stdout JSON. When set, -topology, -intent, -old-plan must
@@ -40,6 +45,7 @@ func main() {
 	descriptorPath := flag.String("descriptor", "", "path to host capability descriptor JSON")
 	manifestPath := flag.String("manifest", "", "path to NVMS manifest JSON")
 	blacklistFlag := flag.String("failover-blacklist", "", "comma-separated node IDs that have failed (R1, ADR-0030)")
+	trustRootPath := flag.String("trust-root", "", "path to root Authority JSON for signature verification (R2, spec 021)")
 	replanBinary := flag.String("replan-binary", "", "path to fabric-graph-cli binary for topology-driven failover (R2, spec 023)")
 	topologyPath := flag.String("topology", "", "path to topology JSON (used with -replan-binary)")
 	intentPath := flag.String("intent", "", "path to intent JSON (used with -replan-binary)")
@@ -64,6 +70,29 @@ func main() {
 	}
 
 	blacklist := parseBlacklist(*blacklistFlag)
+
+	// R2: trust-root verification before any placement checks.
+	if *trustRootPath != "" {
+		root, err := loadTrustRoot(*trustRootPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "load trust root: %v\n", err)
+			os.Exit(1)
+		}
+		if err := verifyDescriptorSignature(host, root); err != nil {
+			report := Report{
+				Decision: DecisionReject,
+				Findings: []Finding{{
+					Severity: SeverityBlock,
+					Code:     ReasonUntrusted,
+					Message:  err.Error(),
+				}},
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			_ = enc.Encode(report)
+			os.Exit(1)
+		}
+	}
 
 	var report Report
 	if *replanBinary != "" {
