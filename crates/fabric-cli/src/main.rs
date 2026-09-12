@@ -2,7 +2,6 @@
 //!
 //! PF-WP-020.06 deliverable — primary user-facing interface for Fabric.
 
-use anyhow::Context;
 use clap::Parser;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
@@ -40,6 +39,13 @@ fn main() -> anyhow::Result<()> {
         Commands::Graph { sub } => commands::graph::dispatch(sub, &workspace),
         Commands::Route { sub } => commands::route::dispatch(sub, &workspace),
         Commands::Workspace { sub } => commands::workspace::dispatch(sub, &workspace),
+        Commands::Tui => {
+            tracing_subscriber::registry()
+                .with(fmt::layer().with_target(true).with_level(true))
+                .with(EnvFilter::new("info"))
+                .init();
+            fabric_cli::tui::run(&workspace)
+        }
     };
 
     if let Err(ref e) = result {

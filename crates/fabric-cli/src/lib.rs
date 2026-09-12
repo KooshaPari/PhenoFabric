@@ -9,6 +9,7 @@
 //!   workspace — create, list, show, delete
 
 pub mod commands;
+pub mod tui;
 mod output;
 
 use clap::Parser;
@@ -59,6 +60,8 @@ pub enum Commands {
         #[command(subcommand)]
         sub: WorkspaceCommand,
     },
+    /// Launch the interactive TUI topology explorer.
+    Tui,
 }
 
 #[derive(Parser, Debug)]
