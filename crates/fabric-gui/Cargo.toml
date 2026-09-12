@@ -1,0 +1,25 @@
+[package]
+name = "fabric-gui"
+version = "0.1.0"
+edition = "2021"
+description = "Phenotype Fabric native GUI — egui-based topology visualization with surface streaming"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[[bin]]
+name = "fabric-gui"
+path = "src/main.rs"
+
+[dependencies]
+fabric-graph = { path = "../fabric-graph" }
+fabric-tray = { path = "../fabric-tray" }
+
+eframe = "0.31"
+egui = "0.31"
+egui_extras = "0.31"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+dirs = "5.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

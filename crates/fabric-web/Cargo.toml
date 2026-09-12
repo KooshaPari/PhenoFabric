@@ -1,0 +1,43 @@
+[package]
+name = "fabric-web"
+version = "0.1.0"
+edition = "2021"
+description = "Phenotype Fabric web frontend — Leptos SPA with surface streaming"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+name = "fabric_web"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+fabric-graph = { path = "../fabric-graph" }
+fabric-tray = { path = "../fabric-tray" }
+
+leptos = { version = "0.7", features = [] }
+leptos_meta = "0.7"
+leptos_router = "0.7"
+wasm-bindgen = "0.2"
+web-sys = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+
+[features]
+hydrate = [
+    "leptos/hydrate",
+]
+ssr = [
+    "leptos/ssr",
+]
+
+[package.metadata.leptos]
+output-name = "fabric-web"
+site-root = "target/site"
+site-pkg-dir = "pkg"
+assets-dir = "public"
+site-addr = "0.0.0.0:3000"
+reload-port = 3001
+watch = false
