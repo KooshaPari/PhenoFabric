@@ -21,6 +21,7 @@
 //! - `0x08` KeyFrame   — server → client, request IDR/keyframe
 
 pub mod stats;
+pub mod transport;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
