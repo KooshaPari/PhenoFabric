@@ -47,6 +47,8 @@ func main() {
 	blacklistFlag := flag.String("failover-blacklist", "", "comma-separated node IDs that have failed (R1, ADR-0030)")
 	trustRootPath := flag.String("trust-root", "", "path to root Authority JSON for signature verification (R2, spec 021)")
 	replanBinary := flag.String("replan-binary", "", "path to fabric-graph-cli binary for topology-driven failover (R2, spec 023)")
+	daemonAddr := flag.String("daemon-addr", "", "TCP address of fabric-daemon for wire-based replan (R3, spec 025)")
+	daemonTenant := flag.String("daemon-tenant", "ops-phenotype-default", "tenant_id for wire envelope communication")
 	topologyPath := flag.String("topology", "", "path to topology JSON (used with -replan-binary)")
 	intentPath := flag.String("intent", "", "path to intent JSON (used with -replan-binary)")
 	oldPlanPath := flag.String("old-plan", "", "path to old RoutePlan JSON (used with -replan-binary)")
@@ -112,6 +114,18 @@ func main() {
 			os.Exit(1)
 		}
 		report = reportFromReplan(host, rep)
+	} else if *daemonAddr != "" {
+		// R3: topology-driven replan via wire transport to fabric-daemon
+		if *topologyPath == "" || *intentPath == "" || *oldPlanPath == "" {
+			fmt.Fprintln(os.Stderr, "when -daemon-addr is set, -topology, -intent, and -old-plan are required")
+			os.Exit(2)
+		}
+		var err error
+		report, err = wireReplan(*daemonAddr, *daemonTenant, *topologyPath, *intentPath, *oldPlanPath, blacklist, host)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "wire replan: %v\n", err)
+			os.Exit(1)
+		}
 	} else {
 		report = check(host, m, blacklist)
 	}
