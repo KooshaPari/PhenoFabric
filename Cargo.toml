@@ -7,6 +7,7 @@ members = [
     "crates/fabric-graph-cli",
     "crates/fabric-persist",
     "crates/fabric-daemon",
+    "crates/fabric-cli",
     "crates/phenotype-nvms-adapter",
 ]
 

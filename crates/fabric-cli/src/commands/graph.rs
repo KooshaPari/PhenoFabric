@@ -3,6 +3,7 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use fabric_capability::descriptor::CapabilityDescriptor;
 use fabric_capability::locality::LocalityTier;
@@ -17,6 +18,8 @@ pub struct BuildArgs {
     pub name: String,
     #[arg(short, long, num_args = 1..)]
     pub descriptors: Vec<PathBuf>,
+    #[arg(short, long)]
+    pub label: Option<String>,
     #[arg(short, long)]
     pub output: Option<PathBuf>,
     #[arg(long)]
@@ -65,12 +68,12 @@ pub struct AddEdgeArgs {
     pub output: Option<PathBuf>,
 }
 
-pub fn dispatch(sub: &super::GraphCommand, workspace: &Path) -> Result<()> {
+pub fn dispatch(sub: &crate::GraphCommand, workspace: &Path) -> Result<()> {
     match sub {
-        super::GraphCommand::Build(a) => build(a, workspace),
-        super::GraphCommand::Show(a) => show(a),
-        super::GraphCommand::AddNode(a) => add_node(a),
-        super::GraphCommand::AddEdge(a) => add_edge(a),
+        crate::GraphCommand::Build(a) => build(a, workspace),
+        crate::GraphCommand::Show(a) => show(a),
+        crate::GraphCommand::AddNode(a) => add_node(a),
+        crate::GraphCommand::AddEdge(a) => add_edge(a),
     }
 }
 
@@ -83,7 +86,7 @@ fn build(args: &BuildArgs, workspace: &Path) -> Result<()> {
         let node_id = NodeId::new(desc.node_id.to_string());
         let locality = LocalityTier::L0SameProcess;
         let cap_ref = CapabilityRef::new(desc.node_id.to_string())
-            .with_trust(fabric_graph::model::TrustLevel::Provided);
+            .with_trust(fabric_graph::model::TrustLevel::Untrusted);
         let mut node = Node::new(node_id, locality).with_capability(cap_ref);
         if let Some(label) = &args.label {
             node = node.with_label(label);
@@ -117,15 +120,15 @@ fn show(args: &ShowArgs) -> Result<()> {
 
 fn add_node(args: &AddNodeArgs) -> Result<()> {
     let mut topology = load_topology(&args.input)?;
-    let tier = LocalityTier::from_short_code(&args.tier)
-        .ok_or_else(|| anyhow::anyhow!("unknown locality tier code: {}", args.tier))?;
+    let tier = LocalityTier::from_str(&args.tier)
+        .map_err(|e| anyhow::anyhow!("unknown locality tier '{}': {}", args.tier, e))?;
     let cap_ref = if let Some(desc_path) = &args.descriptor {
         let json = std::fs::read_to_string(desc_path)
             .with_context(|| format!("read {}", desc_path.display()))?;
         let desc: CapabilityDescriptor = serde_json::from_str(&json)?;
         Some(
             CapabilityRef::new(desc.node_id.to_string())
-                .with_trust(fabric_graph::model::TrustLevel::Provided),
+                .with_trust(fabric_graph::model::TrustLevel::Untrusted),
         )
     } else {
         None
@@ -150,9 +153,19 @@ fn add_node(args: &AddNodeArgs) -> Result<()> {
 
 fn add_edge(args: &AddEdgeArgs) -> Result<()> {
     let mut topology = load_topology(&args.input)?;
-    let metrics = LinkMetrics::new(args.bandwidth, args.max_latency_us, args.loss);
-    let edge = Edge::new(NodeId::new(args.from.clone()), NodeId::new(args.to.clone()))
-        .with_metrics(metrics);
+    let metrics = LinkMetrics {
+        latency_us: Some(args.max_latency_us as f64),
+        bandwidth_bps: Some(args.bandwidth),
+        packet_loss: Some(args.loss),
+        jitter_us: None,
+    };
+    let edge = Edge::new(
+        fabric_graph::model::EdgeId::new(format!("{}-{}", args.from, args.to)),
+        NodeId::new(args.from.clone()),
+        NodeId::new(args.to.clone()),
+        LocalityTier::L6Lan,
+    )
+    .with_metrics(metrics);
     topology.add_edge(edge);
     save_topology(
         &topology,

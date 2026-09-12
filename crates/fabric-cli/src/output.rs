@@ -100,13 +100,15 @@ pub fn format_tier(tier: LocalityTier) -> String {
 
 pub fn format_trust(level: TrustLevel) -> String {
     let name = match level {
-        TrustLevel::Provided => "provided",
-        TrustLevel::Verified => "verified",
+        TrustLevel::Untrusted => "untrusted",
+        TrustLevel::Bootstrap => "bootstrap",
+        TrustLevel::Attested => "attested",
         TrustLevel::Audited => "audited",
     };
     match level {
-        TrustLevel::Provided => console::style(name).yellow().to_string(),
-        TrustLevel::Verified => console::style(name).green().to_string(),
+        TrustLevel::Untrusted => console::style(name).red().to_string(),
+        TrustLevel::Bootstrap => console::style(name).yellow().to_string(),
+        TrustLevel::Attested => console::style(name).green().to_string(),
         TrustLevel::Audited => console::style(name).cyan().to_string(),
     }
 }

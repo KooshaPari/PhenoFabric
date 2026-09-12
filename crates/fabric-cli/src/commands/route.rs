@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use fabric_graph::{
     builder::IntentBuilder,
     compile,
-    model::{IntentKind, TrustLevel},
+    model::TrustLevel,
     planner,
 };
 
@@ -29,7 +29,7 @@ pub struct CompileArgs {
     pub min_bandwidth: u64,
     #[arg(long, default_value_t = 8.0)]
     pub max_locality: f64,
-    #[arg(long, default_value = "provided")]
+    #[arg(long, default_value = "untrusted")]
     pub trust: String,
     #[arg(short, long)]
     pub output: Option<PathBuf>,
@@ -59,12 +59,12 @@ pub struct ShowArgs {
     pub input: PathBuf,
 }
 
-pub fn dispatch(sub: &super::RouteCommand, workspace: &Path) -> Result<()> {
+pub fn dispatch(sub: &crate::RouteCommand, workspace: &Path) -> Result<()> {
     match sub {
-        super::RouteCommand::Compile(a) => compile_route(a, workspace),
-        super::RouteCommand::Plan(a) => plan_sequence(a, workspace),
-        super::RouteCommand::Validate(a) => validate(a),
-        super::RouteCommand::Show(a) => show(a),
+        crate::RouteCommand::Compile(a) => compile_route(a, workspace),
+        crate::RouteCommand::Plan(a) => plan_sequence(a, workspace),
+        crate::RouteCommand::Validate(a) => validate(a),
+        crate::RouteCommand::Show(a) => show(a),
     }
 }
 
@@ -77,7 +77,6 @@ fn compile_route(args: &CompileArgs, workspace: &Path) -> Result<()> {
     let trust = parse_trust(&args.trust)?;
     let mut builder = IntentBuilder::new()
         .name(&args.intent)
-        .kind(IntentKind::Compute)
         .min_trust(trust)
         .max_locality(args.max_locality);
     for tag in &args.require_tag {
@@ -90,11 +89,11 @@ fn compile_route(args: &CompileArgs, workspace: &Path) -> Result<()> {
     let out_path = args.output.clone().unwrap_or_else(|| {
         workspace.join("routes").join(format!("{}.json", args.intent))
     });
+    let json = serde_json::to_string_pretty(&plan)?;
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_string_pretty(&plan)?;
-    std::fs::write(&out_path, json)
+    std::fs::write(&out_path, &json)
         .with_context(|| format!("write {}", out_path.display()))?;
     eprintln!("wrote {}", out_path.display());
 
@@ -102,18 +101,19 @@ fn compile_route(args: &CompileArgs, workspace: &Path) -> Result<()> {
         println!("{}", json);
     } else {
         println!(
-            "{} {}",
+            "{} {:?}",
             console::style("Route plan:").cyan().bold(),
             plan.id
         );
         println!("  total steps: {}", plan.steps.len());
-        println!("  score:       {:.3}", plan.score.total);
+        if let Some(ref score) = plan.score {
+            println!("  score:       {:.3}", score.composite);
+        }
         for (i, step) in plan.steps.iter().enumerate() {
             println!(
-                "  step {}: node={} tier={:.1}",
+                "  step {}: node={}",
                 i,
                 step.node,
-                step.locality.as_f64()
             );
         }
     }
@@ -131,11 +131,11 @@ fn plan_sequence(args: &PlanArgs, workspace: &Path) -> Result<()> {
         .map(|name| {
             IntentBuilder::new()
                 .name(name)
-                .kind(IntentKind::Compute)
                 .build()
         })
         .collect();
-    let plan = planner::plan_sequence(&topology, &intents).context("plan_sequence failed")?;
+    let plan = planner::plan_sequence(&topology, "cli-sequence", &intents)
+        .context("plan_sequence failed")?;
     let out_path = args.output.clone().unwrap_or_else(|| {
         workspace
             .join("routes")
@@ -148,8 +148,8 @@ fn plan_sequence(args: &PlanArgs, workspace: &Path) -> Result<()> {
     std::fs::write(&out_path, json)
         .with_context(|| format!("write {}", out_path.display()))?;
     println!(
-        "wrote plan with {} steps to {}",
-        plan.steps.len(),
+        "wrote plan with {} routes to {}",
+        plan.plans.len(),
         out_path.display()
     );
     Ok(())
@@ -170,15 +170,16 @@ fn show(args: &ShowArgs) -> Result<()> {
     let plan: fabric_graph::model::RoutePlan = serde_json::from_str(&json)
         .context("parse route plan JSON")?;
     println!("{}", console::style("Route plan:").cyan().bold());
-    println!("  id:    {}", plan.id);
+    println!("  id:    {:?}", plan.id);
     println!("  steps: {}", plan.steps.len());
-    println!("  score: {:.3}", plan.score.total);
+    if let Some(ref score) = plan.score {
+        println!("  score: {:.3}", score.composite);
+    }
     for (i, step) in plan.steps.iter().enumerate() {
         println!(
-            "  step {}: node={} tier={:.1}",
+            "  step {}: node={}",
             i,
             step.node,
-            step.locality.as_f64()
         );
     }
     Ok(())
@@ -186,8 +187,9 @@ fn show(args: &ShowArgs) -> Result<()> {
 
 fn parse_trust(s: &str) -> Result<TrustLevel> {
     match s {
-        "provided" => Ok(TrustLevel::Provided),
-        "verified" => Ok(TrustLevel::Verified),
+        "untrusted" => Ok(TrustLevel::Untrusted),
+        "bootstrap" => Ok(TrustLevel::Bootstrap),
+        "attested" => Ok(TrustLevel::Attested),
         "audited" => Ok(TrustLevel::Audited),
         other => Err(anyhow::anyhow!("unknown trust level: {}", other)),
     }

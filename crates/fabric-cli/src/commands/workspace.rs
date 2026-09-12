@@ -78,12 +78,12 @@ fn save_index(workspace: &Path, entries: &[WorkspaceState]) -> Result<()> {
     Ok(())
 }
 
-pub fn dispatch(sub: &super::WorkspaceCommand, workspace: &Path) -> Result<()> {
+pub fn dispatch(sub: &crate::WorkspaceCommand, workspace: &Path) -> Result<()> {
     match sub {
-        super::WorkspaceCommand::Create(a) => create(a, workspace),
-        super::WorkspaceCommand::List(a) => list(a, workspace),
-        super::WorkspaceCommand::Show(a) => show(a, workspace),
-        super::WorkspaceCommand::Delete(a) => delete(a, workspace),
+        crate::WorkspaceCommand::Create(a) => create(a, workspace),
+        crate::WorkspaceCommand::List(a) => list(a, workspace),
+        crate::WorkspaceCommand::Show(a) => show(a, workspace),
+        crate::WorkspaceCommand::Delete(a) => delete(a, workspace),
     }
 }
 

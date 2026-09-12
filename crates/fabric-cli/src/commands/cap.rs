@@ -60,19 +60,19 @@ pub struct ValidateArgs {
     pub descriptor: PathBuf,
 }
 
-pub fn dispatch(sub: &super::CapCommand, _workspace: &std::path::Path) -> Result<()> {
+pub fn dispatch(sub: &crate::CapCommand, _workspace: &std::path::Path) -> Result<()> {
     match sub {
-        super::CapCommand::Probe(a) => probe(a),
-        super::CapCommand::Sign(a) => sign(a),
-        super::CapCommand::Verify(a) => verify(a),
-        super::CapCommand::Export(a) => export(a),
-        super::CapCommand::ImportNvms(a) => import_nvms(a),
-        super::CapCommand::Validate(a) => validate(a),
+        crate::CapCommand::Probe(a) => probe(a),
+        crate::CapCommand::Sign(a) => sign(a),
+        crate::CapCommand::Verify(a) => verify(a),
+        crate::CapCommand::Export(a) => export(a),
+        crate::CapCommand::ImportNvms(a) => import_nvms(a),
+        crate::CapCommand::Validate(a) => validate(a),
     }
 }
 
 fn probe(args: &ProbeArgs) -> Result<()> {
-    let probe = default_probe().context("no probe implementation available")?;
+    let probe = default_probe();
     let mut descriptor = probe.probe().context("capability probe failed on this host")?;
     let key = signing::SigningKey::generate();
     signing::sign(&mut descriptor, &key).context("auto-sign failed")?;
@@ -94,7 +94,7 @@ fn sign(args: &SignArgs) -> Result<()> {
     let key_bytes = std::fs::read(&args.key).with_context(|| format!("read {}", args.key.display()))?;
     let key_array: [u8; 32] = key_bytes.as_slice().try_into()
         .map_err(|_| anyhow::anyhow!("signing key must be exactly 32 bytes"))?;
-    let key = signing::SigningKey::from_bytes(&key_array).context("invalid signing key bytes")?;
+    let key = signing::SigningKey::from_bytes(&key_array);
     signing::sign(&mut descriptor, &key).context("sign")?;
     println!("signed with key id {}", key.key_id());
     println!("topology_hash: {}", descriptor.topology_hash());
@@ -108,7 +108,7 @@ fn verify(args: &VerifyArgs) -> Result<()> {
     let key_bytes = std::fs::read(&args.key).with_context(|| format!("read {}", args.key.display()))?;
     let key_array: [u8; 32] = key_bytes.as_slice().try_into()
         .map_err(|_| anyhow::anyhow!("verification key must be exactly 32 bytes"))?;
-    let vk = signing::VerificationKey::from_bytes(&key_array).context("invalid verification key bytes")?;
+    let vk = signing::VerificationKey::from_bytes(&key_array);
     let trusted_ids: Vec<String> = vec![vk.key_id().to_string()];
     let valid = signing::verify(&descriptor, &vk).is_ok();
     let trusted = descriptor.has_trusted_signature(&trusted_ids);
@@ -125,20 +125,25 @@ fn export(args: &ExportArgs) -> Result<()> {
         .with_context(|| format!("read {}", args.descriptor.display()))?;
     let descriptor: CapabilityDescriptor = serde_json::from_str(&json).context("parse descriptor JSON")?;
     let pretty = serde_json::to_string_pretty(&descriptor)?;
-    std::fs::write(&args.output, pretty).with_context(|| format!("write {}", args.output.display()))?;
+    std::fs::write(&args.output, &pretty).with_context(|| format!("write {}", args.output.display()))?;
     println!("exported {} bytes to {}", pretty.len(), args.output.display());
     Ok(())
 }
 
 fn import_nvms(args: &ImportNvmsArgs) -> Result<()> {
-    use phenotype_nvms_adapter::{nvms_to_capability_descriptor, NVMS_VERSION};
-    let yaml = std::fs::read_to_string(&args.manifest)
+    let text = std::fs::read_to_string(&args.manifest)
         .with_context(|| format!("read {}", args.manifest.display()))?;
-    let descriptor = nvms_to_capability_descriptor(&yaml, None)
-        .context("convert NVMS manifest to CapabilityDescriptor")?;
-    let json = serde_json::to_string_pretty(&descriptor)?;
-    std::fs::write(&args.output, json).with_context(|| format!("write {}", args.output.display()))?;
-    eprintln!("imported from NVMS v{} manifest", NVMS_VERSION);
+    // Try JSON first, then YAML
+    let manifest: phenotype_nvms_adapter::phenotype_manifest::Manifest =
+        serde_json::from_str(&text)
+            .or_else(|_| serde_yaml::from_str(&text))
+            .context("parse manifest (expected JSON or YAML)")?;
+    let req_caps = phenotype_nvms_adapter::required_capabilities(&manifest)
+        .context("compute required capabilities")?;
+    // RequiredCapabilities doesn't implement Serialize; use Debug output
+    std::fs::write(&args.output, format!("{:#?}", req_caps))
+        .with_context(|| format!("write {}", args.output.display()))?;
+    eprintln!("imported from NVMS manifest");
     eprintln!("wrote {}", args.output.display());
     Ok(())
 }
