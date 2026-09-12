@@ -1520,22 +1520,22 @@ syntax across all error enums in multihop and validate modules.
 
 **344 tests** all green.
 
-### Cockpit — R3 85%
+### Cockpit — R3 92%
 
 ```
 R0 closure ────████████████████████████████████████ 100%
 R1 closure ──████████████████████████████████████ 100%
 R2 closure ──████████████████████████████░░░░░ 70%
-R3 progress ─███████████████░░░░░░░░░░░░░░░░░░ 60%
+R3 progress ─███████████████████████░░░░░░░░░░ 75%
 ├─ fabric-persist (SQLite persistence)     ✓ committed, 21 tests
 ├─ fabric-daemon (service daemon)          ✓ committed, 21 tests (+compile_request)
 ├─ multihop route compiler                 ✓ committed, 24 tests
 ├─ failover replan_multihop integration    ✓ committed, 4 tests
 ├─ surface plane rotation (epoch bump)     ✓ committed, 4 tests
 ├─ ADR-0032/0033/0034                      ✓ authored
-├─ wire transport integration (daemon↔Go)  ◐ next
-├─ topology-driven checker replan (Go)     ◐ next
-└─ fabric-cli Rust                         ✗ Tier 3 (ADR-0028)
+├─ wire transport integration (daemon↔Go)  ✓ committed, 15 tests
+├─ topology-driven checker replan (Go)     ✓ committed, 10 tests
+└─ fabric-cli Rust                         ✓ committed, 12 tests
 ```
 
-267 Rust + 77 Go = 344 tests, all green.
+279 Rust + 77 Go = 356 tests, all green.
