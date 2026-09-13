@@ -24,6 +24,7 @@ pub mod schema;
 pub mod stats;
 pub mod transport;
 pub mod validation;
+pub mod transforms;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
