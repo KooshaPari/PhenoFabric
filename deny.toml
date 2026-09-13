@@ -1,0 +1,81 @@
+# cargo-deny configuration for Phenotype Fabric
+# https://embarkstudios.github.io/cargo-deny/
+
+# ── advisories ──────────────────────────────────────────────────────────
+[advisories]
+# Deny any advisory at any severity level.
+vulnerability = "deny"
+# Warn on yanked crates (deny blocks the build; warn is informational).
+yanked = "warn"
+# Ignore specific advisories (add RUSTSEC-XXXX-XXXX here if needed).
+ignore = [
+    # RUSTSEC-2026-0195 / RUSTSEC-2026-0196 — quick-xml < 0.41.0
+    # Transitive dep via eframe 0.31.x -> accesskit -> zbus_xml -> quick-xml ^0.30.
+    # Cannot be patched; upgrading eframe to 0.36.x resolves it.
+    # Risk: LOW (requires malicious local D-Bus service).
+    "RUSTSEC-2026-0195",
+    "RUSTSEC-2026-0196",
+]
+
+# ── licenses ────────────────────────────────────────────────────────────
+[licenses]
+# Allow these license identifiers (SPDX).
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "BSL-1.0",
+    "0BSD",
+    "MIT OR Apache-2.0",
+    "Unlicense",
+    "CC0-1.0",
+    "CC-BY-4.0",
+]
+# Deny copyleft and other restrictive licenses.
+deny = [
+    "GPL-2.0",
+    "GPL-2.0-only",
+    "GPL-2.0-or-later",
+    "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "AGPL-1.0",
+    "AGPL-1.0-only",
+    "AGPL-1.0-or-later",
+    "AGPL-3.0",
+    "AGPL-3.0-only",
+    "AGPL-3.0-or-later",
+    "SSPL-1.0",
+    "EUPL-1.1",
+    "EUPL-1.2",
+]
+# Don't confidence-check the license field.
+confidence-threshold = 0.8
+
+# ── bans ────────────────────────────────────────────────────────────────
+[bans]
+# Warn on multiple versions of the same crate.
+multiple-versions = "warn"
+# Wildcard allow for dev-dependencies.
+wildcards = "allow"
+# Allow specific crates to have duplicates.
+skip = []
+
+# Deny specific crates.
+deny = [
+    # { name = "openssl", wrappers = ["openssl-sys"] },
+]
+
+# ── sources ─────────────────────────────────────────────────────────────
+[sources]
+# Only allow crates from crates.io.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
