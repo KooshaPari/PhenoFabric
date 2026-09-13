@@ -1,0 +1,33 @@
+[package]
+name = "fabric-frame-transport-fuzz"
+version = "0.0.0"
+authors = ["Phenotype Fabric Team"]
+publish = false
+edition = "2021"
+
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+bytes = "1.7"
+
+# Depend on the crate under test.
+[dependencies.fabric-frame-transport]
+path = ".."
+
+[[bin]]
+name = "parse_message"
+path = "fuzz_targets/parse_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "encode_wire_roundtrip"
+path = "fuzz_targets/encode_wire_roundtrip.rs"
+test = false
+doc = false
+bench = false

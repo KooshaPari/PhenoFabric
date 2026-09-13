@@ -24,6 +24,7 @@ base64 = "0.22"
 [dev-dependencies]
 tempfile = "3"
 similar = "2.6"
+proptest = "1"
 
 [[test]]
 name = "descriptor_roundtrip"
@@ -40,6 +41,10 @@ path = "tests/fixtures_roundtrip.rs"
 [[test]]
 name = "trust_root_chain"
 path = "tests/trust_root_chain.rs"
+
+[[test]]
+name = "property_tests"
+path = "tests/property_tests.rs"
 
 [[example]]
 name = "verify_fixtures"
