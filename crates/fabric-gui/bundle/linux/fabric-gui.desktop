@@ -1,0 +1,30 @@
+[Desktop Entry]
+Type=Application
+Name=Phenotype Fabric
+GenericName=Topology Visualization
+Comment=Phenotype Fabric native GUI — topology visualization with surface streaming
+Exec=fabric-gui %F
+Icon=phenotype-fabric
+Terminal=false
+Categories=Development;System;Monitor;Network;
+Keywords=topology;network;graph;fabric;
+StartupWMClass=fabric-gui
+StartupNotify=true
+MimeType=application/x-phenotype-fabric;
+Actions=Dashboard;Topology;Routes;Leases;
+
+[Desktop Action Dashboard]
+Name=Dashboard
+Exec=fabric-gui --panel dashboard
+
+[Desktop Action Topology]
+Name=Topology
+Exec=fabric-gui --panel topology
+
+[Desktop Action Routes]
+Name=Routes
+Exec=fabric-gui --panel routes
+
+[Desktop Action Leases]
+Name=Leases
+Exec=fabric-gui --panel leases
