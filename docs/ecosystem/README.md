@@ -9,6 +9,7 @@
 - [NVMS and labs-compute](nvms-labs-compute.md)
 - [Ledgers](ledgers.md)
 - [phenotype-fleet-ops](fleet-ops.md)
+- [Go reference adapter](go-adapter.md)
 - [Event contracts](event-contracts.md)
 - [Integration matrix](integration-matrix.md)
 
