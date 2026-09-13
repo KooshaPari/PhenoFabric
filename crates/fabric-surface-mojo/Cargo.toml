@@ -1,0 +1,20 @@
+[package]
+name = "fabric-surface-mojo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "GPU compute surface backend with Mojo FFI bridge for Phenotype Fabric"
+
+[dependencies]
+fabric-graph = { workspace = true }
+fabric-capability = { workspace = true }
+fabric-frame-transport = { path = "../fabric-frame-transport" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = "0.1"
+
+[dev-dependencies]
