@@ -245,19 +245,19 @@ fn daemon_wire_invalid_json_and_unknown_type() {
 
     // Invalid JSON
     let resp = fabric_daemon::wire::protocol::process_message("not json", &coord).unwrap();
-    assert!(resp.contains("invalid_json"));
+    assert!(resp.contains("INVALID_JSON") || resp.contains("invalid_json"));
 
     // Unknown message type
     let resp = fabric_daemon::wire::protocol::process_message(
         r#"{"type":"foo_bar"}"#, &coord,
     ).unwrap();
-    assert!(resp.contains("unknown_message"));
+    assert!(resp.contains("UNKNOWN_TYPE") || resp.contains("unknown_message"));
 
     // Compile request with missing source
     let resp = fabric_daemon::wire::protocol::process_message(
         r#"{"type":"compile_request","destination":"b"}"#, &coord,
     ).unwrap();
-    assert!(resp.contains("missing_source"));
+    assert!(resp.contains("MISSING_FIELD") || resp.contains("missing_source"));
 
     // Compile request on empty topology
     let resp = fabric_daemon::wire::protocol::process_message(

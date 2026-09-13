@@ -169,7 +169,7 @@ impl Migration for V2QueryIndexes {
         DROP INDEX IF EXISTS idx_audit_resource;
         DROP INDEX IF EXISTS idx_audit_action;
         DROP INDEX IF EXISTS idx_evidence_producer;
-        DROP INDEX IF NOT EXISTS idx_evidence_observed;
+        DROP INDEX IF EXISTS idx_evidence_observed;
         DROP INDEX IF EXISTS idx_evidence_type;
         DROP INDEX IF EXISTS idx_route_plans_epoch;
         DROP INDEX IF EXISTS idx_route_plans_state;
