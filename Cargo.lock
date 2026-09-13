@@ -2081,6 +2081,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "fabric-workspace"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "fabric-capability",
+ "fabric-graph",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

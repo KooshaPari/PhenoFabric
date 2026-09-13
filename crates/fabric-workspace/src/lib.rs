@@ -42,5 +42,5 @@ pub mod lease;
 pub mod state;
 
 pub use error::{Error, Result};
-pub use lease::{LeaseId, LeaseState, SeatLease, Transition};
-pub use state::{Workspace, WorkspaceId, WorkspaceStore, WorkspaceStoreOptions, TrustScope};
+pub use lease::{LifecycleState, SeatId, SeatLease, TrustScope, Transition};
+pub use state::{Workspace, WorkspaceId, WorkspaceStore};

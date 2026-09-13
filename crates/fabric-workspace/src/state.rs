@@ -9,10 +9,10 @@ use std::path::Path;
 use fabric_capability::locality::LocalityTier;
 
 use crate::error::{Error, Result};
-use crate::lease::{LifecycleState, SeatLease, SeatId, TrustScope};
+use crate::lease::{LifecycleState, SeatLease, SeatId};
 
 /// A Fabric workspace — a managed compute environment with assigned capabilities.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Workspace {
     /// Unique workspace identifier.
     pub id: WorkspaceId,
@@ -68,10 +68,11 @@ impl Workspace {
 }
 
 /// Unique identifier for a workspace.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct WorkspaceId(pub String);
 
 impl WorkspaceId {
+    /// Create a new workspace ID from a string.
     pub fn new(id: impl Into<String>) -> Self {
         Self(id.into())
     }
@@ -151,7 +152,7 @@ impl WorkspaceStore {
         }
 
         // Remove state file.
-        if let Some(ref path) = ws.state_file {
+        if ws.state_file.is_some() {
             let file_path = Path::new(&self.state_dir).join(format!("{}.json", &ws.name));
             if file_path.exists() {
                 fs::remove_file(&file_path).ok();
@@ -191,13 +192,13 @@ impl WorkspaceStore {
         let path = Path::new(&self.state_dir).join(format!("{}.json", &workspace.name));
         let json = serde_json::to_string_pretty(workspace)
             .map_err(|e| Error::Serialization(e.to_string()))?;
-        fs::write(&path, json).map_err(|e| Error::Io(e.to_string()))?;
+        fs::write(&path, json)?;
         Ok(())
     }
 
     /// Load a workspace from a JSON file.
     fn load_workspace(&self, path: &Path) -> Result<Workspace> {
-        let json = fs::read_to_string(path).map_err(|e| Error::Io(e.to_string()))?;
+        let json = fs::read_to_string(path)?;
         serde_json::from_str(&json).map_err(|e| Error::Serialization(e.to_string()))
     }
 }
@@ -212,7 +213,7 @@ mod tests {
             name: "test-ws".into(),
             state,
             seats: Vec::new(),
-            locality_tier: LocalityTier::L2SameAsic,
+            locality_tier: LocalityTier::L2CrossNumaShm,
             state_file: None,
         }
     }

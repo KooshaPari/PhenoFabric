@@ -6,10 +6,11 @@ use std::time::Duration;
 use fabric_capability::locality::LocalityTier;
 
 /// Unique identifier for a seat within a workspace.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct SeatId(pub String);
 
 impl SeatId {
+    /// Create a new seat ID from a string.
     pub fn new(id: impl Into<String>) -> Self {
         Self(id.into())
     }
@@ -17,7 +18,7 @@ impl SeatId {
 
 /// Trust scope of a seat lease — ephemeral (local process only) or persistent
 /// (survives process restarts).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TrustScope {
     /// Ephemeral lease; local process only.
     Ephemeral,
@@ -26,26 +27,35 @@ pub enum TrustScope {
 }
 
 /// Lifecycle state of a seat lease.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LifecycleState {
+    /// The lease is pending activation.
     Pending,
+    /// The lease is active and the seat is in use.
     Active,
+    /// The seat has been voluntarily released.
     Released,
+    /// The seat was revoked by an administrator.
     Revoked,
+    /// The lease has expired.
     Expired,
 }
 
 /// Lifecycle transition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Transition {
+    /// Transition the lease to active.
     Activate,
+    /// Transition the lease to released.
     Release,
+    /// Transition the lease to revoked.
     Revoke,
+    /// Transition the lease to expired.
     Expire,
 }
 
 /// Seat lease — binds a named seat to a workspace with an expiry time.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SeatLease {
     /// Unique identifier.
     pub id: SeatId,
@@ -124,7 +134,7 @@ mod tests {
             id: SeatId::new("ws:gpu0"),
             name: "gpu0".into(),
             workspace_id: "ws".into(),
-            locality_tier: LocalityTier::L2SameAsic,
+            locality_tier: LocalityTier::L2CrossNumaShm,
             trust_scope: TrustScope::Ephemeral,
             ttl: Duration::from_secs(3600),
             expires_at_ms: expires_ms,

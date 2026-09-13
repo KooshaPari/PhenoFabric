@@ -16,6 +16,7 @@ members = [
     "crates/phenotype-nvms-adapter",
     "crates/fabric-integration-tests",
     "crates/fabric-tui",
+    "crates/fabric-workspace",
 ]
 
 [workspace.package]
