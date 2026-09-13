@@ -1,6 +1,7 @@
 //! API client for fetching data from the Fabric daemon wire server.
 
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::JsValue;
 
 /// Topology response.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -90,6 +91,56 @@ pub async fn fetch_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T, 
         .map_err(|e| format!("Failed to read response: {e:?}"))?)
         .await
         .map_err(|e| format!("Failed to read response text: {e:?}"))?;
+
+    let text = text_val
+        .as_string()
+        .ok_or("Response text is not a string")?;
+
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse error: {e}"))
+}
+
+/// POST JSON body to the daemon API and return a deserialized response.
+pub async fn post_json<T: serde::de::DeserializeOwned, B: serde::Serialize>(
+    url: &str,
+    body: &B,
+) -> Result<T, String> {
+    use wasm_bindgen_futures::JsFuture;
+    use web_sys::{Request, RequestInit, Response};
+
+    let window = web_sys::window().ok_or("No window object")?;
+
+    let body_json =
+        serde_json::to_string(body).map_err(|e| format!("Failed to serialize body: {e}"))?;
+
+    let opts = RequestInit::new();
+    opts.set_method("POST");
+    opts.set_body(&JsValue::from_str(&body_json));
+    opts.set_headers(
+        &js_sys::JSON::parse(
+            r#"{"Content-Type": "application/json"}"#,
+        )
+        .map_err(|e| format!("Failed to create headers: {e:?}"))?,
+    );
+
+    let request = Request::new_with_str_and_init(url, &opts)
+        .map_err(|e| format!("Failed to create request: {e:?}"))?;
+
+    let resp_val = JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| format!("Fetch failed: {e:?}"))?;
+
+    let resp: Response = resp_val.into();
+
+    if !resp.ok() {
+        return Err(format!("HTTP {} {}", resp.status(), resp.status_text()));
+    }
+
+    let text_val = JsFuture::from(
+        resp.text()
+            .map_err(|e| format!("Failed to read response: {e:?}"))?,
+    )
+    .await
+    .map_err(|e| format!("Failed to read response text: {e:?}"))?;
 
     let text = text_val
         .as_string()

@@ -1,0 +1,26 @@
+[package]
+name = "fabric-tui"
+version = "0.1.0"
+edition = "2021"
+description = "TUI dashboard for Phenotype Fabric daemon"
+publish = false
+
+[[bin]]
+name = "fabric-tui"
+path = "src/main.rs"
+
+[dependencies]
+fabric-graph = { path = "../fabric-graph" }
+fabric-checker = { path = "../fabric-checker" }
+fabric-persist = { path = "../fabric-persist" }
+fabric-capability = { path = "../fabric-capability" }
+ratatui = "0.29"
+crossterm = { version = "0.28", features = ["event-stream"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v7"] }
+chrono = "0.4"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
