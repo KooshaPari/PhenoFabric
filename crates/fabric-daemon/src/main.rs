@@ -7,7 +7,7 @@ mod config;
 mod coordinator;
 mod health;
 mod logging;
-mod wire_server;
+mod wire;
 
 use clap::{Parser, Subcommand};
 use std::net::TcpListener;
@@ -140,7 +140,7 @@ fn cmd_start(
     info!(addr = %addr, max_connections = max_conn, "daemon ready");
 
     // Run wire server (blocking until shutdown).
-    if let Err(e) = wire_server::run_wire_server(listener, coordinator.clone(), max_conn, timeout)
+    if let Err(e) = wire::run_wire_server(listener, coordinator.clone(), max_conn, timeout)
     {
         tracing::error!("wire server error: {e}");
     }
