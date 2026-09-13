@@ -39,6 +39,10 @@ fn main() -> anyhow::Result<()> {
         Commands::Graph { sub } => commands::graph::dispatch(sub, &workspace),
         Commands::Route { sub } => commands::route::dispatch(sub, &workspace),
         Commands::Workspace { sub } => commands::workspace::dispatch(sub, &workspace),
+        Commands::Surface { sub } => commands::surface::dispatch(sub, &workspace),
+        Commands::Probe(a) => commands::probe::dispatch(a),
+        Commands::Status(a) => commands::status::dispatch(a),
+        Commands::Check(a) => commands::check::dispatch(a),
         Commands::Tui => {
             tracing_subscriber::registry()
                 .with(fmt::layer().with_target(true).with_level(true))

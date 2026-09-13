@@ -3,13 +3,19 @@
 //! PF-WP-020.06 deliverable — primary user-facing interface for Fabric.
 //!
 //! Subcommands:
-//!   cap     — capability probe, sign, verify, export, import
-//!   graph   — topology build, show, add-node, add-edge
-//!   route   — compile, plan, validate
-//!   workspace — create, list, show, delete
+//!   cap      — capability probe, sign, verify, export, import
+//!   graph    — topology build, show, add-node, add-edge
+//!   route    — compile, plan, validate, list
+//!   workspace — create, list, show, delete, release
+//!   surface  — lease, list
+//!   probe    — local machine capability probe (top-level)
+//!   status   — daemon health check
+//!   check    — run checker against manifest
+//!   tui      — interactive TUI explorer
 
 pub mod commands;
 pub mod tui;
+pub mod wire_client;
 mod output;
 
 use clap::Parser;
@@ -60,6 +66,17 @@ pub enum Commands {
         #[command(subcommand)]
         sub: WorkspaceCommand,
     },
+    /// Manage surface leases (displays, audio, network endpoints).
+    Surface {
+        #[command(subcommand)]
+        sub: SurfaceCommand,
+    },
+    /// Probe local machine capabilities (top-level, outputs JSON).
+    Probe(commands::probe::ProbeArgs),
+    /// Show daemon health status.
+    Status(commands::status::StatusArgs),
+    /// Run checker against a manifest.
+    Check(commands::check::CheckArgs),
     /// Launch the interactive TUI topology explorer.
     Tui,
 }
@@ -94,8 +111,10 @@ pub enum GraphCommand {
 
 #[derive(Parser, Debug)]
 pub enum RouteCommand {
-    /// Compile a route plan for an intent.
+    /// Compile a route plan from topology + intent.
     Compile(commands::route::CompileArgs),
+    /// List active route plans from the daemon.
+    List(commands::route::ListArgs),
     /// Plan a sequence of route steps.
     Plan(commands::route::PlanArgs),
     /// Validate a compiled route plan.
@@ -110,8 +129,18 @@ pub enum WorkspaceCommand {
     Create(commands::workspace::CreateArgs),
     /// List all workspaces.
     List(commands::workspace::ListArgs),
-    /// Show details of a workspace.
+    /// Show details of a workspace with seat leases.
     Show(commands::workspace::ShowArgs),
     /// Delete a workspace.
     Delete(commands::workspace::DeleteArgs),
+    /// Release a workspace and all its seat leases.
+    Release(commands::workspace::ReleaseArgs),
+}
+
+#[derive(Parser, Debug)]
+pub enum SurfaceCommand {
+    /// Request a surface lease (display, audio, network endpoint).
+    Lease(commands::surface::LeaseArgs),
+    /// List active surface leases from the daemon.
+    List(commands::surface::ListArgs),
 }

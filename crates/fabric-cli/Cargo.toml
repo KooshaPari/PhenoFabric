@@ -16,6 +16,7 @@ path = "src/lib.rs"
 
 [dependencies]
 fabric-capability = { path = "../fabric-capability" }
+fabric-checker = { path = "../fabric-checker" }
 fabric-graph = { path = "../fabric-graph" }
 phenotype-nvms-adapter = { path = "../phenotype-nvms-adapter" }
 
