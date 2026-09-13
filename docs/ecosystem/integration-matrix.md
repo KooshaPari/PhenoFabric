@@ -10,3 +10,4 @@
 | ShareCLI | selected host/realm execution and policy | process declarations, pressure, coalescing observations | local IPC/CLI/HTTP adapter | ShareCLI remains a local supervisor |
 | NVMS | compiled execution/realm requests if retained | resource/realm adapter facts | library/gRPC adapter | affected realm providers unavailable |
 | Ledgers | facts/usage/references | asset/research/repo context | events/query APIs | runtime continues with cached/noncritical context |
+| phenotype-fleet-ops | manifest attestations, CI workflow refs | reusable workflows, governance templates, pillar checks | GitHub Actions + CLI (`cargo install`) | Fabric CI skips manifest gate; governance drift continues independently |
