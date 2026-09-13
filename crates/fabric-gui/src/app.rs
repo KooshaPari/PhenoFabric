@@ -7,19 +7,43 @@ use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 
+use crate::animation::AnimationState;
+use crate::daemon_manager::DaemonManager;
+use crate::theme::LiquidTheme;
+
 // Tab navigation
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Tab { Dashboard, Topology, Routes, Leases }
+pub enum Tab {
+    Dashboard, Topology, Routes, Leases,
+    Network, Streaming, Settings, Logs, Auth,
+}
 
 impl Tab {
-    pub const ALL: &'static [Tab] = &[Tab::Dashboard, Tab::Topology, Tab::Routes, Tab::Leases];
+    pub const ALL: &'static [Tab] = &[
+        Tab::Dashboard, Tab::Topology, Tab::Routes, Tab::Leases,
+        Tab::Network, Tab::Streaming, Tab::Settings, Tab::Logs, Tab::Auth,
+    ];
     pub fn title(self) -> &'static str {
-        match self { Tab::Dashboard => "Dashboard", Tab::Topology => "Topology",
-                     Tab::Routes => "Routes", Tab::Leases => "Leases" }
+        match self {
+            Tab::Dashboard => "Dashboard", Tab::Topology => "Topology",
+            Tab::Routes => "Routes", Tab::Leases => "Leases",
+            Tab::Network => "Network", Tab::Streaming => "Streaming",
+            Tab::Settings => "Settings", Tab::Logs => "Logs", Tab::Auth => "Auth",
+        }
+    }
+    pub fn icon(self) -> &'static str {
+        match self {
+            Tab::Dashboard => "📊", Tab::Topology => "🌐", Tab::Routes => "🔀",
+            Tab::Leases => "📋", Tab::Network => "📡", Tab::Streaming => "🎬",
+            Tab::Settings => "⚙", Tab::Logs => "📝", Tab::Auth => "🔐",
+        }
     }
     pub fn index(self) -> usize {
-        match self { Tab::Dashboard => 0, Tab::Topology => 1, Tab::Routes => 2, Tab::Leases => 3 }
+        match self {
+            Tab::Dashboard => 0, Tab::Topology => 1, Tab::Routes => 2, Tab::Leases => 3,
+            Tab::Network => 4, Tab::Streaming => 5, Tab::Settings => 6, Tab::Logs => 7, Tab::Auth => 8,
+        }
     }
 }
 
@@ -45,6 +69,145 @@ pub struct LeasesResponse { pub leases: Vec<LeaseInfo> }
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct LeaseInfo { pub handle: String, pub protocol: String, pub state: String, pub name: String }
 
+// Network status types
+
+#[derive(Debug, Clone)]
+pub struct NetworkStatus {
+    pub daemon_connected: bool,
+    pub tailscale_connected: bool,
+    pub upnp_active: bool,
+    pub nat_type: String,
+    pub public_ip: String,
+    pub tailscale_peers: Vec<TailscalePeer>,
+    pub upnp_mappings: Vec<UpnpMapping>,
+}
+
+impl Default for NetworkStatus {
+    fn default() -> Self {
+        Self {
+            daemon_connected: false, tailscale_connected: false, upnp_active: false,
+            nat_type: "Unknown".into(), public_ip: "-".into(),
+            tailscale_peers: vec![], upnp_mappings: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TailscalePeer {
+    pub hostname: String,
+    pub ip: String,
+    pub latency_ms: f64,
+    pub online: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpnpMapping {
+    pub protocol: String,
+    pub internal_port: u16,
+    pub external_port: u16,
+    pub description: String,
+}
+
+// Streaming stats types
+
+#[derive(Debug, Clone)]
+pub struct StreamingStats {
+    pub active_sessions: Vec<StreamSession>,
+    pub frames_sent: u64,
+    pub frames_dropped: u64,
+    pub latency_ms: f64,
+    pub bandwidth_mbps: f64,
+    pub codec: String,
+    pub resolution: String,
+    pub fps: u32,
+    pub bitrate_kbps: u32,
+}
+
+impl Default for StreamingStats {
+    fn default() -> Self {
+        Self {
+            active_sessions: vec![], frames_sent: 0, frames_dropped: 0,
+            latency_ms: 0.0, bandwidth_mbps: 0.0, codec: "H.264".into(),
+            resolution: "1920x1080".into(), fps: 60, bitrate_kbps: 8000,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StreamSession {
+    pub id: String,
+    pub target: String,
+    pub codec: String,
+    pub resolution: String,
+    pub state: String,
+}
+
+// Auth status types
+
+#[derive(Debug, Clone)]
+pub struct AuthStatus {
+    pub logged_in: bool,
+    pub user_name: String,
+    pub user_email: String,
+    pub org_name: String,
+    pub roles: Vec<String>,
+    pub session_expiry_secs: u64,
+    pub active_sessions: Vec<AuthSession>,
+}
+
+impl Default for AuthStatus {
+    fn default() -> Self {
+        Self {
+            logged_in: false, user_name: "-".into(), user_email: "-".into(),
+            org_name: "-".into(), roles: vec![], session_expiry_secs: 0,
+            active_sessions: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AuthSession {
+    pub session_id: String,
+    pub device: String,
+    pub created: String,
+}
+
+// Log entry type
+
+#[derive(Debug, Clone)]
+pub struct LogEntry {
+    pub timestamp: String,
+    pub level: String,
+    pub message: String,
+}
+
+// Settings state
+
+#[derive(Debug, Clone)]
+pub struct SettingsState {
+    pub theme: String,
+    pub auto_refresh_secs: u64,
+    pub startup_tab: String,
+    pub daemon_address: String,
+    pub tailscale_enabled: bool,
+    pub upnp_enabled: bool,
+    pub stun_server: String,
+    pub default_codec: String,
+    pub max_bitrate_kbps: u32,
+    pub keyframe_interval: u32,
+}
+
+impl Default for SettingsState {
+    fn default() -> Self {
+        Self {
+            theme: "Dark".into(), auto_refresh_secs: 5, startup_tab: "Dashboard".into(),
+            daemon_address: "127.0.0.1:9400".into(), tailscale_enabled: true,
+            upnp_enabled: true, stun_server: "stun.l.google.com:19302".into(),
+            default_codec: "H.264".into(), max_bitrate_kbps: 10000, keyframe_interval: 2,
+        }
+    }
+}
+
 // Application state
 
 enum RefreshMsg { Data(GuiData), Error(String) }
@@ -53,21 +216,29 @@ enum RefreshMsg { Data(GuiData), Error(String) }
 pub struct GuiData {
     pub health: HealthResponse, pub topology: TopologyResponse,
     pub routes: RoutesResponse, pub leases: LeasesResponse,
+    pub network: NetworkStatus, pub streaming: StreamingStats,
+    pub auth: AuthStatus, pub logs: Vec<LogEntry>, pub settings: SettingsState,
 }
 
 pub struct GuiApp {
     pub active_tab: Tab, pub data: GuiData, pub connect_addr: String,
     pub db_path: Option<String>, pub error_msg: Option<String>,
     pub last_refresh: Instant, pub refresh_interval: Duration, pub dark_mode: bool,
+    pub theme: LiquidTheme, pub anim: AnimationState,
+    pub daemon_manager: DaemonManager, pub show_daemon_logs: bool,
     rx: Option<mpsc::Receiver<RefreshMsg>>, refresh_in_flight: bool,
 }
 
 impl GuiApp {
     pub fn new(connect_addr: String, db_path: Option<String>) -> Self {
+        let mut mgr = DaemonManager::new(None, None, db_path.clone());
+        mgr.set_listen_addr(connect_addr.clone());
         Self {
             active_tab: Tab::Dashboard, data: GuiData::default(), connect_addr, db_path,
             error_msg: None, last_refresh: Instant::now() - Duration::from_secs(10),
             refresh_interval: Duration::from_secs(5), dark_mode: true,
+            theme: LiquidTheme::dark(), anim: AnimationState::new(),
+            daemon_manager: mgr, show_daemon_logs: false,
             rx: None, refresh_in_flight: false,
         }
     }
@@ -127,15 +298,47 @@ impl GuiApp {
                 if let egui::Event::Text(text) = event {
                     match text.as_str() {
                         "1" => self.active_tab = Tab::Dashboard, "2" => self.active_tab = Tab::Topology,
-                        "3" => self.active_tab = Tab::Routes, "4" => self.active_tab = Tab::Leases, _ => {}
+                        "3" => self.active_tab = Tab::Routes, "4" => self.active_tab = Tab::Leases,
+                        "5" => self.active_tab = Tab::Network, "6" => self.active_tab = Tab::Streaming,
+                        "7" => self.active_tab = Tab::Settings, "8" => self.active_tab = Tab::Logs,
+                        "9" => self.active_tab = Tab::Auth, _ => {}
                     }
                 }
             }
         });
     }
 
+    pub fn poll_daemon(&mut self) {
+        self.daemon_manager.poll(&self.connect_addr);
+    }
+
+    pub fn auto_start_daemon(&mut self) {
+        self.daemon_manager.auto_start(&self.connect_addr);
+    }
+
     pub fn configure_visuals(&self, ctx: &egui::Context) {
-        ctx.set_visuals(if self.dark_mode { egui::Visuals::dark() } else { egui::Visuals::light() });
+        let visuals = if self.dark_mode {
+            let mut v = egui::Visuals::dark();
+            v.widgets.noninteractive.bg_fill = self.theme.glass_bg;
+            v.widgets.inactive.bg_fill = self.theme.glass_bg_light;
+            v.widgets.hovered.bg_fill = self.theme.hover_glass;
+            v.widgets.active.bg_fill = self.theme.active_glass;
+            v.override_text_color = Some(self.theme.text_primary);
+            v.window_fill = self.theme.glass_bg;
+            v.panel_fill = self.theme.bg_canvas;
+            v
+        } else {
+            let mut v = egui::Visuals::light();
+            v.widgets.noninteractive.bg_fill = self.theme.glass_bg;
+            v.widgets.inactive.bg_fill = self.theme.glass_bg_light;
+            v.widgets.hovered.bg_fill = self.theme.hover_glass;
+            v.widgets.active.bg_fill = self.theme.active_glass;
+            v.override_text_color = Some(self.theme.text_primary);
+            v.window_fill = self.theme.glass_bg;
+            v.panel_fill = self.theme.bg_canvas;
+            v
+        };
+        ctx.set_visuals(visuals);
     }
 }
 
@@ -150,6 +353,7 @@ fn fetch_all(addr: &str, db_path: Option<&str>) -> Result<GuiData, String> {
         return Ok(GuiData {
             health: health.unwrap_or_default(), topology: topology.unwrap_or_default(),
             routes: routes.unwrap_or_default(), leases: leases.unwrap_or_default(),
+            ..GuiData::default()
         });
     }
     if let Some(path) = db_path { return fetch_from_db(path); }
