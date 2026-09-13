@@ -140,6 +140,31 @@ impl Default for LoggingConfig {
     }
 }
 
+/// Configuration for federation (multi-node topology sharing).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct FederationConfig {
+    /// Whether federation is enabled.
+    pub enabled: bool,
+    /// Sync interval in seconds.
+    pub sync_interval_s: u64,
+    /// List of peer daemon addresses (e.g. ["10.0.0.2:9400"]).
+    pub peers: Vec<String>,
+    /// Merge strategy name.
+    pub merge_strategy: String,
+}
+
+impl Default for FederationConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            sync_interval_s: 30,
+            peers: Vec::new(),
+            merge_strategy: "MergeAll".into(),
+        }
+    }
+}
+
 impl DaemonConfig {
     /// Load configuration from a TOML file.
     pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self, ConfigError> {

@@ -2,5 +2,6 @@
 
 pub mod config;
 pub mod coordinator;
+pub mod federation;
 pub mod health;
 pub mod wire;
