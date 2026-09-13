@@ -102,8 +102,8 @@ impl Probe for PosixProbe {
 
 mod cpu {
     use super::*;
-    use crate::descriptor::{CacheInfo, ComputeCapabilities};
-    use crate::error::Error;
+    use crate::descriptor::ComputeCapabilities;
+    
 
     /// Probes CPU/NUMA/cache/memory from /proc and /sys.
     ///

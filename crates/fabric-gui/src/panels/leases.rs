@@ -74,10 +74,10 @@ pub fn show(ui: &mut egui::Ui, data: &GuiData, theme: &LiquidTheme, anim: &Anima
                                     state_color.b(),
                                     pulse_alpha,
                                 );
-                                let pill_frame = egui::Frame::none()
+                                let pill_frame = egui::Frame::new()
                                     .fill(glow_bg)
-                                    .rounding(egui::Rounding::same(10.0))
-                                    .inner_margin(egui::Margin::symmetric(10.0, 3.0));
+                                    .rounding(egui::Rounding::same(10))
+                                    .inner_margin(egui::Margin::symmetric(10, 3));
                                 pill_frame.show(ui, |ui| {
                                     ui.colored_label(state_color, &lease.state);
                                 });
@@ -112,10 +112,10 @@ fn protocol_badge(ui: &mut egui::Ui, protocol: &str, theme: &LiquidTheme) {
         s if s.contains("pcie") => theme.accent_primary,
         _ => theme.node_default,
     };
-    let frame = egui::Frame::none()
+    let frame = egui::Frame::new()
         .fill(color.linear_multiply(0.2))
-        .rounding(egui::Rounding::same(6.0))
-        .inner_margin(egui::Margin::symmetric(8.0, 2.0));
+        .rounding(egui::Rounding::same(6))
+        .inner_margin(egui::Margin::symmetric(8, 2));
     frame.show(ui, |ui| {
         ui.colored_label(color, protocol);
     });

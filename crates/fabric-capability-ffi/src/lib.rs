@@ -7,7 +7,7 @@
 //!
 //! All functions that accept or return raw pointers are `unsafe`.
 
-use fabric_capability::descriptor::{Capabilities, CapabilityDescriptor};
+use fabric_capability::descriptor::CapabilityDescriptor;
 use fabric_capability::{sign, verify, SigningKey, VerificationKey};
 
 /// Error codes returned by FFI functions.

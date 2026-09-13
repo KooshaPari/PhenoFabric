@@ -86,8 +86,8 @@ pub fn show(ui: &mut egui::Ui, data: &GuiData, theme: &LiquidTheme, anim: &Anima
             // Pulsing status indicator
             let glow = anim.pulse_glow();
             let pulse_r = 6.0 + glow * 2.0;
-            let painter = ui.painter_at(ui.max_rect);
-            let dot_center = ui.max_rect.left_center() + egui::vec2(12.0, 14.0);
+            let painter = ui.painter_at(ui.max_rect());
+            let dot_center = ui.max_rect().left_center() + egui::vec2(12.0, 14.0);
             painter.circle_filled(
                 dot_center,
                 pulse_r * 2.0,

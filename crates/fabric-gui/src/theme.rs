@@ -158,56 +158,56 @@ impl LiquidTheme {
     }
 
     /// Glass card frame with rounded corners and soft shadow.
-    pub fn glass_frame(radius: f32) -> Frame {
-        Frame::none()
+    pub fn glass_frame(radius: u8) -> Frame {
+        Frame::new()
             .fill(Color32::from_rgba_premultiplied(30, 35, 50, 180))
-            .rounding(Rounding::same(radius))
-            .stroke(Stroke::new(1.0, rgba(255, 255, 255, 30)))
+            .corner_radius(Rounding::same(radius))
+            .stroke(Stroke::new(1.0_f32, rgba(255, 255, 255, 30)))
             .shadow(Shadow {
-                offset: egui::vec2(0.0, 4.0),
-                blur: 12.0,
-                spread: 0.0,
+                offset: [0, 4],
+                blur: 12,
+                spread: 0,
                 color: rgba(0, 0, 0, 60),
             })
-            .inner_margin(Margin::same(14.0))
+            .inner_margin(Margin::same(14))
     }
 
     /// Accent-colored glass frame (vibrant variant).
-    pub fn glass_frame_vibrant(radius: f32) -> Frame {
-        Frame::none()
+    pub fn glass_frame_vibrant(radius: u8) -> Frame {
+        Frame::new()
             .fill(Color32::from_rgba_premultiplied(60, 70, 110, 200))
-            .rounding(Rounding::same(radius))
-            .stroke(Stroke::new(1.5, rgba(108, 99, 255, 60)))
+            .corner_radius(Rounding::same(radius))
+            .stroke(Stroke::new(1.5_f32, rgba(108, 99, 255, 60)))
             .shadow(Shadow {
-                offset: egui::vec2(0.0, 4.0),
-                blur: 16.0,
-                spread: 0.0,
+                offset: [0, 4],
+                blur: 16,
+                spread: 0,
                 color: rgba(108, 99, 255, 30),
             })
-            .inner_margin(Margin::same(14.0))
+            .inner_margin(Margin::same(14))
     }
 
     /// Frame with inner glow stroke.
     pub fn glow_frame(color: Color32) -> Frame {
-        Frame::none()
+        Frame::new()
             .fill(Color32::from_rgba_premultiplied(30, 35, 50, 180))
-            .rounding(Rounding::same(12.0))
-            .stroke(Stroke::new(1.0, color.linear_multiply(0.5)))
+            .corner_radius(Rounding::same(12))
+            .stroke(Stroke::new(1.0_f32, color.linear_multiply(0.5)))
             .shadow(Shadow {
-                offset: egui::vec2(0.0, 0.0),
-                blur: 8.0,
-                spread: 0.0,
+                offset: [0, 0],
+                blur: 8,
+                spread: 0,
                 color: color.linear_multiply(0.25),
             })
-            .inner_margin(Margin::same(14.0))
+            .inner_margin(Margin::same(14))
     }
 
     /// Soft depth shadow for morphic surfaces.
     pub fn morphic_shadow() -> Shadow {
         Shadow {
-            offset: egui::vec2(0.0, 6.0),
-            blur: 20.0,
-            spread: 0.0,
+            offset: [0, 6],
+            blur: 20,
+            spread: 0,
             color: rgba(0, 0, 0, 50),
         }
     }
@@ -282,18 +282,18 @@ impl LiquidTheme {
 
     /// Sidebar frame with glass background.
     pub fn sidebar_frame() -> Frame {
-        Frame::none()
+        Frame::new()
             .fill(Color32::from_rgba_premultiplied(18, 22, 34, 220))
-            .inner_margin(Margin::symmetric(12.0, 16.0))
-            .stroke(Stroke::new(1.0, rgba(255, 255, 255, 18)))
+            .inner_margin(Margin::symmetric(12, 16))
+            .stroke(Stroke::new(1.0_f32, rgba(255, 255, 255, 18)))
     }
 
     /// Status bar frame at bottom.
     pub fn status_bar_frame() -> Frame {
-        Frame::none()
+        Frame::new()
             .fill(Color32::from_rgba_premultiplied(20, 24, 38, 200))
-            .inner_margin(Margin::symmetric(12.0, 6.0))
-            .stroke(Stroke::new(1.0, rgba(255, 255, 255, 15)))
+            .inner_margin(Margin::symmetric(12, 6))
+            .stroke(Stroke::new(1.0_f32, rgba(255, 255, 255, 15)))
     }
 }
 

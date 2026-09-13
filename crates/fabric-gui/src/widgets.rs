@@ -2,7 +2,7 @@
 //!
 //! All widgets accept a [`LiquidTheme`] reference so colors stay consistent.
 
-use egui::{Color32, Pos2, Rect, Rounding, Stroke, Vec2};
+use egui::{Color32, Pos2, Rect, Rounding, Stroke, StrokeKind, Vec2};
 
 use crate::animation::AnimationState;
 use crate::theme::LiquidTheme;
@@ -14,15 +14,16 @@ pub fn glass_card(
     theme: &LiquidTheme,
     add_contents: impl FnOnce(&mut egui::Ui),
 ) {
-    let frame = LiquidTheme::glass_frame(16.0);
+    let frame = LiquidTheme::glass_frame(16);
     frame.show(ui, |ui| {
         // Inner glow stroke
-        let rect = ui.max_rect;
+        let rect = ui.max_rect();
         let painter = ui.painter();
         painter.rect_stroke(
             rect,
-            Rounding::same(16.0),
-            Stroke::new(1.0, theme.glass_border_inner),
+            Rounding::same(16),
+            Stroke::new(1.0_f32, theme.glass_border_inner),
+            StrokeKind::Inside,
         );
         if !title.is_empty() {
             ui.label(
@@ -42,7 +43,7 @@ pub fn glass_panel(
     theme: &LiquidTheme,
     add_contents: impl FnOnce(&mut egui::Ui),
 ) {
-    let frame = LiquidTheme::glass_frame(12.0);
+    let frame = LiquidTheme::glass_frame(12);
     frame.show(ui, |ui| {
         add_contents(ui);
     });
@@ -57,7 +58,7 @@ pub fn stat_card_morphic(
     theme: &LiquidTheme,
     anim: &AnimationState,
 ) {
-    let frame = LiquidTheme::glass_frame(16.0);
+    let frame = LiquidTheme::glass_frame(16);
     let response = frame.show(ui, |ui| {
         ui.set_min_width(120.0);
         // Label
@@ -76,8 +77,8 @@ pub fn stat_card_morphic(
             glow_alpha,
         );
         ui.painter().rect_filled(
-            ui.max_rect,
-            Rounding::same(0.0),
+            ui.max_rect(),
+            Rounding::same(0),
             glow_color.linear_multiply(0.1),
         );
         ui.label(
@@ -94,7 +95,7 @@ pub fn stat_card_morphic(
         rect.min,
         Vec2::new(3.0, rect.height()),
     );
-    painter.rect_filled(bar, Rounding::same(1.5), accent);
+    painter.rect_filled(bar, Rounding::same(2), accent);
 }
 
 /// Morphic rounded pill with status color and glow behind it.
@@ -207,8 +208,9 @@ pub fn sparkline_area(
     if values.len() < 2 {
         ui.painter().rect_stroke(
             rect,
-            0.0,
-            Stroke::new(1.0, color.linear_multiply(0.3)),
+            Rounding::ZERO,
+            Stroke::new(1.0_f32, color.linear_multiply(0.3)),
+            StrokeKind::Inside,
         );
         return;
     }
@@ -259,14 +261,15 @@ pub fn glass_button(
     )
     .fill(theme.glass_bg_light)
     .stroke(Stroke::new(1.0, theme.glass_border))
-    .rounding(Rounding::same(10.0));
+    .rounding(Rounding::same(10));
     let response = ui.add(btn);
     if response.hovered() {
         let painter = ui.painter();
         painter.rect_stroke(
             response.rect,
-            Rounding::same(10.0),
-            Stroke::new(1.5, theme.accent_primary.linear_multiply(0.6)),
+            Rounding::same(10),
+            Stroke::new(1.5_f32, theme.accent_primary.linear_multiply(0.6)),
+            StrokeKind::Inside,
         );
     }
     response.clicked()
@@ -279,11 +282,11 @@ pub fn glass_text_input(
     value: &mut String,
     theme: &LiquidTheme,
 ) -> bool {
-    let frame = egui::Frame::none()
+    let frame = egui::Frame::new()
         .fill(theme.glass_bg_light)
-        .rounding(Rounding::same(8.0))
-        .stroke(Stroke::new(1.0, theme.glass_border))
-        .inner_margin(egui::Margin::same(8.0));
+        .corner_radius(Rounding::same(8))
+        .stroke(Stroke::new(1.0_f32, theme.glass_border))
+        .inner_margin(egui::Margin::same(8));
     let mut changed = false;
     frame.show(ui, |ui| {
         let response = ui.add_sized(
@@ -409,12 +412,7 @@ pub fn styled_table<R>(
         .striped(true)
         .resizable(true)
         .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-        .columns(
-            headers
-                .iter()
-                .map(|_| egui_extras::Column::auto().at_least(100.0))
-                .collect::<Vec<_>>(),
-        )
+        .column(egui_extras::Column::auto().at_least(100.0))
         .header(28.0, |mut header| {
             for h in headers {
                 header.col(|ui| {

@@ -55,8 +55,8 @@ pub fn show(ui: &mut egui::Ui, data: &GuiData, theme: &LiquidTheme, anim: &Anima
     // Layout: visual graph on top, node table below
     ui.columns(2, |cols| {
         // Left: Full visual topology
+        let graph_size = cols[0].available_width().min(400.0);
         widgets::glass_card(&mut cols[0], "Graph", theme, |ui| {
-            let graph_size = cols[0].available_width().min(400.0);
             let (rect, response) =
                 ui.allocate_exact_size(egui::vec2(graph_size, graph_size), egui::Sense::click());
             let painter = ui.painter_at(rect);
@@ -70,7 +70,7 @@ pub fn show(ui: &mut egui::Ui, data: &GuiData, theme: &LiquidTheme, anim: &Anima
                         egui::pos2(x, rect.top()),
                         egui::pos2(x, rect.bottom()),
                     ],
-                    egui::Stroke::new(0.5, theme.glass_border.linear_multiply(0.15)),
+                    egui::Stroke::new(0.5_f32, theme.glass_border.linear_multiply(0.15)),
                 );
                 x += step;
             }
@@ -81,7 +81,7 @@ pub fn show(ui: &mut egui::Ui, data: &GuiData, theme: &LiquidTheme, anim: &Anima
                         egui::pos2(rect.left(), y),
                         egui::pos2(rect.right(), y),
                     ],
-                    egui::Stroke::new(0.5, theme.glass_border.linear_multiply(0.15)),
+                    egui::Stroke::new(0.5_f32, theme.glass_border.linear_multiply(0.15)),
                 );
                 y += step;
             }
@@ -113,11 +113,11 @@ pub fn show(ui: &mut egui::Ui, data: &GuiData, theme: &LiquidTheme, anim: &Anima
                     // Glow line
                     painter.line_segment(
                         [positions[fi], positions[ti]],
-                        egui::Stroke::new(3.0, color.linear_multiply(0.15)),
+                        egui::Stroke::new(3.0_f32, color.linear_multiply(0.15)),
                     );
                     painter.line_segment(
                         [positions[fi], positions[ti]],
-                        egui::Stroke::new(1.5, color.linear_multiply(0.7)),
+                        egui::Stroke::new(1.5_f32, color.linear_multiply(0.7)),
                     );
                 }
             }
@@ -149,7 +149,7 @@ pub fn show(ui: &mut egui::Ui, data: &GuiData, theme: &LiquidTheme, anim: &Anima
 
             // Click detection for nodes
             if response.clicked() {
-                let click_pos = response.interact_pointer_position().unwrap_or_default();
+                let click_pos = response.interact_pointer_pos().unwrap_or_default();
                 for (i, node) in topo.nodes.iter().enumerate() {
                     if click_pos.distance(positions[i]) < 16.0 {
                         // Could show detail popup; for now highlight is sufficient
