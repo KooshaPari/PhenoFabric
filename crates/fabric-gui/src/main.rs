@@ -156,13 +156,13 @@ impl eframe::App for FabricApp {
             match self.state.active_tab {
                 Tab::Dashboard => panels::dashboard::show(ui, &self.state.data, &self.state.theme, &self.state.anim),
                 Tab::Topology => panels::topology::show(ui, &self.state.data, &self.state.theme, &self.state.anim),
-                Tab::Routes => panels::routes::show(ui, &self.state.data, &self.state.theme),
-                Tab::Leases => panels::leases::show(ui, &self.state.data, &self.state.theme),
-                Tab::Network => panels::network::show(ui, &self.state.data, &self.state.theme),
-                Tab::Streaming => panels::streaming::show(ui, &self.state.data, &self.state.theme),
-                Tab::Settings => panels::settings::show(ui, &self.state.data, &self.state.theme),
-                Tab::Logs => panels::logs::show(ui, &self.state.data, &self.state.theme),
-                Tab::Auth => panels::auth::show(ui, &self.state.data, &self.state.theme),
+                Tab::Routes => panels::routes::show(ui, &self.state.data, &self.state.theme, &self.state.anim),
+                Tab::Leases => panels::leases::show(ui, &self.state.data, &self.state.theme, &self.state.anim),
+                Tab::Network => panels::network::show(ui, &self.state.data, &self.state.theme, &self.state.anim),
+                Tab::Streaming => panels::streaming::show(ui, &self.state.data, &self.state.theme, &self.state.anim),
+                Tab::Settings => panels::settings::show(ui, &self.state.data, &self.state.theme, &self.state.anim),
+                Tab::Logs => panels::logs::show(ui, &self.state.data, &self.state.theme, &self.state.anim, &mut self.log_state),
+                Tab::Auth => panels::auth::show(ui, &self.state.data, &self.state.theme, &self.state.anim),
             }
         });
     }

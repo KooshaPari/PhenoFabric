@@ -1,76 +1,130 @@
-//! Leases panel — lease table with handle, name, protocol, state (color-coded).
+//! Leases panel — morphic lease cards with protocol badges and status glow.
 
+use crate::animation::AnimationState;
 use crate::app::GuiData;
+use crate::theme::LiquidTheme;
+use crate::widgets;
 
-const GREEN: egui::Color32 = egui::Color32::from_rgb(34, 197, 94);
-const RED: egui::Color32 = egui::Color32::from_rgb(239, 68, 68);
-const YELLOW: egui::Color32 = egui::Color32::from_rgb(234, 179, 8);
-const GRAY: egui::Color32 = egui::Color32::from_rgb(156, 163, 175);
-
-/// Render the leases view.
-pub fn show(ui: &mut egui::Ui, data: &GuiData) {
-    ui.heading("Leases");
-    ui.separator();
+/// Render the leases view with glass cards and morphic badges.
+pub fn show(ui: &mut egui::Ui, data: &GuiData, theme: &LiquidTheme, anim: &AnimationState) {
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new("Leases")
+                .strong()
+                .size(18.0)
+                .color(theme.text_primary),
+        );
+        ui.separator();
+        ui.label(
+            egui::RichText::new(format!("{} active", data.leases.leases.len()))
+                .small()
+                .color(theme.text_muted),
+        );
+    });
+    ui.add_space(6.0);
+    widgets::animated_gradient_bar(ui, anim, 2.0, theme);
+    ui.add_space(10.0);
 
     if data.leases.leases.is_empty() {
-        ui.vertical_centered(|ui| {
-            ui.add_space(40.0);
-            ui.label("No active surface leases");
-            ui.label(
-                egui::RichText::new("Leases appear here when surfaces are bound")
-                    .color(GRAY),
-            );
+        widgets::glass_panel(ui, theme, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.add_space(40.0);
+                ui.label(
+                    egui::RichText::new("No active surface leases")
+                        .size(16.0)
+                        .color(theme.text_primary),
+                );
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new("Leases appear here when surfaces are bound")
+                        .color(theme.text_muted),
+                );
+            });
         });
         return;
     }
 
     egui::ScrollArea::vertical()
-        .id_salt("leases_table")
+        .id_salt("leases_scroll")
         .show(ui, |ui| {
-            egui_extras::TableBuilder::new(ui)
-                .striped(true)
-                .resizable(true)
-                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                .column(egui_extras::Column::auto().at_least(160.0))
-                .column(egui_extras::Column::auto().at_least(140.0))
-                .column(egui_extras::Column::auto().at_least(100.0))
-                .column(egui_extras::Column::remainder())
-                .header(22.0, |mut header| {
-                    header.col(|ui| { ui.strong("Handle"); });
-                    header.col(|ui| { ui.strong("Name"); });
-                    header.col(|ui| { ui.strong("Protocol"); });
-                    header.col(|ui| { ui.strong("State"); });
-                })
-                .body(|body| {
-                    body.rows(20.0, data.leases.leases.len(), |mut row| {
-                        let l = &data.leases.leases[row.index()];
-                        let color = state_color(&l.state);
-                        row.col(|ui| { ui.label(truncate_handle(&l.handle)); });
-                        row.col(|ui| { ui.label(&l.name); });
-                        row.col(|ui| { ui.label(&l.protocol); });
-                        row.col(|ui| {
-                            ui.colored_label(color, &l.state);
-                        });
+            for lease in &data.leases.leases {
+                let state_color = theme.lease_state_color(&lease.state);
+                let frame = LiquidTheme::glow_frame(state_color);
+                frame.show(ui, |ui| {
+                    // Header row: name + state pill
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(&lease.name)
+                                .strong()
+                                .color(theme.text_primary),
+                        );
+                        ui.with_layout(
+                            egui::Layout::right_to_left(egui::Align::Center),
+                            |ui| {
+                                // State indicator with glow
+                                let glow = anim.pulse_glow();
+                                let pulse_alpha = if lease.state.contains("Active") {
+                                    (glow * 40.0 + 20.0) as u8
+                                } else {
+                                    20
+                                };
+                                let glow_bg = egui::Color32::from_rgba_premultiplied(
+                                    state_color.r(),
+                                    state_color.g(),
+                                    state_color.b(),
+                                    pulse_alpha,
+                                );
+                                let pill_frame = egui::Frame::none()
+                                    .fill(glow_bg)
+                                    .rounding(egui::Rounding::same(10.0))
+                                    .inner_margin(egui::Margin::symmetric(10.0, 3.0));
+                                pill_frame.show(ui, |ui| {
+                                    ui.colored_label(state_color, &lease.state);
+                                });
+                            },
+                        );
+                    });
+
+                    ui.add_space(4.0);
+
+                    // Details row: handle + protocol badge
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(truncate_handle(&lease.handle))
+                                .small()
+                                .color(theme.text_secondary),
+                        );
+                        ui.add_space(8.0);
+                        // Protocol badge with morphic styling
+                        protocol_badge(ui, &lease.protocol, theme);
                     });
                 });
+                ui.add_space(6.0);
+            }
         });
 }
 
-fn state_color(state: &str) -> egui::Color32 {
-    if state.contains("Active") {
-        GREEN
-    } else if state.contains("Pending") {
-        YELLOW
-    } else if state.contains("Failed")
-        || state.contains("Revoked")
-        || state.contains("Expired")
-    {
-        RED
-    } else {
-        GRAY
-    }
+/// Protocol badge with morphic glass styling.
+fn protocol_badge(ui: &mut egui::Ui, protocol: &str, theme: &LiquidTheme) {
+    let color = match protocol.to_lowercase().as_str() {
+        s if s.contains("rdma") => theme.node_gpu,
+        s if s.contains("nvlink") => theme.accent_secondary,
+        s if s.contains("pcie") => theme.accent_primary,
+        _ => theme.node_default,
+    };
+    let frame = egui::Frame::none()
+        .fill(color.linear_multiply(0.2))
+        .rounding(egui::Rounding::same(6.0))
+        .inner_margin(egui::Margin::symmetric(8.0, 2.0));
+    frame.show(ui, |ui| {
+        ui.colored_label(color, protocol);
+    });
 }
 
 fn truncate_handle(h: &str) -> &str {
-    if h.len() > 16 { &h[..16] } else { h }
+    if h.len() > 16 {
+        &h[..16]
+    } else {
+        h
+    }
 }
