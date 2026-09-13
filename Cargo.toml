@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/fabric-capability",
     "crates/fabric-capability-ffi",
+    "crates/fabric-checker",
     "crates/fabric-graph",
     "crates/fabric-graph-cli",
     "crates/fabric-persist",

@@ -172,11 +172,29 @@ fn process_message(message: &str, coordinator: &Coordinator) -> Option<String> {
             Some(health.to_json())
         }
         "probe_request" | "ProbeRequest" => {
-            // R3 stub: return basic topology info.
-            let epoch = coordinator.topology_epoch();
+            Some(coordinator.topology_snapshot())
+        }
+        "topology_request" | "TopologyRequest" => {
+            Some(coordinator.topology_snapshot())
+        }
+        "routes_request" | "RoutesRequest" => {
+            Some(coordinator.plans_snapshot())
+        }
+        "capabilities_request" | "CapabilitiesRequest" => {
+            Some(coordinator.capabilities_snapshot())
+        }
+        // --- WebRTC signaling ---
+        "webrtc_offer" | "WebRTCOffer" => {
+            handle_webrtc_offer(&parsed, coordinator)
+        }
+        "webrtc_answer" | "WebRTCAnswer" => {
+            handle_webrtc_answer(&parsed, coordinator)
+        }
+        "webrtc_ice" | "WebRTCIce" => {
+            // ICE candidate relay — acknowledge receipt.
             Some(format!(
-                r#"{{"type":"probe_response","topology_epoch":{},"status":"ok"}}"#,
-                epoch.0
+                r#"{{"type":"webrtc_ice_ack","status":"ok","from":"{}"}}"#,
+                parsed.get("from").and_then(|v| v.as_str()).unwrap_or("unknown")
             ))
         }
         "compile_request" | "CompileRequest" => {
@@ -251,6 +269,55 @@ fn compile_with_coordinator(
         .map_err(|e| e.to_string())
 }
 
+/// Handle a WebRTC offer from a client.
+/// Relays the offer and returns the SDP answer from the target node.
+fn handle_webrtc_offer(
+    parsed: &serde_json::Value,
+    _coordinator: &Coordinator,
+) -> Option<String> {
+    let target = match parsed.get("target").and_then(|v| v.as_str()) {
+        Some(s) => s,
+        None => {
+            return Some(
+                r#"{"type":"webrtc_error","error":"missing_target","message":"target field required"}"#.into(),
+            );
+        }
+    };
+    let _sdp = match parsed.get("sdp").and_then(|v| v.as_str()) {
+        Some(s) => s,
+        None => {
+            return Some(
+                r#"{"type":"webrtc_error","error":"missing_sdp","message":"sdp field required"}"#.into(),
+            );
+        }
+    };
+    // In production, relay the offer to the target node via frame transport.
+    // For now, acknowledge receipt and return a placeholder answer.
+    Some(format!(
+        r#"{{"type":"webrtc_answer","target":"{}","sdp":"placeholder-answer","status":"relay_pending"}}"#,
+        target
+    ))
+}
+
+/// Handle a WebRTC answer from a client.
+fn handle_webrtc_answer(
+    parsed: &serde_json::Value,
+    _coordinator: &Coordinator,
+) -> Option<String> {
+    let target = match parsed.get("target").and_then(|v| v.as_str()) {
+        Some(s) => s,
+        None => {
+            return Some(
+                r#"{"type":"webrtc_error","error":"missing_target","message":"target field required"}"#.into(),
+            );
+        }
+    };
+    Some(format!(
+        r#"{{"type":"webrtc_answer_ack","target":"{}","status":"ok"}}"#,
+        target
+    ))
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum WireServerError {
     #[error("io error: {0}")]
@@ -298,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    fn process_probe_request() {
+    fn process_probe_request_returns_topology() {
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let config = crate::config::DaemonConfig {
@@ -314,6 +381,155 @@ mod tests {
         let resp = process_message(msg, &coord).unwrap();
         assert!(resp.contains("probe_response"));
         assert!(resp.contains("topology_epoch"));
+        assert!(resp.contains("node_count"));
+        assert!(resp.contains("edge_count"));
+    }
+
+    #[test]
+    fn process_topology_request() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+
+        let msg = r#"{"type":"topology_request"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("probe_response"));
+        assert!(resp.contains("nodes"));
+    }
+
+    #[test]
+    fn process_routes_request() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+
+        let msg = r#"{"type":"routes_request"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("routes_response"));
+        assert!(resp.contains("routes"));
+    }
+
+    #[test]
+    fn process_capabilities_request() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+
+        let msg = r#"{"type":"capabilities_request"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("capabilities_response"));
+        assert!(resp.contains("capabilities"));
+    }
+
+    #[test]
+    fn process_webrtc_offer_requires_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+
+        let msg = r#"{"type":"webrtc_offer"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("missing_target"));
+    }
+
+    #[test]
+    fn process_webrtc_offer_with_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+
+        let msg = r#"{"type":"webrtc_offer","target":"node-1","sdp":"v=0..."}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("webrtc_answer"));
+        assert!(resp.contains("relay_pending"));
+    }
+
+    #[test]
+    fn process_webrtc_ice() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+
+        let msg = r#"{"type":"webrtc_ice","from":"browser","candidate":"candidate:..."}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("webrtc_ice_ack"));
+        assert!(resp.contains("browser"));
+    }
+
+    #[test]
+    fn process_probe_request_with_nodes() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+
+        // Add a node to the topology.
+        let topo = fabric_graph::builder::TopologyBuilder::new()
+            .with_name("test-topo")
+            .add(fabric_graph::Node::new(
+                fabric_graph::model::NodeId::new("n1"),
+                fabric_graph::LocalityTier::L5Loopback,
+            ).with_label("Node One"))
+            .build();
+        coord.set_topology(topo).unwrap();
+
+        let msg = r#"{"type":"probe_request"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(parsed["node_count"], 1);
+        assert_eq!(parsed["topology_name"], "test-topo");
+        let nodes = parsed["nodes"].as_array().unwrap();
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0]["id"], "n1");
+        assert_eq!(nodes[0]["label"], "Node One");
     }
 
     #[test]

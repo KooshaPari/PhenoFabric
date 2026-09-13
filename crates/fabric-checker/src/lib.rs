@@ -1,7 +1,7 @@
 // fabric-checker — public API surface
 //
 // PF-WP-011: cross-check a Fabric `CapabilityDescriptor` (live machine probe)
-// against an `odin.nvms` v0.2 `BoundManifest` (declared application) and emit
+// against a `CheckerManifest` (declared application requirements) and emit
 // a structured `Decision` with one or more `CheckOutcome` reasons.
 //
 // Two consumers:
@@ -10,10 +10,11 @@
 //     the same decision semantics from the JSON output for cross-language
 //     parity testing.
 
-pub mod decision;
 pub mod checks;
 pub mod checker;
+pub mod decision;
+pub mod manifest;
 
 pub use decision::{CheckOutcome, Decision, ReasonCode, Severity};
-pub use checks::{CheckContext, CheckFn, CheckRegistry};
-pub use checker::{Checker, CheckerConfig};
+pub use manifest::CheckerManifest;
+pub use checker::{check, collapse, run_all};

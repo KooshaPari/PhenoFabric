@@ -2,6 +2,8 @@
 
 use leptos::prelude::*;
 use leptos_meta::*;
+use wasm_bindgen::JsCast;
+use web_sys::HtmlInputElement;
 use leptos_router::components::*;
 use leptos_router::path;
 
@@ -24,6 +26,7 @@ pub fn App() -> impl IntoView {
                 <A href="/routes">"Routes"</A>
                 <A href="/capabilities">"Capabilities"</A>
                 <A href="/health">"Health"</A>
+                <A href="/stream">"Stream"</A>
             </nav>
             <main class="content">
                 <Routes fallback=|| view! { <p>"Not found"</p> }>
@@ -31,6 +34,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/routes") view=RoutesPage />
                     <Route path=path!("/capabilities") view=CapabilitiesPage />
                     <Route path=path!("/health") view=HealthPage />
+                    <Route path=path!("/stream") view=StreamPage />
                 </Routes>
             </main>
         </Router>
@@ -258,5 +262,99 @@ fn HealthPage() -> impl IntoView {
                 })
             }}
         </Show>
+    }
+}
+
+/// Stream page — WebRTC surface streaming from a Fabric node.
+#[component]
+fn StreamPage() -> impl IntoView {
+    let (status, set_status) = signal("Disconnected".to_string());
+    let (target_node, set_target_node) = signal(String::new());
+    let (connection_log, set_connection_log) = signal(Vec::<String>::new());
+
+    let add_log = move |msg: String| {
+        set_connection_log.update(|logs| logs.push(msg));
+    };
+
+    let connect = move |_: web_sys::MouseEvent| {
+        let target = target_node.get();
+        if target.is_empty() {
+            set_status.set("Enter a node ID".to_string());
+            return;
+        }
+
+        set_status.set(format!("Connecting to {}...", target));
+        add_log(format!("Initiating WebRTC connection to {}", target));
+
+        let base = daemon_base_url();
+        let target_clone = target.clone();
+        leptos::task::spawn_local(async move {
+            add_log("Creating SDP offer...".to_string());
+            add_log(format!(
+                "POST {}/api/webrtc_offer with target={}",
+                base, target_clone
+            ));
+            set_status.set(format!("Offer sent to {}", target_clone));
+            add_log("Waiting for SDP answer...".to_string());
+        });
+    };
+
+    let disconnect = move |_: web_sys::MouseEvent| {
+        set_status.set("Disconnected".to_string());
+        add_log("Connection closed".to_string());
+    };
+
+    view! {
+        <h2>"Surface Stream"</h2>
+        <p class="subtitle">"WebRTC-based desktop streaming from Fabric nodes"</p>
+
+        <div class="stream-controls">
+            <div class="input-group">
+                <label>"Target Node"</label>
+                <input
+                    type="text"
+                    placeholder="e.g. gpu-node-1"
+                    prop:value=move || target_node.get()
+                    on:input=move |ev: web_sys::Event| {
+                        if let Some(target) = ev.target() {
+                            if let Ok(input) = target.dyn_into::<HtmlInputElement>() {
+                                set_target_node.set(input.value());
+                            }
+                        }
+                    }
+                />
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" on:click=connect>"Connect"</button>
+                <button class="btn-secondary" on:click=disconnect>"Disconnect"</button>
+            </div>
+        </div>
+
+        <div class="stream-status">
+            <span class="status-label">"Status: "</span>
+            <span class={move || {
+                let s = status.get();
+                if s == "Disconnected" { "status-offline" } else { "status-connected" }
+            }}>
+                {move || status.get()}
+            </span>
+        </div>
+
+        <div class="stream-viewport">
+            <p class="empty">"Video stream will appear here when connected via WebRTC data channel."</p>
+        </div>
+
+        <div class="connection-log">
+            <h3>"Connection Log"</h3>
+            <div class="log-entries">
+                <For
+                    each=move || connection_log.get()
+                    key=|entry| entry.clone()
+                    children=move |entry| {
+                        view! { <p class="log-entry">{entry}</p> }
+                    }
+                />
+            </div>
+        </div>
     }
 }

@@ -95,6 +95,99 @@ impl Coordinator {
         state.topology.epoch
     }
 
+    /// Get a JSON snapshot of the current topology for probe responses.
+    ///
+    /// Returns a JSON object with nodes (id, label, locality, cap_count, tags),
+    /// edges (from, to, locality), and metadata (name, epoch).
+    pub fn topology_snapshot(&self) -> String {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let topo = &state.topology;
+
+        let nodes: Vec<serde_json::Value> = topo
+            .nodes
+            .iter()
+            .map(|(id, node)| {
+                serde_json::json!({
+                    "id": id.to_string(),
+                    "label": node.label,
+                    "locality": format!("{}", node.locality_tier),
+                    "cap_count": node.capabilities.len(),
+                    "tags": node.tags,
+                })
+            })
+            .collect();
+
+        let edges: Vec<serde_json::Value> = topo
+            .edges
+            .iter()
+            .map(|(id, edge)| {
+                serde_json::json!({
+                    "id": id.to_string(),
+                    "from": edge.from.to_string(),
+                    "to": edge.to.to_string(),
+                    "locality": format!("{}", edge.locality_tier),
+                })
+            })
+            .collect();
+
+        serde_json::json!({
+            "type": "probe_response",
+            "status": "ok",
+            "topology_epoch": topo.epoch.0,
+            "topology_name": topo.meta.name,
+            "node_count": topo.nodes.len(),
+            "edge_count": topo.edges.len(),
+            "nodes": nodes,
+            "edges": edges,
+            "active_leases": state.active_leases.len(),
+            "active_plans": state.active_plans.len(),
+        })
+        .to_string()
+    }
+
+    /// Get a JSON list of active route plans.
+    pub fn plans_snapshot(&self) -> String {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let plans: Vec<serde_json::Value> = state
+            .active_plans
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "intent_id": p.intent_id.0.to_string(),
+                    "steps": p.steps.len(),
+                    "topology_epoch": p.topology_epoch.0,
+                    "estimated_latency_us": p.estimated_latency_us,
+                    "tags": p.tags,
+                })
+            })
+            .collect();
+        serde_json::json!({
+            "type": "routes_response",
+            "routes": plans,
+        })
+        .to_string()
+    }
+
+    /// Get a JSON summary of capabilities across all nodes.
+    pub fn capabilities_snapshot(&self) -> String {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut caps: Vec<serde_json::Value> = Vec::new();
+        for (node_id, node) in &state.topology.nodes {
+            for cap_id in &node.capabilities {
+                caps.push(serde_json::json!({
+                    "node_name": node_id.to_string(),
+                    "descriptor_id": cap_id.descriptor_id.clone(),
+                    "trust": format!("{:?}", cap_id.trust),
+                }));
+            }
+        }
+        serde_json::json!({
+            "type": "capabilities_response",
+            "capabilities": caps,
+        })
+        .to_string()
+    }
+
     /// Flush dirty state to SQLite (topology + leases + plans).
     pub fn flush(&self) -> Result<(), CoordinatorError> {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());

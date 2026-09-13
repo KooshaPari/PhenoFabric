@@ -17,23 +17,54 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// The outcome of a single check: Admit, AdmitWithNotes, or Reject.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Decision {
+    /// All checks passed.
     Admit,
-    AdmitWithNotes,
-    Reject,
+    /// Admissible but with advisory notes.
+    AdmitWithNotes { notes: Vec<CheckOutcome> },
+    /// At least one hard requirement failed.
+    Reject {
+        reason_code: ReasonCode,
+        reason_message: String,
+    },
 }
+
+impl PartialEq for Decision {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Admit, Self::Admit) => true,
+            (Self::AdmitWithNotes { notes: a }, Self::AdmitWithNotes { notes: b }) => a == b,
+            (
+                Self::Reject {
+                    reason_code: rc1,
+                    reason_message: rm1,
+                },
+                Self::Reject {
+                    reason_code: rc2,
+                    reason_message: rm2,
+                },
+            ) => rc1 == rc2 && rm1 == rm2,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Decision {}
 
 impl Decision {
     pub fn is_admissible(&self) -> bool {
-        matches!(self, Self::Admit | Self::AdmitWithNotes)
+        matches!(self, Self::Admit | Self::AdmitWithNotes { .. })
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Severity {
-    Hard,
-    Soft,
+    /// Hard failure — rejects the decision immediately.
+    Reject,
+    /// Soft advisory — produces an AdmitWithNotes.
+    AdmitWithNotes,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -44,17 +75,28 @@ pub struct CheckOutcome {
 }
 
 impl CheckOutcome {
+    /// Create a hard (reject-level) check outcome.
     pub fn hard(code: ReasonCode, message: impl Into<String>) -> Self {
         Self {
-            severity: Severity::Hard,
+            severity: Severity::Reject,
             code,
             message: message.into(),
         }
     }
 
+    /// Create a soft (advisory) check outcome.
     pub fn soft(code: ReasonCode, message: impl Into<String>) -> Self {
         Self {
-            severity: Severity::Soft,
+            severity: Severity::AdmitWithNotes,
+            code,
+            message: message.into(),
+        }
+    }
+
+    /// Create a check outcome with an explicit severity.
+    pub fn fail(code: ReasonCode, severity: Severity, message: impl Into<String>) -> Self {
+        Self {
+            severity,
             code,
             message: message.into(),
         }
@@ -99,9 +141,11 @@ impl DecisionReport {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum ReasonCode {
-    // --- hardware resources (Hard) ---
+    // --- hardware resources (Reject) ---
     /// Manifest requires more memory than the host exposes.
     MemoryInsufficient,
+    /// Host memory could not be determined.
+    MemoryUnknown,
     /// Manifest requires more cores than the host exposes.
     CoresInsufficient,
     /// Manifest requires an accelerator class (e.g. CUDA) the host
@@ -115,7 +159,19 @@ pub enum ReasonCode {
     /// Manifest requires a capture device (mic, camera), host has none.
     CaptureRequiredButMissing,
 
-    // --- display capability (Hard/Soft) ---
+    // --- storage (Reject) ---
+    /// Host storage could not be determined.
+    StorageUnknown,
+    /// Manifest requires more storage than the host provides.
+    StorageInsufficient,
+
+    // --- OS / arch (Reject) ---
+    /// Host OS is not in the manifest's allowed families.
+    OsIncompatible,
+    /// Host architecture is not in the manifest's allowed arches.
+    ArchIncompatible,
+
+    // --- display capability (Reject/AdmitWithNotes) ---
     /// Host display resolution below the manifest's minimum.
     DisplayResolutionInsufficient,
     /// Host display refresh-rate below the manifest's minimum.
@@ -123,7 +179,7 @@ pub enum ReasonCode {
     /// Host display does not support the requested color depth.
     DisplayColorDepthInsufficient,
 
-    // --- network (Hard) ---
+    // --- network (Reject) ---
     /// Manifest requires a minimum link bandwidth the host cannot reach
     /// on any interface.
     BandwidthInsufficient,
@@ -134,7 +190,7 @@ pub enum ReasonCode {
     /// host does not provide.
     LinkClassMissing,
 
-    // --- real-time guarantees (Soft unless explicit) ---
+    // --- real-time guarantees (AdmitWithNotes unless explicit) ---
     /// Manifest declares `real_time: true` but the host does not
     /// advertise any RT island.  Soft because some manifests tolerate
     /// degraded scheduling.
@@ -142,7 +198,7 @@ pub enum ReasonCode {
     /// Manifest's required RT priority is higher than the host offers.
     RealTimePriorityUnavailable,
 
-    // --- trust (Hard) ---
+    // --- trust (Reject) ---
     /// Manifest requires a higher trust level than the descriptor
     /// carries (e.g. requires Audited, descriptor is Provided).
     TrustLevelInsufficient,
@@ -152,7 +208,7 @@ pub enum ReasonCode {
     /// Descriptor signature is present but not by a trusted key.
     SignatureUntrusted,
 
-    // --- data locality (Soft) ---
+    // --- data locality (AdmitWithNotes) ---
     /// Manifest declares data-residency requirements the host cannot
     /// meet (e.g. requires EU-only data, host is in US).
     DataResidencyViolation,
@@ -161,7 +217,7 @@ pub enum ReasonCode {
     /// reach L3SameHostPcie).
     LocalityPreferenceUnsatisfied,
 
-    // --- presence / schema (Hard) ---
+    // --- presence / schema (Reject) ---
     /// Manifest references a capability the descriptor has no record of.
     /// (Different from "missing" — the manifest asks for X, the host
     /// doesn't even know what X is.)
@@ -173,7 +229,7 @@ pub enum ReasonCode {
     /// Manifest or descriptor failed to parse as JSON.
     MalformedInput,
 
-    // --- advisories (Soft) ---
+    // --- advisories (AdmitWithNotes) ---
     /// Manifest is admissible but a newer driver / firmware would
     /// improve some metric.
     FirmwareUpdateAvailable,
@@ -183,6 +239,20 @@ pub enum ReasonCode {
     /// Manifest's declared requirements are self-inconsistent (e.g.
     /// requires more memory than declared host total).
     ManifestSelfInconsistent,
+
+    // --- descriptor shape (Reject / AdmitWithNotes) ---
+    /// Descriptor has no signatures.
+    SignatureMissing,
+    /// Descriptor epoch is 0 (initial probe, never validated).
+    EpochZero,
+    /// Descriptor schema version is not in the supported list.
+    SchemaUnsupported,
+    /// Descriptor node_id is the nil UUID.
+    NodeIdNil,
+    /// Descriptor topology hash is empty.
+    TopologyHashMissing,
+    /// Descriptor probe timestamp is stale (>24 h).
+    ProbeStale,
 }
 
 impl ReasonCode {
@@ -195,6 +265,9 @@ impl ReasonCode {
             | AcceleratorGenerationMismatch
             | DisplayRequiredButMissing
             | CaptureRequiredButMissing
+            | StorageInsufficient
+            | OsIncompatible
+            | ArchIncompatible
             | DisplayResolutionInsufficient
             | DisplayRefreshRateInsufficient
             | DisplayColorDepthInsufficient
@@ -208,14 +281,22 @@ impl ReasonCode {
             | CapabilityUnknown
             | ManifestSchemaTooNew
             | DescriptorSchemaTooOld
-            | MalformedInput => Severity::Hard,
+            | MalformedInput
+            | MemoryUnknown
+            | StorageUnknown => Severity::Reject,
 
             RealTimeIslandMissing
             | DataResidencyViolation
             | LocalityPreferenceUnsatisfied
             | FirmwareUpdateAvailable
             | UnexpectedCapability
-            | ManifestSelfInconsistent => Severity::Soft,
+            | ManifestSelfInconsistent
+            | SignatureMissing
+            | EpochZero
+            | SchemaUnsupported
+            | NodeIdNil
+            | TopologyHashMissing
+            | ProbeStale => Severity::AdmitWithNotes,
         }
     }
 
@@ -225,11 +306,16 @@ impl ReasonCode {
         use ReasonCode::*;
         match self {
             MemoryInsufficient => "MemoryInsufficient",
+            MemoryUnknown => "MemoryUnknown",
             CoresInsufficient => "CoresInsufficient",
             AcceleratorClassMissing => "AcceleratorClassMissing",
             AcceleratorGenerationMismatch => "AcceleratorGenerationMismatch",
             DisplayRequiredButMissing => "DisplayRequiredButMissing",
             CaptureRequiredButMissing => "CaptureRequiredButMissing",
+            StorageUnknown => "StorageUnknown",
+            StorageInsufficient => "StorageInsufficient",
+            OsIncompatible => "OsIncompatible",
+            ArchIncompatible => "ArchIncompatible",
             DisplayResolutionInsufficient => "DisplayResolutionInsufficient",
             DisplayRefreshRateInsufficient => "DisplayRefreshRateInsufficient",
             DisplayColorDepthInsufficient => "DisplayColorDepthInsufficient",
@@ -250,6 +336,12 @@ impl ReasonCode {
             FirmwareUpdateAvailable => "FirmwareUpdateAvailable",
             UnexpectedCapability => "UnexpectedCapability",
             ManifestSelfInconsistent => "ManifestSelfInconsistent",
+            SignatureMissing => "SignatureMissing",
+            EpochZero => "EpochZero",
+            SchemaUnsupported => "SchemaUnsupported",
+            NodeIdNil => "NodeIdNil",
+            TopologyHashMissing => "TopologyHashMissing",
+            ProbeStale => "ProbeStale",
         }
     }
 }
