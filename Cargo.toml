@@ -17,6 +17,7 @@ members = [
     "crates/fabric-integration-tests",
     "crates/fabric-tui",
     "crates/fabric-workspace",
+    "crates/fabric-surface-mojo",
 ]
 
 [workspace.package]
@@ -44,6 +45,29 @@ fabric-graph = { path = "crates/fabric-graph" }
 [workspace.lints.rust]
 unsafe_code = "forbid"
 unused_must_use = "deny"
+
+[patch.crates-io]
+# KNOWN ISSUE: RUSTSEC-2026-0195 / RUSTSEC-2026-0196 — quick-xml < 0.41.0
+# quick-xml 0.30.0 is a transitive dependency via:
+#   fabric-gui -> eframe 0.31.1 -> accesskit_winit -> accesskit_unix
+#   -> accesskit_atspi_common -> atspi-common -> zbus-lockstep 0.4.4
+#   -> zbus_xml 4.0.0 -> quick-xml ^0.30
+#
+# Cannot be patched because zbus_xml 4.0.0 pins quick-xml ^0.30 (semver-incompatible
+# with 0.41.0). The [patch.crates-io] mechanism cannot force a semver-breaking version.
+#
+# FIX PATH: Upgrade eframe from 0.31.x to 0.36.x (or later), which pulls in a newer
+# accesskit chain -> zbus-lockstep 0.7.x -> zbus_xml 5.2.x, which replaced quick-xml
+# with winnow entirely, eliminating the vulnerability.
+#
+# RISK ASSESSMENT: The vulnerable code path (NsReader namespace allocation / duplicate
+# attribute checking) is only exercised by zbus_xml for D-Bus introspection XML parsing.
+# Exploitation requires a malicious D-Bus service on the local system, making the
+# practical risk LOW for desktop GUI use. Severity is rated 7.5 (high) by RustSec.
+#
+# UPSTREAM STATUS: zbus_xml 5.2.1 removed quick-xml dependency (uses winnow instead).
+# eframe 0.36.2 is latest. Upgrading eframe is tracked separately.
+# TODO: Upgrade eframe -> accesskit -> atspi -> zbus_xml chain to resolve this.
 
 [profile.release]
 lto = "thin"
