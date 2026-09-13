@@ -5,23 +5,29 @@
 
 use crate::coordinator::Coordinator;
 
+use fabric_frame_transport::validation::{validate_message, validation_error_response};
+
 use super::handlers;
+use tracing::warn;
 
 /// Process a single wire message and return an optional response.
 pub fn process_message(message: &str, coordinator: &Coordinator) -> Option<String> {
-    // Parse as JSON to determine message type.
-    let parsed: serde_json::Value = match serde_json::from_str(message) {
+    // Validate the incoming message before processing.
+    let validated = match validate_message(message) {
         Ok(v) => v,
-        Err(_) => {
-            return Some(
-                r#"{"error":"invalid_json","message":"could not parse message as JSON"}"#.into(),
+        Err(e) => {
+            warn!(
+                code = %e.code,
+                message = %e.message,
+                "wire protocol validation failed"
             );
+            return Some(validation_error_response(&e));
         }
     };
 
-    let msg_type = parsed.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+    let msg_type = &validated.msg_type;
 
-    match msg_type {
+    match msg_type.as_str() {
         "heartbeat" | "Heartbeat" => Some(
             r#"{"type":"heartbeat_ack","status":"ok"}"#.into(),
         ),
@@ -43,20 +49,20 @@ pub fn process_message(message: &str, coordinator: &Coordinator) -> Option<Strin
         }
         // --- WebRTC signaling ---
         "webrtc_offer" | "WebRTCOffer" => {
-            handlers::handle_webrtc_offer(&parsed, coordinator)
+            handlers::handle_webrtc_offer(&validated.value, coordinator)
         }
         "webrtc_answer" | "WebRTCAnswer" => {
-            handlers::handle_webrtc_answer(&parsed, coordinator)
+            handlers::handle_webrtc_answer(&validated.value, coordinator)
         }
         "webrtc_ice" | "WebRTCIce" => {
             // ICE candidate relay -- acknowledge receipt.
             Some(format!(
                 r#"{{"type":"webrtc_ice_ack","status":"ok","from":"{}"}}"#,
-                parsed.get("from").and_then(|v| v.as_str()).unwrap_or("unknown")
+                validated.value.get("from").and_then(|v| v.as_str()).unwrap_or("unknown")
             ))
         }
         "compile_request" | "CompileRequest" => {
-            handlers::handle_compile_request(&parsed, coordinator)
+            handlers::handle_compile_request(&validated.value, coordinator)
         }
         _ => Some(format!(
             r#"{{"error":"unknown_message","type":"{}"}}"#,
@@ -141,7 +147,7 @@ mod tests {
     fn process_invalid_json() {
         let coord = make_coordinator();
         let resp = process_message("not json", &coord).unwrap();
-        assert!(resp.contains("invalid_json"));
+        assert!(resp.contains("validation_error") || resp.contains("INVALID_JSON"));
     }
 
     #[test]
@@ -149,6 +155,38 @@ mod tests {
         let coord = make_coordinator();
         let msg = r#"{"type":"foo_bar"}"#;
         let resp = process_message(msg, &coord).unwrap();
-        assert!(resp.contains("unknown_message"));
+        assert!(resp.contains("UNKNOWN_TYPE"));
+    }
+
+    #[test]
+    fn process_missing_type_field() {
+        let coord = make_coordinator();
+        let msg = r#"{"foo":"bar"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("MISSING_TYPE"));
+    }
+
+    #[test]
+    fn process_compile_request_missing_source_rejected() {
+        let coord = make_coordinator();
+        let msg = r#"{"type":"compile_request","destination":"b"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("MISSING_FIELD"));
+    }
+
+    #[test]
+    fn process_webrtc_offer_missing_target_rejected() {
+        let coord = make_coordinator();
+        let msg = r#"{"type":"webrtc_offer","sdp":"v=0..."}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("MISSING_FIELD"));
+    }
+
+    #[test]
+    fn process_compile_request_wrong_type_rejected() {
+        let coord = make_coordinator();
+        let msg = r#"{"type":"compile_request","source":123,"destination":"b"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("WRONG_TYPE"));
     }
 }

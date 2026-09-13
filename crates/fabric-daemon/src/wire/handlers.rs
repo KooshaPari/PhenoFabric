@@ -137,7 +137,7 @@ mod tests {
         let coord = make_coordinator();
         let msg = r#"{"type":"webrtc_offer"}"#;
         let resp = process_message(msg, &coord).unwrap();
-        assert!(resp.contains("missing_target"));
+        assert!(resp.contains("MISSING_FIELD") || resp.contains("missing_target"));
     }
 
     #[test]
@@ -188,7 +188,7 @@ mod tests {
         let coord = make_coordinator();
         let msg = r#"{"type":"compile_request","destination":"b"}"#;
         let resp = process_message(msg, &coord).unwrap();
-        assert!(resp.contains("missing_source"));
+        assert!(resp.contains("MISSING_FIELD") || resp.contains("missing_source"));
     }
 
     #[test]
@@ -196,7 +196,7 @@ mod tests {
         let coord = make_coordinator();
         let msg = r#"{"type":"compile_request","source":"a"}"#;
         let resp = process_message(msg, &coord).unwrap();
-        assert!(resp.contains("missing_destination"));
+        assert!(resp.contains("MISSING_FIELD") || resp.contains("missing_destination"));
     }
 
     #[test]

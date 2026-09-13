@@ -43,6 +43,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Probe(a) => commands::probe::dispatch(a),
         Commands::Status(a) => commands::status::dispatch(a),
         Commands::Check(a) => commands::check::dispatch(a),
+        Commands::Version => commands::version::execute(),
         Commands::Tui => {
             tracing_subscriber::registry()
                 .with(fmt::layer().with_target(true).with_level(true))
@@ -50,6 +51,7 @@ fn main() -> anyhow::Result<()> {
                 .init();
             fabric_cli::tui::run(&workspace)
         }
+        Commands::Completions(a) => commands::completions::execute(&a),
     };
 
     if let Err(ref e) = result {

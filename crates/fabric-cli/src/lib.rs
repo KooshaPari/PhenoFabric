@@ -13,6 +13,7 @@
 //!   check    — run checker against manifest
 //!   tui      — interactive TUI explorer
 
+pub mod completions;
 pub mod commands;
 pub mod tui;
 pub mod wire_client;
@@ -77,8 +78,12 @@ pub enum Commands {
     Status(commands::status::StatusArgs),
     /// Run checker against a manifest.
     Check(commands::check::CheckArgs),
+    /// Print Fabric workspace version information.
+    Version,
     /// Launch the interactive TUI topology explorer.
     Tui,
+    /// Generate shell completion scripts.
+    Completions(commands::completions::CompletionsArgs),
 }
 
 #[derive(Parser, Debug)]

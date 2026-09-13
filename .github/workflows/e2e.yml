@@ -1,0 +1,150 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel in-progress runs for the same branch/PR.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ── E2E smoke tests ─────────────────────────────────────────────────
+  e2e-smoke:
+    name: E2E smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-e2e-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-e2e-
+
+      - name: Install Linux GUI dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libwayland-dev
+
+      - name: Run E2E smoke tests
+        run: cargo test -p fabric-integration-tests --test e2e_smoke --no-fail-fast
+
+  # ── E2E daemon start/stop via binary ────────────────────────────────
+  e2e-binary:
+    name: E2E daemon binary
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: e2e-smoke
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-e2e-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-e2e-
+
+      - name: Install Linux GUI dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libwayland-dev
+
+      - name: Build daemon binary
+        run: cargo build -p fabric-daemon --release
+
+      - name: Start daemon in background
+        run: |
+          mkdir -p /tmp/fabric-e2e
+          target/release/fabric-daemon start --db /tmp/fabric-e2e/state.db &
+          DAEMON_PID=$!
+          echo "DAEMON_PID=$DAEMON_PID" >> "$GITHUB_ENV"
+
+      - name: Wait for daemon health check
+        run: |
+          echo "Waiting for daemon to be ready..."
+          for i in $(seq 1 30); do
+            if echo '{"type":"health_check"}' | nc -w 2 127.0.0.1 9400 | grep -q "healthy"; then
+              echo "Daemon is healthy after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Daemon did not become healthy in 30s"
+          exit 1
+
+      - name: Send test messages via nc
+        run: |
+          # Health check
+          RESP=$(echo '{"type":"health_check"}' | nc -w 2 127.0.0.1 9400)
+          echo "health_check: $RESP"
+          echo "$RESP" | grep -q "healthy"
+
+          # Heartbeat
+          RESP=$(echo '{"type":"heartbeat"}' | nc -w 2 127.0.0.1 9400)
+          echo "heartbeat: $RESP"
+          echo "$RESP" | grep -q "heartbeat_ack"
+
+          # Topology request
+          RESP=$(echo '{"type":"topology_request"}' | nc -w 2 127.0.0.1 9400)
+          echo "topology_request: $RESP"
+          echo "$RESP" | grep -q "probe_response"
+
+          # Routes request
+          RESP=$(echo '{"type":"routes_request"}' | nc -w 2 127.0.0.1 9400)
+          echo "routes_request: $RESP"
+          echo "$RESP" | grep -q "routes_response"
+
+          # Invalid message (should return error)
+          RESP=$(echo 'not json' | nc -w 2 127.0.0.1 9400)
+          echo "invalid_json: $RESP"
+          echo "$RESP" | grep -q "invalid_json"
+
+          # Unknown message type
+          RESP=$(echo '{"type":"unknown_type_xyz"}' | nc -w 2 127.0.0.1 9400)
+          echo "unknown_message: $RESP"
+          echo "$RESP" | grep -q "unknown_message"
+
+          echo "All E2E message tests passed!"
+
+      - name: Stop daemon
+        if: always()
+        run: |
+          if [ -n "$DAEMON_PID" ]; then
+            kill "$DAEMON_PID" 2>/dev/null || true
+            wait "$DAEMON_PID" 2>/dev/null || true
+          fi
+          rm -rf /tmp/fabric-e2e

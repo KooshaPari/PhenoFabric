@@ -12,7 +12,8 @@
 //! - Startup recovery loads all active state into memory
 
 mod error;
-mod schema;
+pub mod migrations;
+pub mod schema;
 mod topology;
 mod leases;
 mod routes;
@@ -70,8 +71,11 @@ impl Persist {
 
     /// Run all pending schema migrations.
     fn run_migrations(&self) -> Result<(), PersistError> {
-        let conn = self.conn.lock().map_err(|e| PersistError::Lock(e.to_string()))?;
-        schema::run_migrations(&conn)
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| PersistError::Lock(e.to_string()))?;
+        migrations::migrate(&conn)
     }
 
     /// Execute a closure with exclusive access to the connection.

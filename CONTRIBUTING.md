@@ -14,7 +14,55 @@ history (SessionLedger), or process supervision (ShareCLI).
 If your change extends Fabric into one of those domains, you need an ADR
 before writing code.
 
-## Before writing code
+## Development Setup
+
+### Prerequisites
+
+- **Rust** 1.81+ (via [rustup](https://rustup.rs/))
+- **cargo-deny** (optional, for dependency auditing): `cargo install cargo-deny`
+- **mdBook** (optional, for docs): `cargo install mdbook`
+
+### Getting Started
+
+```bash
+# Clone the repository
+git clone https://github.com/phenotype-dev/phenotype-fabric.git
+cd phenotype-fabric
+
+# Build the workspace
+cargo build
+
+# Run the test suite
+cargo test --workspace
+
+# Run the CLI
+cargo run -p fabric-cli -- --help
+```
+
+## Code Style
+
+- **Rust edition**: 2021
+- **Formatting**: `cargo fmt`
+- **Linting**: `cargo clippy --workspace -- -D warnings`
+- **No unsafe code**: All crates enforce `unsafe_code = "forbid"`
+
+## Running Tests
+
+```bash
+# Full workspace tests
+cargo test --workspace
+
+# Specific crate tests
+cargo test -p fabric-graph
+
+# With output
+cargo test --workspace -- --nocapture
+
+# Benchmarks
+cargo bench --workspace
+```
+
+## Before Writing Code
 
 1. **Traceability**: every behavioral change must trace to an
    `intent/`, `specs/NNN-*/`, `FUNCTIONAL_REQUIREMENTS.md`,
@@ -43,7 +91,7 @@ before writing code.
    an existing benchmark must go through the research program.
    See `GOVERNANCE.md#research-rule` and `research/research-program.md`.
 
-## Writing spec changes
+## Writing Spec Changes
 
 Documents are append-only in history but mutable in the working tree.
 Superseded documents must remain linked with:
@@ -62,9 +110,7 @@ When editing any document:
 4. Update `work/wbs.md` if a work-package boundary moved.
 5. Run spec validation (see below) before committing.
 
-## Writing code (when the time comes)
-
-When implementation begins:
+## Writing Code
 
 1. Every adapter must advertise a versioned capability descriptor and
    implement the conformance rules in `SPECIFICATION.md#conformance`.
@@ -77,7 +123,7 @@ When implementation begins:
    A platform-supported mechanism must be shown insufficient before a
    privileged helper is written.
 
-## Evidence rule
+## Evidence Rule
 
 No feature may be described as "working," "zero-copy," "hard real-time,"
 "HDR-preserving," "transparent," "atomic," or "seamless" based only on
@@ -94,7 +140,7 @@ architecture intent. Each such claim requires:
 
 See `GOVERNANCE.md#evidence-rule`.
 
-## Definition of done
+## Definition of Done
 
 A work package is done only when its acceptance criteria, compatibility
 matrix, benchmark/fault tests, security controls, documentation, and
@@ -102,7 +148,28 @@ rollback path are all evidenced. "Code exists" is not completion.
 
 See `GOVERNANCE.md#definition-of-done` and `verification/acceptance-gates.md`.
 
-## Spec validation (run before every commit)
+## Pull Request Process
+
+1. **Fork** the repository and create a feature branch from `main`
+2. **Make your changes** with clear, descriptive commits
+3. **Ensure all checks pass**:
+   - `cargo fmt --check`
+   - `cargo clippy --workspace -- -D warnings`
+   - `cargo test --workspace`
+4. **Update documentation** if your change affects public APIs or architecture
+5. **Open a PR** against `main` with a clear title and description
+
+### Commit Messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+- `feat: add new surface type`
+- `fix: resolve topology compiler edge case`
+- `docs: update ADR for wire protocol`
+- `test: add integration tests for workspace FSM`
+- `refactor: simplify route compilation`
+
+## Spec Validation (run before every commit)
 
 ```bash
 # All JSON schemas well-formed
@@ -116,47 +183,15 @@ protoc --proto_path=architecture/schemas \
 
 # OpenAPI well-formed
 python3 -c "import yaml; yaml.safe_load(open('architecture/openapi.yaml'))"
-
-# File tree matches manifest
-diff <(find . -type f | sort) \
-     <(python3 -c "
-import json
-m = json.load(open('MANIFEST.sha256'))
-print('\n'.join(sorted(m.keys())))")
-
-# No broken cross-doc links (basic check)
-python3 -c "
-import os, re
-broken = []
-for root, dirs, files in os.walk('.'):
-    if '.git' in root or 'node_modules' in root:
-        continue
-    for f in files:
-        if f.endswith('.md'):
-            path = os.path.join(root, f)
-            for i, line in enumerate(open(path), 1):
-                for m in re.finditer(r'\[([^\]]+)\]\(([^)]+)\)', line):
-                    target = m.group(2)
-                    if target.startswith('http') or target.startswith('#'):
-                        continue
-                    if not os.path.exists(os.path.join(os.path.dirname(path), target)):
-                        broken.append(f'{path}:{i}: broken link [{m.group(1)}]({target})')
-if broken:
-    for b in broken:
-        print(b)
-    exit(1)
-"
 ```
 
-## Prompt preservation
+## Prompt Preservation
 
 The exact prompts under `intent/` are immutable source records. When
 adding new intent, add a new numbered entry rather than rewriting history.
 Preserve failed experiments and rejected alternatives — they inform future
 decisions.
 
-## Release and promotion
+## License
 
-Routes are promoted independently. A product release conforms only when
-the complete reference scenarios (see `examples/`) pass. See
-`work/release-plan.md` for the lab/dev/preview/stable channel policy.
+By contributing, you agree that your contributions will be licensed under the same license as the project: MIT OR Apache-2.0.

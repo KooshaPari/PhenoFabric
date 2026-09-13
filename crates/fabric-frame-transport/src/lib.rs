@@ -20,8 +20,10 @@
 //! - `0x07` Error      — bidirectional, error notification
 //! - `0x08` KeyFrame   — server → client, request IDR/keyframe
 
+pub mod schema;
 pub mod stats;
 pub mod transport;
+pub mod validation;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
