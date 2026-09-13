@@ -1,0 +1,49 @@
+# ──────────────────────────────────────────────────────────────────────
+# Docker Compose for Phenotype Fabric daemon
+# ──────────────────────────────────────────────────────────────────────
+# Usage:
+#   docker compose up -d          # Start daemon in background
+#   docker compose logs -f        # Follow logs
+#   docker compose down           # Stop daemon
+#
+# State is persisted to ./data on the host (SQLite database).
+# ──────────────────────────────────────────────────────────────────────
+
+services:
+  fabric-daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fabric-daemon
+    restart: unless-stopped
+    ports:
+      - "9400:9400"       # Wire server (TCP JSON protocol)
+    volumes:
+      - ./data:/var/lib/fabric
+    environment:
+      - RUST_LOG=info
+      # Override config via environment variables or mount a config file:
+      # - FABRIC_LISTEN=0.0.0.0:9400
+      # - FABRIC_LOG_LEVEL=info
+    # To mount a custom config file, uncomment:
+    #   volumes:
+    #     - ./config.toml:/etc/fabric/config.toml:ro
+    #   command: ["start", "--config", "/etc/fabric/config.toml"]
+    healthcheck:
+      test: ["/usr/local/bin/fabric-cli", "health", "--connect", "127.0.0.1:9400"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

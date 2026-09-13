@@ -1,0 +1,12 @@
+# Keep Docker build context small.
+target/
+.git/
+.github/
+architecture/
+cmd/
+*.md
+!README.md
+deploy/
+.DS_Store
+*.swp
+*.swo

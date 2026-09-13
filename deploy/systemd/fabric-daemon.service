@@ -1,0 +1,45 @@
+[Unit]
+Description=Phenotype Fabric Daemon
+Documentation=https://github.com/phenotype-dev/phenotype-fabric
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fabric
+Group=fabric
+ExecStart=/usr/local/bin/fabric-daemon start --config /etc/fabric/config.toml
+
+# State directory (managed by systemd-tmpfiles).
+StateDirectory=fabric
+StateDirectoryMode=0750
+
+# Restart policy.
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Resource limits.
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=512M
+CPUQuota=100%
+
+# Security hardening.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/fabric
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+# Logging.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fabric-daemon
+
+[Install]
+WantedBy=multi-user.target
