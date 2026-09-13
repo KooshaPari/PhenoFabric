@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="#1a1a2e"/>
+
+  <!-- Topology connections -->
+  <g opacity="0.35" stroke="#6464c8" stroke-width="1.5" fill="none">
+    <line x1="256" y1="116" x2="360" y2="186"/>
+    <line x1="256" y1="116" x2="152" y2="186"/>
+    <line x1="360" y1="186" x2="380" y2="310"/>
+    <line x1="152" y1="186" x2="132" y2="310"/>
+    <line x1="256" y1="116" x2="380" y2="310"/>
+    <line x1="256" y1="116" x2="132" y2="310"/>
+    <line x1="380" y1="310" x2="256" y2="396"/>
+    <line x1="132" y1="310" x2="256" y2="396"/>
+    <line x1="360" y1="186" x2="256" y2="396"/>
+    <line x1="152" y1="186" x2="256" y2="396"/>
+    <line x1="380" y1="310" x2="152" y2="186"/>
+    <line x1="132" y1="310" x2="360" y2="186"/>
+    <!-- Inner connections -->
+    <line x1="200" y1="196" x2="312" y2="196"/>
+    <line x1="312" y1="196" x2="312" y2="316"/>
+    <line x1="312" y1="316" x2="200" y2="316"/>
+    <line x1="200" y1="316" x2="200" y2="196"/>
+    <line x1="200" y1="196" x2="312" y2="316"/>
+    <line x1="312" y1="196" x2="200" y2="316"/>
+  </g>
+
+  <!-- Topology nodes -->
+  <g fill="#00d4aa" opacity="0.8">
+    <!-- Outer ring -->
+    <circle cx="256" cy="116" r="10"/>
+    <circle cx="360" cy="186" r="10"/>
+    <circle cx="380" cy="310" r="10"/>
+    <circle cx="256" cy="396" r="10"/>
+    <circle cx="132" cy="310" r="10"/>
+    <circle cx="152" cy="186" r="10"/>
+    <!-- Inner ring -->
+    <circle cx="200" cy="196" r="7"/>
+    <circle cx="312" cy="196" r="7"/>
+    <circle cx="312" cy="316" r="7"/>
+    <circle cx="200" cy="316" r="7"/>
+  </g>
+
+  <!-- Radial glow -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00d4aa" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#00d4aa" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="64" fill="url(#glow)"/>
+
+  <!-- Stylised F -->
+  <text x="256" y="310" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="260" font-weight="300" fill="#f0f0f5" opacity="0.92">F</text>
+</svg>
