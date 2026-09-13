@@ -1917,8 +1917,11 @@ dependencies = [
  "clap",
  "ctrlc",
  "fabric-capability",
+ "fabric-checker",
+ "fabric-frame-transport",
  "fabric-graph",
  "fabric-persist",
+ "phenotype-nvms-adapter",
  "serde",
  "serde_json",
  "tempfile",
@@ -1990,6 +1993,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "fabric-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "chrono",
+ "fabric-capability",
+ "fabric-checker",
+ "fabric-frame-transport",
+ "fabric-graph",
+ "fabric-persist",
+ "phenotype-nvms-adapter",
+ "serde_json",
+ "tempfile",
+ "uuid",
+]
+
+[[package]]
 name = "fabric-persist"
 version = "0.1.0"
 dependencies = [
@@ -2023,10 +2043,12 @@ dependencies = [
 name = "fabric-web"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "console_error_panic_hook",
  "fabric-frame-transport",
  "fabric-graph",
  "fabric-tray",
+ "js-sys",
  "leptos",
  "leptos_meta",
  "leptos_router",

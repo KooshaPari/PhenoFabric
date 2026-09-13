@@ -133,7 +133,12 @@ impl FrameReceiver {
     }
 }
 
-fn encode_wire(message_type: MessageType, payload: &[u8]) -> Result<BytesMut> {
+/// Encode a message type and payload into the wire format.
+///
+/// The wire format is: [4 bytes: total_len (u32 LE)] [1 byte: msg_type] [payload: total_len bytes]
+///
+/// `total_len` = 1 (message type byte) + payload.len()
+pub fn encode_wire(message_type: MessageType, payload: &[u8]) -> Result<BytesMut> {
     let payload_len =
         u32::try_from(payload.len()).context("transport payload exceeds u32 length")?;
     let mut wire = BytesMut::with_capacity(LENGTH_PREFIX_SIZE + MESSAGE_TYPE_SIZE + payload.len());
@@ -160,7 +165,8 @@ fn parse_wire(mut wire: Bytes) -> Result<FrameMessage> {
     parse_message(message_type, wire)
 }
 
-fn parse_message(message_type: MessageType, mut payload: Bytes) -> Result<FrameMessage> {
+/// Parse a binary payload into a `FrameMessage`.
+pub fn parse_message(message_type: MessageType, mut payload: Bytes) -> Result<FrameMessage> {
     match message_type {
         MessageType::SessionInit => Ok(FrameMessage::SessionInit(parse_json(&payload)?)),
         MessageType::SessionAck => Ok(FrameMessage::SessionAck(parse_json(&payload)?)),

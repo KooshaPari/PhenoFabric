@@ -1,0 +1,19 @@
+[package]
+name = "fabric-integration-tests"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-crate integration tests for Phenotype Fabric"
+publish = false
+
+[dev-dependencies]
+fabric-graph = { path = "../fabric-graph" }
+fabric-capability = { path = "../fabric-capability" }
+fabric-checker = { path = "../fabric-checker" }
+fabric-persist = { path = "../fabric-persist" }
+fabric-frame-transport = { path = "../fabric-frame-transport" }
+phenotype-nvms-adapter = { path = "../phenotype-nvms-adapter" }
+tempfile = "3"
+chrono = "0.4"
+uuid = { version = "1", features = ["v4", "v7"] }
+serde_json = "1.0"
+bytes = "1"

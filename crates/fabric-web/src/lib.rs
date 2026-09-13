@@ -5,6 +5,7 @@
 
 pub mod app;
 pub mod api;
+pub mod webrtc_channel;
 
 use leptos::mount::mount_to_body;
 use wasm_bindgen::prelude::*;
