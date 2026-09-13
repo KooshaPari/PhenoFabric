@@ -1,0 +1,13 @@
+{
+  "name": "demo-checker-manifest",
+  "description": "Checker manifest for validating GPU node fitness in the demo",
+  "memory_bytes": 8589934592,
+  "cpu_cores": 4,
+  "storage_bytes": 53687091200,
+  "os_families": ["linux"],
+  "arches": ["x86_64", "aarch64"],
+  "audio": true,
+  "network_peers": ["cpu-node-one", "remote-node-a"],
+  "headless": false,
+  "realtime_island": false
+}

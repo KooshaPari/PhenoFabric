@@ -1,0 +1,165 @@
+{
+  "name": "demo-topology",
+  "description": "6-node sample topology across 3 locality tiers for demo purposes",
+  "nodes": [
+    {
+      "id": "gpu-node-alpha",
+      "label": "GPU Alpha (RTX 4090)",
+      "locality": "L3",
+      "capabilities": [
+        {
+          "type": "gpu",
+          "model": "NVIDIA RTX 4090",
+          "vram_bytes": 25769803776,
+          "cuda_cores": 16384,
+          "driver_version": "550.54.14"
+        }
+      ],
+      "memory_bytes": 25769803776,
+      "cpu_cores": 24,
+      "tags": ["gpu", "rt-island", "desktop"]
+    },
+    {
+      "id": "gpu-node-beta",
+      "label": "GPU Beta (A100 80GB)",
+      "locality": "L3",
+      "capabilities": [
+        {
+          "type": "gpu",
+          "model": "NVIDIA A100 80GB",
+          "vram_bytes": 85899345920,
+          "cuda_cores": 6912,
+          "driver_version": "550.54.14"
+        }
+      ],
+      "memory_bytes": 42949672960,
+      "cpu_cores": 64,
+      "tags": ["gpu", "datacenter"]
+    },
+    {
+      "id": "cpu-node-one",
+      "label": "CPU Node One",
+      "locality": "L1",
+      "capabilities": [
+        {
+          "type": "cpu",
+          "model": "AMD EPYC 7763",
+          "cores": 16,
+          "threads": 32,
+          "freq_ghz": 2.45
+        }
+      ],
+      "memory_bytes": 34359738368,
+      "cpu_cores": 16,
+      "tags": ["cpu", "general-purpose"]
+    },
+    {
+      "id": "cpu-node-two",
+      "label": "CPU Node Two",
+      "locality": "L1",
+      "capabilities": [
+        {
+          "type": "cpu",
+          "model": "Intel Xeon E5-2680 v4",
+          "cores": 8,
+          "threads": 16,
+          "freq_ghz": 2.40
+        }
+      ],
+      "memory_bytes": 17179869184,
+      "cpu_cores": 8,
+      "tags": ["cpu"]
+    },
+    {
+      "id": "remote-node-a",
+      "label": "Remote Node A (LAN)",
+      "locality": "L6",
+      "capabilities": [
+        {
+          "type": "cpu",
+          "model": "Intel Core i7-12700",
+          "cores": 4,
+          "threads": 8,
+          "freq_ghz": 2.10
+        },
+        {
+          "type": "audio",
+          "backend": "PulseAudio",
+          "sample_rate": 48000,
+          "channels": 2
+        }
+      ],
+      "memory_bytes": 8589934592,
+      "cpu_cores": 4,
+      "tags": ["remote", "audio-sink"]
+    },
+    {
+      "id": "remote-node-b",
+      "label": "Remote Node B (LAN)",
+      "locality": "L6",
+      "capabilities": [
+        {
+          "type": "cpu",
+          "model": "Intel Core i5-10400",
+          "cores": 2,
+          "threads": 4,
+          "freq_ghz": 1.80
+        }
+      ],
+      "memory_bytes": 4294967296,
+      "cpu_cores": 2,
+      "tags": ["remote"]
+    }
+  ],
+  "edges": [
+    {
+      "id": "gpu-alpha-to-cpu-one",
+      "from": "gpu-node-alpha",
+      "to": "cpu-node-one",
+      "locality": "L3",
+      "latency_us": 45.0,
+      "bandwidth_bps": 12000000000
+    },
+    {
+      "id": "gpu-beta-to-cpu-two",
+      "from": "gpu-node-beta",
+      "to": "cpu-node-two",
+      "locality": "L3",
+      "latency_us": 50.0,
+      "bandwidth_bps": 12000000000
+    },
+    {
+      "id": "cpu-one-to-remote-a",
+      "from": "cpu-node-one",
+      "to": "remote-node-a",
+      "locality": "L6",
+      "latency_us": 2500.0,
+      "bandwidth_bps": 1000000000
+    },
+    {
+      "id": "cpu-two-to-remote-b",
+      "from": "cpu-node-two",
+      "to": "remote-node-b",
+      "locality": "L6",
+      "latency_us": 2800.0,
+      "bandwidth_bps": 1000000000
+    },
+    {
+      "id": "gpu-alpha-to-gpu-beta",
+      "from": "gpu-node-alpha",
+      "to": "gpu-node-beta",
+      "locality": "L3",
+      "latency_us": 80.0,
+      "bandwidth_bps": 25000000000
+    },
+    {
+      "id": "cpu-one-to-cpu-two",
+      "from": "cpu-node-one",
+      "to": "cpu-node-two",
+      "locality": "L1",
+      "latency_us": 15.0,
+      "bandwidth_bps": 50000000000
+    }
+  ],
+  "epoch": 1
+}

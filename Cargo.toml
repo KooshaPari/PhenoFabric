@@ -1,5 +1,8 @@
 [workspace]
 resolver = "2"
+exclude = [
+    "crates/fabric-frame-transport/fuzz",
+]
 members = [
     "crates/fabric-capability",
     "crates/fabric-capability-ffi",
@@ -18,6 +21,8 @@ members = [
     "crates/fabric-tui",
     "crates/fabric-workspace",
     "crates/fabric-surface-mojo",
+    "crates/fabric-orchestrator",
+    "examples/full-demo",
 ]
 
 [workspace.package]

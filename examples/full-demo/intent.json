@@ -1,0 +1,17 @@
+{
+  "name": "demo-gpu-intent",
+  "description": "Request GPU compute with audio sink and minimum 8 GB memory",
+  "requirements": {
+    "min_locality_tier": 3.0,
+    "max_locality_tier": 6.0,
+    "min_gpu_count": 1,
+    "min_ram_bytes": 8589934592,
+    "min_cpu_cores": 4,
+    "required_tags": ["gpu"],
+    "requires_rt_island": false
+  },
+  "preferred_node": "gpu-node-alpha",
+  "min_trust": "Untrusted",
+  "expires_at": null,
+  "tags": ["inference", "demo"]
+}
