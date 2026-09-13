@@ -20,3 +20,19 @@ schemars.workspace = true
 anyhow = "1.0"
 tracing = "0.1"
 url = "2.5"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1"
+
+[[bench]]
+name = "compiler"
+harness = false
+
+[[test]]
+name = "property_tests"
+path = "tests/property_tests.rs"
+
+[[test]]
+name = "lease_properties"
+path = "tests/lease_properties.rs"
