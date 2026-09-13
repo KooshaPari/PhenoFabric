@@ -7,6 +7,7 @@ pub mod animation;
 pub mod app;
 pub mod daemon_manager;
 pub mod panels;
+pub mod premium;
 pub mod theme;
 pub mod widgets;
 

@@ -5,7 +5,7 @@
 
 use egui::{Color32, Frame, Margin, Rounding, Shadow, Stroke};
 
-/// Liquid glass color palette — dark variant.
+/// Liquid glass color palette -- dark variant.
 pub struct LiquidTheme {
     // Glass surfaces
     pub glass_bg: Color32,
@@ -202,6 +202,66 @@ impl LiquidTheme {
             .inner_margin(Margin::same(14))
     }
 
+    /// Heavy frosted glass: deeper shadow, stronger inner stroke, more opacity.
+    pub fn heavy_glass_frame(radius: u8) -> Frame {
+        Frame::new()
+            .fill(Color32::from_rgba_premultiplied(22, 26, 40, 210))
+            .corner_radius(Rounding::same(radius))
+            .stroke(Stroke::new(1.5_f32, rgba(255, 255, 255, 45)))
+            .shadow(Shadow {
+                offset: [0, 8],
+                blur: 24,
+                spread: 2,
+                color: rgba(0, 0, 0, 90),
+            })
+            .inner_margin(Margin::same(16))
+    }
+
+    /// Translucent sidebar with edge highlight.
+    pub fn sidebar_glass_frame() -> Frame {
+        Frame::new()
+            .fill(Color32::from_rgba_premultiplied(14, 18, 28, 230))
+            .corner_radius(Rounding::ZERO)
+            .stroke(Stroke::new(1.0_f32, rgba(255, 255, 255, 22)))
+            .shadow(Shadow {
+                offset: [2, 0],
+                blur: 16,
+                spread: 0,
+                color: rgba(0, 0, 0, 40),
+            })
+            .inner_margin(Margin::symmetric(12, 14))
+    }
+
+    /// Centered modal with outer glow.
+    pub fn modal_glass_frame() -> Frame {
+        Frame::new()
+            .fill(Color32::from_rgba_premultiplied(26, 30, 48, 230))
+            .corner_radius(Rounding::same(18))
+            .stroke(Stroke::new(1.0_f32, rgba(108, 99, 255, 50)))
+            .shadow(Shadow {
+                offset: [0, 0],
+                blur: 40,
+                spread: 4,
+                color: rgba(108, 99, 255, 35),
+            })
+            .inner_margin(Margin::same(20))
+    }
+
+    /// Thin glass toolbar bar.
+    pub fn toolbar_frame() -> Frame {
+        Frame::new()
+            .fill(Color32::from_rgba_premultiplied(20, 24, 38, 200))
+            .corner_radius(Rounding::ZERO)
+            .stroke(Stroke::new(1.0_f32, rgba(255, 255, 255, 18)))
+            .shadow(Shadow {
+                offset: [0, 2],
+                blur: 6,
+                spread: 0,
+                color: rgba(0, 0, 0, 30),
+            })
+            .inner_margin(Margin::symmetric(14, 6))
+    }
+
     /// Soft depth shadow for morphic surfaces.
     pub fn morphic_shadow() -> Shadow {
         Shadow {
@@ -300,6 +360,63 @@ impl LiquidTheme {
 impl Default for LiquidTheme {
     fn default() -> Self {
         Self::dark()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FabricTheme -- premium wrapper with extended accent / separator tokens
+// ---------------------------------------------------------------------------
+
+/// Premium wrapper that extends [`LiquidTheme`] with extra accent tokens
+/// used by the morphic premium widgets (text shadows, gradient accents,
+/// morphic highlights, separator colour).
+pub struct FabricTheme {
+    /// Base liquid glass palette.
+    pub base: LiquidTheme,
+    /// Colour for subtle text-shadow / glow behind headings.
+    pub text_shadow_color: Color32,
+    /// Two-colour gradient for gradient background fills.
+    pub gradient_accent: [Color32; 2],
+    /// Hover / active morphic highlight tint.
+    pub morphic_highlight: Color32,
+    /// Section divider line colour.
+    pub separator_color: Color32,
+}
+
+impl FabricTheme {
+    /// Build a dark premium theme.
+    pub fn dark() -> Self {
+        let base = LiquidTheme::dark();
+        Self {
+            text_shadow_color: rgba(108, 99, 255, 40),
+            gradient_accent: [
+                Color32::from_rgb(80, 60, 220),
+                Color32::from_rgb(0, 180, 255),
+            ],
+            morphic_highlight: rgba(108, 99, 255, 35),
+            separator_color: rgba(255, 255, 255, 22),
+            base,
+        }
+    }
+
+    /// Build a light premium theme.
+    pub fn light() -> Self {
+        let base = LiquidTheme::light();
+        Self {
+            text_shadow_color: rgba(88, 80, 236, 20),
+            gradient_accent: [
+                Color32::from_rgb(60, 50, 200),
+                Color32::from_rgb(0, 150, 200),
+            ],
+            morphic_highlight: rgba(88, 80, 236, 20),
+            separator_color: rgba(0, 0, 0, 18),
+            base,
+        }
+    }
+
+    /// Shorthand accessor to the inner [`LiquidTheme`].
+    pub fn liquid(&self) -> &LiquidTheme {
+        &self.base
     }
 }
 
