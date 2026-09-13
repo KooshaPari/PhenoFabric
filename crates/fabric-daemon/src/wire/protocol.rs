@@ -8,7 +8,7 @@ use crate::coordinator::Coordinator;
 use super::handlers;
 
 /// Process a single wire message and return an optional response.
-pub(crate) fn process_message(message: &str, coordinator: &Coordinator) -> Option<String> {
+pub fn process_message(message: &str, coordinator: &Coordinator) -> Option<String> {
     // Parse as JSON to determine message type.
     let parsed: serde_json::Value = match serde_json::from_str(message) {
         Ok(v) => v,

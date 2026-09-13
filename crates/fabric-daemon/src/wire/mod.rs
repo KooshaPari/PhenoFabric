@@ -4,7 +4,7 @@
 //! Implements the server side of spec 025.
 
 mod handlers;
-mod protocol;
+pub mod protocol;
 
 use crate::coordinator::Coordinator;
 use std::io::{BufRead, BufReader, Write};

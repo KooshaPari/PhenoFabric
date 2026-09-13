@@ -1981,16 +1981,20 @@ name = "fabric-gui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "dirs 5.0.1",
  "eframe",
  "egui",
  "egui_extras",
+ "fabric-capability",
  "fabric-graph",
+ "fabric-persist",
  "fabric-tray",
  "serde",
  "serde_json",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -2001,12 +2005,15 @@ dependencies = [
  "chrono",
  "fabric-capability",
  "fabric-checker",
+ "fabric-daemon",
  "fabric-frame-transport",
  "fabric-graph",
  "fabric-persist",
  "phenotype-nvms-adapter",
+ "serde",
  "serde_json",
  "tempfile",
+ "tokio",
  "uuid",
 ]
 
