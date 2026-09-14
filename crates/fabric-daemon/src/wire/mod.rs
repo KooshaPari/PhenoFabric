@@ -7,7 +7,8 @@ mod handlers;
 pub mod protocol;
 
 use crate::auth::AuthMiddleware;
-use crate::auth::middleware::{auth_error_response, set_current_user};
+use crate::auth::middleware::routes::auth_error_response;
+use crate::auth::middleware::set_current_user;
 use crate::coordinator::Coordinator;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};

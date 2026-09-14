@@ -7,6 +7,9 @@
 
 #![allow(dead_code)]
 
+mod jwt;
+pub mod routes;
+
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -14,6 +17,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
+use self::jwt::{decode_jwt, token_hash};
 use super::oauth::{WorkOsConfig, WorkOsProvider};
 
 /// Errors that can occur during authentication.
@@ -327,50 +331,6 @@ fn parse_bearer_token(header: &str) -> Result<String, AuthError> {
     }
 }
 
-/// Decode a JWT token and extract user claims.
-fn decode_jwt(token: &str, secret: &str) -> Result<AuthenticatedUser, AuthError> {
-    let token_data = jsonwebtoken::decode::<JwtClaims>(
-        token,
-        &jsonwebtoken::DecodingKey::from_secret(secret.as_bytes()),
-        &jsonwebtoken::Validation::default(),
-    )
-    .map_err(|e| AuthError::JwtDecode(e.to_string()))?;
-
-    let claims = token_data.claims;
-
-    Ok(AuthenticatedUser {
-        user_id: claims.sub,
-        email: claims.email.unwrap_or_default(),
-        org_id: claims.org_id,
-    })
-}
-
-/// JWT claims for decoding WorkOS-issued tokens.
-#[derive(Debug, Deserialize)]
-struct JwtClaims {
-    /// Subject (user ID).
-    sub: String,
-    /// Email address.
-    #[serde(default)]
-    email: Option<String>,
-    /// Organization ID.
-    #[serde(default)]
-    org_id: Option<String>,
-    /// Expiration timestamp.
-    #[serde(default)]
-    _exp: Option<u64>,
-}
-
-/// Simple hash function for token caching.
-fn token_hash(token: &str) -> u64 {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-
-    let mut hasher = DefaultHasher::new();
-    token.hash(&mut hasher);
-    hasher.finish()
-}
-
 /// Attach authentication to a message by adding auth fields.
 ///
 /// This is used by clients to include authentication in wire messages.
@@ -393,27 +353,6 @@ pub fn attach_auth(
     );
 
     Ok(())
-}
-
-/// Build an auth error response for the wire protocol.
-pub fn auth_error_response(error: &AuthError) -> String {
-    let (error_code, message) = match error {
-        AuthError::MissingToken => ("MISSING_TOKEN", error.to_string()),
-        AuthError::InvalidTokenFormat => ("INVALID_TOKEN_FORMAT", error.to_string()),
-        AuthError::TokenValidation(msg) => ("TOKEN_VALIDATION_FAILED", msg.clone()),
-        AuthError::TokenExpired => ("TOKEN_EXPIRED", error.to_string()),
-        AuthError::UserNotFound => ("USER_NOT_FOUND", error.to_string()),
-        AuthError::JwtDecode(msg) => ("JWT_DECODE_ERROR", msg.clone()),
-        AuthError::Introspection(msg) => ("INTROSPECTION_ERROR", msg.clone()),
-        AuthError::Disabled => ("AUTH_DISABLED", error.to_string()),
-    };
-
-    serde_json::json!({
-        "type": "auth_error",
-        "error": error_code,
-        "message": message,
-    })
-    .to_string()
 }
 
 #[cfg(test)]
@@ -562,7 +501,7 @@ mod tests {
 
     #[test]
     fn auth_error_response_format() {
-        let resp = auth_error_response(&AuthError::MissingToken);
+        let resp = routes::auth_error_response(&AuthError::MissingToken);
         let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(parsed["type"], "auth_error");
         assert_eq!(parsed["error"], "MISSING_TOKEN");
