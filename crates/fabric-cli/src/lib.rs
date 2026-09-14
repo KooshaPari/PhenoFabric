@@ -62,10 +62,20 @@ pub enum Commands {
         #[command(subcommand)]
         sub: RouteCommand,
     },
+    /// Manage WorkOS authentication.
+    Auth {
+        #[command(subcommand)]
+        sub: AuthCommand,
+    },
     /// Manage named workspaces.
     Workspace {
         #[command(subcommand)]
         sub: WorkspaceCommand,
+    },
+    /// Query network status (UPnP, STUN, Tailscale).
+    Network {
+        #[command(subcommand)]
+        sub: NetworkCommand,
     },
     /// Manage surface leases (displays, audio, network endpoints).
     Surface {
@@ -129,6 +139,16 @@ pub enum RouteCommand {
 }
 
 #[derive(Parser, Debug)]
+pub enum AuthCommand {
+    /// Initiate WorkOS browser login flow.
+    Login(commands::auth::LoginArgs),
+    /// Show current authentication status.
+    Status(commands::auth::StatusArgs),
+    /// Clear stored authentication tokens.
+    Logout(commands::auth::LogoutArgs),
+}
+
+#[derive(Parser, Debug)]
 pub enum WorkspaceCommand {
     /// Create a new named workspace.
     Create(commands::workspace::CreateArgs),
@@ -140,6 +160,16 @@ pub enum WorkspaceCommand {
     Delete(commands::workspace::DeleteArgs),
     /// Release a workspace and all its seat leases.
     Release(commands::workspace::ReleaseArgs),
+}
+
+#[derive(Parser, Debug)]
+pub enum NetworkCommand {
+    /// Show UPnP/STUN/Tailscale network status.
+    Status(commands::network::NetworkStatusArgs),
+    /// Query STUN server for external address.
+    Stun(commands::network::StunArgs),
+    /// Show Tailscale peer list.
+    Tailscale(commands::network::TailscaleArgs),
 }
 
 #[derive(Parser, Debug)]

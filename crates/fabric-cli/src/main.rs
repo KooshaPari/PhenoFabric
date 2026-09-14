@@ -36,9 +36,11 @@ fn main() -> anyhow::Result<()> {
     // Dispatch
     let result = match &cli.command {
         Commands::Cap { sub } => commands::cap::dispatch(sub, &workspace),
+        Commands::Auth { sub } => commands::auth::dispatch(sub, &workspace),
         Commands::Graph { sub } => commands::graph::dispatch(sub, &workspace),
         Commands::Route { sub } => commands::route::dispatch(sub, &workspace),
         Commands::Workspace { sub } => commands::workspace::dispatch(sub, &workspace),
+        Commands::Network { sub } => commands::network::dispatch(sub, &workspace),
         Commands::Surface { sub } => commands::surface::dispatch(sub, &workspace),
         Commands::Probe(a) => commands::probe::dispatch(a),
         Commands::Status(a) => commands::status::dispatch(a),
