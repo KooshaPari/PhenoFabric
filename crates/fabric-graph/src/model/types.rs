@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
     Deserialize,
     Default,
 )]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum TrustLevel {
     /// Node reported its own capabilities. No external verification.
     /// PF-FR-012: No default trust.
@@ -51,7 +50,6 @@ impl TrustLevel {
 /// When used in an intent, this is a *requirement* against which capabilities
 /// are matched.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct CapabilityRef {
     /// SHA-256 of the canonical JSON bytes of the descriptor.
     /// Used as the stable, content-addressable identity key.
@@ -59,7 +57,6 @@ pub struct CapabilityRef {
     /// Trust level assigned to this descriptor.
     pub trust: TrustLevel,
     /// When this descriptor was last refreshed.
-    #[cfg_attr(feature = "schemars", schemars(with = "Option<String>"))]
     pub refreshed_at: Option<DateTime<Utc>>,
 }
 
@@ -86,7 +83,6 @@ impl CapabilityRef {
 ///
 /// All fields are Option<T> because not every link has every metric measured.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct LinkMetrics {
     /// Round-trip latency in microseconds. None if not measured.
     pub latency_us: Option<f64>,

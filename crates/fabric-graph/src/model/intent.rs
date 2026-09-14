@@ -12,7 +12,6 @@ use super::types::TrustLevel;
 /// An intent is the caller-side description of where something should run.
 /// The compiler translates an intent into a route plan.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Intent {
     /// Unique intent identifier.
     pub id: IntentId,
@@ -25,7 +24,6 @@ pub struct Intent {
     /// Minimum trust level required for all capabilities.
     pub min_trust: TrustLevel,
     /// When this intent expires (None = no expiry).
-    #[cfg_attr(feature = "schemars", schemars(with = "Option<String>"))]
     pub expires_at: Option<DateTime<Utc>>,
     /// Tags that the caller wants attached to the resulting route plan.
     pub tags: Vec<String>,
@@ -33,7 +31,6 @@ pub struct Intent {
 
 /// Core requirements for an intent.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct IntentRequirements {
     /// Required CPU architecture(s). Empty = any.
     pub cpu_arch: Vec<String>,

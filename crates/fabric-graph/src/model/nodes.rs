@@ -11,14 +11,12 @@ use super::types::{CapabilityRef, TrustLevel};
 /// Each node represents a physical machine, VM, accelerator, or other execution
 /// context. It carries zero or more capability descriptors.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Node {
     /// Unique node identifier (hostname, IP, or stable UUID).
     pub id: NodeId,
     /// Human-readable label (optional).
     pub label: Option<String>,
     /// Primary locality tier of this node. Used for copy-path reasoning.
-    #[cfg_attr(feature = "schemars", schemars(with = "u8"))]
     pub locality_tier: fabric_capability::locality::LocalityTier,
     /// All capability descriptors advertised by this node.
     /// A node with an empty vec has not been probed (or is a pure router).

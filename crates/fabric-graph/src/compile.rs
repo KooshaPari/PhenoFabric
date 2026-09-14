@@ -10,7 +10,7 @@
 //! 3. Validate each plan against the topology
 //! 4. Return the best plan (or all candidates if `all` mode)
 
-use crate::model::{Edge, EdgeId, Intent, IntentId, Node, NodeId, RoutePlan, RoutePlanId, RouteStep, Score, Topology, TopologyEpoch};
+use crate::model::{Intent, NodeId, RoutePlan, RoutePlanId, RouteStep, Topology, TopologyEpoch};
 use crate::negotiation::{negotiate, NegotiationResult};
 use chrono::{Duration, Utc};
 use thiserror::Error;
@@ -117,7 +117,7 @@ fn build_steps(topology: &Topology, dest: &NodeId, intent: &Intent) -> Result<Ve
 
     let (node, via_edge, action) = if let Some(edge) = best_edge {
         let upstream = if edge.from == *dest { &edge.to } else { &edge.from };
-        let upstream_node = topology.node(upstream).expect("edge references valid node");
+        let _upstream_node = topology.node(upstream).expect("edge references valid node");
         if intent.preferred_node.as_ref().map_or(false, |n| n == upstream) {
             // Source is already the preferred node — direct execution
             (upstream.clone(), None, "source-execute".to_string())
@@ -186,7 +186,7 @@ fn estimate_latency(topology: &Topology, steps: &[RouteStep]) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{CapabilityRef, EdgeId, IntentRequirements, IntentId, NodeId, TopologyEpoch};
+    use crate::model::{CapabilityRef, Edge, EdgeId, IntentRequirements, IntentId, Node, NodeId, TopologyEpoch};
     use fabric_capability::locality::LocalityTier;
 
     fn make_topology() -> Topology {

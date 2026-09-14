@@ -76,7 +76,7 @@ pub fn show(ui: &mut egui::Ui, data: &GuiData, theme: &LiquidTheme, anim: &Anima
                                 );
                                 let pill_frame = egui::Frame::new()
                                     .fill(glow_bg)
-                                    .rounding(egui::Rounding::same(10))
+                                    .corner_radius(egui::CornerRadius::same(10))
                                     .inner_margin(egui::Margin::symmetric(10, 3));
                                 pill_frame.show(ui, |ui| {
                                     ui.colored_label(state_color, &lease.state);
@@ -114,7 +114,7 @@ fn protocol_badge(ui: &mut egui::Ui, protocol: &str, theme: &LiquidTheme) {
     };
     let frame = egui::Frame::new()
         .fill(color.linear_multiply(0.2))
-        .rounding(egui::Rounding::same(6))
+        .corner_radius(egui::CornerRadius::same(6))
         .inner_margin(egui::Margin::symmetric(8, 2));
     frame.show(ui, |ui| {
         ui.colored_label(color, protocol);

@@ -130,7 +130,7 @@ fn setting_row(
             .selected_text(current)
             .show_ui(ui, |ui| {
                 for opt in options {
-                    ui.selectable_label(current == *opt, *opt);
+                    let _ = ui.selectable_label(current == *opt, *opt);
                 }
             });
     });

@@ -27,6 +27,7 @@ pub struct TopoEdge {
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct HealthResponse {
     pub daemon_healthy: bool,
+    #[allow(dead_code)]
     pub uptime_s: u64,
     pub node_count: usize,
     pub edge_count: usize,

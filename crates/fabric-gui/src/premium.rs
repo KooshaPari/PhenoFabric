@@ -4,7 +4,7 @@
 //! morphic progress bars, glass icon buttons, card headers, node cards,
 //! metric rows, and animated status indicators.
 
-use egui::{Color32, Pos2, Rect, Rounding, Stroke, StrokeKind, Vec2};
+use egui::{Color32, Pos2, Rect, CornerRadius, Stroke, StrokeKind, Vec2};
 
 use crate::animation::AnimationState;
 use crate::theme::LiquidTheme;
@@ -21,7 +21,7 @@ pub fn progress_bar_morphic(
         ui.allocate_exact_size(Vec2::new(ui.available_width(), 10.0), egui::Sense::hover());
     let painter = ui.painter();
     // Track
-    painter.rect_filled(rect, Rounding::same(5), theme.glass_bg_light);
+    painter.rect_filled(rect, CornerRadius::same(5), theme.glass_bg_light);
     // Fill
     let fill_w = rect.width() * fraction.clamp(0.0, 1.0);
     if fill_w > 1.0 {
@@ -35,11 +35,11 @@ pub fn progress_bar_morphic(
         );
         painter.rect_filled(
             glow_rect,
-            Rounding::same(5),
+            CornerRadius::same(5),
             accent.linear_multiply(breath * 0.15),
         );
         // Main fill
-        painter.rect_filled(fill_rect, Rounding::same(5), accent);
+        painter.rect_filled(fill_rect, CornerRadius::same(5), accent);
     }
 }
 
@@ -54,15 +54,15 @@ pub fn icon_button_glass(
         egui::RichText::new(label).size(16.0).color(theme.text_primary),
     )
     .fill(theme.glass_bg_light)
-    .stroke(Stroke::new(1.0, theme.glass_border))
-    .rounding(Rounding::same(8));
+    .stroke(Stroke::new(1.0_f32, theme.glass_border))
+    .corner_radius(CornerRadius::same(8));
     let response = ui.add(btn);
     if response.hovered() {
         let r = response.rect;
         ui.painter().rect_stroke(
             r,
-            Rounding::same(8),
-            Stroke::new(1.5, theme.accent_primary.linear_multiply(0.7)),
+            CornerRadius::same(8),
+            Stroke::new(1.5_f32, theme.accent_primary.linear_multiply(0.7)),
             StrokeKind::Inside,
         );
     }
@@ -86,7 +86,7 @@ pub fn card_header_glass(
     let rect = ui.allocate_ui_with_layout(
         Vec2::new(ui.available_width(), 2.0),
         egui::Layout::left_to_right(egui::Align::Center),
-        |ui| {},
+        |_ui| {},
     )
     .response
     .rect;
@@ -102,7 +102,7 @@ pub fn card_header_glass(
             Pos2::new(rect.left() + seg_w * i as f32, rect.top()),
             Vec2::new(seg_w + 1.0, 2.0),
         );
-        painter.rect_filled(seg, Rounding::ZERO, color);
+        painter.rect_filled(seg, CornerRadius::ZERO, color);
     }
     ui.add_space(4.0);
 }

@@ -3,7 +3,7 @@
 //! Simulates frosted-glass / morphic surfaces using layered semi-transparent fills,
 //! gradient backgrounds, soft shadows, and glow strokes.
 
-use egui::{Color32, Frame, Margin, Rounding, Shadow, Stroke};
+use egui::{Color32, Frame, Margin, CornerRadius, Shadow, Stroke};
 
 /// Liquid glass color palette -- dark variant.
 pub struct LiquidTheme {
@@ -161,7 +161,7 @@ impl LiquidTheme {
     pub fn glass_frame(radius: u8) -> Frame {
         Frame::new()
             .fill(Color32::from_rgba_premultiplied(30, 35, 50, 180))
-            .corner_radius(Rounding::same(radius))
+            .corner_radius(CornerRadius::same(radius))
             .stroke(Stroke::new(1.0_f32, rgba(255, 255, 255, 30)))
             .shadow(Shadow {
                 offset: [0, 4],
@@ -176,7 +176,7 @@ impl LiquidTheme {
     pub fn glass_frame_vibrant(radius: u8) -> Frame {
         Frame::new()
             .fill(Color32::from_rgba_premultiplied(60, 70, 110, 200))
-            .corner_radius(Rounding::same(radius))
+            .corner_radius(CornerRadius::same(radius))
             .stroke(Stroke::new(1.5_f32, rgba(108, 99, 255, 60)))
             .shadow(Shadow {
                 offset: [0, 4],
@@ -191,7 +191,7 @@ impl LiquidTheme {
     pub fn glow_frame(color: Color32) -> Frame {
         Frame::new()
             .fill(Color32::from_rgba_premultiplied(30, 35, 50, 180))
-            .corner_radius(Rounding::same(12))
+            .corner_radius(CornerRadius::same(12))
             .stroke(Stroke::new(1.0_f32, color.linear_multiply(0.5)))
             .shadow(Shadow {
                 offset: [0, 0],
@@ -206,7 +206,7 @@ impl LiquidTheme {
     pub fn heavy_glass_frame(radius: u8) -> Frame {
         Frame::new()
             .fill(Color32::from_rgba_premultiplied(22, 26, 40, 210))
-            .corner_radius(Rounding::same(radius))
+            .corner_radius(CornerRadius::same(radius))
             .stroke(Stroke::new(1.5_f32, rgba(255, 255, 255, 45)))
             .shadow(Shadow {
                 offset: [0, 8],
@@ -221,7 +221,7 @@ impl LiquidTheme {
     pub fn sidebar_glass_frame() -> Frame {
         Frame::new()
             .fill(Color32::from_rgba_premultiplied(14, 18, 28, 230))
-            .corner_radius(Rounding::ZERO)
+            .corner_radius(CornerRadius::ZERO)
             .stroke(Stroke::new(1.0_f32, rgba(255, 255, 255, 22)))
             .shadow(Shadow {
                 offset: [2, 0],
@@ -236,7 +236,7 @@ impl LiquidTheme {
     pub fn modal_glass_frame() -> Frame {
         Frame::new()
             .fill(Color32::from_rgba_premultiplied(26, 30, 48, 230))
-            .corner_radius(Rounding::same(18))
+            .corner_radius(CornerRadius::same(18))
             .stroke(Stroke::new(1.0_f32, rgba(108, 99, 255, 50)))
             .shadow(Shadow {
                 offset: [0, 0],
@@ -251,7 +251,7 @@ impl LiquidTheme {
     pub fn toolbar_frame() -> Frame {
         Frame::new()
             .fill(Color32::from_rgba_premultiplied(20, 24, 38, 200))
-            .corner_radius(Rounding::ZERO)
+            .corner_radius(CornerRadius::ZERO)
             .stroke(Stroke::new(1.0_f32, rgba(255, 255, 255, 18)))
             .shadow(Shadow {
                 offset: [0, 2],

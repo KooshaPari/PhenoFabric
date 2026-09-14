@@ -1,6 +1,5 @@
 //! Cost model for multi-hop route plans.
 
-use super::stages::StageCost;
 use crate::model::{RoutePlan, Topology};
 use serde::{Deserialize, Serialize};
 

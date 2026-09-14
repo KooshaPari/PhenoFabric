@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::model::RoutePlanId;
-use crate::surface::{LeaseExitReason, SurfaceError};
+use crate::surface::LeaseExitReason;
 
 /// The result of [`rebind_or_fail`](super::rebind_or_fail): did the lease
 /// silently re-bind, or did it fail (caller must drop the `SurfaceHandle`)?

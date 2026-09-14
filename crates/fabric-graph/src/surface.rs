@@ -35,7 +35,6 @@ use crate::LocalityTier;
 /// Stable. New variants may be added in minor releases; existing variants
 /// are never repurposed.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum SurfaceProtocol {
     /// POSIX process I/O (stdin/stdout/pipes/files).
     Posix,
@@ -56,7 +55,6 @@ pub enum SurfaceProtocol {
 ///
 /// Stable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum CaptureDirection {
     /// Read-only capture (the surface sends data toward the user).
     Sink,
@@ -70,7 +68,6 @@ pub enum CaptureDirection {
 ///
 /// Stable.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct SurfaceSpec {
     /// Stable, human-readable name for this surface (e.g. "primary-display",
     /// "headphones", "webcam-0"). Unique within a workspace.
@@ -157,7 +154,6 @@ impl std::error::Error for SurfaceSpecError {}
 /// Which concrete capability surface is bound (display index, audio device
 /// index, etc.).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum CapabilityEndpoint {
     Display { index: u32 },
     Audio { index: u32 },
@@ -171,7 +167,6 @@ pub enum CapabilityEndpoint {
 ///
 /// Provisional until R1 lands.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct RouteBinding {
     /// Stable id for this binding; rotated when the route is re-planned.
     pub binding_id: Uuid,
@@ -196,7 +191,6 @@ pub struct RouteBinding {
 ///
 /// Provisional. Transitions are documented in spec 019 §3.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum LeaseState {
     Pending,
     Active,
@@ -210,7 +204,6 @@ pub enum LeaseState {
 ///
 /// Provisional.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum LeaseExitReason {
     /// The underlying route completed normally (workload finished).
     NormalCompletion,
@@ -231,7 +224,6 @@ pub enum LeaseExitReason {
 ///
 /// Provisional.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct SurfaceLease {
     /// Opaque, stable handle id (different from `binding_id` — the handle
     /// survives re-binding, the binding id rotates).
@@ -256,7 +248,6 @@ pub struct SurfaceLease {
 
 /// Opaque user-facing surface handle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct SurfaceHandle(pub Uuid);
 
 impl SurfaceHandle {
@@ -274,7 +265,6 @@ impl Default for SurfaceHandle {
 /// A pending or active binding (used for the `Pending → Active` transition
 /// bookkeeping inside `SurfaceLease`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct PendingBinding {
     pub requested_at: DateTime<Utc>,
     pub step: RouteStep,

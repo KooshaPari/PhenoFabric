@@ -6,7 +6,7 @@ use crate::premium;
 use crate::theme::LiquidTheme;
 use crate::widgets;
 
-use egui::Rounding;
+use egui::CornerRadius;
 
 /// Render the premium dashboard overview.
 pub fn show(ui: &mut egui::Ui, data: &GuiData, theme: &LiquidTheme, anim: &AnimationState) {
@@ -224,7 +224,7 @@ fn stat_card_with_sparkline(
         );
         ui.painter().rect_filled(
             ui.max_rect(),
-            Rounding::same(0),
+            CornerRadius::same(0),
             glow_color.linear_multiply(0.1),
         );
         ui.label(
@@ -248,7 +248,7 @@ fn stat_card_with_sparkline(
         rect.min,
         egui::Vec2::new(3.0, rect.height()),
     );
-    painter.rect_filled(bar, Rounding::same(2), accent);
+    painter.rect_filled(bar, CornerRadius::same(2), accent);
 }
 
 /// Generate a small demo sparkline from a metric value + animation phase.

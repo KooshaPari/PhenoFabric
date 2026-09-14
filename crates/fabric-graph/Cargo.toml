@@ -16,7 +16,6 @@ uuid.workspace = true
 chrono.workspace = true
 blake3.workspace = true
 thiserror.workspace = true
-schemars.workspace = true
 anyhow = "1.0"
 tracing = "0.1"
 url = "2.5"

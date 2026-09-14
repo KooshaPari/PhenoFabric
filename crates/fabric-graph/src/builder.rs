@@ -2,10 +2,9 @@
 
 use crate::model::{
     CapabilityRef, Edge, EdgeId, Intent, IntentId, IntentRequirements, LinkMetrics, Node,
-    NodeId, RoutePlan, RoutePlanId, RouteStep, Topology, TopologyEpoch, TopologyMeta, TrustLevel,
+    NodeId, RoutePlan, RoutePlanId, RouteStep, Topology, TopologyEpoch, TrustLevel,
 };
 use chrono::{DateTime, Utc};
-use std::collections::BTreeMap;
 
 /// A builder for [`Topology`] that allows incremental construction.
 ///

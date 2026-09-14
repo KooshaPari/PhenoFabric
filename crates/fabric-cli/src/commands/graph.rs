@@ -166,7 +166,7 @@ fn add_edge(args: &AddEdgeArgs) -> Result<()> {
         LocalityTier::L6Lan,
     )
     .with_metrics(metrics);
-    topology.add_edge(edge);
+    let _ = topology.add_edge(edge);
     save_topology(
         &topology,
         args.output.as_deref().or(Some(args.input.as_path())),

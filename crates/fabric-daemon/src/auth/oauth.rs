@@ -6,6 +6,8 @@
 //! - Refresh access tokens
 //! - Retrieve authenticated user info
 
+#![allow(dead_code)]
+
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -43,7 +45,7 @@ impl OAuthError {
     }
 
     /// Create a serialization error from a serde_json error.
-    fn serialization(err: serde_json::Error) -> Self {
+    fn _serialization(err: serde_json::Error) -> Self {
         Self::Serialization(err.to_string())
     }
 }

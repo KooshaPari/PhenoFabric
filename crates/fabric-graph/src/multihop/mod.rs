@@ -12,7 +12,7 @@ pub use stages::{builtin_stages, TransportStage};
 pub use cost::{compute_route_cost, RouteCost};
 pub use validate::{validate_multihop, RouteValidationError};
 
-use crate::model::{EdgeId, Intent, NodeId, RoutePlan, RoutePlanId, RouteStep, Topology, TopologyEpoch};
+use crate::model::{Intent, NodeId, RoutePlan, RoutePlanId, RouteStep, Topology};
 use crate::LocalityTier;
 use fallback::generate_fallbacks;
 use chrono::Utc;
@@ -78,8 +78,8 @@ pub fn compile_multihop(
     // 2. For each hop, select stages.
     let mut stages_per_hop: Vec<Vec<TransportStage>> = Vec::new();
     for window in path.windows(2) {
-        let from_node = topology.nodes.get(&window[0]);
-        let to_node = topology.nodes.get(&window[1]);
+        let _from_node = topology.nodes.get(&window[0]);
+        let _to_node = topology.nodes.get(&window[1]);
         let edge = find_edge_between(topology, &window[0], &window[1]);
 
         let tier = edge
@@ -220,7 +220,7 @@ fn select_stages(tier: LocalityTier, catalog: &[TransportStage]) -> Vec<Transpor
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Edge, Node, TopologyMeta};
+    use crate::model::{Edge, EdgeId, Node, NodeId, TopologyEpoch, TopologyMeta};
     use crate::LocalityTier;
 
     fn make_topo() -> Topology {

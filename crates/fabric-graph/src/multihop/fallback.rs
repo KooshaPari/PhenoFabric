@@ -1,7 +1,6 @@
 //! Fallback route generation for multi-hop routes.
 
-use crate::model::{EdgeId, NodeId, RoutePlan, RouteStep, Topology};
-use crate::LocalityTier;
+use crate::model::{EdgeId, RoutePlan, RouteStep, Topology};
 
 /// Generate fallback route plans for a primary route.
 ///
@@ -131,7 +130,8 @@ fn generate_degraded_path(primary: &RoutePlan, topology: &Topology) -> Option<Ro
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Edge, IntentId, RoutePlanId, TopologyEpoch, TopologyMeta};
+    use crate::model::{Edge, IntentId, Node, NodeId, RoutePlanId, TopologyEpoch, TopologyMeta};
+    use crate::LocalityTier;
     use chrono::Utc;
     use uuid::Uuid;
 

@@ -2,7 +2,7 @@
 //!
 //! All widgets accept a [`LiquidTheme`] reference so colors stay consistent.
 
-use egui::{Color32, Pos2, Rect, Rounding, Stroke, StrokeKind, Vec2};
+use egui::{Color32, Pos2, Rect, CornerRadius, Stroke, StrokeKind, Vec2};
 
 use crate::animation::AnimationState;
 use crate::theme::LiquidTheme;
@@ -21,7 +21,7 @@ pub fn glass_card(
         let painter = ui.painter();
         painter.rect_stroke(
             rect,
-            Rounding::same(16),
+            CornerRadius::same(16),
             Stroke::new(1.0_f32, theme.glass_border_inner),
             StrokeKind::Inside,
         );
@@ -40,7 +40,7 @@ pub fn glass_card(
 /// Larger glass surface for sections.
 pub fn glass_panel(
     ui: &mut egui::Ui,
-    theme: &LiquidTheme,
+    _theme: &LiquidTheme,
     add_contents: impl FnOnce(&mut egui::Ui),
 ) {
     let frame = LiquidTheme::glass_frame(12);
@@ -78,7 +78,7 @@ pub fn stat_card_morphic(
         );
         ui.painter().rect_filled(
             ui.max_rect(),
-            Rounding::same(0),
+            CornerRadius::same(0),
             glow_color.linear_multiply(0.1),
         );
         ui.label(
@@ -95,7 +95,7 @@ pub fn stat_card_morphic(
         rect.min,
         Vec2::new(3.0, rect.height()),
     );
-    painter.rect_filled(bar, Rounding::same(2), accent);
+    painter.rect_filled(bar, CornerRadius::same(2), accent);
 }
 
 /// Morphic rounded pill with status color and glow behind it.
@@ -103,7 +103,7 @@ pub fn status_pill(
     ui: &mut egui::Ui,
     text: &str,
     color: Color32,
-    theme: &LiquidTheme,
+    _theme: &LiquidTheme,
 ) {
     let frame = LiquidTheme::glow_frame(color);
     frame.show(ui, |ui| {
@@ -208,7 +208,7 @@ pub fn sparkline_area(
     if values.len() < 2 {
         ui.painter().rect_stroke(
             rect,
-            Rounding::ZERO,
+            CornerRadius::ZERO,
             Stroke::new(1.0_f32, color.linear_multiply(0.3)),
             StrokeKind::Inside,
         );
@@ -242,11 +242,11 @@ pub fn sparkline_area(
     for pair in points.windows(2) {
         painter.line_segment(
             [pair[0], pair[1]],
-            Stroke::new(1.5, color.linear_multiply(0.3)),
+            Stroke::new(1.5_f32, color.linear_multiply(0.3)),
         );
     }
     for pair in points.windows(2) {
-        painter.line_segment([pair[0], pair[1]], Stroke::new(1.5, color));
+        painter.line_segment([pair[0], pair[1]], Stroke::new(1.5_f32, color));
     }
 }
 
@@ -260,14 +260,14 @@ pub fn glass_button(
         egui::RichText::new(label).color(theme.text_primary),
     )
     .fill(theme.glass_bg_light)
-    .stroke(Stroke::new(1.0, theme.glass_border))
-    .rounding(Rounding::same(10));
+    .stroke(Stroke::new(1.0_f32, theme.glass_border))
+    .corner_radius(CornerRadius::same(10));
     let response = ui.add(btn);
     if response.hovered() {
         let painter = ui.painter();
         painter.rect_stroke(
             response.rect,
-            Rounding::same(10),
+            CornerRadius::same(10),
             Stroke::new(1.5_f32, theme.accent_primary.linear_multiply(0.6)),
             StrokeKind::Inside,
         );
@@ -284,7 +284,7 @@ pub fn glass_text_input(
 ) -> bool {
     let frame = egui::Frame::new()
         .fill(theme.glass_bg_light)
-        .corner_radius(Rounding::same(8))
+        .corner_radius(CornerRadius::same(8))
         .stroke(Stroke::new(1.0_f32, theme.glass_border))
         .inner_margin(egui::Margin::same(8));
     let mut changed = false;
@@ -337,10 +337,10 @@ pub fn connection_line(
     // Soft shadow line
     painter.line_segment(
         [from, to],
-        Stroke::new(3.0, color.linear_multiply(0.15)),
+        Stroke::new(3.0_f32, color.linear_multiply(0.15)),
     );
     // Main line
-    painter.line_segment([from, to], Stroke::new(1.5, color.linear_multiply(0.7)));
+    painter.line_segment([from, to], Stroke::new(1.5_f32, color.linear_multiply(0.7)));
 }
 
 /// Gradient fade divider line.
@@ -348,7 +348,7 @@ pub fn section_divider(ui: &mut egui::Ui, theme: &LiquidTheme) {
     let rect = ui.allocate_ui_with_layout(
         Vec2::new(ui.available_width(), 2.0),
         egui::Layout::left_to_right(egui::Align::Center),
-        |ui| {},
+        |_ui| {},
     )
     .response
     .rect;
@@ -359,11 +359,11 @@ pub fn section_divider(ui: &mut egui::Ui, theme: &LiquidTheme) {
     let center = Pos2::new(mid_x, rect.center().y);
     painter.line_segment(
         [left, center],
-        Stroke::new(1.0, theme.glass_border.linear_multiply(0.3)),
+        Stroke::new(1.0_f32, theme.glass_border.linear_multiply(0.3)),
     );
     painter.line_segment(
         [center, right],
-        Stroke::new(1.0, theme.glass_border.linear_multiply(0.3)),
+        Stroke::new(1.0_f32, theme.glass_border.linear_multiply(0.3)),
     );
     // Center dot
     painter.circle_filled(center, 1.5, theme.accent_primary.linear_multiply(0.4));
@@ -396,7 +396,7 @@ pub fn animated_gradient_bar(
             Pos2::new(rect.left() + seg_w * i as f32, rect.top()),
             Vec2::new(seg_w + 1.0, height),
         );
-        painter.rect_filled(seg_rect, Rounding::ZERO, color);
+        painter.rect_filled(seg_rect, CornerRadius::ZERO, color);
     }
 }
 
@@ -448,7 +448,7 @@ pub fn mini_topology(
     if nodes.is_empty() {
         return;
     }
-    let painter = ui.painter();
+    let _painter = ui.painter();
     let center = rect.center();
     let radius = rect.width() * 0.36;
     let positions: Vec<Pos2> = nodes

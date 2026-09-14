@@ -8,7 +8,7 @@
 //!
 //! The composite score is a weighted sum of these four dimensions.
 
-use crate::model::{Intent, IntentRequirements, LinkMetrics, Node, RouteStep, Score, ScoreBreakdown, TrustLevel};
+use crate::model::{IntentRequirements, Node, RouteStep, TrustLevel};
 use std::collections::HashMap;
 
 /// Weights for the four scoring dimensions.
@@ -44,46 +44,6 @@ impl ScoringWeights {
     }
 }
 
-/// Score a single route step against an intent.
-pub(crate) fn score_step(
-    step: &RouteStep,
-    nodes: &HashMap<String, Node>,
-    edges: &HashMap<String, crate::model::Edge>,
-    requirements: &IntentRequirements,
-    weights: &ScoringWeights,
-) -> Option<Score> {
-    let node = nodes.get(&step.node.0)?;
-
-    let locality_score = score_locality(node, requirements);
-    let latency_score = score_latency(step, edges, requirements);
-    let capability_score = score_capability(node, requirements);
-    let trust_score = score_trust(node);
-
-    let breakdown = ScoreBreakdown::new(
-        locality_score,
-        latency_score,
-        capability_score,
-        trust_score,
-    );
-
-    let rank = 0;
-    let reason = format_reason(
-        &breakdown,
-        node,
-        requirements,
-        locality_score,
-        latency_score,
-        capability_score,
-        trust_score,
-    );
-
-    Some(Score {
-        breakdown,
-        rank,
-        reason,
-    })
-}
-
 pub(crate) fn score_locality(node: &Node, requirements: &IntentRequirements) -> f64 {
     let tier = node.locality_tier.as_f64();
     if let Some(max) = requirements.max_locality_tier {
@@ -102,6 +62,7 @@ pub(crate) fn score_locality(node: &Node, requirements: &IntentRequirements) -> 
     normalized.clamp(0.0, 1.0)
 }
 
+#[allow(dead_code)]
 fn score_latency(step: &RouteStep, edges: &HashMap<String, crate::model::Edge>, requirements: &IntentRequirements) -> f64 {
     let Some(edge_id) = &step.via_edge else {
         // Direct hop — best possible latency
@@ -170,44 +131,10 @@ pub(crate) fn score_trust(node: &Node) -> f64 {
     }
 }
 
-fn format_reason(
-    breakdown: &ScoreBreakdown,
-    node: &Node,
-    requirements: &IntentRequirements,
-    locality_score: f64,
-    latency_score: f64,
-    capability_score: f64,
-    trust_score: f64,
-) -> String {
-    let mut reasons = Vec::new();
-    if locality_score >= 0.8 {
-        reasons.push(format!("high locality (tier {:.0})", node.locality_tier.as_f64()));
-    } else if locality_score < 0.3 {
-        reasons.push(format!("low locality (tier {:.0})", node.locality_tier.as_f64()));
-    }
-    if latency_score >= 0.8 {
-        reasons.push("low latency".to_string());
-    }
-    if capability_score >= 0.8 {
-        reasons.push("strong capability match".to_string());
-    }
-    if trust_score >= 0.8 {
-        reasons.push(format!("{:?}", node.capabilities.first().map(|c| c.trust).unwrap_or(TrustLevel::Untrusted)));
-    }
-    if reasons.is_empty() {
-        reasons.push("acceptable".to_string());
-    }
-    format!(
-        "score={:.2} ({})",
-        breakdown.composite,
-        reasons.join(", ")
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{CapabilityRef, EdgeId, NodeId, RouteStep};
+    use crate::model::{CapabilityRef, EdgeId, LinkMetrics, NodeId, RouteStep, ScoreBreakdown};
     use fabric_capability::locality::LocalityTier;
     use std::collections::HashMap;
 

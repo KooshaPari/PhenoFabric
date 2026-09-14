@@ -1,6 +1,6 @@
 //! Route plan validation for multi-hop routes.
 
-use crate::model::{NodeId, RoutePlan, Topology};
+use crate::model::{RoutePlan, Topology};
 use thiserror::Error;
 
 /// Errors from multi-hop route validation.
@@ -75,7 +75,7 @@ pub fn validate_multihop(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Edge, EdgeId, RoutePlanId, TopologyEpoch, TopologyMeta};
+    use crate::model::{Edge, EdgeId, Node, NodeId, RoutePlanId, TopologyEpoch, TopologyMeta};
     use crate::LocalityTier;
     use chrono::Utc;
     use uuid::Uuid;

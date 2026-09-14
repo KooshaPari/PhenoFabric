@@ -5,7 +5,7 @@
 //! 2. Score each candidate node on soft dimensions (locality, latency, capability, trust)
 //! 3. Sort by composite score and return ranked results
 
-use crate::model::{EdgeId, Intent, IntentRequirements, Node, NodeId, ScoreBreakdown, Topology, TrustLevel};
+use crate::model::{EdgeId, Intent, IntentRequirements, Node, NodeId, ScoreBreakdown, Topology};
 use crate::score::{score_capability, score_locality, score_trust, ScoringWeights};
 use std::collections::BTreeMap;
 
@@ -41,10 +41,9 @@ pub struct NegotiatedCandidate {
 
 /// Run the negotiation algorithm for a single intent against a topology.
 pub fn negotiate(topology: &Topology, intent: &Intent) -> NegotiationResult {
-    let weights = ScoringWeights::default();
+    let _weights = ScoringWeights::default();
     let mut candidates = Vec::new();
     let mut rejected_hard = 0;
-    let mut filtered_soft = 0;
 
     for (node_id, node) in &topology.nodes {
         // === HARD FILTERS ===
@@ -96,12 +95,12 @@ pub fn negotiate(topology: &Topology, intent: &Intent) -> NegotiationResult {
     });
 
     // Assign ranks
-    for (i, cand) in candidates.iter_mut().enumerate() {
+    for (_i, _cand) in candidates.iter_mut().enumerate() {
         // We need to update the score rank — but ScoreBreakdown doesn't have rank.
         // Instead, we'll track rank in the candidate.
     }
 
-    filtered_soft = candidates.len();
+    let filtered_soft = candidates.len();
 
     NegotiationResult {
         candidates,

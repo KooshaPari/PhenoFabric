@@ -156,10 +156,16 @@ fn main() -> anyhow::Result<()> {
     // Start the wire server in a background thread.
     let coord_ref = coordinator.clone();
     let addr_clone = listen_addr.clone();
+    let auth = std::sync::Arc::new(fabric_daemon::auth::AuthMiddleware::new(
+        fabric_daemon::auth::AuthMiddlewareConfig::default(),
+    ));
+    let runtime = std::sync::Arc::new(
+        tokio::runtime::Runtime::new().expect("failed to create tokio runtime"),
+    );
     let server_handle = std::thread::spawn(move || {
         let listener = std::net::TcpListener::bind(&addr_clone)
             .expect("failed to bind wire server");
-        fabric_daemon::wire::run_wire_server(listener, coord_ref, 16, 5000)
+        fabric_daemon::wire::run_wire_server(listener, coord_ref, 16, 5000, auth, runtime)
             .expect("wire server error");
     });
 

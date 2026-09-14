@@ -49,7 +49,16 @@ fn start_daemon() -> (Arc<Coordinator>, String, Arc<AtomicBool>) {
     let flag = shutdown.clone();
 
     thread::spawn(move || {
-        let _ = run_wire_server(listener, coord, 16, 5000);
+        let auth = Arc::new(fabric_daemon::auth::AuthMiddleware::new(
+            fabric_daemon::auth::AuthMiddlewareConfig::default(),
+        ));
+        let runtime = Arc::new(
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap(),
+        );
+        let _ = run_wire_server(listener, coord, 16, 5000, auth, runtime);
         // Signal completion (not needed for tests, but clean).
     });
 

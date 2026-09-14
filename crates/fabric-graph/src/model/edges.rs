@@ -13,7 +13,6 @@ use super::types::LinkMetrics;
 /// L4 = same campus, L5 = same region, L6 = cross-region, L7 = cross-cloud,
 /// L8 = satellite/WAN.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Edge {
     pub id: EdgeId,
     /// Source node.
@@ -21,7 +20,6 @@ pub struct Edge {
     /// Destination node.
     pub to: NodeId,
     /// Locality tier of this link (required -- PF-FR-002).
-    #[cfg_attr(feature = "schemars", schemars(with = "u8"))]
     pub locality_tier: fabric_capability::locality::LocalityTier,
     /// Measured link metrics (optional -- populated by probing).
     pub metrics: Option<LinkMetrics>,

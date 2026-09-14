@@ -20,7 +20,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use fabric_graph_cli::protocol::{
-    replan as protocol_replan, ReplanErrorCode, ReplanErrorResponse, ReplanRequest, ReplanResponse,
+    replan as protocol_replan, ReplanErrorCode, ReplanErrorResponse, ReplanRequest,
 };
 
 /// Hand-rolled subcommand dispatcher — no `clap` dependency to keep the

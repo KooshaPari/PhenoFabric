@@ -5,6 +5,8 @@
 //!
 //! Public routes (`health_check`, `status_check`) skip authentication.
 
+#![allow(dead_code)]
+
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -89,7 +91,7 @@ impl Default for AuthMiddlewareConfig {
 pub struct AuthMiddleware {
     config: AuthMiddlewareConfig,
     provider: Option<WorkOsProvider>,
-    http: Client,
+    _http: Client,
     /// Cache of token -> user for performance.
     user_cache: Arc<RwLock<Vec<CachedUser>>>,
 }
@@ -118,7 +120,7 @@ impl AuthMiddleware {
         Self {
             config,
             provider,
-            http,
+            _http: http,
             user_cache: Arc::new(RwLock::new(Vec::new())),
         }
     }
@@ -133,7 +135,7 @@ impl AuthMiddleware {
         Self {
             config,
             provider,
-            http,
+            _http: http,
             user_cache: Arc::new(RwLock::new(Vec::new())),
         }
     }
@@ -356,7 +358,7 @@ struct JwtClaims {
     org_id: Option<String>,
     /// Expiration timestamp.
     #[serde(default)]
-    exp: Option<u64>,
+    _exp: Option<u64>,
 }
 
 /// Simple hash function for token caching.

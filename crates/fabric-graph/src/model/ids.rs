@@ -11,7 +11,6 @@ use uuid::Uuid;
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default,
 )]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct TopologyEpoch(pub u64);
 
 impl TopologyEpoch {
@@ -42,7 +41,6 @@ impl std::fmt::Display for TopologyEpoch {
 
 /// Unique identifier for a node in the topology graph.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct NodeId(pub String);
 
 impl NodeId {
@@ -59,7 +57,6 @@ impl std::fmt::Display for NodeId {
 
 /// Unique identifier for an edge (link) between two nodes.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct EdgeId(pub String);
 
 impl EdgeId {

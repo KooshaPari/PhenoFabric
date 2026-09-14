@@ -1,7 +1,7 @@
 //! Startup recovery: load all active state from SQLite into memory.
 
 use crate::error::PersistError;
-use fabric_graph::model::{RoutePlan, Topology, TopologyEpoch};
+use fabric_graph::model::{RoutePlan, Topology};
 use fabric_graph::surface::SurfaceLease;
 
 use crate::Persist;

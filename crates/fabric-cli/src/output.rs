@@ -13,7 +13,7 @@ pub enum OutputFormat {
 }
 
 impl OutputFormat {
-    pub fn is_json(&self) -> bool {
+    pub fn _is_json(&self) -> bool {
         matches!(self, Self::Json | Self::JsonPretty)
     }
 }
@@ -92,13 +92,13 @@ pub fn print_topology_summary(name: &str, node_count: usize, edge_count: usize) 
     );
 }
 
-pub fn format_tier(tier: LocalityTier) -> String {
+pub fn _format_tier(tier: LocalityTier) -> String {
     let code = tier.short_code();
     let numeric = tier.as_f64();
     format!("{} ({:.1})", code, numeric)
 }
 
-pub fn format_trust(level: TrustLevel) -> String {
+pub fn _format_trust(level: TrustLevel) -> String {
     let name = match level {
         TrustLevel::Untrusted => "untrusted",
         TrustLevel::Bootstrap => "bootstrap",

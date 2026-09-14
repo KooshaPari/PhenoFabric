@@ -119,7 +119,7 @@ fn hop_badge(ui: &mut egui::Ui, steps: usize, theme: &LiquidTheme, anim: &Animat
         LiquidTheme::gradient_bg(theme.accent_gradient_start, theme.accent_gradient_end, shift);
     let frame = egui::Frame::new()
         .fill(badge_color.linear_multiply(0.25))
-        .rounding(egui::Rounding::same(8))
+        .corner_radius(egui::CornerRadius::same(8))
         .inner_margin(egui::Margin::symmetric(8, 2));
     frame.show(ui, |ui| {
         ui.label(

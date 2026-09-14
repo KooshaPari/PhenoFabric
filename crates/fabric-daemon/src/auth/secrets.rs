@@ -5,6 +5,8 @@
 //! - Secret retrieval by path and environment
 //! - Secret storage and updates
 
+#![allow(dead_code)]
+
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -40,7 +42,7 @@ impl SecretsError {
         Self::Http(err.to_string())
     }
 
-    fn serialization(err: serde_json::Error) -> Self {
+    fn _serialization(err: serde_json::Error) -> Self {
         Self::Serialization(err.to_string())
     }
 }
@@ -93,7 +95,7 @@ pub struct SecretValue {
 struct TokenResponse {
     access_token: String,
     expires_in: u64,
-    token_type: String,
+    _token_type: String,
 }
 
 /// Response from the Infisical secrets list endpoint.

@@ -8,9 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use super::edges::Edge;
 use super::ids::{EdgeId, IntentId, NodeId, RoutePlanId, TopologyEpoch};
-use super::intent::{Intent, IntentRequirements};
 use super::nodes::Node;
-use super::types::TrustLevel;
+
 
 // ---------------------------------------------------------------------------
 // Route plan
@@ -18,7 +17,6 @@ use super::types::TrustLevel;
 
 /// A single hop in a route plan.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct RouteStep {
     /// The node this step executes on.
     pub node: NodeId,
@@ -36,7 +34,6 @@ pub struct RouteStep {
 /// satisfying this intent?" It is pinned to a topology epoch and is only
 /// valid until the topology changes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct RoutePlan {
     /// Unique route plan identifier.
     pub id: RoutePlanId,
@@ -90,10 +87,10 @@ impl RoutePlan {
             return false;
         }
         let step = &self.steps[0];
-        if let Some(edge_id) = &step.via_edge {
-            if let Some(edge) = self.steps.get(0) {
+        if let Some(_edge_id) = &step.via_edge {
+            if let Some(_edge) = self.steps.get(0) {
                 // Check if the edge locality tier is L0 or L1
-                if let Some(e) = step.node.to_string().is_empty().then(|| None::<&Edge>) {
+                if let Some(_e) = step.node.to_string().is_empty().then(|| None::<&Edge>) {
                     // We don't have the edge here; check via topology
                 }
             }
@@ -113,7 +110,6 @@ impl RoutePlan {
 /// It is append-only with respect to epoch changes; old snapshots are preserved
 /// for audit purposes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Topology {
     /// Monotonically increasing epoch counter.
     pub epoch: TopologyEpoch,
@@ -194,7 +190,7 @@ impl Topology {
             history: Vec::new(),
         };
         self.history.push(snapshot);
-        self.epoch.bump();
+        let _ = self.epoch.bump();
     }
 
     /// Number of nodes in the topology.
@@ -210,12 +206,10 @@ impl Topology {
 
 /// Metadata about the topology as a whole.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct TopologyMeta {
     /// Human-readable topology name (e.g. "home-lab-v3").
     pub name: String,
     /// When this topology was first created.
-    #[cfg_attr(feature = "schemars", schemars(with = "Option<String>"))]
     pub created_at: Option<DateTime<Utc>>,
     /// Who created this topology.
     pub created_by: Option<String>,
@@ -231,7 +225,6 @@ pub struct TopologyMeta {
 ///
 /// Higher is better. Used to rank competing candidates and for audit.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ScoreBreakdown {
     pub locality_score: f64,
     pub latency_score: f64,

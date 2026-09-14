@@ -9,6 +9,7 @@ use super::types::*;
 /// The fairness queue itself. Tracks per-tenant accounting across many
 /// `try_acquire` / `release` cycles. Single-instance only — distributed
 /// fairness is out of scope (spec 022 §2).
+#[derive(Debug)]
 pub struct FairnessQueue {
     policy: FairnessPolicy,
     accounting: BTreeMap<TenantId, TenantAccounting>,
@@ -186,7 +187,7 @@ impl FairnessQueue {
         // decide who's served based on the new deficit ranking.
         let acct = self.accounting.get_mut(&tenant).expect("must exist");
         acct.deficit = acct.deficit.saturating_add(weight as i64);
-        drop(acct);
+        let _ = acct;
 
         // Pick the tenant with the max deficit. Ties broken by FIFO.
         let pick = self

@@ -6,7 +6,7 @@
 
 use chrono::Utc;
 
-use crate::model::{NodeId, RoutePlanId, RouteStep, Topology};
+use crate::model::{RoutePlanId, RouteStep, Topology};
 use crate::surface::{
     LeaseExitReason, LeaseState, RouteBinding, SurfaceError, SurfaceLease,
     SurfaceSpec, SurfaceSpecError,
