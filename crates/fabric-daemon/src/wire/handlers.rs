@@ -113,6 +113,51 @@ pub(crate) fn handle_webrtc_answer(
     ))
 }
 
+/// Handle a save_config message: update in-memory config and persist to disk.
+///
+/// Accepts either:
+/// - A full config replacement via `"config": { ... }` (parsed as DaemonConfig)
+/// - Partial overrides via `"overrides": { ... }` (merged onto current config)
+///
+/// Returns the updated config snapshot on success.
+pub(crate) fn handle_save_config(
+    parsed: &serde_json::Value,
+    coordinator: &Coordinator,
+) -> Option<String> {
+    if let Some(config_value) = parsed.get("config") {
+        // Full config replacement.
+        match serde_json::from_value::<crate::config::DaemonConfig>(config_value.clone()) {
+            Ok(new_config) => {
+                coordinator.update_config(new_config);
+                Some(format!(
+                    r#"{{"type":"save_config_response","status":"ok","config":{}}}"#,
+                    coordinator.config_snapshot()
+                ))
+            }
+            Err(e) => Some(format!(
+                r#"{{"type":"save_config_error","error":"invalid_config","message":"{}"}}"#,
+                e
+            )),
+        }
+    } else if let Some(overrides) = parsed.get("overrides") {
+        // Partial override.
+        match coordinator.apply_config_overrides(overrides) {
+            Ok(()) => Some(format!(
+                r#"{{"type":"save_config_response","status":"ok","config":{}}}"#,
+                coordinator.config_snapshot()
+            )),
+            Err(e) => Some(format!(
+                r#"{{"type":"save_config_error","error":"apply_failed","message":"{}"}}"#,
+                e
+            )),
+        }
+    } else {
+        Some(
+            r#"{"type":"save_config_error","error":"missing_payload","message":"provide either config or overrides field"}"#.into(),
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -206,5 +251,65 @@ mod tests {
         let msg = r#"{"type":"compile_request","source":"a","destination":"b"}"#;
         let resp = process_message(msg, &coord).unwrap();
         assert!(resp.contains("compile_error") || resp.contains("compile_failed"));
+    }
+
+    #[test]
+    fn process_save_config_overrides() {
+        let coord = make_coordinator();
+        let msg = r#"{"type":"save_config","overrides":{"server":{"listen":"0.0.0.0:5555"},"logging":{"level":"trace"}}}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("save_config_response"));
+        assert!(resp.contains("ok"));
+        assert!(resp.contains("0.0.0.0:5555"));
+        assert!(resp.contains("trace"));
+    }
+
+    #[test]
+    fn process_save_config_missing_payload() {
+        let coord = make_coordinator();
+        let msg = r#"{"type":"save_config"}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("save_config_error"));
+        assert!(resp.contains("missing_payload"));
+    }
+
+    #[test]
+    fn process_save_config_full_replacement() {
+        let coord = make_coordinator();
+        let msg = r#"{"type":"save_config","config":{"server":{"listen":"0.0.0.0:8888","max_connections":32,"request_timeout_ms":10000},"database":{"path":"state.db","wal_mode":true,"flush_interval_ms":1000},"topology":{"auto_probe":false,"probe_interval_s":60,"epoch_persistence":true},"leases":{"default_ttl_s":3600,"max_ttl_s":86400,"renewal_window_s":300,"fairness_policy":"FairShare"},"logging":{"level":"debug","format":"compact","file":null},"auth":{"enabled":false,"workos_client_id":"","workos_client_secret":"","workos_redirect_uri":"","infisical_client_id":"","infisical_client_secret":"","infisical_project_id":"","jwt_secret":null,"public_routes":["health_check","status_check"]}}}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("save_config_response"));
+        assert!(resp.contains("ok"));
+        // Verify the config was actually updated.
+        let snapshot = coord.config_snapshot();
+        let parsed: serde_json::Value = serde_json::from_str(&snapshot).unwrap();
+        assert_eq!(parsed["server"]["listen"], "0.0.0.0:8888");
+        assert_eq!(parsed["logging"]["level"], "debug");
+    }
+
+    #[test]
+    fn process_save_config_persists_to_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let cfg_path = dir.path().join("daemon.toml");
+
+        let config = crate::config::DaemonConfig {
+            database: crate::config::DatabaseConfig {
+                path: db_path,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let coord = Arc::new(Coordinator::new(config).unwrap());
+        coord.set_config_path(cfg_path.clone());
+
+        let msg = r#"{"type":"save_config","overrides":{"server":{"listen":"0.0.0.0:9999"}}}"#;
+        let resp = process_message(msg, &coord).unwrap();
+        assert!(resp.contains("save_config_response"));
+
+        // Verify the file was written.
+        assert!(cfg_path.exists());
+        let content = std::fs::read_to_string(&cfg_path).unwrap();
+        assert!(content.contains("0.0.0.0:9999"));
     }
 }

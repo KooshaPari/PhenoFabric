@@ -91,7 +91,7 @@ fn cmd_start(
 ) {
     // Load config.
     let mut config = match config_path {
-        Some(path) => match DaemonConfig::from_file(&path) {
+        Some(ref path) => match DaemonConfig::from_file(path) {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("error loading config: {e}");
@@ -120,6 +120,12 @@ fn cmd_start(
             std::process::exit(1);
         }
     };
+
+    // If a config file path was provided, wire it for persistence on changes.
+    if let Some(ref path) = config_path {
+        coordinator.set_config_path(path.clone());
+        info!(path = %path.display(), "config persistence enabled");
+    }
 
     // Set up signal handling.
     let shutdown_flag = coordinator.shutdown_flag();

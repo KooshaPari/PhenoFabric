@@ -125,6 +125,11 @@ fn validate_field_types(
             validate_string_field(obj, "candidate", msg_type)?;
             validate_optional_string(obj, "target", msg_type)?;
         }
+        "saveconfig" => {
+            // config and overrides are optional objects; validate types if present.
+            validate_optional_object(obj, "config", msg_type)?;
+            validate_optional_object(obj, "overrides", msg_type)?;
+        }
         _ => {}
     }
     Ok(())
@@ -161,6 +166,26 @@ fn validate_optional_string(
             return Err(ValidationError {
                 message: format!(
                     "field '{field}' must be a string in '{msg_type}', got {}",
+                    type_name(val)
+                ),
+                code: "WRONG_TYPE".into(),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Validate that an optional field, if present, is an object.
+fn validate_optional_object(
+    obj: &serde_json::Map<String, Value>,
+    field: &str,
+    msg_type: &str,
+) -> Result<(), ValidationError> {
+    if let Some(val) = obj.get(field) {
+        if !val.is_object() {
+            return Err(ValidationError {
+                message: format!(
+                    "field '{field}' must be an object in '{msg_type}', got {}",
                     type_name(val)
                 ),
                 code: "WRONG_TYPE".into(),
@@ -422,5 +447,30 @@ mod tests {
         assert!(validate_message(r#"{"type":"RoutesRequest"}"#).is_ok());
         assert!(validate_message(r#"{"type":"CapabilitiesRequest"}"#).is_ok());
         assert!(validate_message(r#"{"type":"ProbeRequest"}"#).is_ok());
+    }
+
+    #[test]
+    fn valid_save_config() {
+        let result = validate_message(
+            r#"{"type":"save_config","overrides":{"server":{"listen":"0.0.0.0:5555"}}}"#,
+        );
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().msg_type, "save_config");
+    }
+
+    #[test]
+    fn valid_save_config_empty() {
+        // save_config has no required fields.
+        let result = validate_message(r#"{"type":"save_config"}"#);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn save_config_wrong_type_overrides() {
+        let result = validate_message(
+            r#"{"type":"save_config","overrides":"not-an-object"}"#,
+        );
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "WRONG_TYPE");
     }
 }

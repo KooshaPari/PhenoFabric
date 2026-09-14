@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Top-level daemon configuration.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct DaemonConfig {
     pub server: ServerConfig,
@@ -36,7 +36,7 @@ impl Default for DaemonConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ServerConfig {
     /// Address to listen on (e.g. "127.0.0.1:9400").
@@ -57,7 +57,7 @@ impl Default for ServerConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct DatabaseConfig {
     /// Path to SQLite database file.
@@ -78,7 +78,7 @@ impl Default for DatabaseConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct TopologyConfig {
     /// Auto-probe topology on startup.
@@ -99,7 +99,7 @@ impl Default for TopologyConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct LeaseConfig {
     /// Default lease TTL in seconds.
@@ -123,7 +123,7 @@ impl Default for LeaseConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct LoggingConfig {
     /// Log level (trace, debug, info, warn, error).
@@ -211,7 +211,7 @@ impl From<AuthConfig> for auth::AuthMiddlewareConfig {
 
 /// Configuration for federation (multi-node topology sharing).
 #[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct FederationConfig {
     /// Whether federation is enabled.
@@ -244,6 +244,20 @@ impl DaemonConfig {
         if let Ok(secret) = std::env::var("INFISICAL_CLIENT_SECRET") {
             self.auth.infisical_client_secret = secret;
         }
+    }
+
+    /// Save the configuration to a TOML file.
+    pub fn save(&self, path: &std::path::Path) -> Result<(), ConfigError> {
+        let content =
+            toml::to_string_pretty(self).map_err(|e| ConfigError::Serialize(e.to_string()))?;
+
+        // Ensure parent directory exists.
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| ConfigError::Io(e.to_string()))?;
+        }
+
+        std::fs::write(path, content).map_err(|e| ConfigError::Io(e.to_string()))
     }
 
     /// Load configuration from a TOML file.
@@ -281,6 +295,8 @@ pub enum ConfigError {
     Io(String),
     #[error("parse error: {0}")]
     Parse(String),
+    #[error("serialize error: {0}")]
+    Serialize(String),
 }
 
 #[cfg(test)]
@@ -327,5 +343,32 @@ format = "json"
         assert_eq!(config.server.listen, "0.0.0.0:3000");
         assert_eq!(config.database.path, PathBuf::from("/custom.db"));
         assert_eq!(config.logging.level, "trace");
+    }
+
+    #[test]
+    fn save_and_load_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("daemon.toml");
+
+        let mut config = DaemonConfig::default();
+        config.server.listen = "0.0.0.0:5555".into();
+        config.logging.level = "debug".into();
+
+        config.save(&path).unwrap();
+        let loaded = DaemonConfig::from_file(&path).unwrap();
+
+        assert_eq!(loaded.server.listen, "0.0.0.0:5555");
+        assert_eq!(loaded.logging.level, "debug");
+        assert_eq!(loaded.database.path, PathBuf::from("state.db"));
+    }
+
+    #[test]
+    fn save_creates_parent_directories() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("subdir").join("daemon.toml");
+
+        let config = DaemonConfig::default();
+        config.save(&path).unwrap();
+        assert!(path.exists());
     }
 }

@@ -18,6 +18,7 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     "webrtc_offer",
     "webrtc_answer",
     "webrtc_ice",
+    "save_config",
 ];
 
 /// Required fields per message type (fields that MUST be present and non-null).
@@ -48,6 +49,8 @@ const FIELD_TYPES: &[(&str, &str, &str)] = &[
     ("target", "string", "webrtc_ice"),
     ("from", "string", "webrtc_ice"),
     ("candidate", "string", "webrtc_ice"),
+    ("config", "object", "save_config"),
+    ("overrides", "object", "save_config"),
 ];
 
 /// Error type for schema validation failures.
@@ -305,5 +308,21 @@ mod tests {
         );
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "NULL_FIELD");
+    }
+
+    #[test]
+    fn validate_save_config_passes() {
+        let result = validate_against_schema(
+            r#"{"type":"save_config","overrides":{"server":{"listen":"0.0.0.0:5555"}}}"#,
+            "wire",
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_save_config_empty_passes() {
+        // save_config has no required fields.
+        let result = validate_against_schema(r#"{"type":"save_config"}"#, "wire");
+        assert!(result.is_ok());
     }
 }

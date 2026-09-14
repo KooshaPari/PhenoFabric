@@ -64,6 +64,9 @@ pub fn process_message(message: &str, coordinator: &Coordinator) -> Option<Strin
         "compile_request" | "CompileRequest" => {
             handlers::handle_compile_request(&validated.value, coordinator)
         }
+        "save_config" | "SaveConfig" => {
+            handlers::handle_save_config(&validated.value, coordinator)
+        }
         _ => Some(format!(
             r#"{{"error":"unknown_message","type":"{}"}}"#,
             msg_type
