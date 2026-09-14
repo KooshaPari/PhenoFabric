@@ -30,7 +30,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 prometheus = "0.13"
 opentelemetry = "0.27"
-opentelemetry_sdk = "0.27"
+opentelemetry_sdk = "0.32"
 opentelemetry-otlp = "0.27"
 tracing-opentelemetry = "0.28"
 toml = "0.8"
