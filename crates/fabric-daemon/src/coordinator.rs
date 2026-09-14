@@ -432,8 +432,6 @@ pub enum CoordinatorError {
     Flush(String),
     #[error("compile error: {0}")]
     Compile(String),
-    #[error("config error: {0}")]
-    Config(String),
 }
 
 #[cfg(test)]

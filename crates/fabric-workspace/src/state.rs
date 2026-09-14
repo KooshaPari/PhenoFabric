@@ -307,7 +307,7 @@ impl WorkspaceStore {
                 // Release every active seat matching the conflicting name.
                 for seat in &mut ws.seats {
                     if seat.name == conflict.seat_name && seat.is_active() {
-                        seat.transition(Transition::Release);
+                        let _ = seat.transition(Transition::Release);
                     }
                 }
                 // Clone so we can release the mutable borrow before calling save_workspace.
@@ -374,7 +374,7 @@ impl WorkspaceStore {
         for ws in self.workspaces.values_mut() {
             for seat in &mut ws.seats {
                 if seat.state == LifecycleState::Active && seat.is_expired() {
-                    seat.transition(Transition::Expire);
+                    let _ = seat.transition(Transition::Expire);
                     expired_count += 1;
                     dirty.push(ws.id.clone());
                 }
