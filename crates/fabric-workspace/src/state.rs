@@ -26,6 +26,8 @@ pub struct Workspace {
     pub locality_tier: LocalityTier,
     /// Workspace persistence file path, if any.
     pub state_file: Option<String>,
+    /// Creation timestamp in UTC epoch millis.
+    pub created_at_ms: i64,
 }
 
 impl Workspace {
@@ -38,6 +40,7 @@ impl Workspace {
             seats: Vec::new(),
             locality_tier,
             state_file: None,
+            created_at_ms: chrono::Utc::now().timestamp_millis(),
         }
     }
 
@@ -65,6 +68,34 @@ impl Workspace {
     pub fn active_seat_count(&self) -> usize {
         self.seats.iter().filter(|s| s.is_active()).count()
     }
+}
+
+/// A pair of workspaces that share a seat — a conflict.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ConflictPair {
+    /// Seat identifier shared by both workspaces.
+    pub seat_name: String,
+    /// The workspace that was created first (lower priority by convention).
+    pub older_workspace: WorkspaceId,
+    /// The workspace that was created second (higher priority).
+    pub newer_workspace: WorkspaceId,
+}
+
+/// Aggregate counts of workspaces by lifecycle state.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct WorkspaceStats {
+    /// Number of pending workspaces.
+    pub pending: usize,
+    /// Number of active workspaces.
+    pub active: usize,
+    /// Number of completed workspaces.
+    pub completed: usize,
+    /// Number of failed workspaces.
+    pub failed: usize,
+    /// Number of cancelled workspaces.
+    pub cancelled: usize,
+    /// Total number of workspaces.
+    pub total: usize,
 }
 
 /// Unique identifier for a workspace.
@@ -200,6 +231,158 @@ impl WorkspaceStore {
     fn load_workspace(&self, path: &Path) -> Result<Workspace> {
         let json = fs::read_to_string(path)?;
         serde_json::from_str(&json).map_err(|e| Error::Serialization(e.to_string()))
+    }
+
+    // -----------------------------------------------------------------------
+    // Conflict detection and auto-resolution
+    // -----------------------------------------------------------------------
+
+    /// Find all workspace pairs that share an active seat.
+    ///
+    /// Two workspaces *conflict* when they each hold an active lease on a seat
+    /// with the same name. The pair is ordered so that `older_workspace` was
+    /// created first (lower priority) and `newer_workspace` was created later
+    /// (higher priority).
+    pub fn find_conflicts(&self) -> Vec<ConflictPair> {
+        use std::collections::HashMap as Map;
+        // seat_name → list of (workspace_id, created_at_ms)
+        let mut seat_holders: Map<String, Vec<(WorkspaceId, i64)>> = Map::new();
+
+        for ws in self.workspaces.values() {
+            if ws.state != LifecycleState::Active {
+                continue;
+            }
+            for seat in &ws.seats {
+                if seat.is_active() {
+                    seat_holders
+                        .entry(seat.name.clone())
+                        .or_default()
+                        .push((ws.id.clone(), ws.created_at_ms));
+                }
+            }
+        }
+
+        let mut conflicts = Vec::new();
+        for (seat_name, holders) in &seat_holders {
+            if holders.len() < 2 {
+                continue;
+            }
+            // Compare every pair.
+            for i in 0..holders.len() {
+                for j in (i + 1)..holders.len() {
+                    let (ref id_a, created_a) = holders[i];
+                    let (ref id_b, created_b) = holders[j];
+                    if created_a <= created_b {
+                        conflicts.push(ConflictPair {
+                            seat_name: seat_name.clone(),
+                            older_workspace: id_a.clone(),
+                            newer_workspace: id_b.clone(),
+                        });
+                    } else {
+                        conflicts.push(ConflictPair {
+                            seat_name: seat_name.clone(),
+                            older_workspace: id_b.clone(),
+                            newer_workspace: id_a.clone(),
+                        });
+                    }
+                }
+            }
+        }
+        conflicts
+    }
+
+    /// Automatically resolve conflicts by releasing the lower-priority
+    /// (older) workspace's seat for each conflicting pair.
+    ///
+    /// Returns the list of workspace IDs whose seats were released.
+    pub fn auto_resolve(&mut self) -> Vec<WorkspaceId> {
+        let conflicts = self.find_conflicts();
+        let mut released = Vec::new();
+
+        for conflict in &conflicts {
+            if released.contains(&conflict.older_workspace) {
+                continue;
+            }
+            if let Some(ws) = self.workspaces.get_mut(&conflict.older_workspace) {
+                // Release every active seat matching the conflicting name.
+                for seat in &mut ws.seats {
+                    if seat.name == conflict.seat_name && seat.is_active() {
+                        seat.transition(Transition::Release);
+                    }
+                }
+                // Persist updated state.
+                let _ = self.save_workspace(ws);
+                released.push(conflict.older_workspace.clone());
+            }
+        }
+        released
+    }
+
+    // -----------------------------------------------------------------------
+    // Query API
+    // -----------------------------------------------------------------------
+
+    /// All workspaces currently in the Active lifecycle state.
+    pub fn list_active(&self) -> Vec<&Workspace> {
+        self.workspaces
+            .values()
+            .filter(|ws| ws.state == LifecycleState::Active)
+            .collect()
+    }
+
+    /// Find the workspace that claims the seat with the given name.
+    pub fn list_by_seat(&self, seat_name: &str) -> Option<&Workspace> {
+        self.workspaces.values().find(|ws| {
+            ws.seats
+                .iter()
+                .any(|s| s.name == seat_name && s.is_active())
+        })
+    }
+
+    /// Alias for [`find_conflicts`](Self::find_conflicts) — returns all
+    /// conflicting workspace pairs.
+    pub fn list_conflicts(&self) -> Vec<ConflictPair> {
+        self.find_conflicts()
+    }
+
+    /// Count workspaces in each lifecycle state.
+    pub fn stats(&self) -> WorkspaceStats {
+        let mut s = WorkspaceStats::default();
+        for ws in self.workspaces.values() {
+            s.total += 1;
+            match ws.state {
+                LifecycleState::Pending => s.pending += 1,
+                LifecycleState::Active => s.active += 1,
+                LifecycleState::Released => s.completed += 1,
+                LifecycleState::Revoked => s.failed += 1,
+                LifecycleState::Expired => s.cancelled += 1,
+            }
+        }
+        s
+    }
+
+    // -----------------------------------------------------------------------
+    // Background expiry
+    // -----------------------------------------------------------------------
+
+    /// Scan all active workspaces and transition expired leases to Released.
+    /// Returns the number of leases that were expired.
+    pub fn check_expired_leases(&mut self) -> usize {
+        let mut expired_count = 0;
+        for ws in self.workspaces.values_mut() {
+            let mut ws_dirty = false;
+            for seat in &mut ws.seats {
+                if seat.state == LifecycleState::Active && seat.is_expired() {
+                    seat.transition(Transition::Expire);
+                    expired_count += 1;
+                    ws_dirty = true;
+                }
+            }
+            if ws_dirty {
+                let _ = self.save_workspace(ws);
+            }
+        }
+        expired_count
     }
 }
 

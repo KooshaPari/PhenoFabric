@@ -69,8 +69,10 @@ pub struct SeatLease {
     pub trust_scope: TrustScope,
     /// Lease TTL.
     pub ttl: Duration,
-    /// Lease expiry instant (UTC epoch millis).
-    pub expires_at_ms: i64,
+    /// Lease expiry instant in UTC epoch millis. `None` means no expiry.
+    pub expires_at_ms: Option<i64>,
+    /// Creation timestamp in UTC epoch millis.
+    pub created_at_ms: i64,
     /// Current lifecycle state.
     pub state: LifecycleState,
     /// Optional capability requirements (e.g. GPU:1, audio:1).
@@ -86,12 +88,28 @@ impl SeatLease {
     /// Whether this lease is currently active and not expired.
     pub fn is_active(&self) -> bool {
         self.state == LifecycleState::Active
-            && chrono::Utc::now().timestamp_millis() < self.expires_at_ms
+            && self
+                .expires_at_ms
+                .map_or(true, |exp| chrono::Utc::now().timestamp_millis() < exp)
     }
 
     /// Whether this lease has expired based on wall-clock time.
+    /// Leases without an expiry are never considered expired.
     pub fn is_expired(&self) -> bool {
-        chrono::Utc::now().timestamp_millis() >= self.expires_at_ms
+        self.expires_at_ms
+            .map_or(false, |exp| chrono::Utc::now().timestamp_millis() >= exp)
+    }
+
+    /// Renew the lease by extending `expires_at_ms` from now by `duration`.
+    /// If the lease had no expiry, sets one from now.
+    pub fn renew(&mut self, duration: Duration) {
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        let extend_ms = duration.as_millis() as i64;
+        self.expires_at_ms = Some(match self.expires_at_ms {
+            Some(current) => current.max(now_ms) + extend_ms,
+            None => now_ms + extend_ms,
+        });
+        self.ttl = duration;
     }
 
     /// Whether the given transition is valid from the current state.
@@ -129,7 +147,7 @@ impl SeatLease {
 mod tests {
     use super::*;
 
-    fn make_lease(state: LifecycleState, expires_ms: i64) -> SeatLease {
+    fn make_lease(state: LifecycleState, expires_ms: Option<i64>) -> SeatLease {
         SeatLease {
             id: SeatId::new("ws:gpu0"),
             name: "gpu0".into(),
@@ -138,6 +156,7 @@ mod tests {
             trust_scope: TrustScope::Ephemeral,
             ttl: Duration::from_secs(3600),
             expires_at_ms: expires_ms,
+            created_at_ms: 1_000_000,
             state,
             required_capabilities: vec!["GPU:1".into()],
         }
@@ -145,47 +164,76 @@ mod tests {
 
     #[test]
     fn test_active_when_pending() {
-        let lease = make_lease(LifecycleState::Pending, i64::MAX);
+        let lease = make_lease(LifecycleState::Pending, Some(i64::MAX));
         assert!(!lease.is_active());
     }
 
     #[test]
     fn test_active_when_released() {
-        let lease = make_lease(LifecycleState::Released, i64::MAX);
+        let lease = make_lease(LifecycleState::Released, Some(i64::MAX));
         assert!(!lease.is_active());
     }
 
     #[test]
     fn test_is_expired() {
-        let lease = make_lease(LifecycleState::Active, 0);
+        let lease = make_lease(LifecycleState::Active, Some(0));
         assert!(lease.is_expired());
     }
 
     #[test]
+    fn test_no_expiry_never_expired() {
+        let lease = make_lease(LifecycleState::Active, None);
+        assert!(!lease.is_expired());
+        assert!(lease.is_active());
+    }
+
+    #[test]
     fn test_transition_pending_to_active() {
-        let mut lease = make_lease(LifecycleState::Pending, i64::MAX);
+        let mut lease = make_lease(LifecycleState::Pending, Some(i64::MAX));
         assert_eq!(lease.transition(Transition::Activate), Some(LifecycleState::Active));
         assert_eq!(lease.state, LifecycleState::Active);
     }
 
     #[test]
     fn test_transition_active_to_released() {
-        let mut lease = make_lease(LifecycleState::Active, i64::MAX);
+        let mut lease = make_lease(LifecycleState::Active, Some(i64::MAX));
         assert_eq!(lease.transition(Transition::Release), Some(LifecycleState::Released));
     }
 
     #[test]
     fn test_invalid_transition_pending_to_released() {
-        let mut lease = make_lease(LifecycleState::Pending, i64::MAX);
+        let mut lease = make_lease(LifecycleState::Pending, Some(i64::MAX));
         assert_eq!(lease.transition(Transition::Release), None);
         assert_eq!(lease.state, LifecycleState::Pending);
     }
 
     #[test]
     fn test_expire_sets_state() {
-        let mut lease = make_lease(LifecycleState::Active, i64::MAX);
+        let mut lease = make_lease(LifecycleState::Active, Some(i64::MAX));
         assert_eq!(lease.transition(Transition::Expire), Some(LifecycleState::Expired));
         assert_eq!(lease.state, LifecycleState::Expired);
+    }
+
+    #[test]
+    fn test_renew_extends_expiry() {
+        let mut lease = make_lease(LifecycleState::Active, Some(1000));
+        let before = chrono::Utc::now().timestamp_millis();
+        lease.renew(Duration::from_secs(3600));
+        let after = chrono::Utc::now().timestamp_millis();
+        let expected_min = before + 3_600_000;
+        let expected_max = after + 3_600_000;
+        let exp = lease.expires_at_ms.unwrap();
+        assert!(exp >= expected_min, "exp={exp} < min={expected_min}");
+        assert!(exp <= expected_max, "exp={exp} > max={expected_max}");
+    }
+
+    #[test]
+    fn test_renew_sets_expiry_when_none() {
+        let mut lease = make_lease(LifecycleState::Active, None);
+        assert!(lease.expires_at_ms.is_none());
+        lease.renew(Duration::from_secs(60));
+        assert!(lease.expires_at_ms.is_some());
+        assert!(lease.is_active());
     }
 
     #[test]

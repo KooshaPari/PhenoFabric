@@ -2285,11 +2285,13 @@ dependencies = [
  "fabric-frame-transport",
  "fabric-graph",
  "fabric-persist",
+ "fabric-workspace",
  "phenotype-nvms-adapter",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
+ "toml 0.8.2",
  "uuid",
 ]
 

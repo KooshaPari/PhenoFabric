@@ -19,7 +19,9 @@ tempfile = "3"
 
 [dev-dependencies]
 fabric-persist = { path = "../fabric-persist" }
+fabric-workspace = { path = "../fabric-workspace" }
 phenotype-nvms-adapter = { path = "../phenotype-nvms-adapter" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full", "macros", "rt-multi-thread"] }
+toml = "0.8"

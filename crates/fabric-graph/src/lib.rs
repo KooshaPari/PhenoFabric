@@ -65,7 +65,7 @@ pub use crate::model::{
 };
 pub use crate::negotiation::negotiate;
 pub use crate::planner::plan_sequence;
-pub use crate::score::ScoringWeights;
+pub use crate::score::{score_locality, ScoringWeights};
 pub use crate::surface_runtime::{Invalidation, RegistryEntry, SurfaceRegistry};
 pub use crate::surface::{SurfaceHandle, SurfaceSpec};
 pub use crate::multihop::{compile_multihop, MultihopResult, MultihopError};

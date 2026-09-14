@@ -44,7 +44,7 @@ impl ScoringWeights {
     }
 }
 
-pub(crate) fn score_locality(node: &Node, requirements: &IntentRequirements) -> f64 {
+pub fn score_locality(node: &Node, requirements: &IntentRequirements) -> f64 {
     let tier = node.locality_tier.as_f64();
     if let Some(max) = requirements.max_locality_tier {
         if tier > max {

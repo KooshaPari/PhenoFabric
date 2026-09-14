@@ -4,10 +4,12 @@
 //! for benchmarking the graph compiler, negotiation, and failover paths.
 
 use fabric_graph::model::{
-    Edge, EdgeId, Intent, IntentId, IntentRequirements, LinkMetrics, Node, NodeId, Topology,
-    TopologyEpoch, TopologyMeta, TrustLevel,
+    CapabilityRef, Edge, EdgeId, Intent, IntentId, IntentRequirements, LinkMetrics, Node,
+    NodeId, Topology, TopologyEpoch, TopologyMeta, TrustLevel,
 };
-use fabric_graph::LocalityTier;
+use fabric_graph::{score_locality, FairnessDecision, FairnessPolicy, FairnessQueue, LocalityTier,
+    TenantId,
+};
 
 /// Build a fully-connected topology with `n` nodes.
 ///
@@ -187,4 +189,148 @@ pub fn preferred_node_intent(node_id: &str) -> Intent {
         tags: vec![],
         expires_at: None,
     }
+}
+
+// ---------------------------------------------------------------------------
+// Enhanced helpers for new benchmarks
+// ---------------------------------------------------------------------------
+
+/// Build a topology with `n` nodes, each with a CPU capability descriptor.
+/// Edges form a chain + skip graph. Some nodes carry GPU capabilities.
+pub fn build_capability_topology(n: usize) -> Topology {
+    let mut topo = Topology::new();
+    topo.meta = TopologyMeta {
+        name: format!("bench-capability-{n}"),
+        ..Default::default()
+    };
+
+    let tiers = [
+        LocalityTier::L1SameNuma,
+        LocalityTier::L2CrossNumaShm,
+        LocalityTier::L3PcieP2P,
+        LocalityTier::L6Lan,
+        LocalityTier::L6Lan,
+    ];
+
+    for i in 0..n {
+        let tier = tiers[i % tiers.len()];
+        let node_id = NodeId::new(format!("node-{i}"));
+        let cap_id = format!("sha256:cpu-{i}");
+        let mut node = Node::new(node_id, tier)
+            .with_capability(CapabilityRef::new(cap_id).with_trust(TrustLevel::Attested));
+        // Every 3rd node gets a GPU capability
+        if i % 3 == 0 {
+            node = node.with_capability(
+                CapabilityRef::new(format!("sha256:gpu-{i}")).with_trust(TrustLevel::Attested),
+            );
+        }
+        node.label = Some(format!("bench-node-{i}"));
+        topo.add_node(node);
+    }
+
+    let node_ids: Vec<NodeId> = (0..n).map(|i| NodeId::new(format!("node-{i}"))).collect();
+
+    // Chain edges
+    for i in 0..n.saturating_sub(1) {
+        let edge = Edge::new(
+            EdgeId::new(format!("e-{}-{}", i, i + 1)),
+            node_ids[i].clone(),
+            node_ids[i + 1].clone(),
+            LocalityTier::L6Lan,
+        )
+        .with_metrics(LinkMetrics {
+            latency_us: Some(50.0 + (i as f64) * 10.0),
+            bandwidth_bps: Some(1_000_000_000),
+            packet_loss: Some(0.0),
+            jitter_us: Some(2.0),
+        });
+        topo.add_edge(edge).unwrap();
+    }
+
+    // Skip edges for alternative paths
+    if n > 4 {
+        for i in 0..n.saturating_sub(2) {
+            let edge = Edge::new(
+                EdgeId::new(format!("e-{}-{}-skip", i, i + 2)),
+                node_ids[i].clone(),
+                node_ids[i + 2].clone(),
+                LocalityTier::L6Lan,
+            );
+            topo.add_edge(edge).unwrap();
+        }
+    }
+
+    topo
+}
+
+/// Build a batch of `n` distinct intents, each targeting a different node.
+pub fn build_intent_batch(n: usize) -> Vec<Intent> {
+    (0..n)
+        .map(|i| Intent {
+            id: IntentId::new(),
+            name: format!("bench-intent-{i}"),
+            requirements: IntentRequirements::default(),
+            preferred_node: Some(NodeId::new(format!("node-{}", i % 20))),
+            min_trust: TrustLevel::Untrusted,
+            tags: vec![],
+            expires_at: None,
+        })
+        .collect()
+}
+
+/// Build a topology with `n` nodes, all at the same locality tier,
+/// useful for scoring benchmarks where we want to measure scoring throughput
+/// without locality variance dominating.
+pub fn build_flat_topology(n: usize, tier: LocalityTier) -> Topology {
+    let mut topo = Topology::new();
+    topo.meta = TopologyMeta {
+        name: format!("bench-flat-{n}"),
+        ..Default::default()
+    };
+
+    for i in 0..n {
+        let node = Node::new(NodeId::new(format!("node-{i}")), tier).with_capability(
+            CapabilityRef::new(format!("sha256:cap-{i}")).with_trust(TrustLevel::Attested),
+        );
+        topo.add_node(node);
+    }
+
+    let node_ids: Vec<NodeId> = (0..n).map(|i| NodeId::new(format!("node-{i}"))).collect();
+    for i in 0..n.saturating_sub(1) {
+        let edge = Edge::new(
+            EdgeId::new(format!("e-{}-{}", i, i + 1)),
+            node_ids[i].clone(),
+            node_ids[i + 1].clone(),
+            tier,
+        )
+        .with_metrics(LinkMetrics {
+            latency_us: Some(100.0),
+            bandwidth_bps: Some(1_000_000_000),
+            packet_loss: Some(0.0),
+            jitter_us: Some(1.0),
+        });
+        topo.add_edge(edge).unwrap();
+    }
+
+    topo
+}
+
+/// Benchmark score_locality throughput across all nodes in a topology.
+pub fn bench_score_locality_throughput(topo: &Topology, intent: &Intent) {
+    for (_id, node) in &topo.nodes {
+        let _score = score_locality(node, &intent.requirements);
+    }
+}
+
+/// Create a pre-filled fairness queue with `n` tenants, each having
+/// made `acquire_count` acquire calls.
+pub fn build_fairness_queue(tenant_count: usize, acquire_count: u32) -> FairnessQueue {
+    let mut queue = FairnessQueue::new(FairnessPolicy::FairShare { weight: 1 });
+    for t in 0..tenant_count {
+        let tenant = TenantId::new(format!("tenant-{t}"));
+        for _ in 0..acquire_count {
+            queue.try_acquire(tenant.clone(), 1);
+        }
+    }
+    queue
 }
