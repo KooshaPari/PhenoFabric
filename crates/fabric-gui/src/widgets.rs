@@ -293,7 +293,7 @@ pub fn glass_text_input(
             Vec2::new(ui.available_width(), 24.0),
             egui::TextEdit::singleline(value)
                 .hint_text(egui::RichText::new(label).color(theme.text_muted))
-                .frame(false),
+                .frame(egui::Frame::NONE),
         );
         changed = response.changed();
     });

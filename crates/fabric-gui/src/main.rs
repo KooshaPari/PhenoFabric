@@ -49,7 +49,7 @@ struct FabricApp {
 }
 
 impl eframe::App for FabricApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.state.poll_daemon();
         self.state.poll_refresh();
         if self.state.should_auto_refresh() {
@@ -58,11 +58,13 @@ impl eframe::App for FabricApp {
         }
         self.state.handle_keys(ctx);
         self.state.anim.update(ctx.input(|i| i.predicted_dt));
+    }
 
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         // ------------------------------------------------------------------
         // Top toolbar (glass bar)
         // ------------------------------------------------------------------
-        egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
+        egui::Panel::top("toolbar").show(ui, |ui| {
             LiquidTheme::toolbar_frame().show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(
@@ -119,11 +121,11 @@ impl eframe::App for FabricApp {
         // ------------------------------------------------------------------
         // Sidebar (glass panel)
         // ------------------------------------------------------------------
-        egui::SidePanel::left("sidebar")
-            .default_width(170.0)
-            .min_width(140.0)
+        egui::Panel::left("sidebar")
+            .default_size(170.0)
+            .min_size(140.0)
             .frame(LiquidTheme::sidebar_glass_frame())
-            .show(ctx, |ui| {
+            .show(ui, |ui| {
                 ui.add_space(4.0);
                 ui.label(
                     egui::RichText::new("Phenotype Fabric")
@@ -134,7 +136,7 @@ impl eframe::App for FabricApp {
                 ui.add_space(6.0);
 
                 // Daemon status section
-                show_daemon_sidebar(ui, &mut self.state, ctx);
+                show_daemon_sidebar(ui, &mut self.state);
 
                 ui.add_space(4.0);
                 widgets::section_divider(ui, &self.state.theme);
@@ -172,7 +174,7 @@ impl eframe::App for FabricApp {
                     };
                     if premium::icon_button_glass(ui, label, &self.state.theme) {
                         self.state.toggle_dark_mode();
-                        self.state.configure_visuals(ctx);
+                        self.state.configure_visuals(ui.ctx());
                     }
                 });
             });
@@ -180,7 +182,7 @@ impl eframe::App for FabricApp {
         // ------------------------------------------------------------------
         // Bottom status bar (glass)
         // ------------------------------------------------------------------
-        egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
+        egui::Panel::bottom("status_bar").show(ui, |ui| {
             LiquidTheme::status_bar_frame().show(ui, |ui| {
                 ui.horizontal(|ui| {
                     let daemon_state = self.state.daemon_manager.state_snapshot();
@@ -235,9 +237,9 @@ impl eframe::App for FabricApp {
         // Daemon log panel (bottom, toggleable)
         // ------------------------------------------------------------------
         if self.state.show_daemon_logs {
-            egui::TopBottomPanel::bottom("daemon_logs")
-                .default_height(150.0)
-                .show(ctx, |ui| {
+            egui::Panel::bottom("daemon_logs")
+                .default_size(150.0)
+                .show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.strong("Daemon Logs");
                         ui.separator();
@@ -274,9 +276,9 @@ impl eframe::App for FabricApp {
         }
 
         // ------------------------------------------------------------------
-        // Central panel
+        // Central panel (must be last)
         // ------------------------------------------------------------------
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             match self.state.active_tab {
                 Tab::Dashboard => panels::dashboard::show(
                     ui,
@@ -342,7 +344,6 @@ impl eframe::App for FabricApp {
 fn show_daemon_sidebar(
     ui: &mut egui::Ui,
     state: &mut GuiApp,
-    _ctx: &egui::Context,
 ) {
     ui.label(
         egui::RichText::new("Daemon")
