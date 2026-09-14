@@ -9,7 +9,7 @@ use std::path::Path;
 use fabric_capability::locality::LocalityTier;
 
 use crate::error::{Error, Result};
-use crate::lease::{LifecycleState, SeatLease, SeatId};
+use crate::lease::{LifecycleState, SeatLease, SeatId, Transition};
 
 /// A Fabric workspace — a managed compute environment with assigned capabilities.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -310,8 +310,9 @@ impl WorkspaceStore {
                         seat.transition(Transition::Release);
                     }
                 }
-                // Persist updated state.
-                let _ = self.save_workspace(ws);
+                // Clone so we can release the mutable borrow before calling save_workspace.
+                let ws_clone = ws.clone();
+                let _ = self.save_workspace(&ws_clone);
                 released.push(conflict.older_workspace.clone());
             }
         }
@@ -369,16 +370,19 @@ impl WorkspaceStore {
     /// Returns the number of leases that were expired.
     pub fn check_expired_leases(&mut self) -> usize {
         let mut expired_count = 0;
+        let mut dirty: Vec<WorkspaceId> = Vec::new();
         for ws in self.workspaces.values_mut() {
-            let mut ws_dirty = false;
             for seat in &mut ws.seats {
                 if seat.state == LifecycleState::Active && seat.is_expired() {
                     seat.transition(Transition::Expire);
                     expired_count += 1;
-                    ws_dirty = true;
+                    dirty.push(ws.id.clone());
                 }
             }
-            if ws_dirty {
+        }
+        // Save after releasing the mutable borrow on self.workspaces.
+        for id in &dirty {
+            if let Some(ws) = self.workspaces.get(id) {
                 let _ = self.save_workspace(ws);
             }
         }
@@ -398,6 +402,7 @@ mod tests {
             seats: Vec::new(),
             locality_tier: LocalityTier::L2CrossNumaShm,
             state_file: None,
+            created_at_ms: 0,
         }
     }
 
