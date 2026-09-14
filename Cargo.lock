@@ -5249,6 +5249,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 [[package]]
 name = "phenotype-manifest"
 version = "0.2.0"
+source = "git+https://github.com/KooshaPari/nanovms.git#22207f33c60cf0c0e5a259a750e443e5257f4ec5"
 dependencies = [
  "schemars 1.2.2",
  "serde",
