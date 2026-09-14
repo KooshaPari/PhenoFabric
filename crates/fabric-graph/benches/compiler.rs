@@ -6,8 +6,8 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fabric_graph::compile;
 use fabric_graph::multihop::{builtin_stages, compile_multihop};
 use fabric_graph::negotiation::negotiate;
-use fabric_graph::failover::{replan, FailoverOutcome};
-use fabric_graph::model::{NodeId, RoutePlan, TopologyEpoch};
+use fabric_graph::failover::replan;
+use fabric_graph::model::NodeId;
 
 // ---------------------------------------------------------------------------
 // Original benchmarks (compile at various scales)

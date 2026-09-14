@@ -5,9 +5,9 @@
 
 use fabric_graph::model::{
     CapabilityRef, Edge, EdgeId, Intent, IntentId, IntentRequirements, LinkMetrics, Node,
-    NodeId, Topology, TopologyEpoch, TopologyMeta, TrustLevel,
+    NodeId, Topology, TopologyMeta, TrustLevel,
 };
-use fabric_graph::{score_locality, FairnessDecision, FairnessPolicy, FairnessQueue, LocalityTier,
+use fabric_graph::{score_locality, FairnessPolicy, FairnessQueue, LocalityTier,
     TenantId,
 };
 
@@ -78,6 +78,7 @@ pub fn build_mesh_topology(n: usize) -> Topology {
 /// Build a linear chain topology: node-0 -> node-1 -> ... -> node-(n-1).
 ///
 /// Each consecutive pair is connected by a directed edge at L6 LAN with metrics.
+#[allow(dead_code)]
 pub fn build_chain_topology(n: usize) -> Topology {
     let mut topo = Topology::new();
     topo.meta = TopologyMeta {
@@ -163,6 +164,7 @@ pub fn any_node_intent() -> Intent {
 }
 
 /// Create an intent that requires a specific tag.
+#[allow(dead_code)]
 pub fn tag_intent(tag: &str) -> Intent {
     Intent {
         id: IntentId::new(),
@@ -179,6 +181,7 @@ pub fn tag_intent(tag: &str) -> Intent {
 }
 
 /// Create an intent with a preferred node hint.
+#[allow(dead_code)]
 pub fn preferred_node_intent(node_id: &str) -> Intent {
     Intent {
         id: IntentId::new(),
