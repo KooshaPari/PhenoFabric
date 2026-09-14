@@ -210,6 +210,7 @@ impl From<AuthConfig> for auth::AuthMiddlewareConfig {
 }
 
 /// Configuration for federation (multi-node topology sharing).
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct FederationConfig {
