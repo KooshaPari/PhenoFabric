@@ -6,7 +6,7 @@
 //! 3. Environment variables
 //! 4. Defaults
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Top-level daemon configuration.
@@ -18,6 +18,7 @@ pub struct DaemonConfig {
     pub topology: TopologyConfig,
     pub leases: LeaseConfig,
     pub logging: LoggingConfig,
+    pub auth: AuthConfig,
 }
 
 impl Default for DaemonConfig {
@@ -28,6 +29,7 @@ impl Default for DaemonConfig {
             topology: TopologyConfig::default(),
             leases: LeaseConfig::default(),
             logging: LoggingConfig::default(),
+            auth: AuthConfig::default(),
         }
     }
 }
@@ -140,6 +142,40 @@ impl Default for LoggingConfig {
     }
 }
 
+/// Authentication configuration.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct AuthConfig {
+    /// Whether authentication is enabled.
+    pub enabled: bool,
+    /// WorkOS OAuth client ID.
+    pub workos_client_id: String,
+    /// WorkOS OAuth client secret. Loaded from env var `WORKOS_CLIENT_SECRET`.
+    pub workos_client_secret: String,
+    /// WorkOS OAuth redirect URI.
+    pub workos_redirect_uri: String,
+    /// Infisical service account client ID.
+    pub infisical_client_id: String,
+    /// Infisical service account client secret. Loaded from env var `INFISICAL_CLIENT_SECRET`.
+    pub infisical_client_secret: String,
+    /// Infisical project ID.
+    pub infisical_project_id: String,
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            workos_client_id: String::new(),
+            workos_client_secret: String::new(),
+            workos_redirect_uri: String::new(),
+            infisical_client_id: String::new(),
+            infisical_client_secret: String::new(),
+            infisical_project_id: String::new(),
+        }
+    }
+}
+
 /// Configuration for federation (multi-node topology sharing).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
@@ -166,6 +202,16 @@ impl Default for FederationConfig {
 }
 
 impl DaemonConfig {
+    /// Load environment variables into sensitive config fields.
+    pub fn load_env_secrets(&mut self) {
+        if let Ok(secret) = std::env::var("WORKOS_CLIENT_SECRET") {
+            self.auth.workos_client_secret = secret;
+        }
+        if let Ok(secret) = std::env::var("INFISICAL_CLIENT_SECRET") {
+            self.auth.infisical_client_secret = secret;
+        }
+    }
+
     /// Load configuration from a TOML file.
     pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self, ConfigError> {
         let content = std::fs::read_to_string(path.as_ref())

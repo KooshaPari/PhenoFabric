@@ -3,6 +3,7 @@
 //! Manages topology, leases, wire transport, and health checks.
 //! Persists state to SQLite via fabric-persist.
 
+mod auth;
 mod config;
 mod coordinator;
 mod health;
@@ -100,6 +101,9 @@ fn cmd_start(
 
     // Apply overrides.
     config = config.with_overrides(listen, db_path, log_level);
+
+    // Load environment secrets (e.g., WORKOS_CLIENT_SECRET).
+    config.load_env_secrets();
 
     // Initialize logging.
     logging::init_logging(&config.logging);

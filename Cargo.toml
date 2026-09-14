@@ -36,7 +36,7 @@ authors = ["Phenotype Fabric Team"]
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-uuid = { version = "1.0", features = ["v7", "serde"] }
+uuid = { version = "1.0", features = ["v4", "v7", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 blake3 = "1.5"
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
