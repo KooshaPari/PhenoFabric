@@ -7,9 +7,9 @@ pub mod middleware;
 pub mod oauth;
 pub mod secrets;
 
-#[allow(dead_code)]
+#[allow(unused_imports)]
 pub use middleware::{AuthMiddleware, AuthenticatedUser, AuthError, AuthMiddlewareConfig};
-#[allow(dead_code)]
+#[allow(unused_imports)]
 pub use oauth::{WorkOsProvider, WorkOsConfig, OAuthConfig, AuthorizationRequest, TokenResponse, WorkOsUser};
-#[allow(dead_code)]
+#[allow(unused_imports)]
 pub use secrets::{InfisicalClient, InfisicalConfig, SecretValue, SecretsError};

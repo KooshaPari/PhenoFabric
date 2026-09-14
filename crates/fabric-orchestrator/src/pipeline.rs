@@ -18,6 +18,7 @@ use fabric_graph::surface_runtime::SurfaceRegistry;
 use tracing::info;
 
 /// Snapshot of the full pipeline status.
+#[allow(dead_code)]
 #[derive(Debug, serde::Serialize)]
 pub struct PipelineStatus {
     /// Daemon health info.
@@ -30,6 +31,7 @@ pub struct PipelineStatus {
 
 /// The orchestrator pipeline. Holds every subsystem and exposes
 /// lifecycle and query methods.
+#[allow(dead_code)]
 pub struct FabricPipeline {
     /// The coordinator (wraps persist internally).
     pub(crate) coordinator: Arc<Coordinator>,
@@ -43,6 +45,7 @@ pub struct FabricPipeline {
     config: DaemonConfig,
 }
 
+#[allow(dead_code)]
 impl FabricPipeline {
     /// Create a new pipeline from configuration.
     ///

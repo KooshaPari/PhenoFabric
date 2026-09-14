@@ -36,6 +36,7 @@ struct CoordinatorState {
     dirty: bool,
 }
 
+#[allow(dead_code)]
 impl Coordinator {
     /// Create a new coordinator, recovering state from the database.
     pub fn new(config: DaemonConfig) -> Result<Self, CoordinatorError> {
