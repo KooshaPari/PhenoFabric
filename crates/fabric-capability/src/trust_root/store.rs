@@ -1,288 +1,11 @@
-//! Trust-root model for capability descriptor signatures.
-//!
-//! Per ADR-0031 and spec 021. R0's [`crate::signing`] API is unchanged;
-//! this module is an *additional* verification path that gives the
-//! operator chain anchoring, revocation, and time-bounded validity.
-//!
-//! ## Roles
-//!
-//! | Role | `parent_key_id` | Held in `by_key_id`? |
-//! |:--|:--|:--|
-//! | `TrustRoot` | `None` | yes (it's the anchor) |
-//! | `IntermediateAuthority` | `Some(root.key_id)` | yes |
-//! | `NodeAuthority` | `Some(intermediate.key_id)` or `Some(root.key_id)` | yes |
-//!
-//! Chain depth cap = [`MAX_CHAIN_DEPTH`] (2 in R1).
-//!
-//! ## Verification contract
-//!
-//! See spec 021 §4 for the full algorithm. Summary:
-//! 1. For each signature in `descriptor.signatures`:
-//!    a. Look up `key_id` in `by_key_id`. Missing → `UnknownAuthority`.
-//!    b. If revocation list is set, check `key_id` is not in it. Found → `KeyRevoked`.
-//!    c. Walk parent chain; at each step check `not_after > now()`,
-//!       depth ≤ cap, parent exists. Depth > cap → `ChainTooDeep`.
-//!    d. Walk back down, verifying each `Authority.signature` against
-//!       the parent's `VerificationKey`.
-//!    e. Verify the descriptor signature against the leaf.
-//!    f. Return `Ok(ChainVerification { node_authority, chain_depth })`.
-//! 2. If no signature yields a valid chain, return the FIRST error
-//!    (more informative than the last).
-//!
-//! ## Backwards compatibility
-//!
-//! R0 `sign` / `verify` / `has_trusted_signature` are unchanged. The
-//! `TrustStore` is opt-in.
-
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::descriptor::{CapabilityDescriptor, Signature};
-use crate::error::{Error, Result};
-use crate::signing::{SigningKey, VerificationKey};
 
-/// Maximum chain depth in R1. Compile-time constant; R2 may make it
-/// configurable per-deployment.
-pub const MAX_CHAIN_DEPTH: usize = 2;
-
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
-
-/// Errors that [`TrustStore`] can produce during construction, authority
-/// insertion, revocation-list installation, or chain verification.
-#[derive(Debug, thiserror::Error)]
-pub enum TrustError {
-    #[error("unknown authority: key_id {0} is not in the TrustStore")]
-    UnknownAuthority(String),
-
-    #[error("key revoked: key_id {key_id}, reason: {reason:?}")]
-    KeyRevoked {
-        key_id: String,
-        reason: RevocationReason,
-    },
-
-    #[error("authority expired: key_id {key_id}, expired_at {expired_at}")]
-    Expired {
-        key_id: String,
-        expired_at: DateTime<Utc>,
-    },
-
-    #[error("chain not anchored at trust root: leaf key_id {0}")]
-    ChainNotAnchored(String),
-
-    #[error("chain too deep: depth {depth}, cap {cap}")]
-    ChainTooDeep { depth: usize, cap: usize },
-
-    #[error("bad signature on authority: key_id {0}")]
-    BadAuthoritySignature(String),
-
-    #[error("bad descriptor signature: key_id {0}")]
-    BadDescriptorSignature(String),
-
-    #[error("crypto error: {0}")]
-    Crypto(String),
-
-    #[error("trust root already set; cannot replace")]
-    RootAlreadySet,
-
-    #[error("parent key_id {0} not found when adding authority {1}")]
-    ParentNotFound(String, String),
-
-    #[error(
-        "revocation list signature is not from trust root (expected {expected}, got {actual})"
-    )]
-    RevocationListNotFromRoot { expected: String, actual: String },
-
-    #[error("io / serde: {0}")]
-    Codec(String),
-}
-
-impl From<Error> for TrustError {
-    fn from(e: Error) -> Self {
-        TrustError::Crypto(e.to_string())
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Revocation
-// ---------------------------------------------------------------------------
-
-/// Why a key was revoked. Used in [`RevocationEntry::reason`] and surfaced
-/// in the [`TrustError::KeyRevoked`] error variant.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum RevocationReason {
-    /// Key material leaked or suspected compromised.
-    Compromised,
-    /// Key rotated; the new key replaces this one.
-    Superseded,
-    /// Host decommissioned; the key is no longer needed.
-    Retired,
-    /// Manual operator action (no automatic reason).
-    OperatorRevoked,
-}
-
-/// A single revocation record. Multiple entries for the same `key_id`
-/// are allowed; only the most recent reason wins in practice (the
-/// revocation-list consumer picks one).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RevocationEntry {
-    pub key_id: String,
-    pub reason: RevocationReason,
-    pub revoked_at: DateTime<Utc>,
-}
-
-/// A signed bundle of revocation entries. The `signature` MUST be from
-/// the TrustRoot's signing key; `TrustStore::set_revocation_list`
-/// enforces this.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RevocationList {
-    pub revocations: Vec<RevocationEntry>,
-    pub signed_at: DateTime<Utc>,
-    pub signature: Signature,
-}
-
-impl RevocationList {
-    /// Builds, signs (by the supplied root signing key), and returns a
-    /// fresh `RevocationList`. The signature is over the canonical bytes
-    /// of `(revocations, signed_at)` — same "no self-signature" pattern
-    /// as `CapabilityDescriptor::canonical_bytes` and
-    /// `Authority::canonical_bytes`.
-    pub fn build_and_sign(
-        revocations: Vec<RevocationEntry>,
-        root_signing_key: &SigningKey,
-    ) -> Result<Self> {
-        let signed_at = Utc::now();
-        // Build a stub for canonicalization (without signature).
-        let stub = Self {
-            revocations: revocations.clone(),
-            signed_at,
-            signature: Signature {
-                key_id: String::new(),
-                alg: String::new(),
-                sig: String::new(),
-                signed_at: Utc::now(),
-            },
-        };
-        let bytes = stub.canonical_bytes()?;
-        let signature = root_signing_key.sign_bytes(&bytes);
-        Ok(Self {
-            revocations,
-            signed_at,
-            signature,
-        })
-    }
-
-    /// Returns the canonical bytes used as input to the signature.
-    /// Strips the `signature` field.
-    pub fn canonical_bytes(&self) -> Result<Vec<u8>> {
-        let mut value = serde_json::to_value(self).map_err(|e| Error::Serde(e.to_string()))?;
-        if let Some(obj) = value.as_object_mut() {
-            obj.remove("signature");
-        }
-        serde_json::to_vec(&value).map_err(|e| Error::Serde(e.to_string()))
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Authority
-// ---------------------------------------------------------------------------
-
-/// A single node in the trust chain. The TrustRoot is itself an
-/// `Authority` with `parent_key_id == None` and `signature == None`
-/// (or ignored — see spec §4 step 3).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Authority {
-    pub verification_key: VerificationKey,
-    pub key_id: String,
-    /// `None` iff this authority is the TrustRoot.
-    pub parent_key_id: Option<String>,
-    pub name: String,
-    pub issued_at: DateTime<Utc>,
-    /// `None` = no expiry.
-    pub not_after: Option<DateTime<Utc>>,
-    /// Parent's signature on this authority's canonical bytes.
-    /// `None` iff this authority is the TrustRoot.
-    pub signature: Option<Signature>,
-}
-
-impl Authority {
-    /// Returns the canonical bytes used as input to the parent's
-    /// signature. Strips the `signature` field before serializing.
-    pub fn canonical_bytes(&self) -> Result<Vec<u8>> {
-        let mut value = serde_json::to_value(self).map_err(|e| Error::Serde(e.to_string()))?;
-        if let Some(obj) = value.as_object_mut() {
-            obj.remove("signature");
-        }
-        serde_json::to_vec(&value).map_err(|e| Error::Serde(e.to_string()))
-    }
-
-    /// Builds a self-signed TrustRoot. The `signature` field is left
-    /// `None` (a TrustRoot anchors by definition).
-    pub fn trust_root(key: &SigningKey, name: impl Into<String>) -> Self {
-        let verification_key = key.verification_key();
-        let key_id = key.key_id().to_string();
-        Self {
-            verification_key,
-            key_id,
-            parent_key_id: None,
-            name: name.into(),
-            issued_at: Utc::now(),
-            not_after: None,
-            signature: None,
-        }
-    }
-
-    /// Builds a non-root Authority signed by `parent`. The parent's
-    /// `VerificationKey` is used to sign the canonical bytes of the new
-    /// authority — i.e. the parent delegates authority to this key.
-    /// The new authority holds the `key`'s verification counterpart.
-    ///
-    /// In a real deployment the parent's signing key would be held in a
-    /// secure enclave / HSM; here we accept it as a `&SigningKey` for
-    /// construction-site convenience. `TrustStore::add_authority`
-    /// re-verifies the signature against the parent's *verification*
-    /// key before insertion.
-    pub fn signed_by(
-        key: &SigningKey,
-        parent_signing_key: &SigningKey,
-        parent: &Authority,
-        name: impl Into<String>,
-        not_after: Option<DateTime<Utc>>,
-    ) -> Result<Self> {
-        let verification_key = key.verification_key();
-        let key_id = key.key_id().to_string();
-        let issued_at = Utc::now();
-        let name: String = name.into();
-        let stub = Self {
-            verification_key: verification_key.clone(),
-            key_id: key_id.clone(),
-            parent_key_id: Some(parent.key_id.clone()),
-            name: name.clone(),
-            issued_at,
-            not_after,
-            signature: None,
-        };
-        let bytes = stub.canonical_bytes()?;
-        let signature = parent_signing_key.sign_bytes(&bytes);
-        Ok(Self {
-            verification_key,
-            key_id,
-            parent_key_id: Some(parent.key_id.clone()),
-            name,
-            issued_at,
-            not_after,
-            signature: Some(signature),
-        })
-    }
-
-    /// Returns the parent's verification key, if this authority has a
-    /// parent (i.e., is not the TrustRoot).
-    pub fn parent_key_id(&self) -> Option<&str> {
-        self.parent_key_id.as_deref()
-    }
-}
+use super::authority::Authority;
+use super::types::{RevocationList, TrustError, MAX_CHAIN_DEPTH};
 
 // ---------------------------------------------------------------------------
 // ChainVerification
@@ -343,7 +66,10 @@ impl TrustStore {
     /// 3. The authority's `signature` field is present and verifies
     ///    against the parent's `VerificationKey`.
     /// 4. The resulting chain depth does not exceed [`MAX_CHAIN_DEPTH`].
-    pub fn add_authority(&mut self, auth: Authority) -> std::result::Result<(), TrustError> {
+    pub fn add_authority(
+        &mut self,
+        auth: Authority,
+    ) -> std::result::Result<(), TrustError> {
         if self.by_key_id.contains_key(&auth.key_id) {
             return Err(TrustError::Crypto(format!(
                 "duplicate key_id {}",
@@ -357,7 +83,9 @@ impl TrustStore {
         let parent = self
             .by_key_id
             .get(&parent_key_id)
-            .ok_or_else(|| TrustError::ParentNotFound(parent_key_id.clone(), auth.key_id.clone()))?
+            .ok_or_else(|| {
+                TrustError::ParentNotFound(parent_key_id.clone(), auth.key_id.clone())
+            })?
             .clone();
         // Chain-depth check: walk from the parent up to the root,
         // counting hops. Reject before signature verification (cheaper)
@@ -452,14 +180,17 @@ impl TrustStore {
                 Some(a) => a.clone(),
                 None => {
                     if first_error.is_none() {
-                        first_error = Some(TrustError::UnknownAuthority(sig.key_id.clone()));
+                        first_error =
+                            Some(TrustError::UnknownAuthority(sig.key_id.clone()));
                     }
                     continue;
                 }
             };
             // b. Revocation check.
             if let Some(list) = &self.revocation_list {
-                if let Some(entry) = list.revocations.iter().find(|e| e.key_id == sig.key_id) {
+                if let Some(entry) =
+                    list.revocations.iter().find(|e| e.key_id == sig.key_id)
+                {
                     if first_error.is_none() {
                         first_error = Some(TrustError::KeyRevoked {
                             key_id: sig.key_id.clone(),
@@ -486,7 +217,9 @@ impl TrustStore {
             }
         }
         best.ok_or_else(|| {
-            first_error.unwrap_or_else(|| TrustError::UnknownAuthority(String::from("<none>")))
+            first_error.unwrap_or_else(|| {
+                TrustError::UnknownAuthority(String::from("<none>"))
+            })
         })
     }
 
@@ -517,7 +250,9 @@ impl TrustStore {
                 None => {
                     // Must be the root.
                     if current.key_id != self.root_key_id {
-                        return Err(TrustError::ChainNotAnchored(auth.key_id.clone()));
+                        return Err(TrustError::ChainNotAnchored(
+                            auth.key_id.clone(),
+                        ));
                     }
                     break;
                 }
@@ -525,7 +260,9 @@ impl TrustStore {
                     let parent = self
                         .by_key_id
                         .get(parent_id)
-                        .ok_or_else(|| TrustError::UnknownAuthority(parent_id.clone()))?
+                        .ok_or_else(|| {
+                            TrustError::UnknownAuthority(parent_id.clone())
+                        })?
                         .clone();
                     current = parent;
                 }
@@ -548,12 +285,16 @@ impl TrustStore {
             let sig = child
                 .signature
                 .as_ref()
-                .ok_or_else(|| TrustError::BadAuthoritySignature(child.key_id.clone()))?;
+                .ok_or_else(|| {
+                    TrustError::BadAuthoritySignature(child.key_id.clone())
+                })?;
             let bytes = child.canonical_bytes()?;
             parent
                 .verification_key
                 .verify_bytes(&bytes, sig)
-                .map_err(|_| TrustError::BadAuthoritySignature(child.key_id.clone()))?;
+                .map_err(|_| {
+                    TrustError::BadAuthoritySignature(child.key_id.clone())
+                })?;
         }
         // Verify the descriptor signature against the leaf's key.
         let leaf = &chain[0];
@@ -562,7 +303,9 @@ impl TrustStore {
             .map_err(|e| TrustError::Codec(e.to_string()))?;
         leaf.verification_key
             .verify_bytes(&desc_bytes, desc_sig)
-            .map_err(|_| TrustError::BadDescriptorSignature(desc_sig.key_id.clone()))?;
+            .map_err(|_| {
+                TrustError::BadDescriptorSignature(desc_sig.key_id.clone())
+            })?;
         Ok(ChainVerification {
             node_authority: leaf.clone(),
             chain_depth: depth,
@@ -570,15 +313,12 @@ impl TrustStore {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Unit tests (spec 021 §7, T-TR01..05)
-// ---------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::descriptor::Capabilities;
-    use chrono::Duration;
+    use crate::signing::SigningKey;
+    use chrono::{Duration, Utc};
 
     fn minimal_descriptor() -> CapabilityDescriptor {
         CapabilityDescriptor {
@@ -595,7 +335,8 @@ mod tests {
 
     /// Builds a 3-level chain: root → intermediate → node, each signed
     /// by the previous. Returns the keys + authorities.
-    fn build_chain_3() -> (SigningKey, SigningKey, SigningKey, Authority, Authority, Authority) {
+    fn build_chain_3(
+    ) -> (SigningKey, SigningKey, SigningKey, Authority, Authority, Authority) {
         let root_key = SigningKey::generate();
         let inter_key = SigningKey::generate();
         let node_key = SigningKey::generate();
@@ -608,8 +349,14 @@ mod tests {
             None,
         )
         .unwrap();
-        let node =
-            Authority::signed_by(&node_key, &inter_key, &inter, "test-node", None).unwrap();
+        let node = Authority::signed_by(
+            &node_key,
+            &inter_key,
+            &inter,
+            "test-node",
+            None,
+        )
+        .unwrap();
         (root_key, inter_key, node_key, root, inter, node)
     }
 
@@ -617,7 +364,14 @@ mod tests {
         let root_key = SigningKey::generate();
         let node_key = SigningKey::generate();
         let root = Authority::trust_root(&root_key, "test-root");
-        let node = Authority::signed_by(&node_key, &root_key, &root, "test-node", None).unwrap();
+        let node = Authority::signed_by(
+            &node_key,
+            &root_key,
+            &root,
+            "test-node",
+            None,
+        )
+        .unwrap();
         (root_key, node_key, root, node)
     }
 
@@ -651,12 +405,13 @@ mod tests {
     fn tr03_revocation_list_round_trip() {
         let (root_key, _node_key, root, _node) = build_chain_2();
         let store = TrustStore::new(root.clone()).unwrap();
-        let entries = vec![RevocationEntry {
+        let entries = vec![super::types::RevocationEntry {
             key_id: "deadbeef".into(),
-            reason: RevocationReason::Compromised,
+            reason: super::types::RevocationReason::Compromised,
             revoked_at: Utc::now(),
         }];
-        let list = RevocationList::build_and_sign(entries, &root_key).unwrap();
+        let list =
+            super::types::RevocationList::build_and_sign(entries, &root_key).unwrap();
         let bytes = list.canonical_bytes().unwrap();
         store
             .by_key_id
@@ -671,12 +426,13 @@ mod tests {
     fn tr04_revocation_list_wrong_signer_rejected() {
         let (_root_key, _node_key, root, _node) = build_chain_2();
         let wrong_key = SigningKey::generate();
-        let entries = vec![RevocationEntry {
+        let entries = vec![super::types::RevocationEntry {
             key_id: "deadbeef".into(),
-            reason: RevocationReason::Compromised,
+            reason: super::types::RevocationReason::Compromised,
             revoked_at: Utc::now(),
         }];
-        let list = RevocationList::build_and_sign(entries, &wrong_key).unwrap();
+        let list =
+            super::types::RevocationList::build_and_sign(entries, &wrong_key).unwrap();
         let mut store = TrustStore::new(root).unwrap();
         let result = store.set_revocation_list(list);
         assert!(matches!(
@@ -694,7 +450,14 @@ mod tests {
         // Now build a 4th authority signed by `node` — this is depth 3
         // which exceeds MAX_CHAIN_DEPTH=2.
         let extra_key = SigningKey::generate();
-        let extra = Authority::signed_by(&extra_key, &node_key, &node, "too-deep", None).unwrap();
+        let extra = Authority::signed_by(
+            &extra_key,
+            &node_key,
+            &node,
+            "too-deep",
+            None,
+        )
+        .unwrap();
         let result = store.add_authority(extra);
         // Should fail because parent (node) is at depth 2, and adding
         // child makes depth 3.
@@ -720,10 +483,10 @@ mod tests {
         let (root_key, node_key, root, node) = build_chain_2();
         let mut store = TrustStore::new(root.clone()).unwrap();
         store.add_authority(node.clone()).unwrap();
-        let list = RevocationList::build_and_sign(
-            vec![RevocationEntry {
+        let list = super::types::RevocationList::build_and_sign(
+            vec![super::types::RevocationEntry {
                 key_id: node.key_id.clone(),
-                reason: RevocationReason::Compromised,
+                reason: super::types::RevocationReason::Compromised,
                 revoked_at: Utc::now(),
             }],
             &root_key,
