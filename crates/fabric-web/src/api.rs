@@ -64,6 +64,64 @@ pub struct ApiError {
     pub message: String,
 }
 
+/// UPnP port mapping info.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UpnpInfo {
+    pub external_ip: String,
+    pub mapped_port: u16,
+    pub internal_port: u16,
+    pub protocol: String,
+}
+
+/// STUN external address info.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct StunInfo {
+    pub external_ip: String,
+    pub external_port: u16,
+    pub nat_type: String,
+}
+
+/// Tailscale peer info.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TailscalePeer {
+    pub hostname: String,
+    pub tailscale_ip: String,
+    pub online: bool,
+    pub relay: bool,
+}
+
+/// Tailscale network info.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TailscaleInfo {
+    pub self_ip: String,
+    pub peers: Vec<TailscalePeer>,
+}
+
+/// Network status response.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct NetworkStatus {
+    pub upnp: Option<UpnpInfo>,
+    pub stun: Option<StunInfo>,
+    pub tailscale: Option<TailscaleInfo>,
+}
+
+/// Feature toggles for settings.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FeatureToggles {
+    pub upnp_enabled: bool,
+    pub logging_enabled: bool,
+    pub federation_enabled: bool,
+}
+
+/// Settings response.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SettingsResponse {
+    pub listen: String,
+    pub max_connections: usize,
+    pub request_timeout_ms: u64,
+    pub features: FeatureToggles,
+}
+
 /// Fetch JSON from the daemon API.
 pub async fn fetch_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T, String> {
     use wasm_bindgen_futures::JsFuture;
