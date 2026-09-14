@@ -318,6 +318,7 @@ mod tests {
     use super::*;
     use crate::descriptor::Capabilities;
     use crate::signing::SigningKey;
+    use crate::trust_root::types::{RevocationEntry, RevocationList, RevocationReason};
     use chrono::{Duration, Utc};
 
     fn minimal_descriptor() -> CapabilityDescriptor {
@@ -405,13 +406,13 @@ mod tests {
     fn tr03_revocation_list_round_trip() {
         let (root_key, _node_key, root, _node) = build_chain_2();
         let store = TrustStore::new(root.clone()).unwrap();
-        let entries = vec![super::types::RevocationEntry {
+        let entries = vec![RevocationEntry {
             key_id: "deadbeef".into(),
-            reason: super::types::RevocationReason::Compromised,
+            reason: RevocationReason::Compromised,
             revoked_at: Utc::now(),
         }];
         let list =
-            super::types::RevocationList::build_and_sign(entries, &root_key).unwrap();
+            RevocationList::build_and_sign(entries, &root_key).unwrap();
         let bytes = list.canonical_bytes().unwrap();
         store
             .by_key_id
@@ -426,13 +427,13 @@ mod tests {
     fn tr04_revocation_list_wrong_signer_rejected() {
         let (_root_key, _node_key, root, _node) = build_chain_2();
         let wrong_key = SigningKey::generate();
-        let entries = vec![super::types::RevocationEntry {
+        let entries = vec![RevocationEntry {
             key_id: "deadbeef".into(),
-            reason: super::types::RevocationReason::Compromised,
+            reason: RevocationReason::Compromised,
             revoked_at: Utc::now(),
         }];
         let list =
-            super::types::RevocationList::build_and_sign(entries, &wrong_key).unwrap();
+            RevocationList::build_and_sign(entries, &wrong_key).unwrap();
         let mut store = TrustStore::new(root).unwrap();
         let result = store.set_revocation_list(list);
         assert!(matches!(
@@ -483,10 +484,10 @@ mod tests {
         let (root_key, node_key, root, node) = build_chain_2();
         let mut store = TrustStore::new(root.clone()).unwrap();
         store.add_authority(node.clone()).unwrap();
-        let list = super::types::RevocationList::build_and_sign(
-            vec![super::types::RevocationEntry {
+        let list = RevocationList::build_and_sign(
+            vec![RevocationEntry {
                 key_id: node.key_id.clone(),
-                reason: super::types::RevocationReason::Compromised,
+                reason: RevocationReason::Compromised,
                 revoked_at: Utc::now(),
             }],
             &root_key,
