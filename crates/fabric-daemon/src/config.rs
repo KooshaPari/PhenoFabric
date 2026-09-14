@@ -6,6 +6,8 @@
 //! 3. Environment variables
 //! 4. Defaults
 
+use crate::auth;
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -160,6 +162,10 @@ pub struct AuthConfig {
     pub infisical_client_secret: String,
     /// Infisical project ID.
     pub infisical_project_id: String,
+    /// JWT secret for local token decoding (alternative to WorkOS introspection).
+    pub jwt_secret: Option<String>,
+    /// Message types that are exempt from authentication.
+    pub public_routes: Vec<String>,
 }
 
 impl Default for AuthConfig {
@@ -172,6 +178,33 @@ impl Default for AuthConfig {
             infisical_client_id: String::new(),
             infisical_client_secret: String::new(),
             infisical_project_id: String::new(),
+            jwt_secret: None,
+            public_routes: vec!["health_check".into(), "status_check".into()],
+        }
+    }
+}
+
+impl From<AuthConfig> for auth::AuthMiddlewareConfig {
+    fn from(config: AuthConfig) -> Self {
+        let public_routes: std::collections::HashSet<String> =
+            config.public_routes.into_iter().collect();
+
+        let workos_config = if !config.workos_client_id.is_empty() {
+            Some(auth::WorkOsConfig {
+                client_id: config.workos_client_id,
+                client_secret: config.workos_client_secret,
+                redirect_uri: config.workos_redirect_uri,
+                ..Default::default()
+            })
+        } else {
+            None
+        };
+
+        Self {
+            enabled: config.enabled,
+            public_routes,
+            workos_config,
+            jwt_secret: config.jwt_secret,
         }
     }
 }

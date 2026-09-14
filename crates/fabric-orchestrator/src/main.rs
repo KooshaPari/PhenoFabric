@@ -8,6 +8,7 @@ mod serve;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tracing::info;
 
 use pipeline::FabricPipeline;
@@ -128,10 +129,24 @@ fn cmd_run(
     let max_conn = config.server.max_connections;
     let timeout = config.server.request_timeout_ms;
 
+    // Create auth middleware from config.
+    let auth_enabled = config.auth.enabled;
+    let auth_config: fabric_daemon::auth::AuthMiddlewareConfig = config.auth.into();
+    let auth = Arc::new(fabric_daemon::auth::AuthMiddleware::new(auth_config));
+    info!(enabled = auth_enabled, "auth middleware initialized");
+
+    // Create a dedicated tokio runtime for auth middleware async operations.
+    let runtime = Arc::new(
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| anyhow::anyhow!("failed to create tokio runtime: {e}"))?,
+    );
+
     info!(addr = %addr, "launching wire server");
 
     // Run the wire server (blocking until shutdown).
-    serve::start_wire_server(pipeline.coordinator().clone(), &addr, max_conn, timeout)?;
+    serve::start_wire_server(pipeline.coordinator().clone(), &addr, max_conn, timeout, auth, runtime)?;
 
     // Flush state before exit.
     info!("flushing state to database");

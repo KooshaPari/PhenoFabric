@@ -6,6 +6,8 @@
 mod handlers;
 pub mod protocol;
 
+use crate::auth::AuthMiddleware;
+use crate::auth::middleware::{auth_error_response, set_current_user};
 use crate::coordinator::Coordinator;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -28,6 +30,8 @@ pub fn run_wire_server(
     coordinator: Arc<Coordinator>,
     max_connections: usize,
     request_timeout_ms: u64,
+    auth: Arc<AuthMiddleware>,
+    runtime: Arc<tokio::runtime::Runtime>,
 ) -> Result<(), WireServerError> {
     listener.set_nonblocking(false).map_err(|e| {
         WireServerError::Io(format!("failed to set listener to blocking: {e}"))
@@ -70,8 +74,10 @@ pub fn run_wire_server(
                 debug!(peer = %peer_addr, active_connections, "new connection");
 
                 let coord = coordinator.clone();
+                let auth = auth.clone();
+                let rt = runtime.clone();
                 let handle = std::thread::spawn(move || {
-                    handle_connection(stream, coord, timeout);
+                    handle_connection(stream, coord, timeout, &auth, &rt);
                     // Decrement is handled by Drop of a counter or we accept the leak
                     // for now -- in production, use an AtomicUsize counter.
                 });
@@ -100,6 +106,8 @@ fn handle_connection(
     stream: TcpStream,
     coordinator: Arc<Coordinator>,
     timeout: Duration,
+    auth: &AuthMiddleware,
+    runtime: &tokio::runtime::Runtime,
 ) {
     let peer = stream
         .peer_addr()
@@ -147,11 +155,56 @@ fn handle_connection(
 
         debug!(peer = %peer, len = line.len(), "received message");
 
-        let response = protocol::process_message(&line, &coordinator);
-        if let Some(resp) = response {
-            if let Err(e) = write!(writer, "{resp}\n") {
-                debug!(peer = %peer, error = %e, "write error");
-                break;
+        // --- Auth middleware validation ---
+        // Parse the message for auth checking. If JSON is invalid, let
+        // process_message handle the validation error downstream.
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&line) {
+            match runtime.block_on(auth.validate_message(&parsed)) {
+                Ok(Some(user)) => {
+                    debug!(peer = %peer, user_id = %user.user_id, "auth: authenticated");
+                    // Attach user to the message for downstream handlers.
+                    let mut msg = parsed.clone();
+                    if let Err(e) = set_current_user(&mut msg, &user) {
+                        warn!(peer = %peer, error = %e, "failed to set auth user on message");
+                    }
+                    // Re-serialize for process_message (user field attached).
+                    let re_serialized = msg.to_string();
+                    let response =
+                        protocol::process_message(&re_serialized, &coordinator);
+                    if let Some(resp) = response {
+                        if let Err(e) = write!(writer, "{resp}\n") {
+                            debug!(peer = %peer, error = %e, "write error");
+                            break;
+                        }
+                    }
+                }
+                Ok(None) => {
+                    // Public route or auth disabled -- proceed normally.
+                    let response = protocol::process_message(&line, &coordinator);
+                    if let Some(resp) = response {
+                        if let Err(e) = write!(writer, "{resp}\n") {
+                            debug!(peer = %peer, error = %e, "write error");
+                            break;
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!(peer = %peer, error = %e, "auth: rejected");
+                    let resp = auth_error_response(&e);
+                    if let Err(write_err) = write!(writer, "{resp}\n") {
+                        debug!(peer = %peer, error = %write_err, "write error");
+                        break;
+                    }
+                }
+            }
+        } else {
+            // Invalid JSON -- let process_message return the validation error.
+            let response = protocol::process_message(&line, &coordinator);
+            if let Some(resp) = response {
+                if let Err(e) = write!(writer, "{resp}\n") {
+                    debug!(peer = %peer, error = %e, "write error");
+                    break;
+                }
             }
         }
     }

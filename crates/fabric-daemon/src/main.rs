@@ -19,6 +19,8 @@ use tracing::info;
 use config::DaemonConfig;
 use coordinator::Coordinator;
 
+use auth::{AuthMiddleware, AuthMiddlewareConfig};
+
 #[derive(Parser)]
 #[command(
     name = "fabric-daemon",
@@ -143,9 +145,32 @@ fn cmd_start(
 
     info!(addr = %addr, max_connections = max_conn, "daemon ready");
 
+    // Create auth middleware from config.
+    let auth_enabled = config.auth.enabled;
+    let auth_config: AuthMiddlewareConfig = config.auth.into();
+    let auth = Arc::new(AuthMiddleware::new(auth_config));
+    info!(
+        enabled = auth_enabled,
+        "auth middleware initialized"
+    );
+
+    // Create a dedicated tokio runtime for auth middleware async operations.
+    let runtime = Arc::new(
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("failed to create tokio runtime"),
+    );
+
     // Run wire server (blocking until shutdown).
-    if let Err(e) = wire::run_wire_server(listener, coordinator.clone(), max_conn, timeout)
-    {
+    if let Err(e) = wire::run_wire_server(
+        listener,
+        coordinator.clone(),
+        max_conn,
+        timeout,
+        auth,
+        runtime,
+    ) {
         tracing::error!("wire server error: {e}");
     }
 

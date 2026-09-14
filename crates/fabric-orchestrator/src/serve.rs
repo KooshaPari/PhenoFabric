@@ -7,6 +7,7 @@
 use std::net::TcpListener;
 use std::sync::Arc;
 
+use fabric_daemon::auth::AuthMiddleware;
 use fabric_daemon::coordinator::Coordinator;
 use tracing::info;
 
@@ -20,6 +21,8 @@ pub fn start_wire_server(
     listen_addr: &str,
     max_connections: usize,
     request_timeout_ms: u64,
+    auth: Arc<AuthMiddleware>,
+    runtime: Arc<tokio::runtime::Runtime>,
 ) -> Result<(), WireServerError> {
     let listener = TcpListener::bind(listen_addr)
         .map_err(|e| WireServerError::Bind(e.to_string()))?;
@@ -27,8 +30,15 @@ pub fn start_wire_server(
     info!(addr = %listen_addr, "wire server binding");
 
     // Run the wire server (blocking until shutdown flag is set on the coordinator).
-    fabric_daemon::wire::run_wire_server(listener, coordinator, max_connections, request_timeout_ms)
-        .map_err(|e| WireServerError::Runtime(e.to_string()))
+    fabric_daemon::wire::run_wire_server(
+        listener,
+        coordinator,
+        max_connections,
+        request_timeout_ms,
+        auth,
+        runtime,
+    )
+    .map_err(|e| WireServerError::Runtime(e.to_string()))
 }
 
 /// Errors from the wire server.
@@ -73,7 +83,15 @@ mod tests {
         // The coordinator's shutdown flag lets us exit the server quickly.
         coord.shutdown();
 
-        let result = start_wire_server(coord, &addr, 64, 1000);
+        let auth = Arc::new(AuthMiddleware::new(Default::default()));
+        let runtime = Arc::new(
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap(),
+        );
+
+        let result = start_wire_server(coord, &addr, 64, 1000, auth, runtime);
         // Should succeed (bind + immediate shutdown).
         assert!(result.is_ok());
     }
@@ -82,7 +100,14 @@ mod tests {
     fn wire_server_bad_bind_fails() {
         let (coord, _dir) = make_coordinator();
         // Try to bind to a port that is clearly invalid.
-        let result = start_wire_server(coord, "127.0.0.1:99999", 64, 1000);
+        let auth = Arc::new(AuthMiddleware::new(Default::default()));
+        let runtime = Arc::new(
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap(),
+        );
+        let result = start_wire_server(coord, "127.0.0.1:99999", 64, 1000, auth, runtime);
         assert!(result.is_err());
     }
 }
