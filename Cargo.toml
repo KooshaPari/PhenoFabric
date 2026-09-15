@@ -2,6 +2,7 @@
 resolver = "2"
 exclude = [
     "crates/fabric-frame-transport/fuzz",
+    "crates/fabric-gui/src-tauri",
 ]
 members = [
     "crates/fabric-capability",

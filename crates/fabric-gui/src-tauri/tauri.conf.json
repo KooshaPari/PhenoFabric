@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicegui/tauri/dev/crates/tauri-utils/schema.json",
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-utils/schema.json",
   "productName": "Phenotype Fabric",
   "identifier": "com.phenotype.fabric",
   "version": "0.1.0",
@@ -38,7 +38,7 @@
       "icons/icon.ico"
     ],
     "category": "DeveloperTool",
-    "shortDescription": "Phenotype Fabric — network fabric management GUI",
+    "shortDescription": "Phenotype Fabric -- network fabric management GUI",
     "longDescription": "Phenotype Fabric desktop application for managing network topology, routes, leases, streaming, and daemon lifecycle.",
     "macOS": {
       "minimumSystemVersion": "10.15"

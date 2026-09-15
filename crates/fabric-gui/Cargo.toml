@@ -2,13 +2,9 @@
 name = "fabric-gui"
 version = "0.1.0"
 edition = "2021"
-description = "Phenotype Fabric native GUI — egui-based topology visualization with surface streaming"
+description = "Phenotype Fabric -- Tauri v2 desktop shell with daemon integration"
 license = "MIT OR Apache-2.0"
 publish = false
-
-[[bin]]
-name = "fabric-gui"
-path = "src/main.rs"
 
 [dependencies]
 fabric-graph = { path = "../fabric-graph" }
@@ -16,9 +12,6 @@ fabric-tray = { path = "../fabric-tray" }
 fabric-persist = { path = "../fabric-persist" }
 fabric-capability = { path = "../fabric-capability" }
 
-eframe = "0.36"
-egui = "0.36"
-egui_extras = "0.36"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"

@@ -1,15 +1,4 @@
-//! fabric-gui: egui-based native GUI for Phenotype Fabric.
+//! Phenotype Fabric GUI -- workspace crate.
 //!
-//! Provides topology visualization, route management, lease monitoring,
-//! and daemon health in a native desktop window with liquid glass aesthetics.
-
-pub mod animation;
-pub mod app;
-pub mod daemon_manager;
-pub mod panels;
-pub mod premium;
-pub mod theme;
-pub mod widgets;
-
-pub use app::{GuiApp, Tab};
-pub use daemon_manager::{DaemonManager, DaemonState};
+//! The actual Tauri binary lives in `src-tauri/`. This crate exists as a
+//! workspace member holding shared dependencies.
