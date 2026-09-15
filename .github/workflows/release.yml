@@ -16,9 +16,9 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ── Cross-platform release builds ─────────────────────────────────────
+  # ── Cross-platform CLI binary builds ─────────────────────────────────
   build:
-    name: Build ${{ matrix.platform }}
+    name: Build CLI ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     strategy:
@@ -62,8 +62,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: release-${{ matrix.platform }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: release-${{ matrix.platform }}-
+          key: release-cli-${{ matrix.platform }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: release-cli-${{ matrix.platform }}-
 
       # ── Linux dependencies ────────────────────────────────────────────
       - name: Install Linux GUI dependencies (x86_64)
@@ -117,7 +117,7 @@ jobs:
           TARGET_DIR="target/${{ matrix.target }}/release"
           mkdir -p "$DIST"
 
-          for bin in fabric-daemon fabric-cli fabric-tui fabric-gui fabric-tray fabric-graph; do
+          for bin in fabric-daemon fabric-cli fabric-tui fabric-tray fabric-graph; do
             cp "$TARGET_DIR/$bin" "$DIST/" 2>/dev/null || true
           done
           cp LICENSE* "$DIST/" 2>/dev/null || true
@@ -135,7 +135,7 @@ jobs:
           TARGET_DIR="target/${{ matrix.target }}/release"
           mkdir -p "$DIST"
 
-          for bin in fabric-daemon fabric-cli fabric-tui fabric-gui fabric-tray fabric-graph; do
+          for bin in fabric-daemon fabric-cli fabric-tui fabric-tray fabric-graph; do
             cp "$TARGET_DIR/$bin.exe" "$DIST/" 2>/dev/null || true
           done
           cp LICENSE* "$DIST/" 2>/dev/null || true
@@ -147,8 +147,176 @@ jobs:
       - name: Upload archive artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.platform }}
+          name: cli-${{ matrix.platform }}
           path: ${{ env.archive }}
+          retention-days: 3
+
+  # ── Cross-platform Tauri GUI builds ──────────────────────────────────
+  build-gui:
+    name: Build GUI ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            platform: macos-arm64
+          - target: x86_64-apple-darwin
+            os: macos-13
+            platform: macos-x64
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux-x64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            platform: windows-x64
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry & target
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            crates/fabric-gui/src-tauri/target
+          key: release-gui-${{ matrix.platform }}-${{ hashFiles('crates/fabric-gui/src-tauri/Cargo.lock') }}
+          restore-keys: release-gui-${{ matrix.platform }}-
+
+      # ── Linux system dependencies (WebKit2GTK, AppIndicator, etc.) ───
+      - name: Install Linux system dependencies
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libxdo-dev \
+            libayatana-appindicator3-dev
+
+      # ── Install Node.js (required by Tauri CLI) ──────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # ── Install Tauri CLI v2 ─────────────────────────────────────────
+      - name: Install Tauri CLI
+        shell: bash
+        run: cargo install tauri-cli --version "^2" --locked
+
+      # ── Build Tauri bundles ───────────────────────────────────────────
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Tauri bundle
+        shell: bash
+        working-directory: crates/fabric-gui/src-tauri
+        run: cargo tauri build --target ${{ matrix.target }}
+
+      # ── Collect macOS artifacts ───────────────────────────────────────
+      - name: Collect macOS artifacts
+        if: runner.os == 'macOS'
+        shell: bash
+        working-directory: crates/fabric-gui/src-tauri
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          BUNDLE_DIR="target/${{ matrix.target }}/release/bundle"
+          STAGE="${RUNNER_TEMP}/gui-artifacts"
+          mkdir -p "$STAGE"
+
+          # DMG
+          DMG=$(find "$BUNDLE_DIR/dmg" -name "*.dmg" -print -quit 2>/dev/null || true)
+          if [ -n "$DMG" ]; then
+            cp "$DMG" "$STAGE/phenotype-fabric-gui-${{ matrix.platform }}.dmg"
+          fi
+
+          # .app as fallback / extra artifact
+          APP_DIR="$BUNDLE_DIR/macos"
+          if [ -d "$APP_DIR" ]; then
+            APP_NAME=$(find "$APP_DIR" -maxdepth 1 -name "*.app" -print -quit 2>/dev/null || true)
+            if [ -n "$APP_NAME" ]; then
+              ditto -c -k --sequesterRsrc --keepParent "$(basename "$APP_NAME")" "$STAGE/phenotype-fabric-gui-${{ matrix.platform }}.app.zip" 2>/dev/null || true
+            fi
+          fi
+
+          echo "gui_artifacts_dir=$STAGE" >> "$GITHUB_ENV"
+          ls -la "$STAGE"
+
+      # ── Collect Linux artifacts ───────────────────────────────────────
+      - name: Collect Linux artifacts
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: crates/fabric-gui/src-tauri
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          BUNDLE_DIR="target/${{ matrix.target }}/release/bundle"
+          STAGE="${RUNNER_TEMP}/gui-artifacts"
+          mkdir -p "$STAGE"
+
+          # .deb
+          DEB=$(find "$BUNDLE_DIR/deb" -name "*.deb" -print -quit 2>/dev/null || true)
+          if [ -n "$DEB" ]; then
+            cp "$DEB" "$STAGE/phenotype-fabric-gui-${{ matrix.platform }}.deb"
+          fi
+
+          # .AppImage
+          APPIMAGE=$(find "$BUNDLE_DIR/appimage" -name "*.AppImage" -print -quit 2>/dev/null || true)
+          if [ -n "$APPIMAGE" ]; then
+            cp "$APPIMAGE" "$STAGE/phenotype-fabric-gui-${{ matrix.platform }}.AppImage"
+            chmod +x "$STAGE/phenotype-fabric-gui-${{ matrix.platform }}.AppImage"
+          fi
+
+          echo "gui_artifacts_dir=$STAGE" >> "$GITHUB_ENV"
+          ls -la "$STAGE"
+
+      # ── Collect Windows artifacts ─────────────────────────────────────
+      - name: Collect Windows artifacts
+        if: runner.os == 'Windows'
+        shell: bash
+        working-directory: crates/fabric-gui/src-tauri
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          BUNDLE_DIR="target/${{ matrix.target }}/release/bundle"
+          STAGE="${RUNNER_TEMP}/gui-artifacts"
+          mkdir -p "$STAGE"
+
+          # .msi
+          MSI=$(find "$BUNDLE_DIR/msi" -name "*.msi" -print -quit 2>/dev/null || true)
+          if [ -n "$MSI" ]; then
+            cp "$MSI" "$STAGE/phenotype-fabric-gui-${{ matrix.platform }}.msi"
+          fi
+
+          # .exe (NSIS installer)
+          EXE=$(find "$BUNDLE_DIR/nsis" -name "*.exe" -print -quit 2>/dev/null || true)
+          if [ -n "$EXE" ]; then
+            cp "$EXE" "$STAGE/phenotype-fabric-gui-${{ matrix.platform }}.exe"
+          fi
+
+          echo "gui_artifacts_dir=$STAGE" >> "$GITHUB_ENV"
+          ls -la "$STAGE"
+
+      # ── Upload GUI artifact ───────────────────────────────────────────
+      - name: Upload GUI artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-${{ matrix.platform }}
+          path: ${{ env.gui_artifacts_dir }}/*
+          if-no-files-found: error
           retention-days: 3
 
   # ── Create GitHub Release ───────────────────────────────────────────
@@ -156,7 +324,7 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: build
+    needs: [build, build-gui]
     steps:
       - uses: actions/checkout@v7
 
@@ -167,10 +335,43 @@ jobs:
           pattern: "*"
           merge-multiple: true
 
+      - name: List artifacts
+        run: find artifacts -type f | sort
+
+      - name: Create release body
+        id: body
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          cat > release_body.md << 'BODY_EOF'
+          ## CLI Binaries
+
+          | Platform | Archive |
+          |----------|---------|
+          | Linux x86_64 | `phenotype-fabric-TAG-linux-x86_64.tar.gz` |
+          | Linux aarch64 | `phenotype-fabric-TAG-linux-aarch64.tar.gz` |
+          | macOS x64 | `phenotype-fabric-TAG-macos-x86_64.tar.gz` |
+          | macOS ARM64 | `phenotype-fabric-TAG-macos-aarch64.tar.gz` |
+          | Windows x64 | `phenotype-fabric-TAG-windows-x86_64.zip` |
+
+          ## Desktop GUI
+
+          | Platform | Installer |
+          |----------|-----------|
+          | macOS ARM64 | `phenotype-fabric-gui-macos-arm64.dmg` |
+          | macOS x64 | `phenotype-fabric-gui-macos-x64.dmg` |
+          | Linux x64 | `phenotype-fabric-gui-linux-x64.deb` |
+          | Linux x64 | `phenotype-fabric-gui-linux-x64.AppImage` |
+          | Windows x64 | `phenotype-fabric-gui-windows-x64.msi` |
+          BODY_EOF
+          sed -i "s/TAG/${TAG}/g" release_body.md
+          cat release_body.md
+
       - name: Create release
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
+          body_path: release_body.md
           files: artifacts/*
 
   # ── Publish library crates to crates.io ─────────────────────────────
