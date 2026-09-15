@@ -20,8 +20,8 @@ OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEAL = (0, 212, 170)       # #00d4aa
 NAVY = (26, 26, 46)        # #1a1a2e
 PURPLE = (100, 100, 200)   # #6464c8
-DARK_BG = (15, 15, 30)     # near-black with blue tint
-WHITE = (255, 255, 255)
+DARK_BG = (26, 26, 46)     # #1a1a2e (brand Deep Navy)
+WHITE = (240, 240, 245)   # #f0f0f5 (brand Near White)
 
 
 def hex_to_rgb(h):
