@@ -251,6 +251,7 @@ a:hover { color: var(--color-teal-bright); }
 .status-connected {
   background: var(--color-success);
   box-shadow: 0 0 8px rgba(0, 212, 170, 0.50);
+  animation: pulse-connected 2s ease-in-out infinite;
 }
 
 .status-disconnected {
@@ -332,6 +333,12 @@ a:hover { color: var(--color-teal-bright); }
   background: rgba(255, 68, 102, 0.12);
   color: var(--color-danger);
   border-color: rgba(255, 68, 102, 0.20);
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
 }
 
 /* ---------- Input / Search ---------- */
@@ -349,10 +356,118 @@ a:hover { color: var(--color-teal-bright); }
 }
 .input:focus {
   border-color: var(--color-teal);
-  box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.15),
+              0 0 12px rgba(0, 212, 170, 0.10);
 }
 .input::placeholder {
   color: var(--color-white-muted);
+}
+
+/* ---------- Skeleton Loading ---------- */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(240, 240, 245, 0.04) 25%,
+    rgba(240, 240, 245, 0.08) 50%,
+    rgba(240, 240, 245, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---------- Page Transitions ---------- */
+.page {
+  display: none;
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page.active {
+  display: block;
+  animation: page-enter 250ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Card Hover Lift ---------- */
+.stat-card {
+  transition: transform 200ms ease,
+              box-shadow 200ms ease,
+              border-color 200ms ease;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border-color: var(--glass-border-hover);
+}
+
+/* ---------- Tab Active Indicator ---------- */
+.tab-item.active {
+  position: relative;
+}
+.tab-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 60%;
+  background: var(--color-teal);
+  border-radius: 1px;
+  animation: tab-indicator 200ms ease;
+}
+
+@keyframes tab-indicator {
+  from { height: 0; opacity: 0; }
+  to   { height: 60%; opacity: 1; }
+}
+
+/* ---------- Primary Button Glow ---------- */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(0, 212, 170, 0.20), transparent);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+.btn-primary:hover::after {
+  opacity: 1;
+}
+
+/* ---------- Log Line Hover ---------- */
+.log-line {
+  transition: background 120ms ease;
+  border-radius: 2px;
+  padding: 1px 2px;
+  margin: -1px -2px;
+}
+.log-line:hover {
+  background: rgba(240, 240, 245, 0.04);
+}
+
+/* ---------- Scrollbar Fade ---------- */
+.main-content::-webkit-scrollbar-thumb {
+  background: rgba(240, 240, 245, 0.08);
+  transition: background 200ms ease;
+}
+.main-content:hover::-webkit-scrollbar-thumb {
+  background: rgba(240, 240, 245, 0.18);
 }
 
 /* ---------- Divider ---------- */

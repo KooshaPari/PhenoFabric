@@ -158,8 +158,7 @@
       padding: var(--sp-6);
       animation: fade-in 200ms ease;
     }
-    .page { display: none; }
-    .page.active { display: block; animation: fade-in 200ms ease; }
+    /* Page transitions handled by liquid-glass.css */
 
     /* Page header */
     .page-header {
@@ -247,11 +246,100 @@
         radial-gradient(circle at 50% 50%, rgba(0,212,170,0.03) 0%, transparent 70%),
         rgba(15, 15, 30, 0.50);
       border: 1px dashed var(--glass-border);
+      position: relative;
+      overflow: hidden;
+      color: var(--color-white-muted);
+      font-size: var(--font-size-sm);
+    }
+    .topology-canvas svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .topo-node {
+      cursor: grab;
+    }
+    .topo-node:active {
+      cursor: grabbing;
+    }
+    .topo-node circle {
+      fill: #00d4aa;
+      stroke: #0f0f1e;
+      stroke-width: 2;
+      transition: filter 150ms ease;
+    }
+    .topo-node:hover circle {
+      filter: drop-shadow(0 0 8px rgba(0,212,170,0.6));
+    }
+    .topo-node text {
+      fill: #c8c8d5;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      text-anchor: middle;
+      pointer-events: none;
+      user-select: none;
+    }
+    .topo-badge {
+      fill: rgba(255,170,51,0.2);
+      rx: 6;
+      ry: 6;
+    }
+    .topo-badge-text {
+      fill: #ffaa33;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+      user-select: none;
+    }
+    .topo-edge {
+      stroke: rgba(240,240,245,0.15);
+      stroke-width: 1;
+      pointer-events: none;
+    }
+    .topo-tooltip {
+      position: absolute;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(15,15,30,0.92);
+      border: 1px solid rgba(0,212,170,0.25);
+      color: #c8c8d5;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.5;
+      pointer-events: none;
+      z-index: 50;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+    .topo-tooltip.visible {
+      opacity: 1;
+    }
+    .topo-empty {
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 100%;
+      height: 100%;
+      min-height: 400px;
       color: var(--color-white-muted);
       font-size: var(--font-size-sm);
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .topo-info {
+      position: absolute;
+      bottom: 8px;
+      left: 12px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: rgba(200,200,213,0.35);
+      pointer-events: none;
+      user-select: none;
     }
 
     /* Log area */
@@ -568,7 +656,7 @@
           </div>
         </div>
         <div class="topology-canvas" id="topology-canvas">
-          <span>Connect to daemon to visualize topology</span>
+          <div class="topo-empty" id="topo-empty">Connect to daemon to visualize topology</div>
         </div>
       </div>
 
@@ -784,6 +872,25 @@
       }
     }
 
+    // ---- Loading state helpers ----
+    function showLoading(elementId) {
+      const el = document.getElementById(elementId);
+      if (el) {
+        el.innerHTML = [
+          '<div class="skeleton" style="height:40px;margin:8px 0;"></div>',
+          '<div class="skeleton" style="height:40px;margin:8px 0;"></div>',
+          '<div class="skeleton" style="height:40px;margin:8px 0;"></div>',
+        ].join('');
+      }
+    }
+
+    function showError(elementId, message) {
+      const el = document.getElementById(elementId);
+      if (el) {
+        el.innerHTML = `<div class="empty-state"><span class="badge badge-danger">Error</span><span class="text-dim">${message}</span></div>`;
+      }
+    }
+
     // ---- Tab switching ----
     function switchTab(name) {
       document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
@@ -923,6 +1030,7 @@
     }
 
     async function loadTopology() {
+      showLoading('topology-canvas');
       const data = await api('get_topology');
       if (!data) return;
       const canvas = document.getElementById('topology-canvas');
@@ -936,6 +1044,7 @@
     }
 
     async function loadNetwork() {
+      showLoading('peer-list');
       const data = await api('get_network');
       if (!data) return;
       const list = document.getElementById('peer-list');
@@ -950,6 +1059,7 @@
     }
 
     async function loadStreaming() {
+      showLoading('stream-list');
       const data = await api('get_streaming');
       if (!data) return;
       const list = document.getElementById('stream-list');
@@ -964,6 +1074,7 @@
     }
 
     async function loadRoutes() {
+      showLoading('route-list');
       const data = await api('get_routes');
       if (!data) return;
       const list = document.getElementById('route-list');
@@ -978,6 +1089,7 @@
     }
 
     async function loadLeases() {
+      showLoading('lease-list');
       const data = await api('get_leases');
       if (!data) return;
       const list = document.getElementById('lease-list');
@@ -1001,6 +1113,7 @@
     }
 
     async function loadLogs() {
+      showLoading('log-area');
       const data = await api('get_logs');
       if (!data || !Array.isArray(data)) return;
       const area = document.getElementById('log-area');
