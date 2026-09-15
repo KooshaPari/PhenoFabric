@@ -259,6 +259,7 @@ pub struct DaemonStatusResponse {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ApiResponse<T: Serialize> {
     pub ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -267,6 +268,7 @@ pub struct ApiResponse<T: Serialize> {
     pub error: Option<String>,
 }
 
+#[allow(dead_code)]
 impl<T: Serialize> ApiResponse<T> {
     pub fn ok(data: T) -> Self {
         Self {

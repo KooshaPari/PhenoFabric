@@ -6,7 +6,7 @@
 
 use tauri::State;
 
-use crate::daemon::{self, DaemonManager};
+use crate::daemon;
 use crate::types::*;
 use crate::AppState;
 
@@ -72,7 +72,7 @@ pub async fn get_logs(state: State<'_, AppState>) -> Result<Vec<LogEntry>, Strin
 
 /// Fetch current settings.
 #[tauri::command]
-pub async fn get_settings(state: State<'_, AppState>) -> Result<SettingsState, String> {
+pub async fn get_settings(_state: State<'_, AppState>) -> Result<SettingsState, String> {
     Ok(SettingsState::default())
 }
 

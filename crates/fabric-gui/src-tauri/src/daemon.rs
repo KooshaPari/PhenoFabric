@@ -4,13 +4,11 @@
 //! as the existing egui GUI: send `{"type":"<msg_type>"}\n`, read JSON response.
 
 use std::io::{BufRead, BufReader, Write};
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::TcpStream;
 use std::process::{Child, Command, Stdio};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use serde::de::DeserializeOwned;
-use tracing::{error, info, warn};
 
 use crate::types::*;
 
@@ -53,6 +51,7 @@ impl DaemonConfig {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum DaemonLifecycle {
     NotStarted,
     Starting { started_at: Instant },
@@ -145,7 +144,7 @@ impl DaemonManager {
         self.log_buffer
             .iter()
             .enumerate()
-            .map(|(i, msg)| LogEntry {
+            .map(|(_i, msg)| LogEntry {
                 timestamp: chrono::Local::now()
                     .format("%Y-%m-%d %H:%M:%S")
                     .to_string(),
