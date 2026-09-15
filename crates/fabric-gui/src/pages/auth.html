@@ -1,89 +1,292 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Auth</title>
-  <link rel="stylesheet" href="../styles/liquid-glass.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auth</title>
+<style>
+  :root {
+    --bg-deep: #1a1a2e;
+    --bg-elevated: #222240;
+    --bg-glass: rgba(34, 34, 64, 0.72);
+    --bg-glass-light: rgba(50, 50, 80, 0.55);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --border-glass-inner: rgba(255, 255, 255, 0.04);
+    --accent-primary: #6464c8;
+    --accent-teal: #00d4aa;
+    --accent-pink: #ff6b9d;
+    --glow-accent: rgba(100, 100, 200, 0.25);
+    --text-primary: #f0f0f5;
+    --text-secondary: rgba(240, 240, 245, 0.7);
+    --text-muted: rgba(240, 240, 245, 0.45);
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "SF Pro Text", "Segoe UI", sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-xs: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans); font-size: 14px; line-height: 1.5;
+    color: var(--text-primary); background: var(--bg-deep);
+    min-height: 100vh; overflow-x: hidden;
+  }
+  .glass-panel {
+    background: var(--bg-glass); backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--border-glass); border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 var(--border-glass-inner);
+  }
+  .glass-card {
+    background: var(--bg-glass-light); backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    border: 1px solid var(--border-glass); border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 var(--border-glass-inner);
+    padding: 20px;
+  }
+  .glass-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; background: var(--bg-glass-light);
+    backdrop-filter: blur(10px); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-xs); color: var(--text-primary);
+    font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .glass-btn:hover {
+    background: rgba(100, 100, 200, 0.25); border-color: var(--accent-primary);
+    box-shadow: 0 0 20px var(--glow-accent);
+  }
+  .glass-btn.primary {
+    background: linear-gradient(135deg, var(--accent-primary), #7a7ae0);
+    border-color: transparent;
+  }
+  .glass-btn.primary:hover { box-shadow: 0 0 24px var(--glow-accent); transform: translateY(-1px); }
+  .glass-btn.danger { border-color: rgba(239, 68, 68, 0.3); }
+  .glass-btn.danger:hover { background: rgba(239, 68, 68, 0.2); border-color: var(--error); box-shadow: 0 0 16px rgba(239, 68, 68, 0.2); }
+  .page-header { padding: 20px 24px 0; display: flex; align-items: center; gap: 12px; }
+  .page-header h1 { font-size: 24px; font-weight: 400; }
+  .gradient-bar {
+    height: 2px; margin: 10px 24px;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-teal), var(--accent-pink), var(--accent-primary));
+    background-size: 200% 100%; border-radius: 1px;
+    animation: gradientShift 4s ease-in-out infinite;
+  }
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .content { padding: 0 24px 24px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .section-title {
+    font-size: 11px; font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;
+  }
+  .status-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px;
+    vertical-align: middle;
+  }
+  .status-dot.on { background: var(--success); box-shadow: 0 0 8px rgba(34,197,94,0.5); animation: pulse 2s ease-in-out infinite; }
+  .status-dot.off { background: var(--error); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.3px;
+  }
+  .badge.auth { background: rgba(34,197,94,0.12); color: var(--success); border: 1px solid rgba(34,197,94,0.2); }
+  .badge.noauth { background: rgba(239,68,68,0.12); color: var(--error); border: 1px solid rgba(239,68,68,0.2); }
+  .info-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-row .info-label { font-size: 12px; color: var(--text-muted); }
+  .info-row .info-value { font-size: 13px; color: var(--text-primary); }
+  .info-row .info-mono { font-size: 13px; font-family: var(--font-mono); color: var(--text-primary); }
+  .role-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .role-tag {
+    padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 500;
+    background: rgba(100, 100, 200, 0.12); color: var(--accent-primary);
+    border: 1px solid rgba(100, 100, 200, 0.2);
+  }
+  /* Countdown ring */
+  .countdown-container {
+    display: flex; flex-direction: column; align-items: center; padding: 16px 0;
+  }
+  .countdown-container svg { width: 100px; height: 100px; }
+  .countdown-label { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+  /* Table */
+  .glass-table { width: 100%; border-collapse: collapse; }
+  .glass-table th {
+    text-align: left; padding: 8px 12px; font-size: 10px;
+    font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    border-bottom: 1px solid var(--border-glass);
+    background: rgba(26, 26, 46, 0.5);
+  }
+  .glass-table td {
+    padding: 8px 12px; font-size: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-family: var(--font-mono);
+  }
+  .glass-table tbody tr:hover { background: rgba(100, 100, 200, 0.06); }
+  .badge.current { background: rgba(34,197,94,0.12); color: var(--success); border: 1px solid rgba(34,197,94,0.2); }
+  .actions-bar { display: flex; gap: 10px; margin-top: 16px; }
+</style>
 </head>
 <body>
-  <div class="page-container">
-    <div class="grid-2">
-      <div class="glass-card">
-        <div class="card-header">
-          <h2>Authentication</h2>
-        </div>
-        <div class="auth-status-card">
-          <div class="auth-avatar">
-            <div class="avatar-circle">OP</div>
-          </div>
-          <div class="auth-info">
-            <h3 class="auth-name">Operator</h3>
-            <p class="auth-email">operator@phenotype.dev</p>
-            <p class="auth-org">Phenotype Labs</p>
-          </div>
-          <div class="auth-badge online">Authenticated</div>
-        </div>
-        <div class="auth-details">
-          <div class="detail-row">
-            <span class="detail-label">Roles</span>
-            <div class="detail-value">
-              <span class="glass-badge">admin</span>
-              <span class="glass-badge">operator</span>
-              <span class="glass-badge">viewer</span>
+  <div class="glass-panel" data-page="auth" role="main" aria-label="Authentication Panel">
+    <div class="page-header">
+      <h1>Auth</h1>
+      <span class="badge auth" data-bind="auth-status-badge" style="margin-left:auto;">
+        <span class="status-dot on"></span> Authenticated
+      </span>
+    </div>
+    <div class="gradient-bar" aria-hidden="true"></div>
+    <div class="content">
+      <div class="two-col">
+
+        <!-- Left column -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <!-- Login status card -->
+          <div class="glass-card" data-bind="login-status" aria-label="Login status">
+            <div class="section-title">Login Status</div>
+            <div class="info-row">
+              <span class="info-label">Provider</span>
+              <span class="info-value" data-bind="auth-provider">WorkOS</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Status</span>
+              <span class="info-value" data-bind="login-state">
+                <span class="status-dot on"></span> <span style="color:var(--success);">Connected</span>
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Last Login</span>
+              <span class="info-mono" data-bind="last-login">2026-09-14 21:30 UTC</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">IP Address</span>
+              <span class="info-mono" data-bind="login-ip">203.0.113.42</span>
             </div>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">Session Expires</span>
-            <span class="detail-value countdown">2h 34m 12s</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Auth Provider</span>
-            <span class="detail-value">Local (key-based)</span>
+
+          <!-- User info card -->
+          <div class="glass-card" data-bind="user-info" aria-label="User information">
+            <div class="section-title">User Info</div>
+            <div class="info-row">
+              <span class="info-label">Name</span>
+              <span class="info-value" data-bind="user-name">Koosha Pari</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Email</span>
+              <span class="info-mono" data-bind="user-email">koosha@phenotype.dev</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Organization</span>
+              <span class="info-value" data-bind="org-name">Phenotype Labs</span>
+            </div>
+            <div class="info-row" style="flex-direction:column;align-items:flex-start;">
+              <span class="info-label" style="margin-bottom:4px;">Roles</span>
+              <div class="role-tags" data-bind="user-roles">
+                <span class="role-tag">admin</span>
+                <span class="role-tag">operator</span>
+                <span class="role-tag">viewer</span>
+              </div>
+            </div>
+            <div class="info-row">
+              <span class="info-label">User ID</span>
+              <span class="info-mono" data-bind="user-id" style="font-size:11px;">usr_01H8X...</span>
+            </div>
           </div>
         </div>
-        <div class="card-actions" style="margin-top: 1rem;">
-          <button class="glass-btn glass-btn-secondary">Refresh Token</button>
-          <button class="glass-btn glass-btn-danger">Sign Out</button>
+
+        <!-- Right column -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <!-- Session expiry -->
+          <div class="glass-card" data-bind="session-expiry" aria-label="Session expiry">
+            <div class="section-title">Session Expiry</div>
+            <div class="countdown-container">
+              <svg viewBox="0 0 100 100" data-bind="expiry-ring">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                <circle cx="50" cy="50" r="42" fill="none" stroke="url(#expiryGrad)" stroke-width="6"
+                  stroke-dasharray="263.9" stroke-dashoffset="66" stroke-linecap="round"
+                  transform="rotate(-90 50 50)" data-bind="expiry-arc"/>
+                <defs>
+                  <linearGradient id="expiryGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#22c55e"/>
+                    <stop offset="60%" stop-color="#f59e0b"/>
+                    <stop offset="100%" stop-color="#ef4444"/>
+                  </linearGradient>
+                </defs>
+                <text x="50" y="46" text-anchor="middle" fill="#f0f0f5" font-size="18" font-weight="300" font-family="-apple-system,sans-serif">5h</text>
+                <text x="50" y="60" text-anchor="middle" fill="#f0f0f5" font-size="11" font-weight="400" font-family="-apple-system,sans-serif">23m</text>
+              </svg>
+              <div class="countdown-label">Remaining in current session</div>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Expires At</span>
+              <span class="info-mono" data-bind="expiry-time">2026-09-15 10:00 UTC</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Refresh Token</span>
+              <span class="info-value" data-bind="refresh-status" style="color:var(--success);">Valid</span>
+            </div>
+          </div>
+
+          <!-- Active sessions table -->
+          <div class="glass-card" style="padding:0;overflow:hidden;" data-bind="active-sessions" aria-label="Active sessions">
+            <div style="padding:14px 16px 0;"><div class="section-title">Active Sessions</div></div>
+            <table class="glass-table" data-bind="sessions-table" aria-label="Active sessions table">
+              <thead>
+                <tr>
+                  <th scope="col">Device</th>
+                  <th scope="col">IP</th>
+                  <th scope="col">Started</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody data-bind="sessions-rows">
+                <tr>
+                  <td>MacBook Pro</td>
+                  <td>203.0.113.42</td>
+                  <td>21:30</td>
+                  <td><span class="badge current">Current</span></td>
+                </tr>
+                <tr>
+                  <td>Desktop GPU</td>
+                  <td>203.0.113.18</td>
+                  <td>18:45</td>
+                  <td><button class="glass-btn" style="padding:4px 10px;font-size:10px;" data-action="revoke" data-session="s-desktop">Revoke</button></td>
+                </tr>
+                <tr>
+                  <td>CI Runner</td>
+                  <td>10.0.0.50</td>
+                  <td>14:20</td>
+                  <td><button class="glass-btn" style="padding:4px 10px;font-size:10px;" data-action="revoke" data-session="s-ci">Revoke</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-      <div class="glass-card">
-        <div class="card-header">
-          <h2>Active Sessions</h2>
-        </div>
-        <table class="glass-table">
-          <thead>
-            <tr>
-              <th>Session</th>
-              <th>Device</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="mono">sess_7k2m9...</td>
-              <td>MacBook Pro (this)</td>
-              <td>2h 34m ago</td>
-              <td><span class="glass-badge current">Current</span></td>
-            </tr>
-            <tr>
-              <td class="mono">sess_3j8p1...</td>
-              <td>iPhone 16</td>
-              <td>1d ago</td>
-              <td><button class="glass-btn-sm glass-btn-danger">Revoke</button></td>
-            </tr>
-            <tr>
-              <td class="mono">sess_9k4n2...</td>
-              <td>Linux Server</td>
-              <td>3d ago</td>
-              <td><button class="glass-btn-sm glass-btn-danger">Revoke</button></td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="card-actions" style="margin-top: 1rem;">
-          <button class="glass-btn glass-btn-danger">Revoke All Other Sessions</button>
-        </div>
+
+      <!-- Action buttons -->
+      <div class="actions-bar" data-bind="auth-actions">
+        <button class="glass-btn primary" data-action="login" aria-label="Login with WorkOS">
+          <span aria-hidden="true">&#128274;</span> Login (WorkOS)
+        </button>
+        <button class="glass-btn danger" data-action="logout" aria-label="Logout">
+          <span aria-hidden="true">&#9211;</span> Logout
+        </button>
+        <button class="glass-btn" data-action="refresh-session" aria-label="Refresh session token">
+          <span aria-hidden="true">&#8635;</span> Refresh Token
+        </button>
+        <button class="glass-btn" data-action="revoke-all" aria-label="Revoke all sessions except current" style="margin-left:auto;">
+          <span aria-hidden="true">&#128683;</span> Revoke All Others
+        </button>
       </div>
     </div>
   </div>
