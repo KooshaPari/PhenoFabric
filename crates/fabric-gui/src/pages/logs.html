@@ -1,81 +1,230 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Logs</title>
-  <link rel="stylesheet" href="../styles/liquid-glass.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logs</title>
+<style>
+  :root {
+    --bg-deep: #1a1a2e;
+    --bg-elevated: #222240;
+    --bg-glass: rgba(34, 34, 64, 0.72);
+    --bg-glass-light: rgba(50, 50, 80, 0.55);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --border-glass-inner: rgba(255, 255, 255, 0.04);
+    --accent-primary: #6464c8;
+    --accent-teal: #00d4aa;
+    --accent-pink: #ff6b9d;
+    --glow-accent: rgba(100, 100, 200, 0.25);
+    --text-primary: #f0f0f5;
+    --text-secondary: rgba(240, 240, 245, 0.7);
+    --text-muted: rgba(240, 240, 245, 0.45);
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "SF Pro Text", "Segoe UI", sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-xs: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans); font-size: 14px; line-height: 1.5;
+    color: var(--text-primary); background: var(--bg-deep);
+    min-height: 100vh; overflow-x: hidden;
+  }
+  .glass-panel {
+    background: var(--bg-glass); backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--border-glass); border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 var(--border-glass-inner);
+  }
+  .glass-card {
+    background: var(--bg-glass-light); backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    border: 1px solid var(--border-glass); border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 var(--border-glass-inner);
+    padding: 16px;
+  }
+  .glass-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; background: var(--bg-glass-light);
+    backdrop-filter: blur(10px); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-xs); color: var(--text-primary);
+    font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .glass-btn:hover {
+    background: rgba(100, 100, 200, 0.25); border-color: var(--accent-primary);
+    box-shadow: 0 0 16px var(--glow-accent);
+  }
+  .glass-input {
+    width: 100%; padding: 8px 12px;
+    background: rgba(26, 26, 46, 0.8); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-xs); color: var(--text-primary);
+    font-family: var(--font-sans); font-size: 13px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .glass-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 12px var(--glow-accent); }
+  .glass-input::placeholder { color: var(--text-muted); }
+  .page-header { padding: 20px 24px 0; display: flex; align-items: center; gap: 12px; }
+  .page-header h1 { font-size: 24px; font-weight: 400; }
+  .gradient-bar {
+    height: 2px; margin: 10px 24px;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-teal), var(--accent-pink), var(--accent-primary));
+    background-size: 200% 100%; border-radius: 1px;
+    animation: gradientShift 4s ease-in-out infinite;
+  }
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .content { padding: 0 24px 24px; }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .search-box {
+    flex: 1; min-width: 200px; position: relative;
+  }
+  .search-box .glass-input { padding-left: 32px; }
+  .search-icon {
+    position: absolute; left: 10px; top: 50%;
+    transform: translateY(-50%); font-size: 12px; color: var(--text-muted);
+    pointer-events: none;
+  }
+  .filter-group { display: flex; gap: 4px; }
+  .filter-btn {
+    padding: 6px 12px; background: rgba(26, 26, 46, 0.6);
+    border: 1px solid var(--border-glass); border-radius: 4px;
+    color: var(--text-muted); font-size: 11px; font-weight: 500;
+    font-family: var(--font-sans); cursor: pointer; transition: all 0.15s;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .filter-btn:hover { background: rgba(100, 100, 200, 0.15); color: var(--text-primary); }
+  .filter-btn.active { background: rgba(100, 100, 200, 0.2); color: var(--accent-primary); border-color: var(--accent-primary); }
+  .filter-btn.info.active { color: var(--accent-teal); border-color: var(--accent-teal); }
+  .filter-btn.warn.active { color: var(--warning); border-color: var(--warning); }
+  .filter-btn.error.active { color: var(--error); border-color: var(--error); }
+  .toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .autoscroll-toggle {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text-muted); cursor: pointer;
+  }
+  .autoscroll-toggle input { accent-color: var(--accent-primary); }
+
+  /* Log area */
+  .log-container {
+    background: rgba(12, 12, 24, 0.9); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm); overflow: hidden;
+    height: calc(100vh - 220px); min-height: 300px;
+  }
+  .log-area {
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.7;
+    padding: 14px; overflow-y: auto; height: 100%;
+    scroll-behavior: smooth;
+  }
+  .log-area::-webkit-scrollbar { width: 6px; }
+  .log-area::-webkit-scrollbar-track { background: transparent; }
+  .log-area::-webkit-scrollbar-thumb { background: rgba(100, 100, 200, 0.3); border-radius: 3px; }
+  .log-line {
+    white-space: pre-wrap; word-break: break-all;
+    padding: 2px 0; transition: background 0.1s;
+  }
+  .log-line:hover { background: rgba(100, 100, 200, 0.05); }
+  .log-ts { color: var(--text-muted); margin-right: 8px; }
+  .log-level {
+    display: inline-block; width: 48px; font-weight: 500;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px;
+    margin-right: 8px; padding: 0 4px; border-radius: 3px; text-align: center;
+  }
+  .log-level.info { color: var(--accent-teal); background: rgba(0, 212, 170, 0.1); }
+  .log-level.warn { color: var(--warning); background: rgba(245, 158, 11, 0.1); }
+  .log-level.error { color: var(--error); background: rgba(239, 68, 68, 0.1); }
+  .log-level.debug { color: var(--text-muted); background: rgba(255,255,255,0.03); }
+  .log-msg { color: var(--text-secondary); }
+  .log-module { color: var(--accent-primary); margin-right: 6px; }
+
+  /* Log stats footer */
+  .log-stats {
+    display: flex; gap: 16px; padding: 8px 14px;
+    background: rgba(26, 26, 46, 0.5); border-top: 1px solid var(--border-glass);
+    font-size: 11px; color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+  .log-stats span { display: flex; align-items: center; gap: 4px; }
+</style>
 </head>
 <body>
-  <div class="page-container">
-    <div class="glass-card">
-      <div class="card-header">
-        <h2>Daemon Logs</h2>
-        <div class="card-actions">
-          <div class="search-box">
-            <input type="text" placeholder="Search logs..." id="log-search" class="glass-input">
-          </div>
-          <select id="log-level" class="glass-select">
-            <option value="all">All Levels</option>
-            <option value="info">INFO</option>
-            <option value="warn">WARN</option>
-            <option value="error">ERROR</option>
-            <option value="debug">DEBUG</option>
-          </select>
-          <label class="glass-toggle">
-            <input type="checkbox" id="auto-scroll" checked>
-            <span>Auto-scroll</span>
+  <div class="glass-panel" data-page="logs" role="main" aria-label="Log Viewer">
+    <div class="page-header">
+      <h1>Logs</h1>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:auto;" data-bind="log-count">0 lines</span>
+    </div>
+    <div class="gradient-bar" aria-hidden="true"></div>
+    <div class="content">
+
+      <!-- Toolbar -->
+      <div class="toolbar" data-bind="log-toolbar">
+        <div class="search-box">
+          <span class="search-icon" aria-hidden="true">&#128269;</span>
+          <input class="glass-input" type="search" placeholder="Search logs..." data-bind="log-search" aria-label="Search logs">
+        </div>
+        <div class="filter-group" data-bind="log-filters" role="group" aria-label="Log level filters">
+          <button class="filter-btn info active" data-filter="info" aria-pressed="true" aria-label="Filter INFO logs">INFO</button>
+          <button class="filter-btn warn active" data-filter="warn" aria-pressed="true" aria-label="Filter WARN logs">WARN</button>
+          <button class="filter-btn error active" data-filter="error" aria-pressed="true" aria-label="Filter ERROR logs">ERROR</button>
+          <button class="filter-btn" data-filter="debug" aria-pressed="false" aria-label="Filter DEBUG logs">DEBUG</button>
+        </div>
+        <div class="toolbar-right">
+          <label class="autoscroll-toggle">
+            <input type="checkbox" data-bind="auto-scroll" checked aria-label="Auto-scroll to latest logs">
+            Auto-scroll
           </label>
-          <button class="glass-btn glass-btn-danger" id="clear-logs">Clear</button>
+          <button class="glass-btn" data-action="clear-logs" aria-label="Clear all logs">
+            <span aria-hidden="true">&#10005;</span> Clear
+          </button>
         </div>
       </div>
-      <div class="log-viewer" id="log-viewer">
-        <div class="log-entry log-info">
-          <span class="log-time">04:32:01</span>
-          <span class="log-level-badge info">INFO</span>
-          <span class="log-msg">Daemon started on 127.0.0.1:9400</span>
+
+      <!-- Log area -->
+      <div class="log-container" data-bind="log-container" aria-live="polite" aria-label="Log output">
+        <div class="log-area" data-bind="log-area" role="log" aria-label="Log entries">
+          <div class="log-line"><span class="log-ts">04:25:01.123</span><span class="log-level info">INFO</span><span class="log-module">[daemon]</span><span class="log-msg">Daemon started on 127.0.0.1:48200</span></div>
+          <div class="log-line"><span class="log-ts">04:25:01.124</span><span class="log-level info">INFO</span><span class="log-module">[tailscale]</span><span class="log-msg">Tailscale connected: status=Running, backendState=Running</span></div>
+          <div class="log-line"><span class="log-ts">04:25:01.125</span><span class="log-level info">INFO</span><span class="log-module">[upnp]</span><span class="log-msg">UPnP discovered gateway: 192.168.1.1</span></div>
+          <div class="log-line"><span class="log-ts">04:25:01.130</span><span class="log-level info">INFO</span><span class="log-module">[upnp]</span><span class="log-msg">Mapped port 48200/UDP (fabric-data) lease=86400s</span></div>
+          <div class="log-line"><span class="log-ts">04:25:01.200</span><span class="log-level info">INFO</span><span class="log-module">[stun]</span><span class="log-msg">NAT type: Type 1 (Open), public_ip=203.0.113.42</span></div>
+          <div class="log-line"><span class="log-ts">04:25:02.001</span><span class="log-level info">INFO</span><span class="log-module">[topo]</span><span class="log-msg">Loaded topology: 6 nodes, 8 edges</span></div>
+          <div class="log-line"><span class="log-ts">04:25:02.050</span><span class="log-level debug">DEBUG</span><span class="log-module">[sched]</span><span class="log-msg">Scheduler tick: 3 active leases, 2 routes pending</span></div>
+          <div class="log-line"><span class="log-ts">04:25:03.100</span><span class="log-level warn">WARN</span><span class="log-module">[stream]</span><span class="log-msg">High latency detected on s-003: 45.2ms (threshold: 30ms)</span></div>
+          <div class="log-line"><span class="log-ts">04:25:04.200</span><span class="log-level info">INFO</span><span class="log-module">[stream]</span><span class="log-msg">Session s-001: frames=12847 dropped=23 rate=0.18%</span></div>
+          <div class="log-line"><span class="log-ts">04:25:05.000</span><span class="log-level debug">DEBUG</span><span class="log-module">[net]</span><span class="log-msg">Heartbeat to gpu-node-01 (100.64.0.1): 3.2ms RTT</span></div>
+          <div class="log-line"><span class="log-ts">04:25:06.100</span><span class="log-level info">INFO</span><span class="log-module">[net]</span><span class="log-msg">Heartbeat to gpu-node-02 (100.64.0.2): 4.1ms RTT</span></div>
+          <div class="log-line"><span class="log-ts">04:25:07.500</span><span class="log-level error">ERROR</span><span class="log-module">[lease]</span><span class="log-msg">Failed to renew lease l-004: connection refused (peer offline)</span></div>
+          <div class="log-line"><span class="log-ts">04:25:08.000</span><span class="log-level info">INFO</span><span class="log-module">[daemon]</span><span class="log-msg">Epoch 42 completed: 0 errors, 3 leases active</span></div>
         </div>
-        <div class="log-entry log-info">
-          <span class="log-time">04:32:01</span>
-          <span class="log-level-badge info">INFO</span>
-          <span class="log-msg">Topology loaded: 12 nodes, 18 edges</span>
+        <div class="log-stats" data-bind="log-stats">
+          <span>Lines: <strong data-bind="stat-lines">247</strong></span>
+          <span style="color:var(--accent-teal)">INFO: <strong data-bind="stat-info">218</strong></span>
+          <span style="color:var(--warning)">WARN: <strong data-bind="stat-warn">24</strong></span>
+          <span style="color:var(--error)">ERROR: <strong data-bind="stat-error">5</strong></span>
         </div>
-        <div class="log-entry log-info">
-          <span class="log-time">04:32:02</span>
-          <span class="log-level-badge info">INFO</span>
-          <span class="log-msg">Wire server listening on port 9400</span>
-        </div>
-        <div class="log-entry log-warn">
-          <span class="log-time">04:32:15</span>
-          <span class="log-level-badge warn">WARN</span>
-          <span class="log-msg">Tailscale not detected — running in standalone mode</span>
-        </div>
-        <div class="log-entry log-info">
-          <span class="log-time">04:32:30</span>
-          <span class="log-level-badge info">INFO</span>
-          <span class="log-msg">Route compiled: node-a → node-c → node-f (3 hops)</span>
-        </div>
-        <div class="log-entry log-error">
-          <span class="log-time">04:33:01</span>
-          <span class="log-level-badge error">ERROR</span>
-          <span class="log-msg">UPnP port mapping failed: device unreachable</span>
-        </div>
-        <div class="log-entry log-info">
-          <span class="log-time">04:33:15</span>
-          <span class="log-level-badge info">INFO</span>
-          <span class="log-msg">Health check passed: uptime 74s, epoch 42</span>
-        </div>
-        <div class="log-entry log-debug">
-          <span class="log-time">04:33:30</span>
-          <span class="log-level-badge debug">DEBUG</span>
-          <span class="log-msg">Capability matrix updated: 8 capabilities tracked</span>
-        </div>
-      </div>
-      <div class="log-footer">
-        <span class="log-count">8 entries</span>
-        <span class="log-filter-status">Showing: All Levels</span>
       </div>
     </div>
   </div>
+
+  <script>
+    // Filter toggle
+    document.querySelectorAll('[data-filter]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        btn.classList.toggle('active');
+        btn.setAttribute('aria-pressed', btn.classList.contains('active'));
+      });
+    });
+  </script>
 </body>
 </html>
