@@ -16,16 +16,43 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ── Build release binaries ──────────────────────────────────────────
+  # ── Cross-platform release builds ─────────────────────────────────────
   build:
-    name: Build linux-x86_64
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive_ext: tar.gz
+            platform: linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive_ext: tar.gz
+            platform: linux-aarch64
+          - target: x86_64-apple-darwin
+            os: macos-13
+            archive_ext: tar.gz
+            platform: macos-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive_ext: tar.gz
+            platform: macos-aarch64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive_ext: zip
+            platform: windows-x86_64
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Cache cargo registry & target
         uses: actions/cache@v4
@@ -35,10 +62,12 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: release-${{ hashFiles('Cargo.lock') }}
-          restore-keys: release-
+          key: release-${{ matrix.platform }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: release-${{ matrix.platform }}-
 
-      - name: Install Linux GUI dependencies
+      # ── Linux dependencies ────────────────────────────────────────────
+      - name: Install Linux GUI dependencies (x86_64)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -48,35 +77,77 @@ jobs:
             libxkbcommon-dev \
             libwayland-dev
 
+      - name: Install cross-compilation tools (Linux aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-aarch64-linux-gnu \
+            libxcb-render0-dev:arm64 \
+            libxcb-shape0-dev:arm64 \
+            libxcb-xfixes0-dev:arm64 \
+            libxkbcommon-dev:arm64 \
+            libwayland-dev:arm64
+          sudo dpkg --add-architecture arm64
+
+      - name: Set cross-compilation env (Linux aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+
+      # ── Build ─────────────────────────────────────────────────────────
       - name: Extract version from tag
         id: version
+        shell: bash
         run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       - name: Build release binaries
-        run: cargo build --workspace --release --bins
+        shell: bash
+        run: cargo build --workspace --release --bins --target ${{ matrix.target }}
 
-      - name: Create archive
+      # ── Package ───────────────────────────────────────────────────────
+      - name: Create archive (Unix)
+        if: matrix.archive_ext == 'tar.gz'
+        shell: bash
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          DIST="phenotype-fabric-${TAG}-linux-x86_64"
+          DIST="phenotype-fabric-${TAG}-${{ matrix.platform }}"
+          TARGET_DIR="target/${{ matrix.target }}/release"
           mkdir -p "$DIST"
 
-          cp target/release/fabric-daemon  "$DIST/" 2>/dev/null || true
-          cp target/release/fabric-cli     "$DIST/" 2>/dev/null || true
-          cp target/release/fabric-tui     "$DIST/" 2>/dev/null || true
-          cp target/release/fabric-gui     "$DIST/" 2>/dev/null || true
-          cp target/release/fabric-tray    "$DIST/" 2>/dev/null || true
-          cp target/release/fabric-graph   "$DIST/" 2>/dev/null || true
+          for bin in fabric-daemon fabric-cli fabric-tui fabric-gui fabric-tray fabric-graph; do
+            cp "$TARGET_DIR/$bin" "$DIST/" 2>/dev/null || true
+          done
           cp LICENSE* "$DIST/" 2>/dev/null || true
           cp README.md "$DIST/" 2>/dev/null || true
 
           tar czf "${DIST}.tar.gz" "$DIST"
           echo "archive=${DIST}.tar.gz" >> "$GITHUB_ENV"
 
+      - name: Create archive (Windows)
+        if: matrix.archive_ext == 'zip'
+        shell: bash
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          DIST="phenotype-fabric-${TAG}-${{ matrix.platform }}"
+          TARGET_DIR="target/${{ matrix.target }}/release"
+          mkdir -p "$DIST"
+
+          for bin in fabric-daemon fabric-cli fabric-tui fabric-gui fabric-tray fabric-graph; do
+            cp "$TARGET_DIR/$bin.exe" "$DIST/" 2>/dev/null || true
+          done
+          cp LICENSE* "$DIST/" 2>/dev/null || true
+          cp README.md "$DIST/" 2>/dev/null || true
+
+          7z a "${DIST}.zip" "$DIST"
+          echo "archive=${DIST}.zip" >> "$GITHUB_ENV"
+
       - name: Upload archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-x86_64
+          name: ${{ matrix.platform }}
           path: ${{ env.archive }}
           retention-days: 3
 
@@ -89,16 +160,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download archive artifact
+      - name: Download all archive artifacts
         uses: actions/download-artifact@v4
         with:
-          name: linux-x86_64
+          path: artifacts
+          pattern: "*"
+          merge-multiple: true
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: "*.tar.gz"
+          files: artifacts/*
+
+  # ── Publish library crates to crates.io ─────────────────────────────
+  publish-crates:
+    name: Publish crates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish fabric-graph
+        run: cargo publish -p fabric-graph --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish fabric-capability
+        run: cargo publish -p fabric-capability --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish fabric-workspace
+        run: cargo publish -p fabric-workspace --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish fabric-persist
+        run: cargo publish -p fabric-persist --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
   # ── Docker image ────────────────────────────────────────────────────
   docker:
