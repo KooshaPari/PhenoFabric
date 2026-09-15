@@ -857,17 +857,24 @@
   <!-- ==================== SCRIPTS ==================== -->
   <script>
     // ---- Tauri IPC bridge ----
-    const { invoke } = window.__TAURI__.core;
+    // Tauri v2 exposes invoke at __TAURI_INTERNALS__.invoke
+    const _invoke = (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke)
+      || (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke)
+      || null;
     let _connected = false;
     let _refreshTimer = null;
 
     // Safe invoke wrapper with error handling
     async function api(command, args = {}) {
+      if (!_invoke) {
+        console.warn('[IPC] Tauri API not available');
+        return null;
+      }
       try {
-        return await invoke(command, args);
+        return await _invoke(command, args);
       } catch (e) {
         console.warn(`[IPC] ${command} failed:`, e);
-        appendLog('warn', `${command}: ${e}`);
+        appendLog('warn', `${command}: ${String(e).slice(0, 80)}`);
         return null;
       }
     }
