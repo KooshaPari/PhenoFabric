@@ -138,18 +138,14 @@ a:hover { color: var(--color-teal-bright); }
 
 /* ---------- Glass Panels ---------- */
 .glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-solid);
+  border: 1px solid rgba(240, 240, 245, 0.10);
   box-shadow: var(--glass-shadow-sm);
 }
 
 .glass-solid {
   background: var(--glass-bg-solid);
-  backdrop-filter: blur(var(--glass-blur-heavy));
-  -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgba(240, 240, 245, 0.12);
   box-shadow: var(--glass-shadow);
 }
 
@@ -572,10 +568,8 @@ a:hover { color: var(--color-teal-bright); }
       justify-content: space-between;
       flex-shrink: 0;
       z-index: 100;
-      border-bottom: 1px solid var(--glass-border);
-      background: rgba(15, 15, 30, 0.80);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(240, 240, 245, 0.10);
+      background: rgba(15, 15, 30, 0.95);
     }
     .toolbar-brand {
       display: flex;
@@ -633,10 +627,8 @@ a:hover { color: var(--color-teal-bright); }
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
-      background: rgba(15, 15, 30, 0.60);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-right: 1px solid var(--glass-border);
+      background: rgba(12, 12, 25, 0.95);
+      border-right: 1px solid rgba(240, 240, 245, 0.10);
       padding: var(--sp-2) 0;
       overflow-y: auto;
     }
@@ -917,10 +909,8 @@ a:hover { color: var(--color-teal-bright); }
       flex-shrink: 0;
       font-size: var(--font-size-xs);
       color: var(--color-white-muted);
-      background: rgba(15, 15, 30, 0.80);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-top: 1px solid var(--glass-border);
+      background: rgba(10, 10, 20, 0.95);
+      border-top: 1px solid rgba(240, 240, 245, 0.10);
     }
     .statusbar-left,
     .statusbar-right {
@@ -1830,33 +1820,46 @@ a:hover { color: var(--color-teal-bright); }
 
     // ---- Init ----
     document.addEventListener('DOMContentLoaded', async () => {
-      setDaemonStatus('disconnected');
-      appendLog('info', 'Fabric GUI loaded');
+      try {
+        setDaemonStatus('disconnected');
+        appendLog('info', 'Fabric GUI loaded');
+      } catch (e) {
+        console.error('[Init] status setup failed:', e);
+      }
 
-      // Auto-connect to daemon
+      // Auto-connect to daemon (non-blocking, failure-safe)
       try {
         const status = await api('get_daemon_status');
         if (status && status.running) {
           setDaemonStatus('connected');
-          await refreshAll();
+          try { await refreshAll(); } catch (e) { console.warn('[Init] refreshAll failed:', e); }
         }
       } catch (e) {
+        console.warn('[Init] daemon check failed:', e);
         // Daemon not available, stay disconnected
       }
 
       // Auto-refresh every 5 seconds
-      _refreshTimer = setInterval(async () => {
-        if (_connected) {
-          const health = await api('get_health');
-          if (health) {
-            document.getElementById('stat-peers').textContent = health.peer_count ?? '--';
-            document.getElementById('stat-routes').textContent = health.route_count ?? '--';
-            document.getElementById('stat-leases').textContent = health.lease_count ?? '--';
-          } else {
-            setDaemonStatus('disconnected');
+      try {
+        _refreshTimer = setInterval(async () => {
+          try {
+            if (_connected) {
+              const health = await api('get_health');
+              if (health) {
+                document.getElementById('stat-peers').textContent = health.peer_count ?? '--';
+                document.getElementById('stat-routes').textContent = health.route_count ?? '--';
+                document.getElementById('stat-leases').textContent = health.lease_count ?? '--';
+              } else {
+                setDaemonStatus('disconnected');
+              }
+            }
+          } catch (e) {
+            console.warn('[Refresh] error:', e);
           }
-        }
-      }, 5000);
+        }, 5000);
+      } catch (e) {
+        console.error('[Init] refresh timer failed:', e);
+      }
     });
   </script>
 
