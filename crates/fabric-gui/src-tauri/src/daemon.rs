@@ -143,8 +143,7 @@ impl DaemonManager {
     pub fn recent_logs(&self) -> Vec<LogEntry> {
         self.log_buffer
             .iter()
-            .enumerate()
-            .map(|(_i, msg)| LogEntry {
+            .map(|msg| LogEntry {
                 timestamp: chrono::Local::now()
                     .format("%Y-%m-%d %H:%M:%S")
                     .to_string(),
@@ -340,11 +339,9 @@ impl DaemonManager {
         }
 
         let reader = BufReader::new(&stream);
-        for line in reader.lines().take(1) {
-            if let Ok(l) = line {
-                if l.contains("\"daemon_healthy\":true") || l.contains("\"daemon_healthy\": true") {
-                    return true;
-                }
+        for l in reader.lines().take(1).flatten() {
+            if l.contains("\"daemon_healthy\":true") || l.contains("\"daemon_healthy\": true") {
+                return true;
             }
         }
         false
@@ -372,17 +369,14 @@ impl DaemonManager {
                         self.push_log("[daemon] became healthy".into());
                         self.restart_count = 0;
                     } else if let Some(ref mut child) = self.child {
-                        match child.try_wait() {
-                            Ok(Some(status)) => {
-                                let msg = format!("Daemon exited with status: {status}");
-                                self.push_log(format!("[daemon] {msg}"));
-                                self.lifecycle = DaemonLifecycle::Failed {
-                                    error: msg,
-                                    last_attempt: Instant::now(),
-                                };
-                                self.child = None;
-                            }
-                            _ => {}
+                        if let Ok(Some(status)) = child.try_wait() {
+                            let msg = format!("Daemon exited with status: {status}");
+                            self.push_log(format!("[daemon] {msg}"));
+                            self.lifecycle = DaemonLifecycle::Failed {
+                                error: msg,
+                                last_attempt: Instant::now(),
+                            };
+                            self.child = None;
                         }
                     }
                 }
