@@ -25,7 +25,7 @@ members = [
     "crates/fabric-orchestrator",
     "crates/fabric-terminal",
     "crates/fabric-capture",
-    "examples/full-demo",
+    "examples/full-demo", "crates/fabric-research-ledger",
 ]
 
 [workspace.package]
