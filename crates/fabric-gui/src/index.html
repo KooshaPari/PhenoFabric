@@ -768,6 +768,22 @@
 
   <!-- ==================== SCRIPTS ==================== -->
   <script>
+    // ---- Tauri IPC bridge ----
+    const { invoke } = window.__TAURI__.core;
+    let _connected = false;
+    let _refreshTimer = null;
+
+    // Safe invoke wrapper with error handling
+    async function api(command, args = {}) {
+      try {
+        return await invoke(command, args);
+      } catch (e) {
+        console.warn(`[IPC] ${command} failed:`, e);
+        appendLog('warn', `${command}: ${e}`);
+        return null;
+      }
+    }
+
     // ---- Tab switching ----
     function switchTab(name) {
       document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
@@ -776,6 +792,8 @@
       const page = document.getElementById(`page-${name}`);
       if (tab) tab.classList.add('active');
       if (page) page.classList.add('active');
+      // Load tab data on switch
+      loadTabData(name);
     }
 
     // ---- Daemon status helpers ----
@@ -798,6 +816,7 @@
         sbTxt.textContent = 'Daemon: online';
         stat.textContent  = 'Online';
         stat.className    = 'stat-value teal';
+        _connected = true;
       } else if (state === 'connecting') {
         dot.classList.add('status-connecting');
         sbDot.classList.add('status-connecting');
@@ -813,26 +832,182 @@
         sbTxt.textContent = 'Daemon: offline';
         stat.textContent  = 'Offline';
         stat.className    = 'stat-value';
+        _connected = false;
       }
     }
 
-    function toggleDaemon() {
+    async function toggleDaemon() {
       const pill = document.getElementById('daemon-pill');
       if (pill.classList.contains('disconnected')) {
         setDaemonStatus('connecting');
-        // TODO: call Tauri command to start daemon
-        setTimeout(() => setDaemonStatus('connected'), 2000);
+        const result = await api('start_daemon');
+        if (result && result.running) {
+          setDaemonStatus('connected');
+          await refreshAll();
+        } else {
+          setDaemonStatus('disconnected');
+          appendLog('err', 'Failed to start daemon');
+        }
       } else {
-        // TODO: call Tauri command to stop daemon
+        await api('stop_daemon');
         setDaemonStatus('disconnected');
+        appendLog('info', 'Daemon stopped');
       }
     }
 
-    // ---- Refresh ----
-    function refreshAll() {
+    // ---- Refresh all data ----
+    async function refreshAll() {
       document.getElementById('sb-refresh').textContent =
         'Last refresh: ' + new Date().toLocaleTimeString();
-      // TODO: call Tauri invoke('refresh_data') and update all panels
+
+      const data = await api('refresh_data');
+      if (!data) {
+        setDaemonStatus('disconnected');
+        return;
+      }
+
+      setDaemonStatus('connected');
+      appendLog('info', 'Data refreshed');
+
+      // Update dashboard stats
+      if (data.health) {
+        document.getElementById('stat-peers').textContent = data.health.peer_count ?? '--';
+        document.getElementById('stat-routes').textContent = data.health.route_count ?? '--';
+        document.getElementById('stat-leases').textContent = data.health.lease_count ?? '--';
+      }
+
+      // Update activity list
+      if (data.health && data.health.recent_events) {
+        const list = document.getElementById('activity-list');
+        list.innerHTML = data.health.recent_events.map(e =>
+          `<div class="data-row"><span class="text-dim">${e.message}</span><span class="badge">${e.level}</span></div>`
+        ).join('');
+      }
+
+      // Update current tab
+      const activeTab = document.querySelector('.tab-item.active');
+      if (activeTab) loadTabData(activeTab.dataset.tab);
+    }
+
+    // ---- Per-tab data loaders ----
+    async function loadTabData(name) {
+      switch (name) {
+        case 'dashboard':
+          // Already handled by refreshAll
+          break;
+        case 'topology':
+          await loadTopology();
+          break;
+        case 'network':
+          await loadNetwork();
+          break;
+        case 'streaming':
+          await loadStreaming();
+          break;
+        case 'routes':
+          await loadRoutes();
+          break;
+        case 'leases':
+          await loadLeases();
+          break;
+        case 'auth':
+          await loadAuth();
+          break;
+        case 'logs':
+          await loadLogs();
+          break;
+        case 'settings':
+          // Static form, no data needed
+          break;
+      }
+    }
+
+    async function loadTopology() {
+      const data = await api('get_topology');
+      if (!data) return;
+      const canvas = document.getElementById('topology-canvas');
+      if (data.nodes && data.nodes.length > 0) {
+        canvas.innerHTML = data.nodes.map(n =>
+          `<div class="data-row"><span class="text-teal">${n.name || n.id}</span><span class="badge">${n.capabilities?.length ?? 0} caps</span></div>`
+        ).join('');
+      } else {
+        canvas.innerHTML = '<span>No topology data</span>';
+      }
+    }
+
+    async function loadNetwork() {
+      const data = await api('get_network');
+      if (!data) return;
+      const list = document.getElementById('peer-list');
+      const peers = data.peers || [];
+      if (peers.length > 0) {
+        list.innerHTML = peers.map(p =>
+          `<div class="data-row"><span>${p.name || p.id}</span><span class="badge">${p.status || 'active'}</span></div>`
+        ).join('');
+      } else {
+        list.innerHTML = '<div class="data-row"><span class="text-dim">No peers connected</span></div>';
+      }
+    }
+
+    async function loadStreaming() {
+      const data = await api('get_streaming');
+      if (!data) return;
+      const list = document.getElementById('stream-list');
+      const streams = data.streams || [];
+      if (streams.length > 0) {
+        list.innerHTML = streams.map(s =>
+          `<div class="data-row"><span>${s.name || s.id}</span><span class="badge">${s.fps ?? '--'} fps</span></div>`
+        ).join('');
+      } else {
+        list.innerHTML = '<div class="data-row"><span class="text-dim">No active streams</span></div>';
+      }
+    }
+
+    async function loadRoutes() {
+      const data = await api('get_routes');
+      if (!data) return;
+      const list = document.getElementById('route-list');
+      const routes = data.routes || [];
+      if (routes.length > 0) {
+        list.innerHTML = routes.map(r =>
+          `<div class="data-row"><span>${r.source} → ${r.target}</span><span class="badge">${r.status || 'active'}</span></div>`
+        ).join('');
+      } else {
+        list.innerHTML = '<div class="data-row"><span class="text-dim">No routes configured</span></div>';
+      }
+    }
+
+    async function loadLeases() {
+      const data = await api('get_leases');
+      if (!data) return;
+      const list = document.getElementById('lease-list');
+      const leases = data.leases || [];
+      if (leases.length > 0) {
+        list.innerHTML = leases.map(l =>
+          `<div class="data-row"><span>${l.resource || l.id}</span><span class="badge badge-warning">${l.ttl ?? '--'}</span></div>`
+        ).join('');
+      } else {
+        list.innerHTML = '<div class="data-row"><span class="text-dim">No active leases</span></div>';
+      }
+    }
+
+    async function loadAuth() {
+      const data = await api('get_auth');
+      if (!data) return;
+      document.getElementById('auth-pubkey').value = data.public_key || '-- not connected --';
+      document.getElementById('auth-nodeid').value = data.node_id || '--';
+      const dot = document.getElementById('auth-verified-dot');
+      dot.className = 'status-dot ' + (data.verified ? 'status-connected' : 'status-disconnected');
+    }
+
+    async function loadLogs() {
+      const data = await api('get_logs');
+      if (!data || !Array.isArray(data)) return;
+      const area = document.getElementById('log-area');
+      area.innerHTML = data.map(e =>
+        `<span class="log-line"><span class="log-ts">[${e.timestamp}]</span> <span class="log-${e.level}">[${e.level}]</span> ${e.message}</span>`
+      ).join('\n');
+      area.scrollTop = area.scrollHeight;
     }
 
     // ---- Log helpers ----
@@ -853,10 +1028,49 @@
       // TODO: implement search overlay
     }
 
+    // ---- Keyboard shortcuts ----
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      const tabs = ['dashboard','topology','network','streaming','routes','leases','auth','logs','settings'];
+      const key = parseInt(e.key);
+      if (key >= 1 && key <= 9) {
+        e.preventDefault();
+        switchTab(tabs[key - 1]);
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        refreshAll();
+      }
+    });
+
     // ---- Init ----
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       setDaemonStatus('disconnected');
       appendLog('info', 'Fabric GUI loaded');
+
+      // Auto-connect to daemon
+      try {
+        const status = await api('get_daemon_status');
+        if (status && status.running) {
+          setDaemonStatus('connected');
+          await refreshAll();
+        }
+      } catch (e) {
+        // Daemon not available, stay disconnected
+      }
+
+      // Auto-refresh every 5 seconds
+      _refreshTimer = setInterval(async () => {
+        if (_connected) {
+          const health = await api('get_health');
+          if (health) {
+            document.getElementById('stat-peers').textContent = health.peer_count ?? '--';
+            document.getElementById('stat-routes').textContent = health.route_count ?? '--';
+            document.getElementById('stat-leases').textContent = health.lease_count ?? '--';
+          } else {
+            setDaemonStatus('disconnected');
+          }
+        }
+      }, 5000);
     });
   </script>
 
