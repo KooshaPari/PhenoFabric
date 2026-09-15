@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-release:
+    name: Build & Release
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            ext: .exe
+            archive: tar.gz
+            binary_tf_web: tf-web.exe
+            binary_tf_capture: tf-win-capture.exe
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            ext: ""
+            archive: tar.gz
+            binary_tf_web: tf-web
+            binary_tf_capture: tf-win-capture
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            ext: ""
+            archive: tar.gz
+            binary_tf_web: tf-web
+            binary_tf_capture: tf-win-capture
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Windows)
+        if: matrix.target == 'x86_64-pc-windows-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64
+          cargo install cargo-zigbuild
+
+      - name: Install cargo-zigbuild (macOS/Linux)
+        if: matrix.target != 'x86_64-pc-windows-gnu'
+        run: cargo install cargo-zigbuild
+
+      - name: Cache cargo registry & build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: release-${{ matrix.target }}-
+
+      # --- Extract version from tag ---
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+
+      # --- Build tf-web (no ssh2) ---
+      - name: Build tf-web
+        working-directory: rust
+        run: cargo zigbuild --release --target ${{ matrix.target }} --bin tf-web --no-default-features
+
+      # --- Build tf-win-capture ---
+      - name: Build tf-win-capture
+        working-directory: rust/windows-capture
+        run: cargo zigbuild --release --target ${{ matrix.target }}
+
+      # --- Package artifacts ---
+      - name: Package binaries
+        run: |
+          mkdir -p dist
+          STAGING="terminal-fabric-${{ steps.version.outputs.version }}-${{ matrix.target }}"
+          mkdir -p "$STAGING"
+          cp "rust/target/${{ matrix.target }}/release/${{ matrix.binary_tf_web }}" "$STAGING/"
+          cp "rust/windows-capture/target/${{ matrix.target }}/release/${{ matrix.binary_tf_capture }}" "$STAGING/"
+          cp scripts/install.sh "$STAGING/" 2>/dev/null || true
+          cp scripts/install.ps1 "$STAGING/" 2>/dev/null || true
+          cp scripts/install.ts "$STAGING/" 2>/dev/null || true
+          cp LICENSE "$STAGING/" 2>/dev/null || true
+          cp README.md "$STAGING/" 2>/dev/null || true
+          tar czf "dist/${STAGING}.tar.gz" "$STAGING"
+          ls -lh dist/
+
+      # --- Upload to GitHub Release ---
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Terminal Fabric ${{ steps.version.outputs.version }}"
+          tag_name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+          files: dist/*.tar.gz

@@ -23,6 +23,8 @@ members = [
     "crates/fabric-workspace",
     "crates/fabric-surface-mojo",
     "crates/fabric-orchestrator",
+    "crates/fabric-terminal",
+    "crates/fabric-capture",
     "examples/full-demo",
 ]
 
@@ -47,6 +49,11 @@ schemars = { version = "0.8", features = ["derive", "chrono"] }
 jsonschema = "0.27"
 fabric-capability = { path = "crates/fabric-capability" }
 fabric-graph = { path = "crates/fabric-graph" }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

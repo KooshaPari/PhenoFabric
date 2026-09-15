@@ -1,0 +1,40 @@
+[package]
+name = "fabric-terminal"
+version = "0.1.0"
+edition = "2024"
+description = "Phenotype Fabric terminal mirroring — web server and sync tools"
+license.workspace = true
+
+[[bin]]
+name = "tf-sync"
+path = "src/main.rs"
+
+[[bin]]
+name = "tf-web"
+path = "src/web_main.rs"
+
+[features]
+default = ["ssh"]
+ssh = ["dep:ssh2"]
+self-update = ["dep:ureq"]
+
+[dependencies]
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+ssh2 = { version = "0.9", optional = true }
+
+# Web server
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
+futures = "0.3"
+
+# Self-update (optional: pulls in ureq/rustls/ring)
+ureq = { version = "3", features = ["json"], optional = true }
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }

@@ -1,0 +1,44 @@
+[package]
+name = "fabric-capture"
+version = "0.1.0"
+edition = "2021"
+description = "Phenotype Fabric Windows Terminal content capture agent"
+license.workspace = true
+
+[features]
+default = []
+self-update = ["dep:ureq"]
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+
+# Self-update
+ureq = { version = "3", features = ["json"], optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+uiautomation = "0.25"
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_System_Console",
+    "Win32_System_DataExchange",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_System_ProcessStatus",
+    "Win32_System_StationsAndDesktops",
+    "Win32_UI_Input",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
