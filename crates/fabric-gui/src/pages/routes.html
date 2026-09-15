@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Routes</title>
+<style>
+  :root {
+    --bg-deep: #1a1a2e;
+    --bg-elevated: #222240;
+    --bg-glass: rgba(34, 34, 64, 0.72);
+    --bg-glass-light: rgba(50, 50, 80, 0.55);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --border-glass-inner: rgba(255, 255, 255, 0.04);
+    --accent-primary: #6464c8;
+    --accent-teal: #00d4aa;
+    --accent-pink: #ff6b9d;
+    --glow-accent: rgba(100, 100, 200, 0.25);
+    --text-primary: #f0f0f5;
+    --text-secondary: rgba(240, 240, 245, 0.7);
+    --text-muted: rgba(240, 240, 245, 0.45);
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "SF Pro Text", "Segoe UI", sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-xs: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans); font-size: 14px; line-height: 1.5;
+    color: var(--text-primary); background: var(--bg-deep);
+    min-height: 100vh; overflow-x: hidden;
+  }
+  .glass-panel {
+    background: var(--bg-glass); backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--border-glass); border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 var(--border-glass-inner);
+  }
+  .glass-card {
+    background: var(--bg-glass-light); backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    border: 1px solid var(--border-glass); border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 var(--border-glass-inner);
+    padding: 16px;
+  }
+  .glass-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; background: var(--bg-glass-light);
+    backdrop-filter: blur(10px); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-xs); color: var(--text-primary);
+    font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .glass-btn:hover {
+    background: rgba(100, 100, 200, 0.25); border-color: var(--accent-primary);
+    box-shadow: 0 0 16px var(--glow-accent);
+  }
+  .glass-btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+  .page-header { padding: 20px 24px 0; display: flex; align-items: center; gap: 12px; }
+  .page-header h1 { font-size: 24px; font-weight: 400; }
+  .gradient-bar {
+    height: 2px; margin: 10px 24px;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-teal), var(--accent-pink), var(--accent-primary));
+    background-size: 200% 100%; border-radius: 1px;
+    animation: gradientShift 4s ease-in-out infinite;
+  }
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .content { padding: 0 24px 24px; }
+  .routes-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+  .glass-table { width: 100%; border-collapse: collapse; }
+  .glass-table th {
+    text-align: left; padding: 10px 14px; font-size: 11px;
+    font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    border-bottom: 1px solid var(--border-glass);
+    background: rgba(26, 26, 46, 0.5);
+  }
+  .glass-table td {
+    padding: 10px 14px; font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    transition: background 0.1s;
+  }
+  .glass-table tr { cursor: pointer; }
+  .glass-table tbody tr:hover { background: rgba(100, 100, 200, 0.08); }
+  .glass-table tbody tr.selected { background: rgba(100, 100, 200, 0.15); }
+  .glass-table .mono { font-family: var(--font-mono); font-size: 12px; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.3px;
+  }
+  .badge.active { background: rgba(34,197,94,0.12); color: var(--success); border: 1px solid rgba(34,197,94,0.2); }
+  .badge.pending { background: rgba(245,158,11,0.12); color: var(--warning); border: 1px solid rgba(245,158,11,0.2); }
+  .badge.inactive { background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border-glass); }
+  .section-title {
+    font-size: 11px; font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;
+  }
+  .detail-row {
+    display: flex; justify-content: space-between; padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .detail-row .label { font-size: 12px; color: var(--text-muted); }
+  .detail-row .value { font-size: 13px; font-family: var(--font-mono); color: var(--text-primary); }
+  .steps-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .step-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; background: rgba(26,26,46,0.5);
+    border-radius: var(--radius-xs); border-left: 3px solid var(--accent-primary);
+  }
+  .step-item .step-num { font-size: 10px; color: var(--accent-primary); font-weight: 600; }
+  .step-item .step-node { font-size: 12px; font-family: var(--font-mono); }
+  .actions-bar { display: flex; gap: 8px; margin-top: 14px; }
+</style>
+</head>
+<body>
+  <div class="glass-panel" data-page="routes" role="main" aria-label="Route Management">
+    <div class="page-header">
+      <h1>Routes</h1>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:auto;" data-bind="route-count-label">0 routes</span>
+    </div>
+    <div class="gradient-bar" aria-hidden="true"></div>
+    <div class="content">
+      <div class="routes-layout">
+        <!-- Route table -->
+        <div class="glass-card" style="padding:0;overflow:hidden;">
+          <table class="glass-table" data-bind="route-table" aria-label="Routes table">
+            <thead>
+              <tr>
+                <th scope="col">Route ID</th>
+                <th scope="col">Steps</th>
+                <th scope="col">Source</th>
+                <th scope="col">Destination</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody data-bind="route-rows">
+              <tr data-route="r-001" tabindex="0" role="row" aria-label="Route r-001">
+                <td class="mono">r-001</td>
+                <td class="mono">3</td>
+                <td>source-node</td>
+                <td>dest-sink</td>
+                <td><span class="badge active">Active</span></td>
+              </tr>
+              <tr data-route="r-002" tabindex="0" role="row" aria-label="Route r-002">
+                <td class="mono">r-002</td>
+                <td class="mono">2</td>
+                <td>gpu-alpha</td>
+                <td>cpu-relay</td>
+                <td><span class="badge active">Active</span></td>
+              </tr>
+              <tr data-route="r-003" tabindex="0" role="row" aria-label="Route r-003">
+                <td class="mono">r-003</td>
+                <td class="mono">4</td>
+                <td>io-worker</td>
+                <td>dest-sink</td>
+                <td><span class="badge pending">Pending</span></td>
+              </tr>
+              <tr data-route="r-004" tabindex="0" role="row" aria-label="Route r-004">
+                <td class="mono">r-004</td>
+                <td class="mono">1</td>
+                <td>gpu-beta</td>
+                <td>gpu-alpha</td>
+                <td><span class="badge inactive">Inactive</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Route details panel -->
+        <div class="glass-card" data-bind="route-details" aria-label="Route details">
+          <div class="section-title">Route Details</div>
+          <div data-bind="route-detail-content">
+            <div class="detail-row"><span class="label">Route ID</span><span class="value" data-bind="detail-route-id">r-001</span></div>
+            <div class="detail-row"><span class="label">Status</span><span class="value" data-bind="detail-route-status"><span class="badge active">Active</span></span></div>
+            <div class="detail-row"><span class="label">Source</span><span class="value" data-bind="detail-route-source">source-node</span></div>
+            <div class="detail-row"><span class="label">Destination</span><span class="value" data-bind="detail-route-dest">dest-sink</span></div>
+            <div class="detail-row"><span class="label">Latency</span><span class="value" data-bind="detail-route-latency">12.4 ms</span></div>
+            <div class="detail-row"><span class="label">Hop Count</span><span class="value" data-bind="detail-route-hops">3</span></div>
+
+            <div class="section-title" style="margin-top:14px;">Path</div>
+            <div class="steps-list" data-bind="route-steps">
+              <div class="step-item"><span class="step-num">1</span><span class="step-node">source-node</span></div>
+              <div class="step-item"><span class="step-num">2</span><span class="step-node">gpu-alpha</span></div>
+              <div class="step-item"><span class="step-num">3</span><span class="step-node">cpu-relay</span></div>
+              <div class="step-item"><span class="step-num">4</span><span class="step-node">dest-sink</span></div>
+            </div>
+          </div>
+
+          <div class="actions-bar">
+            <button class="glass-btn" disabled aria-label="Add route (coming soon)">
+              <span aria-hidden="true">+</span> Add Route
+            </button>
+            <button class="glass-btn" disabled aria-label="Edit route (coming soon)">
+              <span aria-hidden="true">&#9998;</span> Edit
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.querySelectorAll('[data-route]').forEach(function(row) {
+      row.addEventListener('click', function() {
+        document.querySelectorAll('[data-route]').forEach(function(r) { r.classList.remove('selected'); });
+        row.classList.add('selected');
+      });
+      row.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); row.click(); }
+      });
+    });
+  </script>
+</body>
+</html>

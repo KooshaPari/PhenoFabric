@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth</title>
+  <link rel="stylesheet" href="../styles/liquid-glass.css">
+</head>
+<body>
+  <div class="page-container">
+    <div class="grid-2">
+      <div class="glass-card">
+        <div class="card-header">
+          <h2>Authentication</h2>
+        </div>
+        <div class="auth-status-card">
+          <div class="auth-avatar">
+            <div class="avatar-circle">OP</div>
+          </div>
+          <div class="auth-info">
+            <h3 class="auth-name">Operator</h3>
+            <p class="auth-email">operator@phenotype.dev</p>
+            <p class="auth-org">Phenotype Labs</p>
+          </div>
+          <div class="auth-badge online">Authenticated</div>
+        </div>
+        <div class="auth-details">
+          <div class="detail-row">
+            <span class="detail-label">Roles</span>
+            <div class="detail-value">
+              <span class="glass-badge">admin</span>
+              <span class="glass-badge">operator</span>
+              <span class="glass-badge">viewer</span>
+            </div>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Session Expires</span>
+            <span class="detail-value countdown">2h 34m 12s</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Auth Provider</span>
+            <span class="detail-value">Local (key-based)</span>
+          </div>
+        </div>
+        <div class="card-actions" style="margin-top: 1rem;">
+          <button class="glass-btn glass-btn-secondary">Refresh Token</button>
+          <button class="glass-btn glass-btn-danger">Sign Out</button>
+        </div>
+      </div>
+      <div class="glass-card">
+        <div class="card-header">
+          <h2>Active Sessions</h2>
+        </div>
+        <table class="glass-table">
+          <thead>
+            <tr>
+              <th>Session</th>
+              <th>Device</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">sess_7k2m9...</td>
+              <td>MacBook Pro (this)</td>
+              <td>2h 34m ago</td>
+              <td><span class="glass-badge current">Current</span></td>
+            </tr>
+            <tr>
+              <td class="mono">sess_3j8p1...</td>
+              <td>iPhone 16</td>
+              <td>1d ago</td>
+              <td><button class="glass-btn-sm glass-btn-danger">Revoke</button></td>
+            </tr>
+            <tr>
+              <td class="mono">sess_9k4n2...</td>
+              <td>Linux Server</td>
+              <td>3d ago</td>
+              <td><button class="glass-btn-sm glass-btn-danger">Revoke</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="card-actions" style="margin-top: 1rem;">
+          <button class="glass-btn glass-btn-danger">Revoke All Other Sessions</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

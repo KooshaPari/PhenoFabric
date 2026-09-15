@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<style>
+  :root {
+    --bg-deep: #1a1a2e;
+    --bg-elevated: #222240;
+    --bg-glass: rgba(34, 34, 64, 0.72);
+    --bg-glass-light: rgba(50, 50, 80, 0.55);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --border-glass-inner: rgba(255, 255, 255, 0.04);
+    --accent-primary: #6464c8;
+    --accent-teal: #00d4aa;
+    --accent-pink: #ff6b9d;
+    --glow-accent: rgba(100, 100, 200, 0.25);
+    --glow-teal: rgba(0, 212, 170, 0.25);
+    --text-primary: #f0f0f5;
+    --text-secondary: rgba(240, 240, 245, 0.7);
+    --text-muted: rgba(240, 240, 245, 0.45);
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "SF Pro Text", "Segoe UI", sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-xs: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background: var(--bg-deep);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Liquid glass panels */
+  .glass-panel {
+    background: var(--bg-glass);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 var(--border-glass-inner);
+  }
+  .glass-card {
+    background: var(--bg-glass-light);
+    backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 var(--border-glass-inner);
+    padding: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 var(--border-glass-inner);
+  }
+  .glass-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--bg-glass-light);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-xs);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+  }
+  .glass-btn:hover {
+    background: rgba(100, 100, 200, 0.25);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 20px var(--glow-accent);
+  }
+  .glass-btn.primary {
+    background: linear-gradient(135deg, var(--accent-primary), #7a7ae0);
+    border-color: transparent;
+  }
+  .glass-btn.primary:hover {
+    box-shadow: 0 0 24px var(--glow-accent);
+    transform: translateY(-1px);
+  }
+
+  /* Layout */
+  .page-header {
+    padding: 24px 28px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .page-header h1 {
+    font-size: 24px;
+    font-weight: 400;
+    color: var(--text-primary);
+  }
+  .page-header .epoch {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 3px 10px;
+    background: rgba(100, 100, 200, 0.12);
+    border-radius: 20px;
+    border: 1px solid rgba(100, 100, 200, 0.2);
+  }
+  .gradient-bar {
+    height: 2px;
+    margin: 12px 28px;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-teal), var(--accent-pink), var(--accent-primary));
+    background-size: 200% 100%;
+    border-radius: 1px;
+    animation: gradientShift 4s ease-in-out infinite;
+  }
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .content { padding: 8px 28px 28px; }
+
+  /* Stat cards grid */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card .stat-icon {
+    font-size: 16px;
+    margin-bottom: 6px;
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    line-height: 36px;
+    border-radius: 50%;
+    background: rgba(100, 100, 200, 0.12);
+  }
+  .stat-card .stat-value {
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+    line-height: 1.1;
+  }
+  .stat-card .stat-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 4px;
+  }
+  .stat-card .stat-sparkline {
+    margin-top: 10px;
+    height: 28px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+  }
+  .stat-card .stat-sparkline .bar {
+    width: 4px;
+    border-radius: 2px;
+    background: var(--accent-teal);
+    opacity: 0.6;
+    transition: height 0.3s ease;
+  }
+  .stat-card:nth-child(1) .stat-icon { color: var(--accent-teal); }
+  .stat-card:nth-child(2) .stat-icon { color: var(--accent-primary); }
+  .stat-card:nth-child(3) .stat-icon { color: var(--accent-pink); }
+  .stat-card:nth-child(4) .stat-icon { color: var(--warning); }
+  .stat-card:nth-child(5) .stat-icon { color: var(--success); }
+  .stat-card:nth-child(1) .stat-sparkline .bar { background: var(--accent-teal); }
+  .stat-card:nth-child(2) .stat-sparkline .bar { background: var(--accent-primary); }
+  .stat-card:nth-child(3) .stat-sparkline .bar { background: var(--accent-pink); }
+  .stat-card:nth-child(4) .stat-sparkline .bar { background: var(--warning); }
+  .stat-card:nth-child(5) .stat-sparkline .bar { background: var(--success); }
+
+  /* Two-column layout */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 20px;
+  }
+
+  /* Topology preview */
+  .topo-preview {
+    min-height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .topo-preview svg {
+    width: 100%;
+    height: 260px;
+  }
+
+  /* Info rows */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: var(--radius-xs);
+    background: rgba(255,255,255,0.02);
+  }
+  .info-row .info-label {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .info-row .info-value {
+    font-size: 13px;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+  }
+
+  /* Status pill */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .status-pill.online {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+  }
+  .status-pill.offline {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--error);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+  .status-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Quick actions */
+  .quick-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  /* Section title */
+  .section-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+  }
+</style>
+</head>
+<body>
+  <div class="glass-panel" data-page="dashboard" role="main" aria-label="Dashboard">
+
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <span class="epoch" data-bind="epoch" aria-label="Epoch counter">Epoch 0</span>
+      <span class="status-pill online" data-bind="daemon-status" style="margin-left: auto;">
+        <span class="dot"></span> Daemon Connected
+      </span>
+    </div>
+    <div class="gradient-bar" aria-hidden="true"></div>
+
+    <div class="content">
+
+      <!-- Health metric cards -->
+      <div class="stat-grid" data-bind="stat-cards" aria-label="Health metrics">
+        <div class="glass-card stat-card" data-metric="nodes" aria-label="Node count">
+          <div class="stat-icon" aria-hidden="true">&#9670;</div>
+          <div class="stat-value" data-bind="node-count">0</div>
+          <div class="stat-label">Nodes</div>
+          <div class="stat-sparkline" data-bind="spark-nodes"></div>
+        </div>
+        <div class="glass-card stat-card" data-metric="edges" aria-label="Edge count">
+          <div class="stat-icon" aria-hidden="true">&#9656;</div>
+          <div class="stat-value" data-bind="edge-count">0</div>
+          <div class="stat-label">Edges</div>
+          <div class="stat-sparkline" data-bind="spark-edges"></div>
+        </div>
+        <div class="glass-card stat-card" data-metric="caps" aria-label="Capability count">
+          <div class="stat-icon" aria-hidden="true">&#9733;</div>
+          <div class="stat-value" data-bind="cap-count">0</div>
+          <div class="stat-label">Capabilities</div>
+          <div class="stat-sparkline" data-bind="spark-caps"></div>
+        </div>
+        <div class="glass-card stat-card" data-metric="routes" aria-label="Route count">
+          <div class="stat-icon" aria-hidden="true">&#10132;</div>
+          <div class="stat-value" data-bind="route-count">0</div>
+          <div class="stat-label">Routes</div>
+          <div class="stat-sparkline" data-bind="spark-routes"></div>
+        </div>
+        <div class="glass-card stat-card" data-metric="leases" aria-label="Lease count">
+          <div class="stat-icon" aria-hidden="true">&#128274;</div>
+          <div class="stat-value" data-bind="lease-count">0</div>
+          <div class="stat-label">Leases</div>
+          <div class="stat-sparkline" data-bind="spark-leases"></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <!-- Topology preview -->
+        <div class="glass-card" data-bind="topology-preview" aria-label="Topology preview">
+          <div class="section-title">Topology Preview</div>
+          <div class="topo-preview">
+            <svg viewBox="0 0 600 260" xmlns="http://www.w3.org/2000/svg" aria-label="Topology graph preview">
+              <!-- Background grid -->
+              <defs>
+                <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#00d4aa" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#00d4aa" stop-opacity="0"/>
+                </radialGradient>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <!-- Edges -->
+              <line x1="120" y1="130" x2="260" y2="70" stroke="#6464c8" stroke-width="1.5" opacity="0.5" stroke-dasharray="4,3"/>
+              <line x1="120" y1="130" x2="260" y2="180" stroke="#6464c8" stroke-width="1.5" opacity="0.5" stroke-dasharray="4,3"/>
+              <line x1="260" y1="70" x2="400" y2="100" stroke="#00d4aa" stroke-width="1.5" opacity="0.4"/>
+              <line x1="260" y1="180" x2="400" y2="150" stroke="#00d4aa" stroke-width="1.5" opacity="0.4"/>
+              <line x1="400" y1="100" x2="520" y2="130" stroke="#ff6b9d" stroke-width="1.5" opacity="0.3" stroke-dasharray="6,4"/>
+              <line x1="400" y1="150" x2="520" y2="130" stroke="#6464c8" stroke-width="1.5" opacity="0.4"/>
+              <line x1="260" y1="70" x2="260" y2="180" stroke="#3a3a50" stroke-width="1" opacity="0.3"/>
+              <!-- Nodes -->
+              <circle cx="120" cy="130" r="18" fill="#1a1a2e" stroke="#00d4aa" stroke-width="2" filter="url(#glow)"/>
+              <circle cx="120" cy="130" r="6" fill="#00d4aa" opacity="0.8"/>
+              <text x="120" y="165" text-anchor="middle" fill="#f0f0f5" font-size="10" opacity="0.6">Source</text>
+              <circle cx="260" cy="70" r="14" fill="#1a1a2e" stroke="#6464c8" stroke-width="2"/>
+              <circle cx="260" cy="70" r="5" fill="#6464c8" opacity="0.8"/>
+              <text x="260" y="55" text-anchor="middle" fill="#f0f0f5" font-size="10" opacity="0.6">GPU-A</text>
+              <circle cx="260" cy="180" r="14" fill="#1a1a2e" stroke="#6464c8" stroke-width="2"/>
+              <circle cx="260" cy="180" r="5" fill="#6464c8" opacity="0.8"/>
+              <text x="260" y="208" text-anchor="middle" fill="#f0f0f5" font-size="10" opacity="0.6">GPU-B</text>
+              <circle cx="400" cy="100" r="12" fill="#1a1a2e" stroke="#f59e0b" stroke-width="2"/>
+              <circle cx="400" cy="100" r="4" fill="#f59e0b" opacity="0.8"/>
+              <text x="400" y="85" text-anchor="middle" fill="#f0f0f5" font-size="10" opacity="0.6">CPU</text>
+              <circle cx="400" cy="150" r="12" fill="#1a1a2e" stroke="#22c55e" stroke-width="2"/>
+              <circle cx="400" cy="150" r="4" fill="#22c55e" opacity="0.8"/>
+              <text x="400" y="175" text-anchor="middle" fill="#f0f0f5" font-size="10" opacity="0.6">I/O</text>
+              <circle cx="520" cy="130" r="16" fill="#1a1a2e" stroke="#ff6b9d" stroke-width="2" filter="url(#glow)"/>
+              <circle cx="520" cy="130" r="6" fill="#ff6b9d" opacity="0.8"/>
+              <text x="520" y="158" text-anchor="middle" fill="#f0f0f5" font-size="10" opacity="0.6">Dest</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Daemon info + quick actions -->
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="glass-card" data-bind="daemon-info" aria-label="Daemon information">
+            <div class="section-title">Daemon Status</div>
+            <div class="info-grid">
+              <div class="info-row">
+                <span class="info-label">Uptime</span>
+                <span class="info-value" data-bind="uptime">0s</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Epoch</span>
+                <span class="info-value" data-bind="epoch-value">0</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Version</span>
+                <span class="info-value" data-bind="version">-</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">PID</span>
+                <span class="info-value" data-bind="pid">-</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Memory</span>
+                <span class="info-value" data-bind="memory">0 MB</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">CPU</span>
+                <span class="info-value" data-bind="cpu">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card" aria-label="Health summary">
+            <div class="section-title">Health</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div class="info-row">
+                <span class="info-label">Overall</span>
+                <span class="status-pill online" data-bind="health-status"><span class="dot"></span> Healthy</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Last Check</span>
+                <span class="info-value" data-bind="last-health-check">-</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Errors (24h)</span>
+                <span class="info-value" data-bind="error-count-24h" style="color: var(--success);">0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="quick-actions" data-bind="quick-actions" aria-label="Quick actions">
+            <button class="glass-btn primary" data-action="refresh" aria-label="Refresh dashboard data">
+              <span aria-hidden="true">&#8635;</span> Refresh
+            </button>
+            <button class="glass-btn" data-action="restart-daemon" aria-label="Restart the daemon process">
+              <span aria-hidden="true">&#9881;</span> Restart Daemon
+            </button>
+            <button class="glass-btn" data-action="export" aria-label="Export snapshot">
+              <span aria-hidden="true">&#128229;</span> Export
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Demo sparkline generation
+    document.querySelectorAll('.stat-sparkline').forEach(function(el) {
+      var count = 12;
+      for (var i = 0; i < count; i++) {
+        var bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.height = (4 + Math.random() * 22) + 'px';
+        el.appendChild(bar);
+      }
+    });
+
+    // Update demo data (would be replaced by Tauri IPC bridge)
+    function updateDashboard(data) {
+      if (data.nodeCount !== undefined) {
+        document.querySelector('[data-bind="node-count"]').textContent = data.nodeCount;
+      }
+      if (data.edgeCount !== undefined) {
+        document.querySelector('[data-bind="edge-count"]').textContent = data.edgeCount;
+      }
+      if (data.capCount !== undefined) {
+        document.querySelector('[data-bind="cap-count"]').textContent = data.capCount;
+      }
+      if (data.routeCount !== undefined) {
+        document.querySelector('[data-bind="route-count"]').textContent = data.routeCount;
+      }
+      if (data.leaseCount !== undefined) {
+        document.querySelector('[data-bind="lease-count"]').textContent = data.leaseCount;
+      }
+      if (data.epoch !== undefined) {
+        document.querySelector('[data-bind="epoch"]').textContent = 'Epoch ' + data.epoch;
+        document.querySelector('[data-bind="epoch-value"]').textContent = data.epoch;
+      }
+      if (data.uptime !== undefined) {
+        document.querySelector('[data-bind="uptime"]').textContent = data.uptime;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Network</title>
+<style>
+  :root {
+    --bg-deep: #1a1a2e;
+    --bg-elevated: #222240;
+    --bg-glass: rgba(34, 34, 64, 0.72);
+    --bg-glass-light: rgba(50, 50, 80, 0.55);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --border-glass-inner: rgba(255, 255, 255, 0.04);
+    --accent-primary: #6464c8;
+    --accent-teal: #00d4aa;
+    --accent-pink: #ff6b9d;
+    --glow-accent: rgba(100, 100, 200, 0.25);
+    --text-primary: #f0f0f5;
+    --text-secondary: rgba(240, 240, 245, 0.7);
+    --text-muted: rgba(240, 240, 245, 0.45);
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "SF Pro Text", "Segoe UI", sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-xs: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans); font-size: 14px; line-height: 1.5;
+    color: var(--text-primary); background: var(--bg-deep);
+    min-height: 100vh; overflow-x: hidden;
+  }
+  .glass-panel {
+    background: var(--bg-glass); backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--border-glass); border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 var(--border-glass-inner);
+  }
+  .glass-card {
+    background: var(--bg-glass-light); backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    border: 1px solid var(--border-glass); border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 var(--border-glass-inner);
+    padding: 16px;
+  }
+  .glass-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; background: var(--bg-glass-light);
+    backdrop-filter: blur(10px); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-xs); color: var(--text-primary);
+    font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .glass-btn:hover {
+    background: rgba(100, 100, 200, 0.25); border-color: var(--accent-primary);
+    box-shadow: 0 0 16px var(--glow-accent);
+  }
+  .page-header { padding: 20px 24px 0; display: flex; align-items: center; gap: 12px; }
+  .page-header h1 { font-size: 24px; font-weight: 400; }
+  .gradient-bar {
+    height: 2px; margin: 10px 24px;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-teal), var(--accent-pink), var(--accent-primary));
+    background-size: 200% 100%; border-radius: 1px;
+    animation: gradientShift 4s ease-in-out infinite;
+  }
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .content { padding: 0 24px 24px; }
+  .conn-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+  .conn-card { text-align: center; }
+  .conn-card .conn-icon { font-size: 22px; margin-bottom: 6px; }
+  .conn-card .conn-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+  .conn-card .conn-status { font-size: 11px; margin-top: 4px; }
+  .status-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 6px; vertical-align: middle;
+  }
+  .status-dot.on { background: var(--success); box-shadow: 0 0 8px rgba(34,197,94,0.5); animation: pulse 2s ease-in-out infinite; }
+  .status-dot.off { background: var(--error); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .info-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; border-radius: var(--radius-xs);
+    background: rgba(255,255,255,0.02); margin-bottom: 6px;
+  }
+  .info-row .info-label { font-size: 12px; color: var(--text-muted); }
+  .info-row .info-value { font-size: 13px; font-family: var(--font-mono); color: var(--text-primary); }
+  .section-title {
+    font-size: 11px; font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;
+  }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .glass-table { width: 100%; border-collapse: collapse; }
+  .glass-table th {
+    text-align: left; padding: 8px 12px; font-size: 10px;
+    font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    border-bottom: 1px solid var(--border-glass);
+    background: rgba(26, 26, 46, 0.5);
+  }
+  .glass-table td {
+    padding: 8px 12px; font-size: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-family: var(--font-mono);
+  }
+  .glass-table tbody tr:hover { background: rgba(100, 100, 200, 0.06); }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.3px;
+  }
+  .badge.active { background: rgba(34,197,94,0.12); color: var(--success); border: 1px solid rgba(34,197,94,0.2); }
+  .nat-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 16px; border-radius: var(--radius-sm);
+    background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.15);
+    font-size: 14px; font-weight: 500; color: var(--success);
+  }
+</style>
+</head>
+<body>
+  <div class="glass-panel" data-page="network" role="main" aria-label="Network Status">
+    <div class="page-header">
+      <h1>Network</h1>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:auto;" data-bind="net-overall-status">Checking...</span>
+    </div>
+    <div class="gradient-bar" aria-hidden="true"></div>
+    <div class="content">
+
+      <!-- Connection status cards -->
+      <div class="conn-cards" data-bind="conn-cards" aria-label="Connection status">
+        <div class="glass-card conn-card" aria-label="Daemon connection">
+          <div class="conn-icon" aria-hidden="true">&#9881;</div>
+          <div class="conn-name">Daemon</div>
+          <div class="conn-status" data-bind="daemon-conn">
+            <span class="status-dot on"></span> <span style="color:var(--success);">Connected</span>
+          </div>
+        </div>
+        <div class="glass-card conn-card" aria-label="Tailscale connection">
+          <div class="conn-icon" aria-hidden="true">&#127760;</div>
+          <div class="conn-name">Tailscale</div>
+          <div class="conn-status" data-bind="tailscale-conn">
+            <span class="status-dot on"></span> <span style="color:var(--success);">Connected</span>
+          </div>
+        </div>
+        <div class="glass-card conn-card" aria-label="UPnP connection">
+          <div class="conn-icon" aria-hidden="true">&#128260;</div>
+          <div class="conn-name">UPnP</div>
+          <div class="conn-status" data-bind="upnp-conn">
+            <span class="status-dot on"></span> <span style="color:var(--success);">Active</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- NAT type + Public IP -->
+      <div class="two-col">
+        <div class="glass-card" aria-label="NAT information">
+          <div class="section-title">NAT Type</div>
+          <div class="nat-badge" data-bind="nat-type">
+            <span class="status-dot on" style="animation:none;"></span> Type 1 (Open)
+          </div>
+          <div style="margin-top:12px;">
+            <div class="info-row">
+              <span class="info-label">Public IP</span>
+              <span class="info-value" data-bind="public-ip">203.0.113.42</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Local IP</span>
+              <span class="info-value" data-bind="local-ip">192.168.1.100</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">External Port</span>
+              <span class="info-value" data-bind="external-port">48200</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card" aria-label="Network diagnostics">
+          <div class="section-title">Diagnostics</div>
+          <div class="info-row">
+            <span class="info-label">STUN Server</span>
+            <span class="info-value" data-bind="stun-server">stun.l.google.com:19302</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">TURN Server</span>
+            <span class="info-value" data-bind="turn-server">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Latency (avg)</span>
+            <span class="info-value" data-bind="avg-latency" style="color:var(--success);">8.2 ms</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Packet Loss</span>
+            <span class="info-value" data-bind="packet-loss" style="color:var(--success);">0.00%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tailscale Peers -->
+      <div class="glass-card" style="margin-bottom:16px;" aria-label="Tailscale peers">
+        <div class="section-title">Tailscale Peers</div>
+        <table class="glass-table" data-bind="tailscale-table" aria-label="Tailscale peers table">
+          <thead>
+            <tr>
+              <th scope="col">Hostname</th>
+              <th scope="col">Tailscale IP</th>
+              <th scope="col">OS</th>
+              <th scope="col">Status</th>
+              <th scope="col">Relay</th>
+            </tr>
+          </thead>
+          <tbody data-bind="tailscale-rows">
+            <tr>
+              <td>gpu-node-01</td>
+              <td>100.64.0.1</td>
+              <td>Linux</td>
+              <td><span class="badge active">Active</span></td>
+              <td>Direct</td>
+            </tr>
+            <tr>
+              <td>gpu-node-02</td>
+              <td>100.64.0.2</td>
+              <td>Linux</td>
+              <td><span class="badge active">Active</span></td>
+              <td>Direct</td>
+            </tr>
+            <tr>
+              <td>cpu-relay</td>
+              <td>100.64.0.3</td>
+              <td>macOS</td>
+              <td><span class="badge active">Active</span></td>
+              <td>DERP-sjc</td>
+            </tr>
+            <tr>
+              <td>io-gateway</td>
+              <td>100.64.0.4</td>
+              <td>Linux</td>
+              <td><span style="color:var(--text-muted);">Idle</span></td>
+              <td>-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- UPnP Mappings -->
+      <div class="glass-card" aria-label="UPnP port mappings">
+        <div class="section-title">UPnP Mappings</div>
+        <table class="glass-table" data-bind="upnp-table" aria-label="UPnP mappings table">
+          <thead>
+            <tr>
+              <th scope="col">Protocol</th>
+              <th scope="col">Internal Port</th>
+              <th scope="col">External Port</th>
+              <th scope="col">Description</th>
+              <th scope="col">Lease</th>
+            </tr>
+          </thead>
+          <tbody data-bind="upnp-rows">
+            <tr>
+              <td>UDP</td>
+              <td>48200</td>
+              <td>48200</td>
+              <td>fabric-data</td>
+              <td>86400s</td>
+            </tr>
+            <tr>
+              <td>TCP</td>
+              <td>48201</td>
+              <td>48201</td>
+              <td>fabric-ctrl</td>
+              <td>86400s</td>
+            </tr>
+            <tr>
+              <td>UDP</td>
+              <td>3478</td>
+              <td>3478</td>
+              <td>fabric-stun</td>
+              <td>3600s</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

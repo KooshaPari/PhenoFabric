@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings</title>
+<style>
+  :root {
+    --bg-deep: #1a1a2e;
+    --bg-elevated: #222240;
+    --bg-glass: rgba(34, 34, 64, 0.72);
+    --bg-glass-light: rgba(50, 50, 80, 0.55);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --border-glass-inner: rgba(255, 255, 255, 0.04);
+    --accent-primary: #6464c8;
+    --accent-teal: #00d4aa;
+    --accent-pink: #ff6b9d;
+    --glow-accent: rgba(100, 100, 200, 0.25);
+    --text-primary: #f0f0f5;
+    --text-secondary: rgba(240, 240, 245, 0.7);
+    --text-muted: rgba(240, 240, 245, 0.45);
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "SF Pro Text", "Segoe UI", sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-xs: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans); font-size: 14px; line-height: 1.5;
+    color: var(--text-primary); background: var(--bg-deep);
+    min-height: 100vh; overflow-x: hidden;
+  }
+  .glass-panel {
+    background: var(--bg-glass); backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--border-glass); border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 var(--border-glass-inner);
+  }
+  .glass-card {
+    background: var(--bg-glass-light); backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    border: 1px solid var(--border-glass); border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 var(--border-glass-inner);
+    padding: 20px;
+  }
+  .glass-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; background: var(--bg-glass-light);
+    backdrop-filter: blur(10px); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-xs); color: var(--text-primary);
+    font-family: var(--font-sans); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .glass-btn:hover {
+    background: rgba(100, 100, 200, 0.25); border-color: var(--accent-primary);
+    box-shadow: 0 0 16px var(--glow-accent);
+  }
+  .glass-btn.primary {
+    background: linear-gradient(135deg, var(--accent-primary), #7a7ae0);
+    border-color: transparent;
+  }
+  .glass-btn.primary:hover { box-shadow: 0 0 20px var(--glow-accent); }
+  .glass-input {
+    width: 100%; padding: 10px 14px;
+    background: rgba(26, 26, 46, 0.8); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-xs); color: var(--text-primary);
+    font-family: var(--font-mono); font-size: 13px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .glass-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 12px var(--glow-accent); }
+  .glass-input::placeholder { color: var(--text-muted); font-family: var(--font-sans); }
+  .page-header { padding: 20px 24px 0; display: flex; align-items: center; gap: 12px; }
+  .page-header h1 { font-size: 24px; font-weight: 400; }
+  .gradient-bar {
+    height: 2px; margin: 10px 24px;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-teal), var(--accent-pink), var(--accent-primary));
+    background-size: 200% 100%; border-radius: 1px;
+    animation: gradientShift 4s ease-in-out infinite;
+  }
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .content { padding: 0 24px 24px; }
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .section-title {
+    font-size: 11px; font-weight: 500; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px;
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-group:last-child { margin-bottom: 0; }
+  .form-label {
+    display: block; font-size: 12px; font-weight: 500;
+    color: var(--text-secondary); margin-bottom: 6px;
+  }
+  .form-hint {
+    font-size: 11px; color: var(--text-muted); margin-top: 4px;
+  }
+  .form-select {
+    width: 100%; padding: 10px 14px;
+    background: rgba(26, 26, 46, 0.8); border: 1px solid var(--border-glass);
+    border-radius: var(--radius-xs); color: var(--text-primary);
+    font-family: var(--font-sans); font-size: 13px; outline: none;
+    appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='rgba(240,240,245,0.45)' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: border-color 0.2s;
+  }
+  .form-select:focus { border-color: var(--accent-primary); box-shadow: 0 0 12px var(--glow-accent); }
+  .form-select option { background: #222240; color: var(--text-primary); }
+  /* Toggle switch */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-info { flex: 1; }
+  .toggle-name { font-size: 13px; color: var(--text-primary); }
+  .toggle-desc { font-size: 11px; color: var(--text-muted); }
+  .toggle-switch {
+    position: relative; width: 42px; height: 22px; flex-shrink: 0; cursor: pointer;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.08); border: 1px solid var(--border-glass);
+    border-radius: 11px; transition: all 0.3s;
+  }
+  .toggle-slider::before {
+    content: ''; position: absolute; left: 2px; top: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--text-muted); transition: all 0.3s;
+  }
+  .toggle-switch input:checked + .toggle-slider {
+    background: var(--accent-primary); border-color: var(--accent-primary);
+  }
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(20px); background: var(--text-primary);
+  }
+  .actions-bar { display: flex; gap: 10px; margin-top: 20px; }
+</style>
+</head>
+<body>
+  <div class="glass-panel" data-page="settings" role="main" aria-label="Settings">
+    <div class="page-header">
+      <h1>Settings</h1>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:auto;" data-bind="settings-status">Changes are saved automatically</span>
+    </div>
+    <div class="gradient-bar" aria-hidden="true"></div>
+    <div class="content">
+      <div class="settings-grid">
+
+        <!-- Appearance -->
+        <div class="glass-card" aria-label="Appearance settings">
+          <div class="section-title">Appearance</div>
+          <div class="form-group">
+            <label class="form-label" for="theme-select">Theme</label>
+            <select class="form-select" id="theme-select" data-bind="theme" aria-label="Theme selection">
+              <option value="dark" selected>Dark</option>
+              <option value="light">Light</option>
+              <option value="system">System</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="startup-tab">Startup Tab</label>
+            <select class="form-select" id="startup-tab" data-bind="startup-tab" aria-label="Default startup tab">
+              <option value="dashboard" selected>Dashboard</option>
+              <option value="topology">Topology</option>
+              <option value="routes">Routes</option>
+              <option value="leases">Leases</option>
+              <option value="network">Network</option>
+              <option value="streaming">Streaming</option>
+              <option value="logs">Logs</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="refresh-interval">Auto-Refresh Interval</label>
+            <select class="form-select" id="refresh-interval" data-bind="refresh-interval" aria-label="Data refresh interval">
+              <option value="1000">1 second</option>
+              <option value="2000">2 seconds</option>
+              <option value="5000" selected>5 seconds</option>
+              <option value="10000">10 seconds</option>
+              <option value="30000">30 seconds</option>
+              <option value="0">Disabled</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Daemon -->
+        <div class="glass-card" aria-label="Daemon settings">
+          <div class="section-title">Daemon</div>
+          <div class="form-group">
+            <label class="form-label" for="daemon-addr">Daemon Address</label>
+            <input class="glass-input" type="text" id="daemon-addr" data-bind="daemon-addr"
+              value="127.0.0.1:48200" placeholder="host:port" aria-label="Daemon address">
+            <div class="form-hint">Address of the fabric daemon gRPC endpoint</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="daemon-timeout">Connection Timeout (ms)</label>
+            <input class="glass-input" type="number" id="daemon-timeout" data-bind="daemon-timeout"
+              value="5000" min="1000" max="30000" aria-label="Connection timeout">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="auto-start">Auto-Start Daemon</label>
+            <div class="toggle-row" style="border:none;padding:0;">
+              <div class="toggle-info">
+                <div class="toggle-name">Launch daemon on app start</div>
+                <div class="toggle-desc">Automatically start the daemon process when Fabric GUI launches</div>
+              </div>
+              <label class="toggle-switch" aria-label="Auto-start daemon toggle">
+                <input type="checkbox" data-bind="auto-start-daemon" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Network -->
+        <div class="glass-card" aria-label="Network settings">
+          <div class="section-title">Network</div>
+          <div class="form-group">
+            <div class="toggle-row" style="border:none;padding:0;margin-bottom:12px;">
+              <div class="toggle-info">
+                <div class="toggle-name">Enable Tailscale</div>
+                <div class="toggle-desc">Use Tailscale for mesh networking and peer discovery</div>
+              </div>
+              <label class="toggle-switch" aria-label="Enable Tailscale toggle">
+                <input type="checkbox" data-bind="tailscale-enabled" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="toggle-row" style="border:none;padding:0;margin-bottom:12px;">
+              <div class="toggle-info">
+                <div class="toggle-name">Enable UPnP</div>
+                <div class="toggle-desc">Automatically map ports via UPnP for NAT traversal</div>
+              </div>
+              <label class="toggle-switch" aria-label="Enable UPnP toggle">
+                <input type="checkbox" data-bind="upnp-enabled" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="stun-server">STUN Server</label>
+            <input class="glass-input" type="text" id="stun-server" data-bind="stun-server"
+              value="stun.l.google.com:19302" placeholder="host:port" aria-label="STUN server address">
+            <div class="form-hint">Used for NAT type detection and public IP discovery</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="turn-server">TURN Server (optional)</label>
+            <input class="glass-input" type="text" id="turn-server" data-bind="turn-server"
+              placeholder="turn://user:pass@host:port" aria-label="TURN server address">
+            <div class="form-hint">Fallback relay when direct connection is not possible</div>
+          </div>
+        </div>
+
+        <!-- Codec -->
+        <div class="glass-card" aria-label="Codec settings">
+          <div class="section-title">Codec Settings</div>
+          <div class="form-group">
+            <label class="form-label" for="codec-select">Codec</label>
+            <select class="form-select" id="codec-select" data-bind="codec" aria-label="Video codec selection">
+              <option value="h264" selected>H.264 (AVC)</option>
+              <option value="h265">H.265 (HEVC)</option>
+              <option value="vp9">VP9</option>
+              <option value="av1">AV1</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bitrate">Bitrate (Mbps)</label>
+            <input class="glass-input" type="number" id="bitrate" data-bind="bitrate"
+              value="25" min="1" max="200" aria-label="Bitrate in megabits per second">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="keyframe-interval">Keyframe Interval (seconds)</label>
+            <input class="glass-input" type="number" id="keyframe-interval" data-bind="keyframe"
+              value="2" min="1" max="10" aria-label="Keyframe interval">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="resolution">Resolution</label>
+            <select class="form-select" id="resolution" data-bind="resolution" aria-label="Stream resolution">
+              <option value="3840x2160">3840 x 2160 (4K)</option>
+              <option value="1920x1080" selected>1920 x 1080 (1080p)</option>
+              <option value="1280x720">1280 x 720 (720p)</option>
+              <option value="640x480">640 x 480 (480p)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="fps-select">Frame Rate</label>
+            <select class="form-select" id="fps-select" data-bind="fps" aria-label="Frame rate">
+              <option value="120">120 FPS</option>
+              <option value="60" selected>60 FPS</option>
+              <option value="30">30 FPS</option>
+              <option value="15">15 FPS</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions-bar">
+        <button class="glass-btn primary" data-action="save-settings" aria-label="Save settings">
+          <span aria-hidden="true">&#10003;</span> Save Settings
+        </button>
+        <button class="glass-btn" data-action="reset-settings" aria-label="Reset to defaults">
+          <span aria-hidden="true">&#8634;</span> Reset Defaults
+        </button>
+        <button class="glass-btn" data-action="export-settings" aria-label="Export settings">
+          <span aria-hidden="true">&#128229;</span> Export
+        </button>
+        <button class="glass-btn" data-action="import-settings" aria-label="Import settings">
+          <span aria-hidden="true">&#128228;</span> Import
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

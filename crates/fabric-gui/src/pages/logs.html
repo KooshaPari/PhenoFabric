@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logs</title>
+  <link rel="stylesheet" href="../styles/liquid-glass.css">
+</head>
+<body>
+  <div class="page-container">
+    <div class="glass-card">
+      <div class="card-header">
+        <h2>Daemon Logs</h2>
+        <div class="card-actions">
+          <div class="search-box">
+            <input type="text" placeholder="Search logs..." id="log-search" class="glass-input">
+          </div>
+          <select id="log-level" class="glass-select">
+            <option value="all">All Levels</option>
+            <option value="info">INFO</option>
+            <option value="warn">WARN</option>
+            <option value="error">ERROR</option>
+            <option value="debug">DEBUG</option>
+          </select>
+          <label class="glass-toggle">
+            <input type="checkbox" id="auto-scroll" checked>
+            <span>Auto-scroll</span>
+          </label>
+          <button class="glass-btn glass-btn-danger" id="clear-logs">Clear</button>
+        </div>
+      </div>
+      <div class="log-viewer" id="log-viewer">
+        <div class="log-entry log-info">
+          <span class="log-time">04:32:01</span>
+          <span class="log-level-badge info">INFO</span>
+          <span class="log-msg">Daemon started on 127.0.0.1:9400</span>
+        </div>
+        <div class="log-entry log-info">
+          <span class="log-time">04:32:01</span>
+          <span class="log-level-badge info">INFO</span>
+          <span class="log-msg">Topology loaded: 12 nodes, 18 edges</span>
+        </div>
+        <div class="log-entry log-info">
+          <span class="log-time">04:32:02</span>
+          <span class="log-level-badge info">INFO</span>
+          <span class="log-msg">Wire server listening on port 9400</span>
+        </div>
+        <div class="log-entry log-warn">
+          <span class="log-time">04:32:15</span>
+          <span class="log-level-badge warn">WARN</span>
+          <span class="log-msg">Tailscale not detected — running in standalone mode</span>
+        </div>
+        <div class="log-entry log-info">
+          <span class="log-time">04:32:30</span>
+          <span class="log-level-badge info">INFO</span>
+          <span class="log-msg">Route compiled: node-a → node-c → node-f (3 hops)</span>
+        </div>
+        <div class="log-entry log-error">
+          <span class="log-time">04:33:01</span>
+          <span class="log-level-badge error">ERROR</span>
+          <span class="log-msg">UPnP port mapping failed: device unreachable</span>
+        </div>
+        <div class="log-entry log-info">
+          <span class="log-time">04:33:15</span>
+          <span class="log-level-badge info">INFO</span>
+          <span class="log-msg">Health check passed: uptime 74s, epoch 42</span>
+        </div>
+        <div class="log-entry log-debug">
+          <span class="log-time">04:33:30</span>
+          <span class="log-level-badge debug">DEBUG</span>
+          <span class="log-msg">Capability matrix updated: 8 capabilities tracked</span>
+        </div>
+      </div>
+      <div class="log-footer">
+        <span class="log-count">8 entries</span>
+        <span class="log-filter-status">Showing: All Levels</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
