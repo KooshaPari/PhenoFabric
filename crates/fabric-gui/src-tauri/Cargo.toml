@@ -1,0 +1,35 @@
+[package]
+name = "fabric-gui"
+version = "0.1.0"
+edition = "2021"
+description = "Phenotype Fabric — Tauri v2 desktop shell with daemon integration"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[[bin]]
+name = "fabric-gui"
+path = "src/main.rs"
+
+[dependencies]
+fabric-graph = { path = "../fabric-graph" }
+fabric-tray = { path = "../fabric-tray" }
+fabric-persist = { path = "../fabric-persist" }
+fabric-capability = { path = "../fabric-capability" }
+
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+dirs = "5"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[lints]
+workspace = true
