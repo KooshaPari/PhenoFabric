@@ -12,8 +12,11 @@ fabric-capability = { path = "../fabric-capability" }
 fabric-checker = { path = "../fabric-checker" }
 fabric-frame-transport = { path = "../fabric-frame-transport" }
 fabric-daemon = { path = "../fabric-daemon" }
+anyhow = "1"
 bytes = "1"
 chrono = "0.4"
+serde_json = "1"
+tokio = { version = "1", features = ["full", "macros", "rt-multi-thread"] }
 uuid = { version = "1", features = ["v4", "v7"] }
 tempfile = "3"
 

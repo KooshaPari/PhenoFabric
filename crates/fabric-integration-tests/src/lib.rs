@@ -1,5 +1,7 @@
 //! Shared test helpers for Phenotype Fabric integration tests.
 
+pub mod harness;
+
 use chrono::Utc;
 use fabric_capability::descriptor::{
     AudioCapabilities, Capabilities, ComputeCapabilities, DisplayCapabilities, DisplayInfo,
