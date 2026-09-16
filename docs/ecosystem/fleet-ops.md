@@ -10,7 +10,7 @@ phenotype-fleet-ops is the canonical operations infrastructure repository for th
 - **Pillar definitions**: 5 quality pillars (Quality, Security, Performance, Compliance, Documentation) with check definitions and skip logic
 - **Governance templates**: `lefthook.yml`, `CLAUDE.base.md`, `AGENTS.base.md` for new repo bootstrap
 
-**Repository**: https://github.com/KooshaPari/phenotype-fleet-ops
+**Repository**: https://github.com/<REDACTED>/phenotype-fleet-ops
 
 ## Relationship
 

@@ -1,12 +1,12 @@
 # install.ps1 — PowerShell installer for Phenotype Fabric
-# Usage: irm https://raw.githubusercontent.com/KooshaPari/PhenoFabric/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/<REDACTED>/PhenoFabric/main/install.ps1 | iex
 #   or:  .\install.ps1
 [CmdletBinding()]
 param()
 
 $ErrorActionPreference = 'Stop'
 
-$Repo       = 'KooshaPari/PhenoFabric'
+$Repo       = '<REDACTED>/PhenoFabric'
 $Bins       = @('fabric-daemon', 'fabric-cli', 'fabric-tui', 'fabric-gui', 'fabric-tray', 'fabric-graph')
 $InstallDir = Join-Path $env:LOCALAPPDATA 'PhenotypeFabric'
 

@@ -2,8 +2,8 @@
 
 ## User-owned product and governance sources
 
-- KooshaPari/AgilePlus — PRD, PLAN and `kitty-specs/<id>/{meta,spec,plan,tasks}` conventions: https://github.com/KooshaPari/AgilePlus
-- KooshaPari/sharecli — OS-adjacent agent runtime, process coalescing/FUSE concepts and ADR convention: https://github.com/KooshaPari/sharecli
+- <REDACTED>/AgilePlus — PRD, PLAN and `kitty-specs/<id>/{meta,spec,plan,tasks}` conventions: https://github.com/<REDACTED>/AgilePlus
+- <REDACTED>/sharecli — OS-adjacent agent runtime, process coalescing/FUSE concepts and ADR convention: https://github.com/<REDACTED>/sharecli
 - AGSLAG / Phenotype Synthetic Enterprise Architecture whitepaper — user library artifact used for authority boundaries and repository positioning.
 - Phenotype Ecosystem Whitepaper/Deck — user library artifacts used for NVMS, labs-compute and product-role context.
 

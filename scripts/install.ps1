@@ -1,8 +1,8 @@
 # terminal-fabric installer for Windows (PowerShell)
-# Usage: irm https://raw.githubusercontent.com/KooshaPari/terminal-fabric/main/scripts/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/<REDACTED>/terminal-fabric/main/scripts/install.ps1 | iex
 $ErrorActionPreference = "Stop"
 
-$Repo = "KooshaPari/terminal-fabric"
+$Repo = "<REDACTED>/terminal-fabric"
 $Binary = "tf-web"
 
 # Get latest version

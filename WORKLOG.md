@@ -3,7 +3,7 @@
 ## 2026-08-28
 
 1. Interpreted the request as a repository-grade docs tree with the working name `Phenotype Fabric`.
-2. Inspected live `KooshaPari/AgilePlus` and `KooshaPari/sharecli` repository structures to match spec/plan/task and ADR conventions.
+2. Inspected live `<REDACTED>/AgilePlus` and `<REDACTED>/sharecli` repository structures to match spec/plan/task and ADR conventions.
 3. Reconciled the new substrate with AGSLAG, AgilePlus, thegent, Tracera, SessionLedger, ledgers, NVMS and labs-compute boundaries.
 4. Formalized the universal graph, locality compiler, real-time service classes, compute/object plane and adaptive granularity.
 5. Created current competitive/prior-art matrices and labeled primary, vendor, archived and experimental sources.
@@ -1250,15 +1250,15 @@ shim is an R3 deliverable that needs a real consumer first.
 ## 2026-09-09 — PhenoFabric GitHub repo created + 48 commits pushed
 
 Per operator direction ("ensure a repo exists and tracks this on github, PhenoFabric"),
-the Phenotype Fabric repo is now live at **https://github.com/KooshaPari/PhenoFabric**.
+the Phenotype Fabric repo is now live at **https://github.com/<REDACTED>/PhenoFabric**.
 
 ### What landed
 
-- **Created repo**: `KooshaPari/PhenoFabric` (public) — described as "Phenotype Fabric 0.2.0 (R1 closed): capability descriptors, route compiler, failover, surface plane, trust-root, multi-tenant fairness"
+- **Created repo**: `<REDACTED>/PhenoFabric` (public) — described as "Phenotype Fabric 0.2.0 (R1 closed): capability descriptors, route compiler, failover, surface plane, trust-root, multi-tenant fairness"
 - **Pushed 48 commits**: full git history from initial R0 closure through R1 release evidence + R2 wedges #1-#4
 - **HEAD on remote**: `027661fdb478700659d56f8d0b0d242c92c7adec` (matching local `main`)
 - **Default branch**: `main`
-- **Remote URL**: `git@github.com:KooshaPari/PhenoFabric.git` (SSH)
+- **Remote URL**: `git@github.com:<REDACTED>/PhenoFabric.git` (SSH)
 - **Updated `.gitignore`** to exclude `tmp_local/` prototype artifacts (commit `027661f`)
 
 ### Commit trail (newest first, on remote)
@@ -1280,21 +1280,21 @@ e58d4ea docs: WORKLOG 2026-09-08 R2 wedge #1 fabric-graph-cli landed
 ### Auth path used
 
 - `gh auth login --with-token` → restored after `keychain` access
-- `gh repo create KooshaPari/PhenoFabric --public --description ... --source .` → created
+- `gh repo create <REDACTED>/PhenoFabric --public --description ... --source .` → created
 - `git push -u origin main` → 48 commits pushed
 
 ### Verification
 
-- `curl https://github.com/KooshaPari/PhenoFabric` → HTTP 200 (live)
-- `curl https://api.github.com/repos/KooshaPari/PhenoFabric/commits` → 48 commits visible to unauthenticated client
+- `curl https://github.com/<REDACTED>/PhenoFabric` → HTTP 200 (live)
+- `curl https://api.github.com/repos/<REDACTED>/PhenoFabric/commits` → 48 commits visible to unauthenticated client
 - `git branch -vv` → `main 027661f [origin/main: same]` (clean tracking)
 - Local repo working tree clean, 48 commits on `main`, all 4/4 spec checks still pass
 
 ### Operator-facing URL
 
-- **Repo**: https://github.com/KooshaPari/PhenoFabric
-- **Clone (SSH)**: `git clone git@github.com:KooshaPari/PhenoFabric.git`
-- **Clone (HTTPS)**: `git clone https://github.com/KooshaPari/PhenoFabric.git`
+- **Repo**: https://github.com/<REDACTED>/PhenoFabric
+- **Clone (SSH)**: `git clone git@github.com:<REDACTED>/PhenoFabric.git`
+- **Clone (HTTPS)**: `git clone https://github.com/<REDACTED>/PhenoFabric.git`
 
 ### Cockpit — R2 40% + repo published
 

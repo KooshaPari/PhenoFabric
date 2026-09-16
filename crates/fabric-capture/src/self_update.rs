@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use serde::Deserialize;
 
-const GITHUB_REPO: &str = "kooshapari/terminal-fabric";
+const GITHUB_REPO: &str = "<REDACTED>/terminal-fabric";
 
 #[derive(Deserialize)]
 struct GitHubRelease {

@@ -108,14 +108,14 @@
   "adjacent_products": [
     {
       "product": "AgilePlus",
-      "repo": "KooshaPari/AgilePlus",
+      "repo": "<REDACTED>/AgilePlus",
       "in_scope": false,
       "responsibility": "Governed intent: work packages, plans, evidence contracts, AgilePlus-shaped feature specs. Fabric is governed BY AgilePlus.",
       "interface": "kitty-specs/ meta.json+spec.md+plan.md+tasks.md format"
     },
     {
       "product": "thegent",
-      "repo": "KooshaPari/thegent",
+      "repo": "<REDACTED>/thegent",
       "in_scope": false,
       "responsibility": "Agent dispatch: task routing, scheduling, thegent-mcp. Fabric accepts TaskSpec from thegent.",
       "interface": "ecosystem/event-contracts.json#TaskSpec"
@@ -129,28 +129,28 @@
     },
     {
       "product": "Tracera",
-      "repo": "KooshaPari/Tracera",
+      "repo": "<REDACTED>/Tracera",
       "in_scope": false,
       "responsibility": "Evidence graph: DAG, atomic claim/lease, presets, queries. Fabric emits evidence references; Tracera owns the graph.",
       "interface": "ecosystem/event-contracts.json#EvidenceReference"
     },
     {
       "product": "SessionLedger",
-      "repo": "KooshaPari/SessionLedger",
+      "repo": "<REDACTED>/SessionLedger",
       "in_scope": false,
       "responsibility": "Time-ordered session log. Fabric emits session events; SessionLedger owns the time index.",
       "interface": "ecosystem/event-contracts.json#SessionEvent"
     },
     {
       "product": "ShareCLI",
-      "repo": "KooshaPari/sharecli",
+      "repo": "<REDACTED>/sharecli",
       "in_scope": false,
       "responsibility": "Process supervision: FUSE driver, runtime-process, sharing. Fabric routes go through ShareCLI for process lifecycle.",
       "interface": "ecosystem/event-contracts.json#ProcessSpec"
     },
     {
       "product": "NVMS",
-      "repo": "KooshaPari/nanovms",
+      "repo": "<REDACTED>/nanovms",
       "in_scope": false,
       "responsibility": "Low-level runtime inventory: resource/process/network discovery. Fabric wraps NVMS for capability inventory (per ADR-0020 provisional).",
       "interface": "Go API + Rust FFI"
@@ -164,21 +164,21 @@
     },
     {
       "product": "ResearchLedger",
-      "repo": "KooshaPari/ResearchLedger",
+      "repo": "<REDACTED>/ResearchLedger",
       "in_scope": false,
       "responsibility": "Source provenance for research claims. Fabric cites research sources via ResearchLedger.",
       "interface": "research/source-status.md cross-link"
     },
     {
       "product": "RepoLedger",
-      "repo": "KooshaPari/RepoLedger",
+      "repo": "<REDACTED>/RepoLedger",
       "in_scope": false,
       "responsibility": "Repo metadata: ownership, status, ADR, worklog, dep graph. This file is referenced by RepoLedger.",
       "interface": "REPO.json + WORKLOG.md"
     },
     {
       "product": "hwLedger",
-      "repo": "KooshaPari/hwLedger",
+      "repo": "<REDACTED>/hwLedger",
       "in_scope": false,
       "responsibility": "Hardware inventory: per-machine inventory of capabilities. Fabric's capability descriptor is a more dynamic version of hwLedger's snapshot.",
       "interface": "ecosystem/event-contracts.json#HardwareProfile"
@@ -192,7 +192,7 @@
     },
     {
       "product": "phenotype-fleet-ops",
-      "repo": "KooshaPari/phenotype-fleet-ops",
+      "repo": "<REDACTED>/phenotype-fleet-ops",
       "in_scope": false,
       "responsibility": "Fleet operations: signing, packaging, distribution, telemetry collection. Fabric owns product packaging; fleet-ops owns fleet operations.",
       "interface": "ecosystem/event-contracts.json#FleetOperation"

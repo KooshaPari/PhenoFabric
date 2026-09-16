@@ -1,6 +1,6 @@
 # terminal-fabric installer for Windows (bun/deno style)
-# Usage: bun run https://raw.githubusercontent.com/KooshaPari/terminal-fabric/main/scripts/install.ts
-const REPO = "KooshaPari/terminal-fabric";
+# Usage: bun run https://raw.githubusercontent.com/<REDACTED>/terminal-fabric/main/scripts/install.ts
+const REPO = "<REDACTED>/terminal-fabric";
 const BINARY = "tf-win-capture";
 
 async function install() {

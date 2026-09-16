@@ -1,7 +1,7 @@
 # Phenotype Fabric Branding Assets Audit
 
 **Date:** 2026-09-14  
-**Repo:** `/Users/kooshapari/CodeProjects/Phenotype/repos/phenotype-fabric`  
+**Repo:** `/Users/<REDACTED>/CodeProjects/Phenotype/repos/phenotype-fabric`  
 **Auditor:** Jcode (automated)  
 **Scope:** All brand assets, icons, scripts, colors, typography, and platform icon coverage
 

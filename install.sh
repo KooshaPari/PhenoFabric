@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # install.sh — curl installer for Phenotype Fabric
-# Usage: curl -fsSL https://raw.githubusercontent.com/KooshaPari/PhenoFabric/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/<REDACTED>/PhenoFabric/main/install.sh | bash
 set -euo pipefail
 
-REPO="KooshaPari/PhenoFabric"
+REPO="<REDACTED>/PhenoFabric"
 BINS="fabric-daemon fabric-cli fabric-tui fabric-gui fabric-tray fabric-graph"
 INSTALL_DIR="/usr/local/bin"
 

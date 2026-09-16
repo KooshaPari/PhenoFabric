@@ -84,8 +84,8 @@ https://github.com/KarsMulder/evsieve
 https://github.com/kasmtech/KasmVNC
 https://github.com/kernalix7/winpodx
 https://github.com/kmonad/kmonad
-https://github.com/KooshaPari/AgilePlus
-https://github.com/KooshaPari/sharecli
+https://github.com/<REDACTED>/AgilePlus
+https://github.com/<REDACTED>/sharecli
 https://github.com/LibVNC/x2vnc
 https://github.com/microsoft/wslg
 https://github.com/nefarius/ViGEmBus

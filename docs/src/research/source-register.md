@@ -35,8 +35,8 @@
 | SRC-031 | QUIC RFC 9000 | standard | https://www.rfc-editor.org/rfc/rfc9000 | Multiplexed secure transport. | high | 2026-08-28 |
 | SRC-032 | RTP RFC 3550 | standard | https://www.rfc-editor.org/rfc/rfc3550 | Timestamped real-time media and feedback. | high | 2026-08-28 |
 | SRC-033 | IEEE 1588/PTP | standard organization | https://standards.ieee.org/ieee/1588/6825/ | Precision time synchronization. | high | 2026-08-28 |
-| SRC-034 | AgilePlus PRD/PLAN | user repository | https://github.com/KooshaPari/AgilePlus | Spec/work/evidence governance format. | high | 2026-08-28 |
-| SRC-035 | ShareCLI README/ADRs | user repository | https://github.com/KooshaPari/sharecli | OS-adjacent agent runtime and scope boundary. | high | 2026-08-28 |
+| SRC-034 | AgilePlus PRD/PLAN | user repository | https://github.com/<REDACTED>/AgilePlus | Spec/work/evidence governance format. | high | 2026-08-28 |
+| SRC-035 | ShareCLI README/ADRs | user repository | https://github.com/<REDACTED>/sharecli | OS-adjacent agent runtime and scope boundary. | high | 2026-08-28 |
 
 ## Source policy
 

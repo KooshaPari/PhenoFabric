@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # terminal-fabric installer for macOS/Linux
-# Usage: curl -sSL https://raw.githubusercontent.com/KooshaPari/terminal-fabric/main/scripts/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/<REDACTED>/terminal-fabric/main/scripts/install.sh | bash
 set -euo pipefail
 
-REPO="KooshaPari/terminal-fabric"
+REPO="<REDACTED>/terminal-fabric"
 BINARY="tf-web"
 VERSION="${1:-latest}"
 
