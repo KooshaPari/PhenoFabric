@@ -166,6 +166,31 @@ pub fn stop_daemon(instance: DaemonInstance) {
     instance.stop();
 }
 
+/// Send a JSON line to the daemon and read the response line.
+pub fn send_and_receive(addr: &str, message: &str) -> String {
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpStream;
+    use std::time::Duration;
+
+    let mut stream = TcpStream::connect(addr).expect("connect to daemon");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .expect("set read timeout");
+    stream
+        .set_write_timeout(Some(Duration::from_secs(5)))
+        .expect("set write timeout");
+
+    write!(stream, "{message}\n").expect("write message");
+    stream.flush().expect("flush");
+
+    let reader = BufReader::new(stream.try_clone().expect("clone stream"));
+    let mut lines = reader.lines();
+    lines
+        .next()
+        .expect("no response from daemon")
+        .expect("io error reading response")
+}
+
 // ---------------------------------------------------------------------------
 // Topology builders
 // ---------------------------------------------------------------------------
