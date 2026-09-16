@@ -165,3 +165,11 @@ pub async fn get_daemon_status(
     let daemon = state.daemon.lock().await;
     Ok(daemon.status_snapshot())
 }
+
+/// Start a one-shot HTTP listener for the OAuth callback.
+/// Returns the port the listener is bound to. The frontend should construct
+/// the auth URL with `redirect_uri=http://localhost:{port}/auth/callback`.
+#[tauri::command]
+pub fn start_auth_listener(app: tauri::AppHandle) -> Result<u16, String> {
+    crate::auth_callback::start_listener(app)
+}

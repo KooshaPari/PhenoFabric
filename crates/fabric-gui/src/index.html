@@ -1160,22 +1160,6 @@ a:hover { color: var(--color-teal-bright); }
     #workos-authkit {
       width: 100%;
     }
-    #sso-popup-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(10, 10, 22, 0.85);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.25s;
-    }
-    #sso-popup-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
     .login-error {
       padding: 12px 40px 20px;
       font-size: 12px;
@@ -1224,19 +1208,6 @@ a:hover { color: var(--color-teal-bright); }
 </head>
 <body>
 
-  <!-- ==================== SSO POPUP OVERLAY ==================== -->
-  <div id="sso-popup-overlay">
-    <div style="width:520px;max-width:92vw;max-height:85vh;background:#16182a;border:1px solid rgba(240,240,245,0.10);border-radius:14px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.70);display:flex;flex-direction:column;">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(240,240,245,0.06);">
-        <span id="sso-popup-title" style="font-size:13px;font-weight:500;color:#f0f0f5;">WorkOS</span>
-        <button onclick="closeSSOPopup()" style="background:none;border:none;color:rgba(240,240,245,0.4);cursor:pointer;font-size:18px;line-height:1;">&times;</button>
-      </div>
-      <div id="sso-popup-loading" style="display:flex;align-items:center;justify-content:center;padding:60px 0;">
-        <div style="width:24px;height:24px;border:2px solid rgba(240,240,245,0.10);border-top-color:#00d4aa;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-      </div>
-      <iframe id="sso-popup-frame" style="display:none;width:100%;height:60vh;border:none;background:#fff;" allow="cross-origin-isolated"></iframe>
-    </div>
-  </div>
 
   <!-- ==================== LOGIN OVERLAY (WorkOS AuthKit) ==================== -->
   <div id="login-overlay">
@@ -2164,8 +2135,8 @@ a:hover { color: var(--color-teal-bright); }
     });
 
     // ---- WorkOS AuthKit Login Flow ----
-    const AUTH_REDIRECT_URI = 'http://localhost:9400/auth/callback';
     const WORKOS_CLIENT_ID = 'client_01K4KYZR40RK7R9X3PPB5SEJ66';
+    let _authListenerPort = null;  // port of the one-shot callback server
 
     function hideLogin() {
       const overlay = document.getElementById('login-overlay');
@@ -2191,93 +2162,60 @@ a:hover { color: var(--color-teal-bright); }
       document.getElementById('login-status').style.display = 'none';
     }
 
-    // Open compact SSO popup (centered rectangle, not external browser)
-    function openSSOPopup(url, providerName) {
-      const popup = document.getElementById('sso-popup-overlay');
-      const frame = document.getElementById('sso-popup-frame');
-      const loading = document.getElementById('sso-popup-loading');
-      const title = document.getElementById('sso-popup-title');
-
-      title.textContent = providerName ? `Sign in with ${providerName}` : 'WorkOS';
-      loading.style.display = 'flex';
-      frame.style.display = 'none';
-      popup.classList.add('active');
-
-      frame.src = url;
-      frame.onload = () => {
-        loading.style.display = 'none';
-        frame.style.display = 'block';
-      };
-
-      // Poll for popup close or auth completion
-      const pollInterval = setInterval(() => {
-        try {
-          // If iframe navigated to our callback, extract the code
-          const loc = frame.contentWindow.location;
-          if (loc.href && loc.href.includes('/auth/callback')) {
-            clearInterval(pollInterval);
-            const params = new URLSearchParams(loc.search);
-            const code = params.get('code');
-            if (code) {
-              completeAuth(code);
-            }
-            closeSSOPopup();
-          }
-        } catch (e) {
-          // Cross-origin - iframe is still on WorkOS domain, that's fine
-        }
-      }, 500);
-
-      // Store interval for cleanup
-      popup._pollInterval = pollInterval;
-    }
-
-    function closeSSOPopup() {
-      const popup = document.getElementById('sso-popup-overlay');
-      const frame = document.getElementById('sso-popup-frame');
-      if (popup._pollInterval) clearInterval(popup._pollInterval);
-      popup.classList.remove('active');
-      frame.src = 'about:blank';
-      frame.style.display = 'none';
-      document.getElementById('sso-popup-loading').style.display = 'flex';
-    }
-
-    // Primary WorkOS login - opens SSO popup
-    async function startWorkOSLogin() {
+    // Open auth URL in the system browser (not iframe — WorkOS blocks iframes).
+    // Starts a one-shot HTTP listener to capture the OAuth callback.
+    async function openAuthInBrowser(additionalParams = '') {
       clearLoginMessages();
-      showLoginStatus('Starting authentication...');
+      showLoginStatus('Opening sign-in in your browser...');
 
-      try {
-        // Try to get auth URL from daemon
-        const result = await api('start_auth');
-        if (result && result.url) {
-          openSSOPopup(result.url, 'WorkOS');
-        } else {
-          // Fallback: construct WorkOS auth URL directly
-          const authUrl = `https://api.workos.com/user_management/authorize?client_id=${WORKOS_CLIENT_ID}&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&provider=authkit`;
-        }
-      } catch (e) {
-        // Daemon not available - try direct WorkOS URL
-        showLoginStatus('Connecting to WorkOS...');
-        const authUrl = `https://api.workos.com/user_management/authorize?client_id=${WORKOS_CLIENT_ID}&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&provider=authkit`;
-        openSSOPopup(authUrl, 'WorkOS');
+      // Start one-shot callback listener on a random port
+      const port = await api('start_auth_listener');
+      if (!port) {
+        showLoginError('Failed to start auth listener.');
+        return;
       }
+      _authListenerPort = port;
+
+      const redirectUri = `http://localhost:${port}/auth/callback`;
+      const authUrl = `https://api.workos.com/user_management/authorize?client_id=${WORKOS_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&provider=authkit${additionalParams}`;
+
+      // Open in system browser
+      window.open(authUrl, '_blank');
     }
 
-    // SSO provider login - opens AuthKit with provider hint
+    // Primary WorkOS login
+    async function startWorkOSLogin() {
+      await openAuthInBrowser();
+    }
+
+    // SSO provider login
     async function startSSOLogin(provider) {
-      clearLoginMessages();
-      const authUrl = `https://api.workos.com/user_management/authorize?client_id=${WORKOS_CLIENT_ID}&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&provider=authkit`;
-      openSSOPopup(authUrl, provider);
+      await openAuthInBrowser();
     }
 
-    // Passwordless email login - redirects to WorkOS hosted auth with email hint
+    // Passwordless email login — passes email as login_hint
     async function startEmailLogin(email) {
-      clearLoginMessages();
-      showLoginStatus('Redirecting to sign-in...');
-      const url = `https://api.workos.com/user_management/authorize?client_id=${WORKOS_CLIENT_ID}&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&provider=authkit` + (email ? `&login_hint=${encodeURIComponent(email)}` : '');
-      openSSOPopup(url, 'WorkOS');
+      const hint = email ? `&login_hint=${encodeURIComponent(email)}` : '';
+      await openAuthInBrowser(hint);
     }
+
+    // Listen for auth-code-received event from the Rust callback listener
+    (function setupAuthListener() {
+      const _eventListen = (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.listen)
+        || (window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen)
+        || null;
+      if (_eventListen) {
+        _eventListen('auth-code-received', (event) => {
+          const { code, state } = event.payload || {};
+          if (code) {
+            appendLog('info', 'Auth code received from browser callback');
+            completeAuth(code, state);
+          } else {
+            showLoginError('Authentication failed — no code received.');
+          }
+        });
+      }
+    })();
 
     // Handle email form submission
     function handleLoginSubmit(e) {
@@ -2288,10 +2226,10 @@ a:hover { color: var(--color-teal-bright); }
     }
 
     // Complete auth with authorization code from callback
-    async function completeAuth(code) {
+    async function completeAuth(code, state) {
       showLoginStatus('Completing sign-in...');
       try {
-        const result = await api('complete_auth', { code });
+        const result = await api('complete_auth', { code, state: state || '' });
         if (result && result.logged_in) {
           hideLogin();
           setDaemonStatus('connected');

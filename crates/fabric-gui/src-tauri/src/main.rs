@@ -6,6 +6,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod auth_callback;
 mod commands;
 mod daemon;
 mod types;
@@ -54,6 +55,7 @@ fn main() {
             commands::start_auth,
             commands::complete_auth,
             commands::start_email_auth,
+            commands::start_auth_listener,
         ])
         .run(tauri::generate_context!())
         .expect("fatal: failed to run Tauri application");
