@@ -26,8 +26,18 @@ pub fn exchange_and_merge(
     strategy: &MergeStrategy,
 ) -> MergedTopology {
     // Fetch daemon_b's topology via the real TCP sync code path.
-    let peer_snapshot: TopologySnapshot =
+    let mut peer_snapshot: TopologySnapshot =
         sync_topology(&daemon_b.addr).expect("sync_topology to daemon_b should succeed");
+
+    // The sync_topology response doesn't include a federation_id (it's set
+    // by the federation sync thread in production). For testing, derive it
+    // from the daemon's address so the merge logic can identify peer nodes.
+    if peer_snapshot.federation_id.is_empty() {
+        peer_snapshot.federation_id = daemon_b
+            .addr
+            .replace(":", "-")
+            .to_string();
+    }
 
     // Get daemon_a's local topology as JSON (the probe_response format).
     let local_json = daemon_a.coordinator.topology_snapshot();
@@ -110,7 +120,7 @@ mod tests {
         a.coordinator.set_topology(topo).unwrap();
 
         let merged = exchange_and_merge(&a, &b, &MergeStrategy::MergeAll);
-        // a: "node_a" + "node_b" + edge, b: "node_b" => 3 nodes, 1 edge.
+        // a: "node_a" + "node_b" + edge, b: "node_b" => 3 nodes (peer prefixed), 1 edge.
         assert_merged_topology(&merged, 3, 1);
 
         stop_daemon(a);

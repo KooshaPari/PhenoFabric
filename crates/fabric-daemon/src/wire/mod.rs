@@ -34,8 +34,11 @@ pub fn run_wire_server(
     auth: Arc<AuthMiddleware>,
     runtime: Arc<tokio::runtime::Runtime>,
 ) -> Result<(), WireServerError> {
-    listener.set_nonblocking(false).map_err(|e| {
-        WireServerError::Io(format!("failed to set listener to blocking: {e}"))
+    // Use non-blocking mode so the accept loop periodically returns, allowing
+    // the shutdown flag to be checked. Without this, a blocking `accept()`
+    // would hang indefinitely, preventing `stop_daemon` / `thread::join()`.
+    listener.set_nonblocking(true).map_err(|e| {
+        WireServerError::Io(format!("failed to set listener to non-blocking: {e}"))
     })?;
 
     let timeout = Duration::from_millis(request_timeout_ms);
@@ -74,6 +77,11 @@ pub fn run_wire_server(
                 active_connections += 1;
                 debug!(peer = %peer_addr, active_connections, "new connection");
 
+                // Set the accepted connection back to blocking mode.
+                // The listener is non-blocking (for shutdown checks), but
+                // handler threads need blocking reads with timeouts.
+                stream.set_nonblocking(false).ok();
+
                 let coord = coordinator.clone();
                 let auth = auth.clone();
                 let rt = runtime.clone();
@@ -86,8 +94,11 @@ pub fn run_wire_server(
                 // Detach the thread (we don't join here -- fire and forget).
                 drop(handle);
             }
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                // No connection available, check shutdown flag.
+            Err(ref e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut =>
+            {
+                // No connection available or accept timed out; check shutdown flag.
                 std::thread::sleep(Duration::from_millis(100));
                 continue;
             }
@@ -139,9 +150,14 @@ fn handle_connection(
 
         let line = match line {
             Ok(l) => l,
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                debug!(peer = %peer, "read timeout, closing connection");
-                break;
+            Err(ref e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut =>
+            {
+                // No data available or read timed out -- keep connection open.
+                // Sleep briefly to avoid busy-spinning, then retry.
+                std::thread::sleep(Duration::from_millis(50));
+                continue;
             }
             Err(e) => {
                 debug!(peer = %peer, error = %e, "read error, closing connection");

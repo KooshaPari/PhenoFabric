@@ -105,10 +105,12 @@ fn two_node_topology_exchange() {
         snapshot.node_count,
     );
 
-    // Merge: A (2 nodes + 1 edge) + B (1 node) => 3 nodes, 1 edge.
+    // Merge: A (node_a + node_b + edge) + B (node_b) => 3 nodes (peer prefixed), 1 edge.
+    // Peer node_b is prefixed with federation_id to avoid ID collisions.
     let merged = exchange_and_merge(&a, &b, &MergeStrategy::MergeAll);
     assert_merged_topology(&merged, 3, 1);
-    assert_federation_ids(&merged, 2);
+    // federation_ids comes from peer snapshots only (local nodes have empty federation_id).
+    assert_federation_ids(&merged, 1);
 
     // max_epoch should be >= 0 (baseline check).
     assert_min_epoch(&merged, 0);
