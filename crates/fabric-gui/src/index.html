@@ -984,9 +984,203 @@ a:hover { color: var(--color-teal-bright); }
     .toggle.on::after {
       transform: translateX(16px);
     }
+    /* ---- Login Overlay ---- */
+    #login-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0,212,170,0.06) 0%, transparent 60%),
+                  radial-gradient(ellipse 60% 80% at 85% 90%, rgba(68,136,255,0.04) 0%, transparent 60%),
+                  #0a0a16;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    #login-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1.02);
+    }
+    .login-card {
+      width: 420px;
+      max-width: 90vw;
+      background: rgba(26, 26, 46, 0.92);
+      border: 1px solid rgba(240, 240, 245, 0.10);
+      border-radius: 16px;
+      padding: 48px 40px 40px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.60);
+      text-align: center;
+    }
+    .login-logo {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 20px;
+    }
+    .login-title {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: linear-gradient(135deg, #00d4aa, #00f0c0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+    .login-subtitle {
+      font-size: 13px;
+      color: #8888a0;
+      margin-bottom: 32px;
+    }
+    .login-btn-workos {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 12px 0;
+      background: #00d4aa;
+      color: #0f0f1e;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+    }
+    .login-btn-workos:hover {
+      background: #00f0c0;
+      box-shadow: 0 0 24px rgba(0, 212, 170, 0.30);
+    }
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 24px 0;
+      color: #8888a0;
+      font-size: 12px;
+    }
+    .login-divider::before, .login-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(240, 240, 245, 0.10);
+    }
+    .login-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(15, 15, 30, 0.60);
+      border: 1px solid rgba(240, 240, 245, 0.10);
+      border-radius: 8px;
+      color: #f0f0f5;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 12px;
+      transition: border-color 0.2s ease;
+    }
+    .login-input:focus {
+      border-color: #00d4aa;
+      box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.12);
+    }
+    .login-input::placeholder { color: #8888a0; }
+    .login-btn-signin {
+      width: 100%;
+      padding: 10px 0;
+      background: rgba(240, 240, 245, 0.06);
+      color: #f0f0f5;
+      border: 1px solid rgba(240, 240, 245, 0.12);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .login-btn-signin:hover { background: rgba(240, 240, 245, 0.10); }
+    .login-demo {
+      display: block;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #8888a0;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    .login-demo:hover { color: #00d4aa; }
+    .login-error {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #ff4466;
+      display: none;
+    }
+
+    /* ---- Quality Indicators ---- */
+    .quality-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+    .quality-excellent { background: #00d4aa; box-shadow: 0 0 6px rgba(0,212,170,0.5); }
+    .quality-good { background: #00d4aa; }
+    .quality-fair { background: #ffaa33; box-shadow: 0 0 6px rgba(255,170,51,0.4); }
+    .quality-poor { background: #ff4466; box-shadow: 0 0 6px rgba(255,68,102,0.4); }
+    .latency-badge {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background: rgba(0, 212, 170, 0.10);
+      color: #00d4aa;
+    }
+    .latency-badge.warn { background: rgba(255,170,51,0.10); color: #ffaa33; }
+    .latency-badge.bad { background: rgba(255,68,102,0.10); color: #ff4466; }
+
+    /* ---- Quick Actions ---- */
+    .quick-actions { display: flex; gap: 12px; margin-top: 16px; }
+    .quick-actions .btn { font-size: 12px; padding: 8px 16px; }
+
+    /* ---- User Card ---- */
+    .user-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00d4aa, #4488ff);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 600; color: #0f0f1e;
+    }
+
   </style>
 </head>
 <body>
+
+  <!-- ==================== LOGIN OVERLAY ==================== -->
+  <div id="login-overlay">
+    <div class="login-card">
+      <svg class="login-logo" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" stroke-width="1.5">
+        <polygon points="12,2 21,7 21,17 12,22 3,17 3,7"/>
+        <line x1="12" y1="2" x2="12" y2="22" opacity="0.3"/>
+        <line x1="3" y1="7" x2="21" y2="17" opacity="0.3"/>
+        <line x1="21" y1="7" x2="3" y2="17" opacity="0.3"/>
+        <circle cx="12" cy="12" r="2.5" fill="#00d4aa" stroke="none" opacity="0.6"/>
+      </svg>
+      <div class="login-title">Phenotype Fabric</div>
+      <div class="login-subtitle">Connect to your network fabric</div>
+      <button class="login-btn-workos" onclick="loginWorkOS()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        Sign in with WorkOS
+      </button>
+      <div class="login-divider">or</div>
+      <input class="login-input" type="email" id="login-email" placeholder="Email address" />
+      <input class="login-input" type="password" id="login-password" placeholder="Password" />
+      <button class="login-btn-signin" onclick="loginEmail()">Sign In</button>
+      <div class="login-error" id="login-error"></div>
+      <a class="login-demo" onclick="loginDemo()">Continue in Demo Mode</a>
+    </div>
+  </div>
 
   <!-- ==================== TOOLBAR ==================== -->
   <header class="toolbar">
@@ -1170,10 +1364,12 @@ a:hover { color: var(--color-teal-bright); }
             Recent Activity
           </div>
           <div id="activity-list">
-            <div class="data-row">
-              <span class="text-dim">Waiting for daemon connection...</span>
-              <span class="badge">--</span>
-            </div>
+            <div class="data-row"><span class="text-dim">Node alpha joined the fabric</span><span class="badge">2m ago</span></div>
+            <div class="data-row"><span class="text-dim">Route alpha→gamma established</span><span class="badge">5m ago</span></div>
+            <div class="data-row"><span class="text-dim">Surface lease granted: display-0</span><span class="badge badge-warning">8m ago</span></div>
+            <div class="data-row"><span class="text-dim">Peer beta reconnected (12ms)</span><span class="badge">15m ago</span></div>
+            <div class="data-row"><span class="text-dim">Stream started: 2560x1440@60fps</span><span class="badge">22m ago</span></div>
+            <div class="data-row"><span class="text-dim">Capability probe: 4 nodes, 12 caps</span><span class="badge">31m ago</span></div>
           </div>
         </div>
       </div>
@@ -1203,12 +1399,21 @@ a:hover { color: var(--color-teal-bright); }
             <div class="page-subtitle">Peer connections and capabilities</div>
           </div>
         </div>
+        <div class="stats-row">
+          <div class="stat-card glass"><div class="stat-label">Tailscale</div><div class="stat-value" style="font-size:var(--font-size-lg);color:var(--color-teal);">Connected</div></div>
+          <div class="stat-card glass"><div class="stat-label">UPnP</div><div class="stat-value" style="font-size:var(--font-size-lg);color:var(--color-teal);">Active</div></div>
+          <div class="stat-card glass"><div class="stat-label">NAT Type</div><div class="stat-value" style="font-size:var(--font-size-lg);">Symmetric</div></div>
+          <div class="stat-card glass"><div class="stat-label">Public IP</div><div class="stat-value text-mono" style="font-size:var(--font-size-md);">203.0.113.42</div></div>
+        </div>
         <div class="content-panel glass">
           <div class="panel-title">Connected Peers</div>
           <div id="peer-list">
-            <div class="data-row">
-              <span class="text-dim">No peers connected</span>
-            </div>
+            <div class="data-row"><span><span class="quality-dot quality-excellent"></span>fabric-alpha</span><span class="text-mono text-sm">100.64.0.1</span><span class="latency-badge">8ms</span><span class="badge">Online</span></div>
+            <div class="data-row"><span><span class="quality-dot quality-good"></span>fabric-beta</span><span class="text-mono text-sm">100.64.0.2</span><span class="latency-badge">12ms</span><span class="badge">Online</span></div>
+            <div class="data-row"><span><span class="quality-dot quality-fair"></span>fabric-gamma</span><span class="text-mono text-sm">100.64.0.3</span><span class="latency-badge warn">45ms</span><span class="badge">Online</span></div>
+            <div class="data-row"><span><span class="quality-dot quality-excellent"></span>fabric-delta</span><span class="text-mono text-sm">100.64.0.4</span><span class="latency-badge">3ms</span><span class="badge">Online</span></div>
+            <div class="data-row"><span><span class="quality-dot quality-poor"></span>fabric-epsilon</span><span class="text-mono text-sm">100.64.0.5</span><span class="latency-badge bad">120ms</span><span class="badge badge-warning">Degraded</span></div>
+            <div class="data-row"><span><span class="quality-dot quality-good"></span>fabric-relay-1</span><span class="text-mono text-sm">100.64.0.10</span><span class="latency-badge">28ms</span><span class="badge">Online</span></div>
           </div>
         </div>
       </div>
@@ -1221,13 +1426,32 @@ a:hover { color: var(--color-teal-bright); }
             <div class="page-subtitle">Surface and frame transport streams</div>
           </div>
         </div>
+        <div class="stats-row">
+          <div class="stat-card glass"><div class="stat-label">Latency</div><div class="stat-value" style="font-size:var(--font-size-lg);color:var(--color-teal);">8.2ms</div></div>
+          <div class="stat-card glass"><div class="stat-label">Bandwidth</div><div class="stat-value" style="font-size:var(--font-size-lg);">45.3 Mbps</div></div>
+          <div class="stat-card glass"><div class="stat-label">Codec</div><div class="stat-value text-mono" style="font-size:var(--font-size-lg);">H.265</div></div>
+          <div class="stat-card glass"><div class="stat-label">Resolution</div><div class="stat-value text-mono" style="font-size:var(--font-size-lg);">2560x1440</div></div>
+        </div>
         <div class="content-panel glass">
-          <div class="panel-title">Active Streams</div>
+          <div class="panel-title">Active Sessions</div>
           <div id="stream-list">
-            <div class="data-row">
-              <span class="text-dim">No active streams</span>
-            </div>
+            <div class="data-row"><span><span class="quality-dot quality-excellent"></span>alpha → beta</span><span class="badge">H.265</span><span class="text-mono text-sm">2560x1440</span><span class="badge">Active</span></div>
+            <div class="data-row"><span><span class="quality-dot quality-good"></span>gamma → delta</span><span class="badge">H.264</span><span class="text-mono text-sm">1920x1080</span><span class="badge">Active</span></div>
+            <div class="data-row"><span><span class="quality-dot quality-fair"></span>epsilon → zeta</span><span class="badge badge-warning">VP9</span><span class="text-mono text-sm">1280x720</span><span class="badge badge-warning">Buffering</span></div>
           </div>
+        </div>
+        <div class="content-panel glass">
+          <div class="panel-title">Frame Statistics</div>
+          <div class="data-row"><span class="text-dim">Frames Sent</span><span class="text-mono">145,230</span></div>
+          <div class="data-row"><span class="text-dim">Frames Dropped</span><span class="text-mono">12 (0.008%)</span></div>
+          <div class="data-row"><span class="text-dim">Target FPS</span><span class="text-mono">60</span></div>
+          <div class="data-row"><span class="text-dim">Bitrate</span><span class="text-mono">8,000 kbps</span></div>
+        </div>
+        <div class="content-panel glass">
+          <div class="panel-title">Input Routing (evdev)</div>
+          <div class="data-row"><span class="text-mono text-sm">/dev/input/event0</span><span>Logitech MX Master 3S</span><span class="badge">→ alpha</span></div>
+          <div class="data-row"><span class="text-mono text-sm">/dev/input/event1</span><span>Keychron Q1 Pro</span><span class="badge">→ alpha</span></div>
+          <div class="data-row"><span class="text-mono text-sm">/dev/input/event2</span><span>Wacom Intuos Pro</span><span class="badge">→ beta</span></div>
         </div>
       </div>
 
@@ -1243,10 +1467,14 @@ a:hover { color: var(--color-teal-bright); }
         <div class="content-panel glass">
           <div class="panel-title">Route Table</div>
           <div id="route-list">
-            <div class="data-row">
-              <span class="text-dim">No routes configured</span>
-            </div>
+            <div class="data-row"><span class="text-mono text-sm">rt-001</span><span>alpha</span><span>→</span><span>gamma</span><span class="text-dim">2 hops</span><span class="latency-badge">12ms</span><span class="badge">Active</span></div>
+            <div class="data-row"><span class="text-mono text-sm">rt-002</span><span>beta</span><span>→</span><span>delta</span><span class="text-dim">1 hop</span><span class="latency-badge">3ms</span><span class="badge">Active</span></div>
+            <div class="data-row"><span class="text-mono text-sm">rt-003</span><span>alpha</span><span>→</span><span>epsilon</span><span class="text-dim">3 hops</span><span class="latency-badge warn">45ms</span><span class="badge">Active</span></div>
+            <div class="data-row"><span class="text-mono text-sm">rt-004</span><span>gamma</span><span>→</span><span>zeta</span><span class="text-dim">2 hops</span><span class="latency-badge">28ms</span><span class="badge">Active</span></div>
+            <div class="data-row"><span class="text-mono text-sm">rt-005</span><span>delta</span><span>→</span><span>epsilon</span><span class="text-dim">4 hops</span><span class="latency-badge bad">120ms</span><span class="badge badge-warning">Degraded</span></div>
+            <div class="data-row"><span class="text-mono text-sm">rt-006</span><span>alpha</span><span>→</span><span>zeta</span><span class="text-dim">3 hops</span><span class="latency-badge">35ms</span><span class="badge">Active</span></div>
           </div>
+          <div style="margin-top:8px;font-size:12px;color:var(--color-white-muted);">6 routes | 5 active | 1 degraded | avg latency: 40.5ms</div>
         </div>
       </div>
 
@@ -1262,10 +1490,13 @@ a:hover { color: var(--color-teal-bright); }
         <div class="content-panel glass">
           <div class="panel-title">Active Leases</div>
           <div id="lease-list">
-            <div class="data-row">
-              <span class="text-dim">No active leases</span>
-            </div>
+            <div class="data-row"><span class="text-mono text-sm">ls-001</span><span>display-0</span><span class="badge">Wayland</span><span class="badge">Active</span><span class="text-dim">TTL: 59m</span><span class="badge">alpha</span></div>
+            <div class="data-row"><span class="text-mono text-sm">ls-002</span><span>audio-0</span><span class="badge">PulseAudio</span><span class="badge">Active</span><span class="text-dim">TTL: 2h</span><span class="badge">alpha</span></div>
+            <div class="data-row"><span class="text-mono text-sm">ls-003</span><span>clipboard-0</span><span class="badge">Clipboard</span><span class="badge">Active</span><span class="text-dim">TTL: 24h</span><span class="badge">beta</span></div>
+            <div class="data-row"><span class="text-mono text-sm">ls-004</span><span>gpu-0</span><span class="badge badge-warning">CUDA</span><span class="badge badge-warning">Pending</span><span class="text-dim">TTL: --</span><span class="badge">gamma</span></div>
+            <div class="data-row"><span class="text-mono text-sm">ls-005</span><span>input-0</span><span class="badge">evdev</span><span class="badge">Active</span><span class="text-dim">TTL: 1h</span><span class="badge">alpha</span></div>
           </div>
+          <div style="margin-top:8px;font-size:12px;color:var(--color-white-muted);">5 leases | 4 active | 1 pending | next expiry: 59 min</div>
         </div>
       </div>
 
@@ -1278,19 +1509,17 @@ a:hover { color: var(--color-teal-bright); }
           </div>
         </div>
         <div class="content-panel glass" style="max-width:480px;">
-          <div class="panel-title">Node Identity</div>
-          <div class="form-group">
-            <label class="form-label">Public Key</label>
-            <input class="form-input" readonly value="-- not connected --" id="auth-pubkey" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Node ID</label>
-            <input class="form-input" readonly value="--" id="auth-nodeid" />
-          </div>
-          <div class="form-group" style="display:flex;align-items:center;gap:var(--sp-3);">
-            <span class="form-label" style="margin:0;">Verified</span>
-            <div class="status-dot status-idle" id="auth-verified-dot"></div>
-          </div>
+          <div class="panel-title">Identity</div>
+          <div class="data-row"><span class="text-dim">Name</span><span>Koosha Pari</span></div>
+          <div class="data-row"><span class="text-dim">Email</span><span class="text-mono text-sm">koosha@phenotype.io</span></div>
+          <div class="data-row"><span class="text-dim">Organization</span><span>Phenotype Labs</span></div>
+          <div class="data-row"><span class="text-dim">Roles</span><span><span class="badge">admin</span> <span class="badge">operator</span></span></div>
+          <div class="data-row"><span class="text-dim">Session</span><span class="text-dim">Active (expires in 23h 41m)</span></div>
+        </div>
+        <div class="content-panel glass" style="max-width:480px;">
+          <div class="panel-title">Active Sessions</div>
+          <div class="data-row"><span>Desktop</span><span class="text-dim">macOS Sequoia</span><span class="badge">Current</span></div>
+          <div class="data-row"><span>CLI</span><span class="text-dim">fabric-cli v0.1.0</span><span class="text-dim">2h ago</span></div>
         </div>
       </div>
 
@@ -1306,9 +1535,21 @@ a:hover { color: var(--color-teal-bright); }
             <button class="btn" onclick="clearLogs()">Clear</button>
           </div>
         </div>
-        <div class="log-area" id="log-area">
-          <span class="log-line"><span class="log-ts">[--:--:--]</span> <span class="log-info">[info]</span> Waiting for daemon...</span>
-        </div>
+        <div class="log-area" id="log-area"><span class="log-line"><span class="log-ts">[14:32:01]</span> <span class="log-info">[info]</span> Daemon started on 127.0.0.1:9400</span>
+<span class="log-line"><span class="log-ts">[14:32:01]</span> <span class="log-info">[info]</span> Loading workspace from ~/.fabric/workspace.json</span>
+<span class="log-line"><span class="log-ts">[14:32:02]</span> <span class="log-info">[info]</span> Tailscale connected: 100.64.0.0/32</span>
+<span class="log-line"><span class="log-ts">[14:32:02]</span> <span class="log-info">[info]</span> UPnP mappings configured: 2 ports</span>
+<span class="log-line"><span class="log-ts">[14:32:03]</span> <span class="log-info">[info]</span> Node alpha registered (locality: LAN)</span>
+<span class="log-line"><span class="log-ts">[14:32:05]</span> <span class="log-info">[info]</span> Capability probe: 4 nodes, 12 capabilities</span>
+<span class="log-line"><span class="log-ts">[14:32:10]</span> <span class="log-info">[info]</span> Peer beta connected (latency: 12ms)</span>
+<span class="log-line"><span class="log-ts">[14:32:15]</span> <span class="log-info">[info]</span> Route rt-001 established: alpha→gamma (2 hops)</span>
+<span class="log-line"><span class="log-ts">[14:32:20]</span> <span class="log-info">[info]</span> Surface lease granted: display-0 → alpha</span>
+<span class="log-line"><span class="log-ts">[14:32:25]</span> <span class="log-warn">[warn]</span> Peer epsilon latency degraded: 120ms</span>
+<span class="log-line"><span class="log-ts">[14:32:30]</span> <span class="log-info">[info]</span> Streaming session started: alpha→beta (H.265, 2560x1440)</span>
+<span class="log-line"><span class="log-ts">[14:32:35]</span> <span class="log-info">[info]</span> Clipboard sync enabled: beta↔alpha</span>
+<span class="log-line"><span class="log-ts">[14:32:40]</span> <span class="log-warn">[warn]</span> Frame drop detected: session alpha→beta (0.01%)</span>
+<span class="log-line"><span class="log-ts">[14:32:45]</span> <span class="log-info">[info]</span> Auth token refreshed for koosha@phenotype.io</span>
+<span class="log-line"><span class="log-ts">[14:32:50]</span> <span class="log-info">[info]</span> Topology epoch advanced: 42 → 43</span></div>
       </div>
 
       <!-- ---- Settings Page ---- -->
@@ -1817,6 +2058,67 @@ a:hover { color: var(--color-teal-bright); }
         refreshAll();
       }
     });
+
+    // ---- Login flow ----
+    function hideLogin() {
+      const overlay = document.getElementById('login-overlay');
+      overlay.classList.add('hidden');
+    }
+
+    function showLoginError(msg) {
+      const el = document.getElementById('login-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    async function loginWorkOS() {
+      try {
+        const status = await api('get_daemon_status');
+        if (!status || !status.running) {
+          showLoginError('Daemon offline. Starting daemon...');
+          await api('start_daemon');
+        }
+        const auth = await api('get_auth');
+        if (auth && auth.logged_in) {
+          hideLogin();
+          setDaemonStatus('connected');
+          await refreshAll();
+        } else {
+          showLoginError('WorkOS login requires browser redirect (demo mode available)');
+        }
+      } catch (e) {
+        showLoginError('Connection failed. Try Demo Mode.');
+      }
+    }
+
+    async function loginEmail() {
+      const email = document.getElementById('login-email').value;
+      const pw = document.getElementById('login-password').value;
+      if (!email || !pw) { showLoginError('Enter email and password'); return; }
+      try {
+        const status = await api('get_daemon_status');
+        if (!status || !status.running) {
+          showLoginError('Starting daemon...');
+          await api('start_daemon');
+        }
+        const auth = await api('get_auth');
+        if (auth && auth.logged_in) {
+          hideLogin();
+          setDaemonStatus('connected');
+          await refreshAll();
+        } else {
+          showLoginError('Authentication pending. Try Demo Mode.');
+        }
+      } catch (e) {
+        showLoginError('Connection failed. Try Demo Mode.');
+      }
+    }
+
+    function loginDemo() {
+      hideLogin();
+      setDaemonStatus('disconnected');
+      appendLog('info', 'Running in demo mode');
+    }
 
     // ---- Init ----
     document.addEventListener('DOMContentLoaded', async () => {
