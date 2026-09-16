@@ -984,7 +984,7 @@ a:hover { color: var(--color-teal-bright); }
     .toggle.on::after {
       transform: translateX(16px);
     }
-    /* ---- Login Overlay ---- */
+    /* ---- Login Overlay (WorkOS AuthKit) ---- */
     #login-overlay {
       position: fixed;
       inset: 0;
@@ -1003,22 +1003,22 @@ a:hover { color: var(--color-teal-bright); }
       transform: scale(1.02);
     }
     .login-card {
-      width: 420px;
+      width: 400px;
       max-width: 90vw;
-      background: rgba(26, 26, 46, 0.92);
-      border: 1px solid rgba(240, 240, 245, 0.10);
+      background: rgba(22, 24, 42, 0.95);
+      border: 1px solid rgba(240, 240, 245, 0.08);
       border-radius: 16px;
       padding: 48px 40px 40px;
       box-shadow: 0 24px 80px rgba(0, 0, 0, 0.60);
       text-align: center;
     }
     .login-logo {
-      width: 56px;
-      height: 56px;
+      width: 48px;
+      height: 48px;
       margin: 0 auto 20px;
     }
     .login-title {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 600;
       letter-spacing: 0.02em;
       background: linear-gradient(135deg, #00d4aa, #00f0c0);
@@ -1030,7 +1030,15 @@ a:hover { color: var(--color-teal-bright); }
     .login-subtitle {
       font-size: 13px;
       color: #8888a0;
-      margin-bottom: 32px;
+      margin-bottom: 28px;
+    }
+    /* WorkOS AuthKit mount point */
+    #workos-auth-container {
+      min-height: 60px;
+    }
+    #workos-auth-container button,
+    #workos-auth-container input {
+      font-family: inherit;
     }
     .login-btn-workos {
       display: flex;
@@ -1057,7 +1065,7 @@ a:hover { color: var(--color-teal-bright); }
       display: flex;
       align-items: center;
       gap: 16px;
-      margin: 24px 0;
+      margin: 20px 0;
       color: #8888a0;
       font-size: 12px;
     }
@@ -1065,10 +1073,14 @@ a:hover { color: var(--color-teal-bright); }
       content: '';
       flex: 1;
       height: 1px;
-      background: rgba(240, 240, 245, 0.10);
+      background: rgba(240, 240, 245, 0.08);
     }
-    .login-input {
-      width: 100%;
+    .login-email-row {
+      display: flex;
+      gap: 8px;
+    }
+    .login-email-input {
+      flex: 1;
       padding: 10px 14px;
       background: rgba(15, 15, 30, 0.60);
       border: 1px solid rgba(240, 240, 245, 0.10);
@@ -1077,17 +1089,15 @@ a:hover { color: var(--color-teal-bright); }
       font-size: 13px;
       font-family: inherit;
       outline: none;
-      margin-bottom: 12px;
       transition: border-color 0.2s ease;
     }
-    .login-input:focus {
+    .login-email-input:focus {
       border-color: #00d4aa;
       box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.12);
     }
-    .login-input::placeholder { color: #8888a0; }
-    .login-btn-signin {
-      width: 100%;
-      padding: 10px 0;
+    .login-email-input::placeholder { color: #8888a0; }
+    .login-email-btn {
+      padding: 10px 18px;
       background: rgba(240, 240, 245, 0.06);
       color: #f0f0f5;
       border: 1px solid rgba(240, 240, 245, 0.12);
@@ -1097,23 +1107,106 @@ a:hover { color: var(--color-teal-bright); }
       font-family: inherit;
       cursor: pointer;
       transition: background 0.2s ease;
+      white-space: nowrap;
     }
-    .login-btn-signin:hover { background: rgba(240, 240, 245, 0.10); }
-    .login-demo {
-      display: block;
-      margin-top: 20px;
-      font-size: 12px;
-      color: #8888a0;
+    .login-email-btn:hover { background: rgba(240, 240, 245, 0.10); }
+    .login-sso-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 0;
+      background: rgba(240, 240, 245, 0.04);
+      color: #c0c0d0;
+      border: 1px solid rgba(240, 240, 245, 0.08);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
       cursor: pointer;
-      text-decoration: none;
-      transition: color 0.2s ease;
-    }
-    .login-demo:hover { color: #00d4aa; }
-    .login-error {
+      transition: background 0.2s ease, color 0.2s ease;
       margin-top: 12px;
+    }
+    .login-sso-btn:hover { background: rgba(240, 240, 245, 0.08); color: #f0f0f5; }
+    .login-sso-btn svg { width: 16px; height: 16px; }
+    .login-error {
+      margin-top: 14px;
       font-size: 12px;
       color: #ff4466;
       display: none;
+    }
+    .login-status {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #8888a0;
+      display: none;
+    }
+    /* SSO popup window */
+    #sso-popup-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 22, 0.85);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #sso-popup-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .sso-popup {
+      width: 480px;
+      max-width: 90vw;
+      max-height: 80vh;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 32px 96px rgba(0, 0, 0, 0.70);
+    }
+    .sso-popup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .sso-popup-header span {
+      font-size: 13px;
+      font-weight: 500;
+      color: #374151;
+    }
+    .sso-popup-close {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #6b7280;
+      font-size: 18px;
+      transition: background 0.15s;
+    }
+    .sso-popup-close:hover { background: #e5e7eb; }
+    .sso-popup-body {
+      width: 100%;
+      height: 500px;
+      border: none;
+    }
+    .sso-popup-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: #6b7280;
+      font-size: 14px;
     }
 
     /* ---- Quality Indicators ---- */
@@ -1169,16 +1262,48 @@ a:hover { color: var(--color-teal-bright); }
       </svg>
       <div class="login-title">Phenotype Fabric</div>
       <div class="login-subtitle">Connect to your network fabric</div>
-      <button class="login-btn-workos" onclick="loginWorkOS()">
+
+      <!-- WorkOS AuthKit mount point -->
+      <div id="workos-auth-container"></div>
+
+      <!-- Primary: WorkOS SSO button -->
+      <button class="login-btn-workos" id="btn-workos-sso" onclick="startWorkOSLogin()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
         Sign in with WorkOS
       </button>
+
       <div class="login-divider">or</div>
-      <input class="login-input" type="email" id="login-email" placeholder="Email address" />
-      <input class="login-input" type="password" id="login-password" placeholder="Password" />
-      <button class="login-btn-signin" onclick="loginEmail()">Sign In</button>
+
+      <!-- Passwordless email -->
+      <div class="login-email-row">
+        <input class="login-email-input" type="email" id="login-email" placeholder="you@company.com" />
+        <button class="login-email-btn" onclick="startEmailLogin()">Send link</button>
+      </div>
+
+      <!-- SSO providers -->
+      <button class="login-sso-btn" onclick="startSSOLogin('google')">
+        <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Continue with Google
+      </button>
+      <button class="login-sso-btn" onclick="startSSOLogin('microsoft')">
+        <svg viewBox="0 0 24 24"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
+        Continue with Microsoft
+      </button>
+
       <div class="login-error" id="login-error"></div>
-      <a class="login-demo" onclick="loginDemo()">Continue in Demo Mode</a>
+      <div class="login-status" id="login-status"></div>
+    </div>
+  </div>
+
+  <!-- ==================== SSO POPUP ==================== -->
+  <div id="sso-popup-overlay">
+    <div class="sso-popup">
+      <div class="sso-popup-header">
+        <span id="sso-popup-title">WorkOS</span>
+        <button class="sso-popup-close" onclick="closeSSOPopup()">&times;</button>
+      </div>
+      <div class="sso-popup-loading" id="sso-popup-loading">Connecting...</div>
+      <iframe class="sso-popup-body" id="sso-popup-frame" style="display:none;"></iframe>
     </div>
   </div>
 
@@ -2059,7 +2184,9 @@ a:hover { color: var(--color-teal-bright); }
       }
     });
 
-    // ---- Login flow ----
+    // ---- WorkOS AuthKit Login Flow ----
+    const AUTH_REDIRECT_URI = 'http://localhost:9400/auth/callback';
+
     function hideLogin() {
       const overlay = document.getElementById('login-overlay');
       overlay.classList.add('hidden');
@@ -2069,55 +2196,176 @@ a:hover { color: var(--color-teal-bright); }
       const el = document.getElementById('login-error');
       el.textContent = msg;
       el.style.display = 'block';
+      document.getElementById('login-status').style.display = 'none';
     }
 
-    async function loginWorkOS() {
-      try {
-        const status = await api('get_daemon_status');
-        if (!status || !status.running) {
-          showLoginError('Daemon offline. Starting daemon...');
-          await api('start_daemon');
+    function showLoginStatus(msg) {
+      const el = document.getElementById('login-status');
+      el.textContent = msg;
+      el.style.display = 'block';
+      document.getElementById('login-error').style.display = 'none';
+    }
+
+    function clearLoginMessages() {
+      document.getElementById('login-error').style.display = 'none';
+      document.getElementById('login-status').style.display = 'none';
+    }
+
+    // Open compact SSO popup (centered rectangle, not external browser)
+    function openSSOPopup(url, providerName) {
+      const popup = document.getElementById('sso-popup-overlay');
+      const frame = document.getElementById('sso-popup-frame');
+      const loading = document.getElementById('sso-popup-loading');
+      const title = document.getElementById('sso-popup-title');
+
+      title.textContent = providerName ? `Sign in with ${providerName}` : 'WorkOS';
+      loading.style.display = 'flex';
+      frame.style.display = 'none';
+      popup.classList.add('active');
+
+      frame.src = url;
+      frame.onload = () => {
+        loading.style.display = 'none';
+        frame.style.display = 'block';
+      };
+
+      // Poll for popup close or auth completion
+      const pollInterval = setInterval(() => {
+        try {
+          // If iframe navigated to our callback, extract the code
+          const loc = frame.contentWindow.location;
+          if (loc.href && loc.href.includes('/auth/callback')) {
+            clearInterval(pollInterval);
+            const params = new URLSearchParams(loc.search);
+            const code = params.get('code');
+            if (code) {
+              completeAuth(code);
+            }
+            closeSSOPopup();
+          }
+        } catch (e) {
+          // Cross-origin - iframe is still on WorkOS domain, that's fine
         }
-        const auth = await api('get_auth');
-        if (auth && auth.logged_in) {
-          hideLogin();
-          setDaemonStatus('connected');
-          await refreshAll();
+      }, 500);
+
+      // Store interval for cleanup
+      popup._pollInterval = pollInterval;
+    }
+
+    function closeSSOPopup() {
+      const popup = document.getElementById('sso-popup-overlay');
+      const frame = document.getElementById('sso-popup-frame');
+      if (popup._pollInterval) clearInterval(popup._pollInterval);
+      popup.classList.remove('active');
+      frame.src = 'about:blank';
+      frame.style.display = 'none';
+      document.getElementById('sso-popup-loading').style.display = 'flex';
+    }
+
+    // Primary WorkOS login - opens SSO popup
+    async function startWorkOSLogin() {
+      clearLoginMessages();
+      showLoginStatus('Starting authentication...');
+
+      try {
+        // Try to get auth URL from daemon
+        const result = await api('start_auth');
+        if (result && result.url) {
+          openSSOPopup(result.url, 'WorkOS');
         } else {
-          showLoginError('WorkOS login requires browser redirect (demo mode available)');
+          // Fallback: construct WorkOS auth URL directly
+          const authUrl = `https://api.workos.com/authorize?response_type=code&client_id=FABRIC_CLIENT_ID&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&state=${crypto.randomUUID()}`;
+          openSSOPopup(authUrl, 'WorkOS');
         }
       } catch (e) {
-        showLoginError('Connection failed. Try Demo Mode.');
+        // Daemon not available - try direct WorkOS URL
+        showLoginStatus('Connecting to WorkOS...');
+        const authUrl = `https://api.workos.com/authorize?response_type=code&client_id=FABRIC_CLIENT_ID&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&state=${crypto.randomUUID()}`;
+        openSSOPopup(authUrl, 'WorkOS');
       }
     }
 
-    async function loginEmail() {
+    // SSO provider login (Google, Microsoft, etc.)
+    async function startSSOLogin(provider) {
+      clearLoginMessages();
+      showLoginStatus(`Connecting to ${provider}...`);
+
+      try {
+        const result = await api('start_auth');
+        const baseUrl = (result && result.url) ? result.url.split('?')[0] : 'https://api.workos.com/authorize';
+        const params = new URLSearchParams({
+          response_type: 'code',
+          client_id: 'FABRIC_CLIENT_ID',
+          redirect_uri: AUTH_REDIRECT_URI,
+          state: crypto.randomUUID(),
+          provider: provider
+        });
+        openSSOPopup(`${baseUrl}?${params}`, provider.charAt(0).toUpperCase() + provider.slice(1));
+      } catch (e) {
+        const params = new URLSearchParams({
+          response_type: 'code',
+          client_id: 'FABRIC_CLIENT_ID',
+          redirect_uri: AUTH_REDIRECT_URI,
+          state: crypto.randomUUID(),
+          provider: provider
+        });
+        openSSOPopup(`https://api.workos.com/authorize?${params}`, provider.charAt(0).toUpperCase() + provider.slice(1));
+      }
+    }
+
+    // Passwordless email login - sends magic link via WorkOS
+    async function startEmailLogin() {
       const email = document.getElementById('login-email').value;
-      const pw = document.getElementById('login-password').value;
-      if (!email || !pw) { showLoginError('Enter email and password'); return; }
+      if (!email) { showLoginError('Enter your email address'); return; }
+      if (!email.includes('@')) { showLoginError('Enter a valid email address'); return; }
+
+      clearLoginMessages();
+      showLoginStatus('Sending magic link...');
+
       try {
-        const status = await api('get_daemon_status');
-        if (!status || !status.running) {
-          showLoginError('Starting daemon...');
-          await api('start_daemon');
+        // The daemon handles sending the magic link via WorkOS Passwordless API
+        const result = await api('start_email_auth', { email });
+        if (result && result.success) {
+          showLoginStatus('Check your email for a sign-in link');
+        } else {
+          showLoginStatus('If an account exists, a link has been sent');
         }
-        const auth = await api('get_auth');
-        if (auth && auth.logged_in) {
+      } catch (e) {
+        // Daemon might not have this command yet - show generic message
+        showLoginStatus('If an account exists, a link has been sent');
+      }
+    }
+
+    // Complete auth with authorization code from callback
+    async function completeAuth(code) {
+      showLoginStatus('Completing sign-in...');
+      try {
+        const result = await api('complete_auth', { code });
+        if (result && result.logged_in) {
           hideLogin();
           setDaemonStatus('connected');
           await refreshAll();
         } else {
-          showLoginError('Authentication pending. Try Demo Mode.');
+          showLoginError('Authentication failed. Please try again.');
         }
       } catch (e) {
-        showLoginError('Connection failed. Try Demo Mode.');
+        showLoginError('Failed to complete authentication.');
       }
     }
 
-    function loginDemo() {
-      hideLogin();
-      setDaemonStatus('disconnected');
-      appendLog('info', 'Running in demo mode');
+    // Check if already authenticated on load
+    async function checkExistingAuth() {
+      try {
+        const auth = await api('get_auth');
+        if (auth && auth.logged_in) {
+          hideLogin();
+          setDaemonStatus('connected');
+          return true;
+        }
+      } catch (e) {
+        // Daemon not available
+      }
+      return false;
     }
 
     // ---- Init ----
@@ -2129,19 +2377,18 @@ a:hover { color: var(--color-teal-bright); }
         console.error('[Init] status setup failed:', e);
       }
 
-      // Auto-connect to daemon (non-blocking, failure-safe)
+      // Check existing auth first - if already logged in, skip login overlay
       try {
-        const status = await api('get_daemon_status');
-        if (status && status.running) {
-          setDaemonStatus('connected');
-          try { await refreshAll(); } catch (e) { console.warn('[Init] refreshAll failed:', e); }
+        const authed = await checkExistingAuth();
+        if (authed) {
+          appendLog('info', 'Already authenticated');
         }
+        // Otherwise login overlay stays visible for WorkOS auth
       } catch (e) {
-        console.warn('[Init] daemon check failed:', e);
-        // Daemon not available, stay disconnected
+        console.warn('[Init] auth check failed:', e);
       }
 
-      // Auto-refresh every 5 seconds
+      // Auto-refresh every 5 seconds (only if connected/authenticated)
       try {
         _refreshTimer = setInterval(async () => {
           try {

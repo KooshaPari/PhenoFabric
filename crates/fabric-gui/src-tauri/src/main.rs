@@ -51,6 +51,9 @@ fn main() {
             commands::stop_daemon,
             commands::restart_daemon,
             commands::get_daemon_status,
+            commands::start_auth,
+            commands::complete_auth,
+            commands::start_email_auth,
         ])
         .run(tauri::generate_context!())
         .expect("fatal: failed to run Tauri application");

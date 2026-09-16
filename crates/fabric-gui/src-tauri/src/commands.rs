@@ -84,8 +84,55 @@ pub async fn refresh_data(state: State<'_, AppState>) -> Result<GuiData, String>
 }
 
 // ---------------------------------------------------------------------------
-// Daemon lifecycle commands
+// Auth lifecycle commands
 // ---------------------------------------------------------------------------
+
+/// Start WorkOS OAuth flow — returns authorization URL.
+#[tauri::command]
+pub async fn start_auth(state: State<'_, AppState>) -> Result<AuthStartResponse, String> {
+    let daemon = state.daemon.lock().await;
+    let addr = daemon.listen_addr().to_string();
+
+    // Try to get auth URL from daemon's OAuth provider
+    match daemon::fetch_auth_start(&addr).await {
+        Ok(resp) => Ok(resp),
+        Err(_) => {
+            // Fallback: construct a basic auth URL
+            // In production, the client_id comes from daemon config
+            Ok(AuthStartResponse {
+                url: format!(
+                    "https://api.workos.com/authorize?response_type=code&client_id={}&redirect_uri={}&state={}",
+                    "FABRIC_CLIENT_ID",
+                    "http://localhost:9400/auth/callback",
+                    uuid::Uuid::new_v4()
+                ),
+                state: uuid::Uuid::new_v4().to_string(),
+            })
+        }
+    }
+}
+
+/// Complete WorkOS OAuth — exchange code for tokens.
+#[tauri::command]
+pub async fn complete_auth(
+    state: State<'_, AppState>,
+    code: String,
+) -> Result<AuthStatus, String> {
+    let daemon = state.daemon.lock().await;
+    let addr = daemon.listen_addr().to_string();
+    daemon::fetch_complete_auth(&addr, &code).await
+}
+
+/// Start passwordless email auth — send magic link.
+#[tauri::command]
+pub async fn start_email_auth(
+    state: State<'_, AppState>,
+    email: String,
+) -> Result<EmailAuthResponse, String> {
+    let daemon = state.daemon.lock().await;
+    let addr = daemon.listen_addr().to_string();
+    daemon::fetch_email_auth(&addr, &email).await
+}
 
 /// Start the fabric-daemon process.
 #[tauri::command]

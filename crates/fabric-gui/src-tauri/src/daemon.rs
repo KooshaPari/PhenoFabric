@@ -587,3 +587,87 @@ pub async fn fetch_all_data(addr: &str) -> Result<GuiData, String> {
         settings: SettingsState::default(),
     })
 }
+
+// ---------------------------------------------------------------------------
+// Auth wire protocol functions
+// ---------------------------------------------------------------------------
+
+/// Request WorkOS authorization URL from daemon.
+pub async fn fetch_auth_start(addr: &str) -> Result<AuthStartResponse, String> {
+    tokio::task::spawn_blocking({
+        let addr = addr.to_string();
+        move || {
+            let mut stream = TcpStream::connect(&addr)
+                .map_err(|e| format!("connect: {e}"))?;
+            stream
+                .set_read_timeout(Some(TCP_TIMEOUT))
+                .map_err(|e| format!("timeout: {e}"))?;
+
+            let msg = serde_json::json!({"type": "auth_start"});
+            writeln!(stream, "{}", msg).map_err(|e| format!("write: {e}"))?;
+
+            let mut reader = BufReader::new(&stream);
+            let mut line = String::new();
+            reader.read_line(&mut line).map_err(|e| format!("read: {e}"))?;
+
+            serde_json::from_str::<AuthStartResponse>(&line)
+                .map_err(|e| format!("parse: {e}"))
+        }
+    })
+    .await
+    .map_err(|e| format!("task join: {e}"))?
+}
+
+/// Exchange authorization code for tokens.
+pub async fn fetch_complete_auth(addr: &str, code: &str) -> Result<AuthStatus, String> {
+    tokio::task::spawn_blocking({
+        let addr = addr.to_string();
+        let code = code.to_string();
+        move || {
+            let mut stream = TcpStream::connect(&addr)
+                .map_err(|e| format!("connect: {e}"))?;
+            stream
+                .set_read_timeout(Some(TCP_TIMEOUT))
+                .map_err(|e| format!("timeout: {e}"))?;
+
+            let msg = serde_json::json!({"type": "auth_complete", "code": code});
+            writeln!(stream, "{}", msg).map_err(|e| format!("write: {e}"))?;
+
+            let mut reader = BufReader::new(&stream);
+            let mut line = String::new();
+            reader.read_line(&mut line).map_err(|e| format!("read: {e}"))?;
+
+            serde_json::from_str::<AuthStatus>(&line)
+                .map_err(|e| format!("parse: {e}"))
+        }
+    })
+    .await
+    .map_err(|e| format!("task join: {e}"))?
+}
+
+/// Send passwordless email auth request.
+pub async fn fetch_email_auth(addr: &str, email: &str) -> Result<EmailAuthResponse, String> {
+    tokio::task::spawn_blocking({
+        let addr = addr.to_string();
+        let email = email.to_string();
+        move || {
+            let mut stream = TcpStream::connect(&addr)
+                .map_err(|e| format!("connect: {e}"))?;
+            stream
+                .set_read_timeout(Some(TCP_TIMEOUT))
+                .map_err(|e| format!("timeout: {e}"))?;
+
+            let msg = serde_json::json!({"type": "auth_email", "email": email});
+            writeln!(stream, "{}", msg).map_err(|e| format!("write: {e}"))?;
+
+            let mut reader = BufReader::new(&stream);
+            let mut line = String::new();
+            reader.read_line(&mut line).map_err(|e| format!("read: {e}"))?;
+
+            serde_json::from_str::<EmailAuthResponse>(&line)
+                .map_err(|e| format!("parse: {e}"))
+        }
+    })
+    .await
+    .map_err(|e| format!("task join: {e}"))?
+}

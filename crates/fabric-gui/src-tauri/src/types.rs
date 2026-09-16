@@ -242,6 +242,26 @@ pub struct GuiData {
 }
 
 // ---------------------------------------------------------------------------
+// Auth start (OAuth URL generation)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthStartResponse {
+    pub url: String,
+    pub state: String,
+}
+
+// ---------------------------------------------------------------------------
+// Email auth response
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmailAuthResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+// ---------------------------------------------------------------------------
 // Daemon status (serializable snapshot of daemon lifecycle)
 // ---------------------------------------------------------------------------
 
