@@ -1,0 +1,12 @@
+# Phenotype Fabric Daemon Configuration
+
+[auth]
+enabled = true
+workos_client_id = "client_01K4KYZR40RK7R9X3PPB5SEJ66"
+workos_redirect_uri = "http://localhost:9400/auth/callback"
+# workos_client_secret loaded from env WORKOS_CLIENT_SECRET
+# infisical_client_secret loaded from env INFISICAL_CLIENT_SECRET
+public_routes = ["health_check", "status_check"]
+
+[server]
+listen_addr = "127.0.0.1:9400"

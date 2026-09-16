@@ -101,10 +101,9 @@ pub async fn start_auth(state: State<'_, AppState>) -> Result<AuthStartResponse,
             // In production, the client_id comes from daemon config
             Ok(AuthStartResponse {
                 url: format!(
-                    "https://api.workos.com/authorize?response_type=code&client_id={}&redirect_uri={}&state={}",
-                    "FABRIC_CLIENT_ID",
+                    "https://api.workos.com/user_management/authorize?client_id={}&redirect_uri={}&provider=authkit",
+                    "client_01K4KYZR40RK7R9X3PPB5SEJ66",
                     "http://localhost:9400/auth/callback",
-                    uuid::Uuid::new_v4()
                 ),
                 state: uuid::Uuid::new_v4().to_string(),
             })

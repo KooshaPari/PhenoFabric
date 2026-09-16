@@ -1986,6 +1986,7 @@ a:hover { color: var(--color-teal-bright); }
 
     // ---- WorkOS AuthKit Login Flow ----
     const AUTH_REDIRECT_URI = 'http://localhost:9400/auth/callback';
+    const WORKOS_CLIENT_ID = 'client_01K4KYZR40RK7R9X3PPB5SEJ66';
 
     function hideLogin() {
       const overlay = document.getElementById('login-overlay');
@@ -2074,66 +2075,27 @@ a:hover { color: var(--color-teal-bright); }
           openSSOPopup(result.url, 'WorkOS');
         } else {
           // Fallback: construct WorkOS auth URL directly
-          const authUrl = `https://api.workos.com/authorize?response_type=code&client_id=FABRIC_CLIENT_ID&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&state=${crypto.randomUUID()}`;
-          openSSOPopup(authUrl, 'WorkOS');
+          const authUrl = `https://api.workos.com/user_management/authorize?client_id=${WORKOS_CLIENT_ID}&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&provider=authkit`;
         }
       } catch (e) {
         // Daemon not available - try direct WorkOS URL
         showLoginStatus('Connecting to WorkOS...');
-        const authUrl = `https://api.workos.com/authorize?response_type=code&client_id=FABRIC_CLIENT_ID&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&state=${crypto.randomUUID()}`;
+        const authUrl = `https://api.workos.com/user_management/authorize?client_id=${WORKOS_CLIENT_ID}&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&provider=authkit`;
         openSSOPopup(authUrl, 'WorkOS');
       }
     }
 
-    // SSO provider login (Google, Microsoft, etc.)
+    // SSO provider login - opens AuthKit with provider hint
     async function startSSOLogin(provider) {
       clearLoginMessages();
-      showLoginStatus(`Connecting to ${provider}...`);
-
-      try {
-        const result = await api('start_auth');
-        const baseUrl = (result && result.url) ? result.url.split('?')[0] : 'https://api.workos.com/authorize';
-        const params = new URLSearchParams({
-          response_type: 'code',
-          client_id: 'FABRIC_CLIENT_ID',
-          redirect_uri: AUTH_REDIRECT_URI,
-          state: crypto.randomUUID(),
-          provider: provider
-        });
-        openSSOPopup(`${baseUrl}?${params}`, provider.charAt(0).toUpperCase() + provider.slice(1));
-      } catch (e) {
-        const params = new URLSearchParams({
-          response_type: 'code',
-          client_id: 'FABRIC_CLIENT_ID',
-          redirect_uri: AUTH_REDIRECT_URI,
-          state: crypto.randomUUID(),
-          provider: provider
-        });
-        openSSOPopup(`https://api.workos.com/authorize?${params}`, provider.charAt(0).toUpperCase() + provider.slice(1));
-      }
+      const authUrl = `https://api.workos.com/user_management/authorize?client_id=${WORKOS_CLIENT_ID}&redirect_uri=${encodeURIComponent(AUTH_REDIRECT_URI)}&provider=authkit`;
+      openSSOPopup(authUrl, provider);
     }
 
-    // Passwordless email login - sends magic link via WorkOS
+    // Passwordless email login - handled by AuthKit hosted UI
     async function startEmailLogin() {
-      const email = document.getElementById('login-email').value;
-      if (!email) { showLoginError('Enter your email address'); return; }
-      if (!email.includes('@')) { showLoginError('Enter a valid email address'); return; }
-
-      clearLoginMessages();
-      showLoginStatus('Sending magic link...');
-
-      try {
-        // The daemon handles sending the magic link via WorkOS Passwordless API
-        const result = await api('start_email_auth', { email });
-        if (result && result.success) {
-          showLoginStatus('Check your email for a sign-in link');
-        } else {
-          showLoginStatus('If an account exists, a link has been sent');
-        }
-      } catch (e) {
-        // Daemon might not have this command yet - show generic message
-        showLoginStatus('If an account exists, a link has been sent');
-      }
+      // AuthKit handles email/passwordless internally
+      showLoginStatus('Use the sign-in form above');
     }
 
     // Complete auth with authorization code from callback
