@@ -5,7 +5,7 @@
 //! placement?"  Three answers, no more:
 //!   * `Admit`         — every requirement satisfied with at least Margin=0.
 //!   * `AdmitWithNotes` — admissible but with at least one advisory (e.g.,
-//!                        `AcceleratorMissing` for an optional GPU).
+//!     `AcceleratorMissing` for an optional GPU).
 //!   * `Reject`        — at least one hard requirement is not met.
 //!
 //! Reasons are the evidence: every `Decision` carries one or more

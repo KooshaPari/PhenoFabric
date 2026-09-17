@@ -181,25 +181,21 @@ pub fn check_network_reachable(
     // least one network interface. We cannot do live reachability probing,
     // so we accept if any interface exists and emit a soft advisory.
     match &descriptor.capabilities.network {
-        None => {
-            return Err(CheckOutcome::hard(
-                ReasonCode::BandwidthInsufficient,
-                "manifest requires network but host has no network interfaces",
-            ));
-        }
-        Some(net) if net.interfaces.is_empty() => {
-            return Err(CheckOutcome::hard(
-                ReasonCode::BandwidthInsufficient,
-                "manifest requires network but host has no network interfaces",
-            ));
-        }
+        None => Err(CheckOutcome::hard(
+            ReasonCode::BandwidthInsufficient,
+            "manifest requires network but host has no network interfaces",
+        )),
+        Some(net) if net.interfaces.is_empty() => Err(CheckOutcome::hard(
+            ReasonCode::BandwidthInsufficient,
+            "manifest requires network but host has no network interfaces",
+        )),
         Some(_) => {
             // Host has at least one interface. Soft advisory since we can't
             // verify actual reachability.
-            return Err(CheckOutcome::soft(
+            Err(CheckOutcome::soft(
                 ReasonCode::BandwidthInsufficient,
                 "cannot verify network reachability at check time; host has at least one interface",
-            ));
+            ))
         }
     }
 }
@@ -279,10 +275,7 @@ pub fn check_schema_supported(
     _manifest: &CheckerManifest,
 ) -> Result<(), CheckOutcome> {
     let supported = ["phenotype.fabric.capability_descriptor/1"];
-    if !supported
-        .iter()
-        .any(|s| *s == descriptor.schema_version.as_str())
-    {
+    if !supported.contains(&descriptor.schema_version.as_str()) {
         return Err(CheckOutcome::hard(
             ReasonCode::SchemaUnsupported,
             format!(

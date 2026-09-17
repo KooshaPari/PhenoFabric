@@ -9,6 +9,8 @@ use crate::manifest::CheckerManifest;
 
 use fabric_capability::descriptor::CapabilityDescriptor;
 
+type CheckFn = fn(&CapabilityDescriptor, &CheckerManifest) -> Result<(), CheckOutcome>;
+
 /// Runs the full check suite against a host descriptor and a manifest.
 ///
 /// Returns a `Decision` with `Admit` if all reject-level checks pass,
@@ -27,7 +29,7 @@ pub fn run_all(
     descriptor: &CapabilityDescriptor,
     manifest: &CheckerManifest,
 ) -> Vec<CheckOutcome> {
-    let fns: Vec<fn(&CapabilityDescriptor, &CheckerManifest) -> Result<(), CheckOutcome>> = vec![
+    let fns: Vec<CheckFn> = vec![
         checks::check_memory_sufficient,
         checks::check_cores_sufficient,
         checks::check_storage_sufficient,

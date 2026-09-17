@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// This is a simplified, checker-friendly view of requirements. The route
 /// compiler and deployment runtime may have richer types; the checker only
 /// cares about the fields it actually checks.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CheckerManifest {
     /// Minimum host memory in bytes.
     pub memory_bytes: u64,
@@ -33,18 +33,4 @@ pub struct CheckerManifest {
     pub realtime_island: bool,
 }
 
-impl Default for CheckerManifest {
-    fn default() -> Self {
-        Self {
-            memory_bytes: 0,
-            cpu_cores: 0,
-            storage_bytes: 0,
-            os_families: Vec::new(),
-            arches: Vec::new(),
-            audio: false,
-            network_peers: Vec::new(),
-            headless: false,
-            realtime_island: false,
-        }
-    }
-}
+
