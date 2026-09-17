@@ -68,7 +68,11 @@ jobs:
             libatk1.0-dev \
             libatk-bridge2.0-dev \
             libdbus-1-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libgdk-pixbuf-2.0-dev \
+            libpango-1.0-dev \
+            libcairo2-dev
 
       - name: Run clippy (all targets)
         run: cargo clippy --workspace --all-targets -- -D warnings
@@ -108,7 +112,11 @@ jobs:
             libatk1.0-dev \
             libatk-bridge2.0-dev \
             libdbus-1-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libgdk-pixbuf-2.0-dev \
+            libpango-1.0-dev \
+            libcairo2-dev
 
       - name: Cargo check (workspace)
         run: cargo check --workspace --all-targets
@@ -149,7 +157,11 @@ jobs:
             libatk1.0-dev \
             libatk-bridge2.0-dev \
             libdbus-1-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libgdk-pixbuf-2.0-dev \
+            libpango-1.0-dev \
+            libcairo2-dev
 
       - name: Run unit tests (--lib)
         run: cargo test --workspace --lib --no-fail-fast
@@ -190,7 +202,11 @@ jobs:
             libatk1.0-dev \
             libatk-bridge2.0-dev \
             libdbus-1-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libgdk-pixbuf-2.0-dev \
+            libpango-1.0-dev \
+            libcairo2-dev
 
       - name: Run integration tests (--test)
         run: cargo test --workspace --test '*' --no-fail-fast
@@ -231,7 +247,11 @@ jobs:
             libatk1.0-dev \
             libatk-bridge2.0-dev \
             libdbus-1-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libgdk-pixbuf-2.0-dev \
+            libpango-1.0-dev \
+            libcairo2-dev
 
       - name: Run E2E smoke tests
         run: cargo test -p fabric-integration-tests --test e2e_smoke --no-fail-fast
@@ -272,7 +292,11 @@ jobs:
             libatk1.0-dev \
             libatk-bridge2.0-dev \
             libdbus-1-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libgdk-pixbuf-2.0-dev \
+            libpango-1.0-dev \
+            libcairo2-dev
 
       - name: Build release binaries
         run: cargo build --workspace --release --bins
