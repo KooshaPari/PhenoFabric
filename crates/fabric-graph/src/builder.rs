@@ -24,6 +24,7 @@ impl TopologyBuilder {
         self
     }
 
+    #[allow(clippy::should_implement_trait)] // Builder DSL: fluent `add` is intentional.
     pub fn add(mut self, node: Node) -> Self {
         self.inner.add_node(node);
         self
@@ -218,6 +219,7 @@ impl IntentBuilder {
 }
 
 /// Build a [`RouteStep`] for tests or CLI scripts.
+#[allow(dead_code)] // used by integration tests in tests/ directory
 pub fn make_step(node_id: &str, action: &str) -> RouteStep {
     RouteStep {
         node: NodeId::new(node_id),
@@ -258,6 +260,7 @@ impl MultiIntent {
         }
     }
 
+    #[allow(clippy::should_implement_trait)] // Builder DSL: fluent `add` is intentional.
     pub fn add(mut self, intent: Intent) -> Self {
         self.intents.push(intent);
         self

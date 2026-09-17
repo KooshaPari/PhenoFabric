@@ -290,7 +290,7 @@ mod tests {
         let handle = lease.handle;
         reg.insert(handle, lease, spec);
 
-        let invalidations = reg.notify_node_failure(&[a.clone()]);
+        let invalidations = reg.notify_node_failure(std::slice::from_ref(&a));
         assert_eq!(invalidations.len(), 1);
         assert_eq!(invalidations[0].handle, handle);
         assert!(reg.is_empty());

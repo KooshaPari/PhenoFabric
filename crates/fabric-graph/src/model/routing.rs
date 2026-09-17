@@ -87,15 +87,12 @@ impl RoutePlan {
             return false;
         }
         let step = &self.steps[0];
-        if let Some(_edge_id) = &step.via_edge {
-            if let Some(_edge) = self.steps.get(0) {
-                // Check if the edge locality tier is L0 or L1
-                if let Some(_e) = step.node.to_string().is_empty().then(|| None::<&Edge>) {
-                    // We don't have the edge here; check via topology
-                }
-            }
+        if step.via_edge.is_some() {
+            // Edge-based plan: locality depends on edge tier (not known here).
+            // Without topology access, assume non-local.
+            return false;
         }
-        // Single-hop plans are always potentially local
+        // Single-hop, no via_edge — locally executable.
         self.steps.len() == 1
     }
 }
@@ -275,7 +272,7 @@ mod tests {
         let mut topology = Topology::new();
         topology.add_node(Node::new(NodeId::new("a"), LocalityTier::L1));
         topology.add_node(Node::new(NodeId::new("b"), LocalityTier::L2));
-        topology.add_edge(Edge::new(
+        let _ = topology.add_edge(Edge::new(
             EdgeId::new("a-b"),
             NodeId::new("a"),
             NodeId::new("b"),

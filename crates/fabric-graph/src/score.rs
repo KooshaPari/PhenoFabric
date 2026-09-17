@@ -144,15 +144,6 @@ mod tests {
             .with_capability(cap)
     }
 
-    fn make_step(node_id: &str) -> RouteStep {
-        RouteStep {
-            node: NodeId::new(node_id),
-            capability_id: None,
-            via_edge: None,
-            action: "execute".to_string(),
-        }
-    }
-
     #[test]
     fn test_score_locality_within_limit() {
         let node = make_node("gpu-0", 2, TrustLevel::Attested);

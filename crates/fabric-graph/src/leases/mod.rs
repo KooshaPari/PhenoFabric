@@ -219,7 +219,7 @@ mod tests {
             &post,
             &i,
             &original_plan,
-            &[a.clone()],
+            std::slice::from_ref(&a),
         )
         .expect("rebind should return Ok(Failed), not Err");
 

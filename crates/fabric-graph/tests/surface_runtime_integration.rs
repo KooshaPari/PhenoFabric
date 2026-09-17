@@ -6,7 +6,7 @@
 use fabric_graph::builder::{make_step, IntentBuilder, TopologyBuilder};
 use fabric_graph::surface::{CaptureDirection, LeaseState, SurfaceProtocol};
 use fabric_graph::surface_ops::{bind, new_lease};
-use fabric_graph::{compile, LocalityTier, SurfaceHandle, SurfaceRegistry, SurfaceSpec, TrustLevel};
+use fabric_graph::{compile, LocalityTier, SurfaceRegistry, SurfaceSpec, TrustLevel};
 
 fn sample_spec(name: &str) -> SurfaceSpec {
     SurfaceSpec {
@@ -133,7 +133,7 @@ fn surface_runtime_handle_drop_after_invalidation() {
     assert!(!reg.is_empty());
 
     // Invalidate.
-    let inv = reg.notify_node_failure(&[a.clone()]);
+    let inv = reg.notify_node_failure(std::slice::from_ref(&a));
     assert_eq!(inv.len(), 1);
 
     // Entry must be removed.

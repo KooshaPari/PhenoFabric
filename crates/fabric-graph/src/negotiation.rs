@@ -94,12 +94,6 @@ pub fn negotiate(topology: &Topology, intent: &Intent) -> NegotiationResult {
             })
     });
 
-    // Assign ranks
-    for (_i, _cand) in candidates.iter_mut().enumerate() {
-        // We need to update the score rank — but ScoreBreakdown doesn't have rank.
-        // Instead, we'll track rank in the candidate.
-    }
-
     let filtered_soft = candidates.len();
 
     NegotiationResult {

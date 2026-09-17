@@ -22,10 +22,6 @@ fn arb_lease_state() -> impl Strategy<Value = LeaseState> {
     ]
 }
 
-fn arb_non_terminal_state() -> impl Strategy<Value = LeaseState> {
-    prop_oneof![Just(LeaseState::Pending), Just(LeaseState::Active),]
-}
-
 fn arb_terminal_state() -> impl Strategy<Value = LeaseState> {
     prop_oneof![
         Just(LeaseState::Completed),

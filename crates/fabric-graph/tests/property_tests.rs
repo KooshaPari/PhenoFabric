@@ -6,8 +6,8 @@
 use fabric_graph::compile::{compile, compile_all};
 use fabric_graph::multihop::{compile_multihop, builtin_stages};
 use fabric_graph::model::{
-    Edge, EdgeId, Intent, IntentId, IntentRequirements, Node, NodeId, RoutePlan,
-    Topology, TopologyEpoch, TopologyMeta,
+    Edge, EdgeId, Intent, IntentId, IntentRequirements, Node, NodeId,
+    Topology, TopologyMeta,
 };
 use fabric_graph::LocalityTier;
 use proptest::prelude::*;

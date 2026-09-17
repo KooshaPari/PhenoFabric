@@ -18,7 +18,7 @@ use fabric_graph::{
         SurfaceSpecError,
     },
     surface_ops::{is_terminal, new_lease},
-    NodeId, RoutePlanId, Topology, TopologyEpoch, TrustLevel,
+    NodeId, RoutePlanId, Topology, TrustLevel,
 };
 
 // ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ fn integration_silent_rebind_preserves_handle_and_history() {
         &post,
         &i,
         &original_plan,
-        &[a.clone()],
+        std::slice::from_ref(&a),
     )
     .expect("rebind should succeed");
 
@@ -163,7 +163,7 @@ fn integration_loud_fail_on_no_replacement_terminates_lease() {
         &post,
         &i,
         &original_plan,
-        &[a.clone()],
+        std::slice::from_ref(&a),
     )
     .expect("rebind should return Ok(Failed), not Err");
 
@@ -229,7 +229,7 @@ fn integration_strict_epoch_drift_short_circuits_replan() {
         &post_topo,
         &i,
         &original_plan,
-        &[a.clone()],
+        std::slice::from_ref(&a),
     );
 
     match result {
@@ -281,7 +281,7 @@ fn integration_non_strict_epoch_allows_rebind_across_epochs() {
         &post_topo,
         &i,
         &original_plan,
-        &[a.clone()],
+        std::slice::from_ref(&a),
     )
     .expect("non-strict re-bind should succeed even across epoch");
 
@@ -317,7 +317,7 @@ fn integration_lease_intact_when_failover_error_returns() {
         &post,
         &empty_intent,
         &original_plan,
-        &[a.clone()],
+        std::slice::from_ref(&a),
     );
 
     match result {

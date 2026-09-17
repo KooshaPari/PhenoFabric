@@ -111,7 +111,7 @@ mod tests {
     fn test_topology_epoch_bump() {
         let mut epoch = TopologyEpoch::default();
         assert_eq!(epoch.0, 0);
-        epoch.bump();
+        let _ = epoch.bump();
         assert_eq!(epoch.0, 1);
         assert_eq!(epoch.bump_and_get(), 2);
         assert_eq!(epoch.0, 2);

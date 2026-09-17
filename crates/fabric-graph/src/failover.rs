@@ -131,17 +131,6 @@ pub fn replan_multihop(
 mod tests {
     use super::*;
     use crate::builder::TopologyBuilder;
-    fn two_node_topology_with_edges() -> (Topology, NodeId, NodeId) {
-        let a = NodeId::new("a");
-        let b = NodeId::new("b");
-        let topo = TopologyBuilder::new()
-            .with_name("test-edges")
-            .add(crate::Node::new(a.clone(), crate::LocalityTier::L5Loopback))
-            .add(crate::Node::new(b.clone(), crate::LocalityTier::L5Loopback))
-            .connect("a", "b", crate::LocalityTier::L1SameNuma)
-            .build();
-        (topo, a, b)
-    }
     fn two_node_topology() -> (Topology, NodeId, NodeId) {
         let a = NodeId::new("a");
         let b = NodeId::new("b");
@@ -188,7 +177,7 @@ mod tests {
         let pruned = pruned.add(node_b);
         let pruned_topo = pruned.build();
 
-        let outcome = replan(&pruned_topo, &intent, &original, &[a.clone()])
+        let outcome = replan(&pruned_topo, &intent, &original, std::slice::from_ref(&a))
             .expect("no error");
         match outcome {
             FailoverOutcome::Replaced(new_plan) => {
@@ -277,7 +266,7 @@ mod tests {
             .expect("compile_multihop should succeed");
 
         // If primary goes through b, failing b should use a fallback via a→c direct.
-        let outcome = replan_multihop(&topo, &intent, &result, &[b.clone()], &a, &c, &catalog)
+        let outcome = replan_multihop(&topo, &intent, &result, std::slice::from_ref(&b), &a, &c, &catalog)
             .expect("no error");
         match outcome {
             FailoverOutcome::Replaced(plan) => {

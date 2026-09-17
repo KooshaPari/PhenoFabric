@@ -320,7 +320,7 @@ pub fn build_flat_topology(n: usize, tier: LocalityTier) -> Topology {
 
 /// Benchmark score_locality throughput across all nodes in a topology.
 pub fn bench_score_locality_throughput(topo: &Topology, intent: &Intent) {
-    for (_id, node) in &topo.nodes {
+    for node in topo.nodes.values() {
         let _score = score_locality(node, &intent.requirements);
     }
 }

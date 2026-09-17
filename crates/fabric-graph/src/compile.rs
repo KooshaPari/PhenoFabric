@@ -118,7 +118,7 @@ fn build_steps(topology: &Topology, dest: &NodeId, intent: &Intent) -> Result<Ve
     let (node, via_edge, action) = if let Some(edge) = best_edge {
         let upstream = if edge.from == *dest { &edge.to } else { &edge.from };
         let _upstream_node = topology.node(upstream).expect("edge references valid node");
-        if intent.preferred_node.as_ref().map_or(false, |n| n == upstream) {
+        if intent.preferred_node.as_ref().is_some_and(|n| n == upstream) {
             // Source is already the preferred node — direct execution
             (upstream.clone(), None, "source-execute".to_string())
         } else {

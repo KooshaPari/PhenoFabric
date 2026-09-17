@@ -139,13 +139,12 @@ impl FairnessQueue {
         );
         self.insertion_order.push(tenant.clone());
         // For Fifo + WRR, the tenant joins the rotation.
-        match &self.policy {
-            FairnessPolicy::Fifo | FairnessPolicy::WeightedRoundRobin { .. } => {
-                if !self.rotation.contains(tenant) {
-                    self.rotation.push_back(tenant.clone());
-                }
-            }
-            _ => {}
+        if matches!(
+            self.policy,
+            FairnessPolicy::Fifo | FairnessPolicy::WeightedRoundRobin { .. }
+        ) && self.rotation.iter().all(|t| t != tenant)
+        {
+            self.rotation.push_back(tenant.clone());
         }
     }
 
