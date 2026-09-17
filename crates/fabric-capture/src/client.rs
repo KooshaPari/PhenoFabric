@@ -1,12 +1,15 @@
 //! HTTP client for posting captured console content to tf-web.
 
+#[cfg(target_os = "windows")]
 use anyhow::{Context, Result};
+#[cfg(target_os = "windows")]
 use reqwest::Client;
+#[cfg(target_os = "windows")]
 use serde::Serialize;
 
 /// Pane data payload sent to tf-web.
+#[cfg(target_os = "windows")]
 #[derive(Debug, Clone, Serialize)]
-#[allow(dead_code)]
 pub struct PaneData {
     /// Unique pane identifier (e.g. "win-12345").
     pub pane_id: String,
@@ -25,15 +28,15 @@ pub struct PaneData {
 }
 
 /// Request body for the pane update endpoint.
+#[cfg(target_os = "windows")]
 #[derive(Serialize)]
-#[allow(dead_code)]
 struct PaneUpdateRequest {
     panes: Vec<PaneData>,
 }
 
 /// Response body from tf-web.
+#[cfg(target_os = "windows")]
 #[derive(serde::Deserialize, Debug)]
-#[allow(dead_code)]
 struct ApiResponse {
     success: bool,
     error: Option<String>,
@@ -43,7 +46,7 @@ struct ApiResponse {
 ///
 /// Sends a batch of pane updates to the `/api/panes` endpoint.
 /// The tf-web server merges these into its pane cache.
-#[allow(dead_code)]
+#[cfg(target_os = "windows")]
 pub async fn post_panes(url: &str, token: &str, panes: &[PaneData]) -> Result<()> {
     let client = Client::new();
 
@@ -76,8 +79,10 @@ pub async fn post_panes(url: &str, token: &str, panes: &[PaneData]) -> Result<()
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "windows")]
     use super::*;
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn test_pane_data_serialization() {
         let pane = PaneData {
@@ -96,6 +101,7 @@ mod tests {
         assert!(json.contains("windows-capture"));
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn test_pane_update_request_serialization() {
         let panes = vec![PaneData {

@@ -49,9 +49,15 @@ pub mod win {
         let scan_key: u16 = match vk {
             VK_A => 0x1E,
             VK_C => 0x2E,
-            VK_1 => 0x02, VK_2 => 0x03, VK_3 => 0x04,
-            VK_4 => 0x05, VK_5 => 0x06, VK_6 => 0x07,
-            VK_7 => 0x08, VK_8 => 0x09, VK_9 => 0x0A,
+            VK_1 => 0x02,
+            VK_2 => 0x03,
+            VK_3 => 0x04,
+            VK_4 => 0x05,
+            VK_5 => 0x06,
+            VK_6 => 0x07,
+            VK_7 => 0x08,
+            VK_8 => 0x09,
+            VK_9 => 0x0A,
             _ => 0x00,
         };
 
@@ -138,11 +144,19 @@ pub mod win {
     /// injection is performed.
     ///
     /// Returns None if WT is not the foreground window or capture fails.
+    #[allow(dead_code)]
     pub fn capture_tab_by_index(wt_hwnd: isize, tab_index: u8) -> Option<String> {
         let hwnd = wt_hwnd as HWND;
         let vk = match tab_index {
-            1 => VK_1, 2 => VK_2, 3 => VK_3, 4 => VK_4,
-            5 => VK_5, 6 => VK_6, 7 => VK_7, 8 => VK_8, 9 => VK_9,
+            1 => VK_1,
+            2 => VK_2,
+            3 => VK_3,
+            4 => VK_4,
+            5 => VK_5,
+            6 => VK_6,
+            7 => VK_7,
+            8 => VK_8,
+            9 => VK_9,
             _ => return None,
         };
 
@@ -183,6 +197,7 @@ pub mod win {
     ///
     /// Each tab is captured by sending Ctrl+Number, Ctrl+A, Ctrl+C via
     /// SendMessage directly to the WT window handle.
+    #[allow(dead_code)]
     pub fn capture_all_tabs(wt_hwnd: isize) -> Vec<(u8, String, Vec<String>)> {
         let mut results = Vec::new();
 
@@ -241,6 +256,7 @@ pub mod win {
 
 // Non-Windows stub: clipboard capture is not available.
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 pub mod win {
     /// Capture a single tab -- not available on this platform.
     pub fn capture_tab_by_index(_wt_hwnd: isize, _tab_index: u8) -> Option<String> {

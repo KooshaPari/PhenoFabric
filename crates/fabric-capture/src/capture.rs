@@ -4,6 +4,7 @@
 //! screen buffer content.
 
 /// Information about a discovered console window.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub struct ConsolePane {
     /// Window handle (HWND). Stored as usize for portability; cast to HWND when calling Win32.
@@ -17,6 +18,7 @@ pub struct ConsolePane {
 }
 
 /// Content captured from a console screen buffer.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub struct CapturedContent {
     pub lines: Vec<String>,
@@ -31,15 +33,15 @@ pub struct CapturedContent {
 #[cfg(target_os = "windows")]
 mod os_specific {
     use super::*;
-    use windows_sys::Win32::Foundation::{HANDLE, HWND, LPARAM, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::Foundation::{HANDLE, HWND, INVALID_HANDLE_VALUE, LPARAM};
     use windows_sys::Win32::System::Console::{
         AttachConsole, FreeConsole, GetConsoleScreenBufferInfo, GetStdHandle,
         ReadConsoleOutputCharacterW, CONSOLE_SCREEN_BUFFER_INFO, COORD, STD_OUTPUT_HANDLE,
     };
     use windows_sys::Win32::System::Threading::GetCurrentProcessId;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, GetClassNameW, GetWindowTextLengthW, GetWindowTextW,
-        GetWindowThreadProcessId, IsWindowVisible,
+        EnumWindows, GetClassNameW, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
+        IsWindowVisible,
     };
 
     const CONSOLE_CLASSES: &[&str] = &[
@@ -217,7 +219,11 @@ mod os_specific {
                 AttachConsole(my_pid);
             }
 
-            Some(CapturedContent { lines, width, height })
+            Some(CapturedContent {
+                lines,
+                width,
+                height,
+            })
         }
     }
 
@@ -260,16 +266,19 @@ mod os_specific {
 // ============================================================================
 
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 pub fn enumerate_console_panes() -> anyhow::Result<Vec<ConsolePane>> {
     Ok(vec![])
 }
 
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 pub fn capture_console_buffer(_hwnd: usize) -> Option<CapturedContent> {
     None
 }
 
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 pub fn enumerate_pseudo_console_hwnds() -> Vec<usize> {
     vec![]
 }
@@ -292,6 +301,7 @@ pub fn enumerate_pseudo_console_hwnds() -> Vec<usize> {
 }
 
 /// Sanitize a window title for use as a pane name component.
+#[cfg(target_os = "windows")]
 fn sanitize_title(title: &str, max_chars: usize) -> String {
     let cleaned: String = title
         .chars()
@@ -308,11 +318,13 @@ fn sanitize_title(title: &str, max_chars: usize) -> String {
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn test_sanitize_title_short() {
         assert_eq!(sanitize_title("PowerShell", 20), "PowerShell");
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn test_sanitize_title_long() {
         let result = sanitize_title("Administrator: Very Long PowerShell Window Title", 15);
@@ -320,6 +332,7 @@ mod tests {
         assert!(result.ends_with("..."));
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn test_sanitize_title_strips_special_chars() {
         let result = sanitize_title("pwsh (C:\\Users\\test)", 30);
