@@ -221,7 +221,7 @@ impl SurfaceRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builder::{make_step, make_plan, TopologyBuilder};
+    use crate::builder::{make_step, TopologyBuilder};
     use crate::surface::LeaseState;
     use crate::surface_ops::{bind, new_lease};
     use crate::{LocalityTier, TrustLevel};
@@ -363,7 +363,6 @@ mod tests {
 
     #[test]
     fn invalidation_to_wire_json_matches_spec025_shape() {
-        use crate::model::RoutePlanId;
 
         let (topo, _a, _b) = two_node_topology();
         let mut reg = SurfaceRegistry::new();

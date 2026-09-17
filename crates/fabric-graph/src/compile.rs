@@ -186,7 +186,7 @@ fn estimate_latency(topology: &Topology, steps: &[RouteStep]) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{CapabilityRef, Edge, EdgeId, IntentRequirements, IntentId, Node, NodeId, TopologyEpoch};
+    use crate::model::{CapabilityRef, Edge, EdgeId, IntentRequirements, IntentId, Node, NodeId};
     use fabric_capability::locality::LocalityTier;
 
     fn make_topology() -> Topology {

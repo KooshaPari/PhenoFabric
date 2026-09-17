@@ -130,7 +130,7 @@ fn generate_degraded_path(primary: &RoutePlan, topology: &Topology) -> Option<Ro
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Edge, IntentId, Node, NodeId, RoutePlanId, TopologyEpoch, TopologyMeta};
+    use crate::model::{Edge, IntentId, NodeId, RoutePlanId, TopologyEpoch, TopologyMeta};
     use crate::LocalityTier;
     use chrono::Utc;
     use uuid::Uuid;

@@ -198,8 +198,7 @@ fn format_reason(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{CapabilityRef, EdgeId, IntentRequirements, IntentId, NodeId, RoutePlanId, TopologyEpoch};
-    use chrono::Utc;
+    use crate::model::{CapabilityRef, IntentRequirements, IntentId, NodeId};
     use fabric_capability::locality::LocalityTier;
 
     fn make_topo() -> Topology {

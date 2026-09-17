@@ -75,7 +75,7 @@ pub fn validate_multihop(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Edge, EdgeId, Node, NodeId, RoutePlanId, TopologyEpoch, TopologyMeta};
+    use crate::model::{Edge, EdgeId, NodeId, RoutePlanId, TopologyEpoch, TopologyMeta};
     use crate::LocalityTier;
     use chrono::Utc;
     use uuid::Uuid;
