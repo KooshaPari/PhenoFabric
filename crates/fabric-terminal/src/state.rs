@@ -7,6 +7,7 @@ use crate::PaneContent;
 use std::collections::HashMap;
 
 /// Tracks screen state across sync cycles.
+#[derive(Default)]
 pub struct SyncState {
     last_capture: HashMap<String, Vec<String>>,
     sequence: u64,
@@ -59,6 +60,14 @@ mod tests {
         let state = SyncState::new();
         assert_eq!(state.sequence(), 0);
         assert!(state.pane_ids().is_empty());
+    }
+
+    #[test]
+    fn test_default_state_matches_new() {
+        let state = SyncState::default();
+        let new = SyncState::new();
+        assert_eq!(state.sequence(), new.sequence());
+        assert_eq!(state.pane_ids(), new.pane_ids());
     }
 
     #[test]

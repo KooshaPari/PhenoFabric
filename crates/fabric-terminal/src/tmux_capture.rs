@@ -4,10 +4,9 @@
 //! populate the pane cache and broadcast changes to connected WebSocket clients.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::process::Command;
 
 use crate::{AppState, CachedPane};
 
@@ -52,42 +51,17 @@ pub(crate) fn find_tf_mux_binary() -> Option<PathBuf> {
     }
 
     // 3. System PATH
-    if let Ok(output) = std::process::Command::new("which").arg("tf-mux").output() {
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let path = PathBuf::from(stdout.trim());
-            if path.exists() {
-                return Some(path);
-            }
+    if let Ok(output) = std::process::Command::new("which").arg("tf-mux").output()
+        && output.status.success()
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let path = PathBuf::from(stdout.trim());
+        if path.exists() {
+            return Some(path);
         }
     }
 
     None
-}
-
-/// Run a command and return `(exit_success, stdout, stderr)`.
-async fn run_cmd(
-    bin: &Path,
-    args: &[&str],
-    socket: &str,
-) -> (bool, String, String) {
-    let result = Command::new(bin)
-        .args(args)
-        .env("TMUX_SOCKET", socket)
-        .output()
-        .await;
-
-    match result {
-        Ok(output) => (
-            output.status.success(),
-            String::from_utf8_lossy(&output.stdout).into_owned(),
-            String::from_utf8_lossy(&output.stderr).into_owned(),
-        ),
-        Err(e) => {
-            tracing::error!("Failed to execute {:?}: {}", bin, e);
-            (false, String::new(), e.to_string())
-        }
-    }
 }
 
 /// Parse tab-separated output from `tf-mux list-panes`.

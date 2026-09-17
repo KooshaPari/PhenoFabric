@@ -388,10 +388,10 @@ async fn handle_ws(socket: WebSocket, pane_id: String, state: Arc<AppState>) {
                 })
             })
         };
-        if let Some(msg) = msg {
-            if let Ok(text) = serde_json::to_string(&msg) {
-                let _ = sender.send(Message::Text(text.into())).await;
-            }
+        if let Some(msg) = msg
+            && let Ok(text) = serde_json::to_string(&msg)
+        {
+            let _ = sender.send(Message::Text(text.into())).await;
         }
     }
 
@@ -420,12 +420,11 @@ async fn handle_ws(socket: WebSocket, pane_id: String, state: Arc<AppState>) {
                             })
                         })
                     };
-                    if let Some(msg) = msg {
-                        if let Ok(text) = serde_json::to_string(&msg) {
-                            if sender.send(Message::Text(text.into())).await.is_err() {
-                                break;
-                            }
-                        }
+                    if let Some(msg) = msg
+                        && let Ok(text) = serde_json::to_string(&msg)
+                        && sender.send(Message::Text(text.into())).await.is_err()
+                    {
+                        break;
                     }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
