@@ -55,17 +55,18 @@ pub fn dispatch(args: &StatusArgs) -> Result<()> {
                      {:<18} {}\n\
                      {:<18} {}\n\
                      {:<18} {}\n\
-                     {:<18} {}\n",
+                     {:<18} {} leases, {} plans\n",
                     console::style("Status:").cyan().bold(),
                     status_style,
                     console::style("Uptime:").cyan().bold(),
                     format_duration(uptime),
                     console::style("Daemon addr:").cyan().bold(),
-                    &args.daemon,
+                    args.daemon,
                     console::style("Topology epoch:").cyan().bold(),
                     epoch,
                     console::style("Active:").cyan().bold(),
-                    format!("{} leases, {} plans", leases, plans),
+                    leases,
+                    plans,
                 )
             })?;
         }

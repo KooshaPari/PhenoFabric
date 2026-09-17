@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
                 .init();
             fabric_cli::tui::run(&workspace)
         }
-        Commands::Completions(a) => commands::completions::execute(&a),
+        Commands::Completions(a) => commands::completions::execute(a),
     };
 
     if let Err(ref e) = result {

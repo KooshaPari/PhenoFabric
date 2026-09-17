@@ -184,7 +184,7 @@ impl WorkspaceStore {
 
         // Remove state file.
         if ws.state_file.is_some() {
-            let file_path = Path::new(&self.state_dir).join(format!("{}.json", &ws.name));
+            let file_path = Path::new(&self.state_dir).join(format!("{}.json", ws.name));
             if file_path.exists() {
                 fs::remove_file(&file_path).ok();
             }
@@ -220,7 +220,7 @@ impl WorkspaceStore {
 
     /// Persist a workspace to its state file.
     fn save_workspace(&self, workspace: &Workspace) -> Result<()> {
-        let path = Path::new(&self.state_dir).join(format!("{}.json", &workspace.name));
+        let path = Path::new(&self.state_dir).join(format!("{}.json", workspace.name));
         let json = serde_json::to_string_pretty(workspace)
             .map_err(|e| Error::Serialization(e.to_string()))?;
         fs::write(&path, json)?;

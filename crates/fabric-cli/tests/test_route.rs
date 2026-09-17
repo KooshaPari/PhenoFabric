@@ -5,7 +5,7 @@
 use fabric_graph::builder::{IntentBuilder, TopologyBuilder};
 use fabric_graph::compile;
 use fabric_capability::locality::LocalityTier;
-use fabric_graph::model::{Edge, EdgeId, NodeId, TrustLevel};
+use fabric_graph::model::{NodeId, TrustLevel};
 
 fn small_topology() -> fabric_graph::model::Topology {
     TopologyBuilder::new()

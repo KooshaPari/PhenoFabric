@@ -124,7 +124,7 @@ impl App {
             if let Ok(entries) = std::fs::read_dir(&routes_dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.extension().map_or(false, |e| e == "json") {
+                    if path.extension().is_some_and(|e| e == "json") {
                         if let Ok(content) = std::fs::read_to_string(&path) {
                             if let Ok(plan) = serde_json::from_str::<serde_json::Value>(&content) {
                                 self.data.routes.push(RouteEntry {
@@ -160,7 +160,7 @@ impl App {
             if let Ok(entries) = std::fs::read_dir(&caps_dir) {
                 self.data.cap_count = entries
                     .flatten()
-                    .filter(|e| e.path().extension().map_or(false, |e| e == "json"))
+                    .filter(|e| e.path().extension().is_some_and(|e| e == "json"))
                     .count();
             }
         }

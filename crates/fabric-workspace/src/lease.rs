@@ -97,7 +97,7 @@ impl SeatLease {
     /// Leases without an expiry are never considered expired.
     pub fn is_expired(&self) -> bool {
         self.expires_at_ms
-            .map_or(false, |exp| chrono::Utc::now().timestamp_millis() >= exp)
+            .is_some_and(|exp| chrono::Utc::now().timestamp_millis() >= exp)
     }
 
     /// Renew the lease by extending `expires_at_ms` from now by `duration`.
@@ -114,13 +114,12 @@ impl SeatLease {
 
     /// Whether the given transition is valid from the current state.
     pub fn can_transition(&self, t: Transition) -> bool {
-        match (&self.state, t) {
-            (LifecycleState::Pending, Transition::Activate) => true,
-            (LifecycleState::Active, Transition::Release) => true,
-            (LifecycleState::Active, Transition::Revoke) => true,
-            (LifecycleState::Active, Transition::Expire) => true,
-            _ => false,
-        }
+        matches!((&self.state, t),
+            (LifecycleState::Pending, Transition::Activate)
+            | (LifecycleState::Active, Transition::Release)
+            | (LifecycleState::Active, Transition::Revoke)
+            | (LifecycleState::Active, Transition::Expire)
+        )
     }
 
     /// Apply the given transition and return the next state, or None if invalid.

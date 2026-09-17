@@ -69,7 +69,7 @@ impl Persist {
                         created_at, terminated_at
                  FROM leases WHERE state = ?1",
             )?;
-            let rows = stmt.query_map(params![state_str], |row| row_to_lease(row))?;
+            let rows = stmt.query_map(params![state_str], row_to_lease)?;
             let mut leases = Vec::new();
             for row in rows {
                 leases.push(row?);
@@ -86,7 +86,7 @@ impl Persist {
                         created_at, terminated_at
                  FROM leases WHERE state IN ('Pending', 'Active')",
             )?;
-            let rows = stmt.query_map([], |row| row_to_lease(row))?;
+            let rows = stmt.query_map([], row_to_lease)?;
             let mut leases = Vec::new();
             for row in rows {
                 leases.push(row?);
