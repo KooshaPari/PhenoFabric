@@ -4,8 +4,8 @@
 //! so that macOS and Windows probes can be added in later releases without changing
 //! the descriptor types.
 
-use crate::descriptor::{CacheInfo, CapabilityDescriptor};
-use crate::error::{Error, Result};
+use crate::descriptor::CapabilityDescriptor;
+use crate::error::Result;
 use crate::locality::LocalityTier;
 
 /// A capability probe for a specific platform.
@@ -129,7 +129,7 @@ mod cpu {
     #[cfg(target_os = "linux")]
     fn probe_compute_linux() -> Result<ComputeCapabilities> {
         let cpuinfo = std::fs::read_to_string("/proc/cpuinfo")
-            .map_err(|e| Error::Io("/proc/cpuinfo".to_string(), e))?;
+            .map_err(|e| crate::Error::Io("/proc/cpuinfo".to_string(), e))?;
 
         // Parse processor count from /proc/cpuinfo
         let cores_logical = cpuinfo
@@ -154,7 +154,7 @@ mod cpu {
 
         // Detect NUMA nodes via /sys/devices/system/node/
         let numa_nodes = std::fs::read_dir("/sys/devices/system/node")
-            .map_err(|e| Error::Io("/sys/devices/system/node".to_string(), e))?
+            .map_err(|e| crate::Error::Io("/sys/devices/system/node".to_string(), e))?
             .filter_map(|e| e.ok())
             .filter(|e| e.file_name().to_string_lossy().starts_with("node"))
             .count()
@@ -166,7 +166,7 @@ mod cpu {
 
         // Memory from /proc/meminfo
         let memory_bytes = std::fs::read_to_string("/proc/meminfo")
-            .map_err(|e| Error::Io("/proc/meminfo".to_string(), e))?
+            .map_err(|e| crate::Error::Io("/proc/meminfo".to_string(), e))?
             .lines()
             .find_map(|l| l.strip_prefix("MemTotal: "))
             .and_then(|s| {
@@ -192,7 +192,7 @@ mod cpu {
     }
 
     #[cfg(target_os = "linux")]
-    fn read_cache_info() -> Vec<CacheInfo> {
+    fn read_cache_info() -> Vec<crate::descriptor::CacheInfo> {
         let mut cache = Vec::new();
         let base = std::path::Path::new("/sys/devices/system/cpu/cpu0/cache");
         if !base.exists() {
@@ -223,11 +223,11 @@ mod cpu {
                 .unwrap_or(64);
             let cores_sharing = std::fs::read_to_string(path.join("shared_cpu_list"))
                 .ok()
-                .and_then(|s| s.trim().matches(',').count() as u32)
+                .and_then(|s| Some(s.trim().matches(',').count() as u32))
                 .unwrap_or(0)
                 + 1;
             if level > 0 {
-                cache.push(CacheInfo {
+                cache.push(crate::descriptor::CacheInfo {
                     level,
                     size_bytes: size_kb * 1024,
                     line_size_bytes: line_size,
