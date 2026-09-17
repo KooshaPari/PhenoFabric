@@ -37,35 +37,34 @@ pub use fabric_capability::LocalityTier;
 
 pub mod builder;
 pub mod compile;
-pub mod failover;
-pub mod leases_fairness;
-pub mod model;
-pub mod negotiation;
-pub mod planner;
 pub mod decision;
+pub mod failover;
 pub mod lease_fsm;
 pub mod leases;
+pub mod leases_fairness;
+pub mod model;
+pub mod multihop;
+pub mod negotiation;
+pub mod planner;
 pub mod score;
 pub mod surface;
 pub mod surface_ops;
 pub mod surface_runtime;
-pub mod multihop;
 
 pub use crate::leases_fairness::{
-    FairnessDecision, FairnessPolicy, FairnessQueue, FairnessSnapshot,
-    PardonError, TenantAccounting, TenantId, DenyReason, pardon,
+    pardon, DenyReason, FairnessDecision, FairnessPolicy, FairnessQueue, FairnessSnapshot,
+    PardonError, TenantAccounting, TenantId,
 };
 
 pub use crate::builder::IntentBuilder;
 pub use crate::compile::{compile, compile_all};
 pub use crate::model::{
-    Edge, EdgeId, Intent, IntentRequirements, LinkMetrics, Node, NodeId,
-    RoutePlan, RoutePlanId, RouteStep, Score, ScoreBreakdown, Topology,
-    TopologyEpoch, TopologyMeta, TrustLevel,
+    Edge, EdgeId, Intent, IntentRequirements, LinkMetrics, Node, NodeId, RoutePlan, RoutePlanId,
+    RouteStep, Score, ScoreBreakdown, Topology, TopologyEpoch, TopologyMeta, TrustLevel,
 };
+pub use crate::multihop::{compile_multihop, MultihopError, MultihopResult};
 pub use crate::negotiation::negotiate;
 pub use crate::planner::plan_sequence;
 pub use crate::score::{score_locality, ScoringWeights};
-pub use crate::surface_runtime::{Invalidation, RegistryEntry, SurfaceRegistry};
 pub use crate::surface::{SurfaceHandle, SurfaceSpec};
-pub use crate::multihop::{compile_multihop, MultihopResult, MultihopError};
+pub use crate::surface_runtime::{Invalidation, RegistryEntry, SurfaceRegistry};

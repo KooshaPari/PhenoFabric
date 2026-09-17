@@ -81,7 +81,11 @@ impl Coordinator {
     pub fn apply_config_overrides(&self, overrides: &serde_json::Value) -> Result<(), String> {
         let mut cfg = self.config.lock().unwrap_or_else(|e| e.into_inner());
         apply_config_overrides_inner(&mut cfg, overrides)?;
-        let path = self.config_path.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let path = self
+            .config_path
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         if let Some(path) = path {
             if let Err(e) = cfg.save(&path) {
                 warn!(error = %e, "failed to persist config after override");
@@ -100,7 +104,11 @@ impl Coordinator {
 
     /// Persist the current config to disk if a config path is set.
     pub(super) fn persist_config(&self) {
-        let path = self.config_path.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let path = self
+            .config_path
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         if let Some(path) = path {
             let cfg = self.config.lock().unwrap_or_else(|e| e.into_inner());
             if let Err(e) = cfg.save(&path) {

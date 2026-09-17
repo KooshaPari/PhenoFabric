@@ -25,21 +25,17 @@ impl Persist {
 
         let last_evidence_id: i64 = self.with_conn(|conn| {
             Ok(conn
-                .query_row(
-                    "SELECT COALESCE(MAX(id), 0) FROM evidence_log",
-                    [],
-                    |row| row.get(0),
-                )
+                .query_row("SELECT COALESCE(MAX(id), 0) FROM evidence_log", [], |row| {
+                    row.get(0)
+                })
                 .unwrap_or(0))
         })?;
 
         let last_audit_id: i64 = self.with_conn(|conn| {
             Ok(conn
-                .query_row(
-                    "SELECT COALESCE(MAX(id), 0) FROM audit_log",
-                    [],
-                    |row| row.get(0),
-                )
+                .query_row("SELECT COALESCE(MAX(id), 0) FROM audit_log", [], |row| {
+                    row.get(0)
+                })
                 .unwrap_or(0))
         })?;
 

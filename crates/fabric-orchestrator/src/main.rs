@@ -146,7 +146,14 @@ fn cmd_run(
     info!(addr = %addr, "launching wire server");
 
     // Run the wire server (blocking until shutdown).
-    serve::start_wire_server(pipeline.coordinator().clone(), &addr, max_conn, timeout, auth, runtime)?;
+    serve::start_wire_server(
+        pipeline.coordinator().clone(),
+        &addr,
+        max_conn,
+        timeout,
+        auth,
+        runtime,
+    )?;
 
     // Flush state before exit.
     info!("flushing state to database");
@@ -202,8 +209,8 @@ fn cmd_check(manifest_path: PathBuf, probe: bool) -> anyhow::Result<()> {
 }
 
 fn cmd_status(addr: &str) -> anyhow::Result<()> {
-    use std::net::TcpStream;
     use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpStream;
 
     let mut stream = TcpStream::connect(addr)?;
 
@@ -257,9 +264,7 @@ fn init_logging(logging: &fabric_daemon::config::LoggingConfig) {
                 .init();
         }
         _ => {
-            tracing_subscriber::fmt()
-                .with_env_filter(filter)
-                .init();
+            tracing_subscriber::fmt().with_env_filter(filter).init();
         }
     }
 }

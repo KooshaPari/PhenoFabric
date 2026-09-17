@@ -38,6 +38,4 @@ mod types;
 
 pub use authority::Authority;
 pub use store::{ChainVerification, TrustStore};
-pub use types::{
-    MAX_CHAIN_DEPTH, RevocationEntry, RevocationList, RevocationReason, TrustError,
-};
+pub use types::{RevocationEntry, RevocationList, RevocationReason, TrustError, MAX_CHAIN_DEPTH};

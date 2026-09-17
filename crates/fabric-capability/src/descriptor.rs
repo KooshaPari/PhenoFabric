@@ -237,13 +237,11 @@ impl CapabilityDescriptor {
     /// Serializes to `serde_json::Value` first, then strips the `signatures`
     /// field (a signature cannot sign itself), then emits compact bytes.
     pub fn canonical_bytes(&self) -> Result<Vec<u8>> {
-        let mut value = serde_json::to_value(self)
-            .map_err(|e| Error::Serde(e.to_string()))?;
+        let mut value = serde_json::to_value(self).map_err(|e| Error::Serde(e.to_string()))?;
         if let Some(obj) = value.as_object_mut() {
             obj.remove("signatures");
         }
-        serde_json::to_vec(&value)
-            .map_err(|e| Error::Serde(e.to_string()))
+        serde_json::to_vec(&value).map_err(|e| Error::Serde(e.to_string()))
     }
 
     /// Returns the BLAKE3 hash of the topology subgraph.

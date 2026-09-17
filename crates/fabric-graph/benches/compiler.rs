@@ -4,10 +4,10 @@ mod helpers;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fabric_graph::compile;
-use fabric_graph::multihop::{builtin_stages, compile_multihop};
-use fabric_graph::negotiation::negotiate;
 use fabric_graph::failover::replan;
 use fabric_graph::model::NodeId;
+use fabric_graph::multihop::{builtin_stages, compile_multihop};
+use fabric_graph::negotiation::negotiate;
 
 // ---------------------------------------------------------------------------
 // Original benchmarks (compile at various scales)
@@ -209,10 +209,7 @@ fn bench_fairness_queue_1000decisions(c: &mut Criterion) {
             },
             |mut queue| {
                 for i in 0..1000 {
-                    let tenant = fabric_graph::TenantId::new(format!(
-                        "tenant-{}",
-                        i % 20
-                    ));
+                    let tenant = fabric_graph::TenantId::new(format!("tenant-{}", i % 20));
                     let decision = queue.try_acquire(black_box(tenant.clone()), 1);
                     black_box(&decision);
                     queue.release(tenant, 1);

@@ -215,15 +215,10 @@ impl WorkOsProvider {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(OAuthError::TokenExchange(format!(
-                "HTTP {status}: {body}"
-            )));
+            return Err(OAuthError::TokenExchange(format!("HTTP {status}: {body}")));
         }
 
-        let token_data: TokenData = response
-            .json()
-            .await
-            .map_err(OAuthError::http)?;
+        let token_data: TokenData = response.json().await.map_err(OAuthError::http)?;
 
         // Fetch user info with the new access token.
         let user = self.get_user(&token_data.access_token).await?;
@@ -261,15 +256,10 @@ impl WorkOsProvider {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(OAuthError::TokenRefresh(format!(
-                "HTTP {status}: {body}"
-            )));
+            return Err(OAuthError::TokenRefresh(format!("HTTP {status}: {body}")));
         }
 
-        let token_data: TokenData = response
-            .json()
-            .await
-            .map_err(OAuthError::http)?;
+        let token_data: TokenData = response.json().await.map_err(OAuthError::http)?;
 
         // Fetch user info with the refreshed access token.
         let user = self.get_user(&token_data.access_token).await?;
@@ -298,15 +288,10 @@ impl WorkOsProvider {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(OAuthError::UserInfo(format!(
-                "HTTP {status}: {body}"
-            )));
+            return Err(OAuthError::UserInfo(format!("HTTP {status}: {body}")));
         }
 
-        let user: WorkOsUser = response
-            .json()
-            .await
-            .map_err(OAuthError::http)?;
+        let user: WorkOsUser = response.json().await.map_err(OAuthError::http)?;
 
         Ok(user)
     }
@@ -333,15 +318,10 @@ impl WorkOsProvider {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(OAuthError::TokenExchange(format!(
-                "HTTP {status}: {body}"
-            )));
+            return Err(OAuthError::TokenExchange(format!("HTTP {status}: {body}")));
         }
 
-        let introspection: TokenIntrospection = response
-            .json()
-            .await
-            .map_err(OAuthError::http)?;
+        let introspection: TokenIntrospection = response.json().await.map_err(OAuthError::http)?;
 
         Ok(introspection)
     }

@@ -65,10 +65,7 @@ impl SshTunnel {
 
     /// Execute a tmux command on the remote machine.
     pub async fn exec_tmux(&self, command: &str) -> Result<String> {
-        let full_cmd = format!(
-            "tmux -S {} {}",
-            self.socket_path, command
-        );
+        let full_cmd = format!("tmux -S {} {}", self.socket_path, command);
 
         debug!("Executing: {}", full_cmd);
 
@@ -126,9 +123,18 @@ impl SshTunnel {
             .await?;
 
         let cursor_parts: Vec<&str> = cursor_output.split(',').collect();
-        let cursor_row = cursor_parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-        let cursor_col = cursor_parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-        let width = cursor_parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(80);
+        let cursor_row = cursor_parts
+            .first()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        let cursor_col = cursor_parts
+            .get(1)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        let width = cursor_parts
+            .get(2)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(80);
 
         Ok(PaneContent {
             pane_id: pane_id.to_string(),

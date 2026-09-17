@@ -67,11 +67,12 @@ pub fn negotiate(topology: &Topology, intent: &Intent) -> NegotiationResult {
             .map(|p| p == node_id)
             .unwrap_or(false);
 
-        let breakdown = ScoreBreakdown::new(locality_score, latency_score, capability_score, trust_score);
+        let breakdown =
+            ScoreBreakdown::new(locality_score, latency_score, capability_score, trust_score);
         let reason = format_reason(node, &breakdown, &intent.requirements);
 
-        let has_rt_island = node.tags.contains(&"rt-island".to_string())
-            || intent.requirements.requires_rt_island;
+        let has_rt_island =
+            node.tags.contains(&"rt-island".to_string()) || intent.requirements.requires_rt_island;
 
         candidates.push(NegotiatedCandidate {
             node: node_id.clone(),
@@ -84,14 +85,12 @@ pub fn negotiate(topology: &Topology, intent: &Intent) -> NegotiationResult {
 
     // Sort: preferred first, then by composite score (descending)
     candidates.sort_by(|a, b| {
-        b.is_preferred
-            .cmp(&a.is_preferred)
-            .then_with(|| {
-                b.score
-                    .composite
-                    .partial_cmp(&a.score.composite)
-                    .unwrap_or(std::cmp::Ordering::Less)
-            })
+        b.is_preferred.cmp(&a.is_preferred).then_with(|| {
+            b.score
+                .composite
+                .partial_cmp(&a.score.composite)
+                .unwrap_or(std::cmp::Ordering::Less)
+        })
     });
 
     let filtered_soft = candidates.len();
@@ -105,7 +104,11 @@ pub fn negotiate(topology: &Topology, intent: &Intent) -> NegotiationResult {
 }
 
 /// Hard-filter check: does this node pass all non-negotiable requirements?
-fn passes_hard_filters(node: &Node, reqs: &IntentRequirements, min_trust: crate::model::TrustLevel) -> bool {
+fn passes_hard_filters(
+    node: &Node,
+    reqs: &IntentRequirements,
+    min_trust: crate::model::TrustLevel,
+) -> bool {
     // Required tags
     for tag in &reqs.required_tags {
         if !node.tags.contains(tag) {
@@ -167,11 +170,7 @@ fn best_latency_score(
     best
 }
 
-fn format_reason(
-    node: &Node,
-    breakdown: &ScoreBreakdown,
-    _reqs: &IntentRequirements,
-) -> String {
+fn format_reason(node: &Node, breakdown: &ScoreBreakdown, _reqs: &IntentRequirements) -> String {
     let tier = node.locality_tier.as_f64();
     let tier_label = format!("tier-{:.0}", tier);
     let trust_label = format!(
@@ -183,16 +182,14 @@ fn format_reason(
     );
     format!(
         "{} {} score={:.2}",
-        tier_label,
-        trust_label,
-        breakdown.composite,
+        tier_label, trust_label, breakdown.composite,
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{CapabilityRef, IntentRequirements, IntentId, NodeId};
+    use crate::model::{CapabilityRef, IntentId, IntentRequirements, NodeId};
     use fabric_capability::locality::LocalityTier;
 
     fn make_topo() -> Topology {
@@ -200,15 +197,22 @@ mod tests {
         topo.add_node(
             Node::new(NodeId::new("gpu-0"), LocalityTier::L1)
                 .with_tag("rt-island")
-                .with_capability(CapabilityRef::new("sha256:gpu0".to_string()).with_trust(crate::model::TrustLevel::Attested)),
+                .with_capability(
+                    CapabilityRef::new("sha256:gpu0".to_string())
+                        .with_trust(crate::model::TrustLevel::Attested),
+                ),
         );
         topo.add_node(
-            Node::new(NodeId::new("cpu-0"), LocalityTier::L2)
-                .with_capability(CapabilityRef::new("sha256:cpu0".to_string()).with_trust(crate::model::TrustLevel::Bootstrap)),
+            Node::new(NodeId::new("cpu-0"), LocalityTier::L2).with_capability(
+                CapabilityRef::new("sha256:cpu0".to_string())
+                    .with_trust(crate::model::TrustLevel::Bootstrap),
+            ),
         );
         topo.add_node(
-            Node::new(NodeId::new("far"), LocalityTier::L7)
-                .with_capability(CapabilityRef::new("sha256:far".to_string()).with_trust(crate::model::TrustLevel::Untrusted)),
+            Node::new(NodeId::new("far"), LocalityTier::L7).with_capability(
+                CapabilityRef::new("sha256:far".to_string())
+                    .with_trust(crate::model::TrustLevel::Untrusted),
+            ),
         );
         topo
     }

@@ -10,11 +10,11 @@
 //     the same decision semantics from the JSON output for cross-language
 //     parity testing.
 
-pub mod checks;
 pub mod checker;
+pub mod checks;
 pub mod decision;
 pub mod manifest;
 
+pub use checker::{check, collapse, run_all};
 pub use decision::{CheckOutcome, Decision, ReasonCode, Severity};
 pub use manifest::CheckerManifest;
-pub use checker::{check, collapse, run_all};

@@ -1,7 +1,9 @@
 //! Route plan CRUD operations.
 
 use chrono::{DateTime, Utc};
-use fabric_graph::model::{IntentId, RoutePlan, RoutePlanId, RouteStep, ScoreBreakdown, TopologyEpoch};
+use fabric_graph::model::{
+    IntentId, RoutePlan, RoutePlanId, RouteStep, ScoreBreakdown, TopologyEpoch,
+};
 use rusqlite::params;
 
 use crate::error::PersistError;
@@ -55,8 +57,7 @@ impl Persist {
                 let expires_at: String = row.get(7)?;
                 let tags_json: String = row.get(8)?;
 
-                let steps: Vec<RouteStep> =
-                    serde_json::from_str(&steps_json).unwrap_or_default();
+                let steps: Vec<RouteStep> = serde_json::from_str(&steps_json).unwrap_or_default();
                 let score: Option<ScoreBreakdown> =
                     score_json.and_then(|s| serde_json::from_str(&s).ok());
                 let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
@@ -105,8 +106,7 @@ impl Persist {
                 let expires_at: String = row.get(7)?;
                 let tags_json: String = row.get(8)?;
 
-                let steps: Vec<RouteStep> =
-                    serde_json::from_str(&steps_json).unwrap_or_default();
+                let steps: Vec<RouteStep> = serde_json::from_str(&steps_json).unwrap_or_default();
                 let score: Option<ScoreBreakdown> =
                     score_json.and_then(|s| serde_json::from_str(&s).ok());
                 let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();

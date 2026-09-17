@@ -22,9 +22,9 @@
 
 pub mod schema;
 pub mod stats;
+pub mod transforms;
 pub mod transport;
 pub mod validation;
-pub mod transforms;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
@@ -231,10 +231,7 @@ pub struct KeyFrameRequest {
 pub enum FrameMessage {
     SessionInit(SessionInit),
     SessionAck(SessionAck),
-    FrameData {
-        header: FrameHeader,
-        payload: Bytes,
-    },
+    FrameData { header: FrameHeader, payload: Bytes },
     FrameAck(FrameAck),
     Ping(Ping),
     Pong(Pong),
@@ -341,12 +338,18 @@ mod tests {
 
     #[test]
     fn ping_pong_roundtrip() {
-        let ping = Ping { timestamp_us: 12345, nonce: 42 };
+        let ping = Ping {
+            timestamp_us: 12345,
+            nonce: 42,
+        };
         let json = serde_json::to_string(&ping).unwrap();
         let parsed: Ping = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.nonce, 42);
 
-        let pong = Pong { timestamp_us: 12345, nonce: 42 };
+        let pong = Pong {
+            timestamp_us: 12345,
+            nonce: 42,
+        };
         let json = serde_json::to_string(&pong).unwrap();
         let parsed: Pong = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.nonce, 42);

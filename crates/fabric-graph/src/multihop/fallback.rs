@@ -90,9 +90,10 @@ fn generate_degraded_path(primary: &RoutePlan, topology: &Topology) -> Option<Ro
     let dst = &primary.steps.last()?.node;
 
     // Find direct edge.
-    let direct_edge = topology.edges.values().find(|e| {
-        e.from == *src && e.to == *dst && e.up
-    })?;
+    let direct_edge = topology
+        .edges
+        .values()
+        .find(|e| e.from == *src && e.to == *dst && e.up)?;
 
     let mut steps = vec![
         RouteStep {

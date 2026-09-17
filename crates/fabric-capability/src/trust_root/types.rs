@@ -138,8 +138,7 @@ impl RevocationList {
     /// Returns the canonical bytes used as input to the signature.
     /// Strips the `signature` field.
     pub fn canonical_bytes(&self) -> Result<Vec<u8>> {
-        let mut value =
-            serde_json::to_value(self).map_err(|e| Error::Serde(e.to_string()))?;
+        let mut value = serde_json::to_value(self).map_err(|e| Error::Serde(e.to_string()))?;
         if let Some(obj) = value.as_object_mut() {
             obj.remove("signature");
         }

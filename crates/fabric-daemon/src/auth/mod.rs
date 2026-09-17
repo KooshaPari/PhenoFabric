@@ -8,8 +8,10 @@ pub mod oauth;
 pub mod secrets;
 
 #[allow(unused_imports)]
-pub use middleware::{AuthMiddleware, AuthenticatedUser, AuthError, AuthMiddlewareConfig};
+pub use middleware::{AuthError, AuthMiddleware, AuthMiddlewareConfig, AuthenticatedUser};
 #[allow(unused_imports)]
-pub use oauth::{WorkOsProvider, WorkOsConfig, OAuthConfig, AuthorizationRequest, TokenResponse, WorkOsUser};
+pub use oauth::{
+    AuthorizationRequest, OAuthConfig, TokenResponse, WorkOsConfig, WorkOsProvider, WorkOsUser,
+};
 #[allow(unused_imports)]
 pub use secrets::{InfisicalClient, InfisicalConfig, SecretValue, SecretsError};

@@ -175,11 +175,7 @@ impl FairnessQueue {
         self.grant(&tenant, weight)
     }
 
-    fn try_acquire_fair_share(
-        &mut self,
-        tenant: TenantId,
-        weight: u32,
-    ) -> FairnessDecision {
+    fn try_acquire_fair_share(&mut self, tenant: TenantId, weight: u32) -> FairnessDecision {
         // For FairShare, "try_acquire(tenant, weight)" actually means
         // "record this request and serve the most-deficit tenant next".
         // We honor the call: bump the requesting tenant's deficit, then
@@ -337,11 +333,13 @@ impl FairnessQueue {
         // empty.
         if self.rotation.is_empty() {
             self.rotation.push_back(tenant.clone());
-            self.wrr_remaining.insert(tenant.clone(), policy_weight.max(1));
+            self.wrr_remaining
+                .insert(tenant.clone(), policy_weight.max(1));
         } else if !self.rotation.contains(&tenant) {
             // New tenant joins rotation with the policy's slot budget.
             self.rotation.push_back(tenant.clone());
-            self.wrr_remaining.insert(tenant.clone(), policy_weight.max(1));
+            self.wrr_remaining
+                .insert(tenant.clone(), policy_weight.max(1));
         }
 
         let target = self.rotation.front().cloned();

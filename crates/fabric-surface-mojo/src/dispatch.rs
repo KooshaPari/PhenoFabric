@@ -71,8 +71,7 @@ impl DispatchPlan {
     /// - L3-L5: GPU
     /// - L6-L8: Remote RPC
     pub fn build() -> Self {
-        let steps: Vec<DispatchStep> = vec
-![
+        let steps: Vec<DispatchStep> = vec![
             DispatchStep {
                 tier: LocalityTier::L0SameProcess,
                 backend: ComputeBackend::CpuSimd,
@@ -147,24 +146,32 @@ impl DispatchPlan {
             },
         ];
 
-        let summary = vec
-![
+        let summary = vec![
             BackendSummary {
                 backend: ComputeBackend::CpuSimd,
-                tiers: vec
-![LocalityTier::L0SameProcess, LocalityTier::L1SameNuma, LocalityTier::L2CrossNumaShm],
+                tiers: vec![
+                    LocalityTier::L0SameProcess,
+                    LocalityTier::L1SameNuma,
+                    LocalityTier::L2CrossNumaShm,
+                ],
                 description: "CPU SIMD: same-process or shared-memory kernels".into(),
             },
             BackendSummary {
                 backend: ComputeBackend::Gpu,
-                tiers: vec
-![LocalityTier::L3PcieP2P, LocalityTier::L4Rdma, LocalityTier::L5Loopback],
+                tiers: vec![
+                    LocalityTier::L3PcieP2P,
+                    LocalityTier::L4Rdma,
+                    LocalityTier::L5Loopback,
+                ],
                 description: "GPU: Mojo MLIR-compiled kernels on attached accelerator".into(),
             },
             BackendSummary {
                 backend: ComputeBackend::RemoteRpc,
-                tiers: vec
-![LocalityTier::L6Lan, LocalityTier::L7Wan, LocalityTier::L8Oob],
+                tiers: vec![
+                    LocalityTier::L6Lan,
+                    LocalityTier::L7Wan,
+                    LocalityTier::L8Oob,
+                ],
                 description: "Remote RPC: serialized dispatch to remote executor".into(),
             },
         ];
@@ -205,7 +212,11 @@ mod tests {
     #[test]
     fn l0_l2_are_cpu_simd() {
         let plan = DispatchPlan::build();
-        for tier in [LocalityTier::L0SameProcess, LocalityTier::L1SameNuma, LocalityTier::L2CrossNumaShm] {
+        for tier in [
+            LocalityTier::L0SameProcess,
+            LocalityTier::L1SameNuma,
+            LocalityTier::L2CrossNumaShm,
+        ] {
             assert_eq!(plan.backend_for_tier(tier), Some(ComputeBackend::CpuSimd));
         }
     }
@@ -213,7 +224,11 @@ mod tests {
     #[test]
     fn l3_l5_are_gpu() {
         let plan = DispatchPlan::build();
-        for tier in [LocalityTier::L3PcieP2P, LocalityTier::L4Rdma, LocalityTier::L5Loopback] {
+        for tier in [
+            LocalityTier::L3PcieP2P,
+            LocalityTier::L4Rdma,
+            LocalityTier::L5Loopback,
+        ] {
             assert_eq!(plan.backend_for_tier(tier), Some(ComputeBackend::Gpu));
         }
     }
@@ -221,7 +236,11 @@ mod tests {
     #[test]
     fn l6_l8_are_remote() {
         let plan = DispatchPlan::build();
-        for tier in [LocalityTier::L6Lan, LocalityTier::L7Wan, LocalityTier::L8Oob] {
+        for tier in [
+            LocalityTier::L6Lan,
+            LocalityTier::L7Wan,
+            LocalityTier::L8Oob,
+        ] {
             assert_eq!(plan.backend_for_tier(tier), Some(ComputeBackend::RemoteRpc));
         }
     }
@@ -249,20 +268,36 @@ mod tests {
         // Loopback (L5) is faster than RDMA (L4), so the overall trend is
         // non-decreasing *within* each backend group but not across groups.
         // Verify that each group is internally ordered and that remote > GPU > CPU.
-        let cpu_avg: f64 = plan.tiers_for_backend(ComputeBackend::CpuSimd)
+        let cpu_avg: f64 = plan
+            .tiers_for_backend(ComputeBackend::CpuSimd)
             .iter()
             .map(|t| plan.for_tier(*t).unwrap().estimated_latency_us)
-            .sum::<f64>() / 3.0;
-        let gpu_avg: f64 = plan.tiers_for_backend(ComputeBackend::Gpu)
+            .sum::<f64>()
+            / 3.0;
+        let gpu_avg: f64 = plan
+            .tiers_for_backend(ComputeBackend::Gpu)
             .iter()
             .map(|t| plan.for_tier(*t).unwrap().estimated_latency_us)
-            .sum::<f64>() / 3.0;
-        let remote_avg: f64 = plan.tiers_for_backend(ComputeBackend::RemoteRpc)
+            .sum::<f64>()
+            / 3.0;
+        let remote_avg: f64 = plan
+            .tiers_for_backend(ComputeBackend::RemoteRpc)
             .iter()
             .map(|t| plan.for_tier(*t).unwrap().estimated_latency_us)
-            .sum::<f64>() / 3.0;
-        assert!(cpu_avg < gpu_avg, "CPU avg {} should be less than GPU avg {}", cpu_avg, gpu_avg);
-        assert!(gpu_avg < remote_avg, "GPU avg {} should be less than remote avg {}", gpu_avg, remote_avg);
+            .sum::<f64>()
+            / 3.0;
+        assert!(
+            cpu_avg < gpu_avg,
+            "CPU avg {} should be less than GPU avg {}",
+            cpu_avg,
+            gpu_avg
+        );
+        assert!(
+            gpu_avg < remote_avg,
+            "GPU avg {} should be less than remote avg {}",
+            gpu_avg,
+            remote_avg
+        );
     }
 
     #[test]

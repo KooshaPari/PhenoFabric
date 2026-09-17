@@ -145,10 +145,12 @@ pub async fn fetch_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T, 
         return Err(format!("HTTP {} {}", resp.status(), resp.status_text()));
     }
 
-    let text_val = JsFuture::from(resp.text()
-        .map_err(|e| format!("Failed to read response: {e:?}"))?)
-        .await
-        .map_err(|e| format!("Failed to read response text: {e:?}"))?;
+    let text_val = JsFuture::from(
+        resp.text()
+            .map_err(|e| format!("Failed to read response: {e:?}"))?,
+    )
+    .await
+    .map_err(|e| format!("Failed to read response text: {e:?}"))?;
 
     let text = text_val
         .as_string()
@@ -174,10 +176,8 @@ pub async fn post_json<T: serde::de::DeserializeOwned, B: serde::Serialize>(
     opts.set_method("POST");
     opts.set_body(&JsValue::from_str(&body_json));
     opts.set_headers(
-        &js_sys::JSON::parse(
-            r#"{"Content-Type": "application/json"}"#,
-        )
-        .map_err(|e| format!("Failed to create headers: {e:?}"))?,
+        &js_sys::JSON::parse(r#"{"Content-Type": "application/json"}"#)
+            .map_err(|e| format!("Failed to create headers: {e:?}"))?,
     );
 
     let request = Request::new_with_str_and_init(url, &opts)
@@ -211,7 +211,9 @@ pub async fn post_json<T: serde::de::DeserializeOwned, B: serde::Serialize>(
 pub fn daemon_base_url() -> String {
     let window = web_sys::window().expect("no window");
     let location = window.location();
-    let host = location.host().unwrap_or_else(|_| "127.0.0.1:7833".to_string());
+    let host = location
+        .host()
+        .unwrap_or_else(|_| "127.0.0.1:7833".to_string());
     format!("http://{host}/api")
 }
 

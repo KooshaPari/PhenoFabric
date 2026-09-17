@@ -49,7 +49,7 @@ fn main() -> ExitCode {
 }
 
 fn print_usage(prog: &str) {
-    println!("Usage:");  // stdout per spec 023 §5
+    println!("Usage:"); // stdout per spec 023 §5
     println!("  {prog} replan [--request <file>]");
     println!("  {prog} --help");
     println!();
@@ -91,28 +91,29 @@ fn run_replan(args: &[String]) -> ExitCode {
     let req: ReplanRequest = match serde_json::from_slice(&json_bytes) {
         Ok(r) => r,
         Err(e) => {
-            emit_error(ReplanErrorCode::InvalidRequest, format!("invalid JSON: {e}"));
+            emit_error(
+                ReplanErrorCode::InvalidRequest,
+                format!("invalid JSON: {e}"),
+            );
             return ExitCode::from(ReplanErrorCode::InvalidRequest.exit_code() as u8);
         }
     };
 
     // Invoke the protocol-layer replan.
     match protocol_replan(&req) {
-        Ok(resp) => {
-            match serde_json::to_string(&resp) {
-                Ok(s) => {
-                    println!("{s}");
-                    ExitCode::SUCCESS
-                }
-                Err(e) => {
-                    emit_error(
-                        ReplanErrorCode::Internal,
-                        format!("failed to serialize response: {e}"),
-                    );
-                    ExitCode::from(ReplanErrorCode::Internal.exit_code() as u8)
-                }
+        Ok(resp) => match serde_json::to_string(&resp) {
+            Ok(s) => {
+                println!("{s}");
+                ExitCode::SUCCESS
             }
-        }
+            Err(e) => {
+                emit_error(
+                    ReplanErrorCode::Internal,
+                    format!("failed to serialize response: {e}"),
+                );
+                ExitCode::from(ReplanErrorCode::Internal.exit_code() as u8)
+            }
+        },
         Err(e) => {
             let resp = e.to_response();
             // Print the structured error to stdout (callers parse stdout uniformly).
@@ -164,7 +165,10 @@ fn read_request(path: Option<&PathBuf>) -> Result<Vec<u8>, ReplanErrorCode> {
 /// Emit a structured error to stdout AND a human-readable line to stderr.
 /// Callers should parse stdout for the structured error; stderr is for humans.
 fn emit_error(code: ReplanErrorCode, message: String) {
-    let resp = ReplanErrorResponse { code, message: message.clone() };
+    let resp = ReplanErrorResponse {
+        code,
+        message: message.clone(),
+    };
     if let Ok(s) = serde_json::to_string(&resp) {
         println!("{s}");
     } else {
@@ -176,7 +180,9 @@ fn emit_error(code: ReplanErrorCode, message: String) {
 
 fn code_exit_msg(code: ReplanErrorCode) -> String {
     match code {
-        ReplanErrorCode::EmptyIntent => String::from("intent has no requirements — nothing to replan onto"),
+        ReplanErrorCode::EmptyIntent => {
+            String::from("intent has no requirements — nothing to replan onto")
+        }
         ReplanErrorCode::AllCandidatesFailed => String::from("all candidate nodes are blacklisted"),
         ReplanErrorCode::InvalidRequest => String::from("invalid request JSON"),
         ReplanErrorCode::MissingRequestFile => String::from("could not read --request file"),

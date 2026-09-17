@@ -6,7 +6,9 @@ use leptos_router::components::*;
 use leptos_router::path;
 
 mod pages;
-use pages::{CapabilitiesPage, HealthPage, NetworkPage, RoutesPage, SettingsPage, StreamPage, TopologyPage};
+use pages::{
+    CapabilitiesPage, HealthPage, NetworkPage, RoutesPage, SettingsPage, StreamPage, TopologyPage,
+};
 
 /// Premium CSS for the Fabric web UI — liquid glass aesthetic.
 const PREMIUM_CSS: &str = r#"

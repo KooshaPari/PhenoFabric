@@ -3,8 +3,8 @@
 //! (Severity::Reject) short-circuit; soft warnings (Severity::AdmitWithNotes)
 //! accumulate without failing the decision.
 
-use crate::decision::{CheckOutcome, Decision, Severity};
 use crate::checks;
+use crate::decision::{CheckOutcome, Decision, Severity};
 use crate::manifest::CheckerManifest;
 
 use fabric_capability::descriptor::CapabilityDescriptor;
@@ -16,19 +16,13 @@ type CheckFn = fn(&CapabilityDescriptor, &CheckerManifest) -> Result<(), CheckOu
 /// Returns a `Decision` with `Admit` if all reject-level checks pass,
 /// `AdmitWithNotes` if only notes-level checks failed, or `Reject` if any
 /// reject-level check failed.
-pub fn check(
-    descriptor: &CapabilityDescriptor,
-    manifest: &CheckerManifest,
-) -> Decision {
+pub fn check(descriptor: &CapabilityDescriptor, manifest: &CheckerManifest) -> Decision {
     let outcomes = run_all(descriptor, manifest);
     collapse(outcomes)
 }
 
 /// Public for testing — runs every check and returns the raw outcomes.
-pub fn run_all(
-    descriptor: &CapabilityDescriptor,
-    manifest: &CheckerManifest,
-) -> Vec<CheckOutcome> {
+pub fn run_all(descriptor: &CapabilityDescriptor, manifest: &CheckerManifest) -> Vec<CheckOutcome> {
     let fns: Vec<CheckFn> = vec![
         checks::check_memory_sufficient,
         checks::check_cores_sufficient,
@@ -91,10 +85,9 @@ mod tests {
     use super::*;
     use crate::decision::ReasonCode;
     use fabric_capability::descriptor::{
-        AudioCapabilities, Capabilities, ComputeCapabilities, DisplayCapabilities,
-        DisplayInfo, GpuInfo, AcceleratorCapabilities, HardwareCodecMatrix,
-        InputCapabilities, NetworkCapabilities, NetworkInterface, StorageCapabilities,
-        StorageDevice,
+        AcceleratorCapabilities, AudioCapabilities, Capabilities, ComputeCapabilities,
+        DisplayCapabilities, DisplayInfo, GpuInfo, HardwareCodecMatrix, InputCapabilities,
+        NetworkCapabilities, NetworkInterface, StorageCapabilities, StorageDevice,
     };
     use uuid::Uuid;
 
@@ -240,9 +233,7 @@ mod tests {
         let d = check(&descriptor, &manifest);
         // Should be rejected because display is required but missing.
         let reject = match d {
-            Decision::Reject {
-                reason_code, ..
-            } => reason_code,
+            Decision::Reject { reason_code, .. } => reason_code,
             _ => panic!("expected Reject, got {:?}", d),
         };
         assert_eq!(reject, ReasonCode::DisplayRequiredButMissing);

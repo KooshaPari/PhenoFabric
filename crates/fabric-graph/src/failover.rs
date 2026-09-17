@@ -111,7 +111,10 @@ pub fn replan_multihop(
 
     // Step 1: Try pre-generated fallback routes.
     for fallback in &original.fallbacks {
-        let touches_failed = fallback.steps.iter().any(|step| failed_set.contains(&step.node));
+        let touches_failed = fallback
+            .steps
+            .iter()
+            .any(|step| failed_set.contains(&step.node));
         if !touches_failed {
             return Ok(FailoverOutcome::Replaced(fallback.clone()));
         }
@@ -177,8 +180,8 @@ mod tests {
         let pruned = pruned.add(node_b);
         let pruned_topo = pruned.build();
 
-        let outcome = replan(&pruned_topo, &intent, &original, std::slice::from_ref(&a))
-            .expect("no error");
+        let outcome =
+            replan(&pruned_topo, &intent, &original, std::slice::from_ref(&a)).expect("no error");
         match outcome {
             FailoverOutcome::Replaced(new_plan) => {
                 // The new plan must use only `b` (since `a` was pruned).
@@ -201,8 +204,7 @@ mod tests {
 
         // Caller prunes BOTH nodes → empty topology.
         let empty_topo = TopologyBuilder::new().with_name("empty").build();
-        let outcome = replan(&empty_topo, &intent, &original, &[a, b])
-            .expect("no error");
+        let outcome = replan(&empty_topo, &intent, &original, &[a, b]).expect("no error");
         assert!(matches!(outcome, FailoverOutcome::NoReplacement));
     }
 
@@ -246,8 +248,8 @@ mod tests {
         let catalog = crate::multihop::builtin_stages();
         let result = compile_multihop(&topo, &a, &c, &intent, &catalog)
             .expect("compile_multihop should succeed");
-        let outcome = replan_multihop(&topo, &intent, &result, &[], &a, &c, &catalog)
-            .expect("no error");
+        let outcome =
+            replan_multihop(&topo, &intent, &result, &[], &a, &c, &catalog).expect("no error");
         match outcome {
             FailoverOutcome::Replaced(plan) => assert_eq!(plan.id, result.primary.id),
             _ => panic!("expected Replaced"),
@@ -266,8 +268,16 @@ mod tests {
             .expect("compile_multihop should succeed");
 
         // If primary goes through b, failing b should use a fallback via a→c direct.
-        let outcome = replan_multihop(&topo, &intent, &result, std::slice::from_ref(&b), &a, &c, &catalog)
-            .expect("no error");
+        let outcome = replan_multihop(
+            &topo,
+            &intent,
+            &result,
+            std::slice::from_ref(&b),
+            &a,
+            &c,
+            &catalog,
+        )
+        .expect("no error");
         match outcome {
             FailoverOutcome::Replaced(plan) => {
                 // The replacement must not touch node b.

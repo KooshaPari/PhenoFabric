@@ -4,11 +4,10 @@
 //! arbitrary topologies and intents.
 
 use fabric_graph::compile::{compile, compile_all};
-use fabric_graph::multihop::{compile_multihop, builtin_stages};
 use fabric_graph::model::{
-    Edge, EdgeId, Intent, IntentId, IntentRequirements, Node, NodeId,
-    Topology, TopologyMeta,
+    Edge, EdgeId, Intent, IntentId, IntentRequirements, Node, NodeId, Topology, TopologyMeta,
 };
+use fabric_graph::multihop::{builtin_stages, compile_multihop};
 use fabric_graph::LocalityTier;
 use proptest::prelude::*;
 
@@ -32,45 +31,47 @@ fn arb_locality_tier() -> impl Strategy<Value = LocalityTier> {
 
 /// Generate a topology with 1..=10 nodes and 0..=15 edges.
 fn arb_topology() -> impl Strategy<Value = Topology> {
-    (1u32..=10, 0u32..=15).prop_flat_map(|(n_nodes, n_edges)| {
-        let node_ids: Vec<String> = (0..n_nodes).map(|i| format!("node-{i}")).collect();
-        (
-            Just(node_ids.clone()),
-            prop::collection::vec(arb_locality_tier(), n_nodes as usize..=n_nodes as usize),
-            prop::collection::vec(
-                (0u32..n_nodes, 0u32..n_nodes, arb_locality_tier()),
-                0..=n_edges as usize,
-            ),
-        )
-    }).prop_map(|(node_ids, tiers, edge_defs)| {
-        let mut topo = Topology::new();
-        topo.meta = TopologyMeta {
-            name: "proptest-topo".into(),
-            ..Default::default()
-        };
-        // Epoch starts at 0, add_node bumps it.
-        for (id, tier) in node_ids.iter().zip(tiers) {
-            topo.add_node(Node::new(NodeId::new(id), tier));
-        }
-        // Add edges (only between existing nodes, dedup by edge ID).
-        let mut edge_counter = 0u32;
-        for (from_idx, to_idx, tier) in edge_defs {
-            let from_id = &node_ids[from_idx as usize % node_ids.len()];
-            let to_id = &node_ids[to_idx as usize % node_ids.len()];
-            if from_id == to_id {
-                continue;
+    (1u32..=10, 0u32..=15)
+        .prop_flat_map(|(n_nodes, n_edges)| {
+            let node_ids: Vec<String> = (0..n_nodes).map(|i| format!("node-{i}")).collect();
+            (
+                Just(node_ids.clone()),
+                prop::collection::vec(arb_locality_tier(), n_nodes as usize..=n_nodes as usize),
+                prop::collection::vec(
+                    (0u32..n_nodes, 0u32..n_nodes, arb_locality_tier()),
+                    0..=n_edges as usize,
+                ),
+            )
+        })
+        .prop_map(|(node_ids, tiers, edge_defs)| {
+            let mut topo = Topology::new();
+            topo.meta = TopologyMeta {
+                name: "proptest-topo".into(),
+                ..Default::default()
+            };
+            // Epoch starts at 0, add_node bumps it.
+            for (id, tier) in node_ids.iter().zip(tiers) {
+                topo.add_node(Node::new(NodeId::new(id), tier));
             }
-            let edge_id = EdgeId::new(format!("e-{edge_counter}"));
-            edge_counter += 1;
-            let _ = topo.add_edge(Edge::new(
-                edge_id,
-                NodeId::new(from_id),
-                NodeId::new(to_id),
-                tier,
-            ));
-        }
-        topo
-    })
+            // Add edges (only between existing nodes, dedup by edge ID).
+            let mut edge_counter = 0u32;
+            for (from_idx, to_idx, tier) in edge_defs {
+                let from_id = &node_ids[from_idx as usize % node_ids.len()];
+                let to_id = &node_ids[to_idx as usize % node_ids.len()];
+                if from_id == to_id {
+                    continue;
+                }
+                let edge_id = EdgeId::new(format!("e-{edge_counter}"));
+                edge_counter += 1;
+                let _ = topo.add_edge(Edge::new(
+                    edge_id,
+                    NodeId::new(from_id),
+                    NodeId::new(to_id),
+                    tier,
+                ));
+            }
+            topo
+        })
 }
 
 fn arb_intent_no_expiry() -> impl Strategy<Value = Intent> {

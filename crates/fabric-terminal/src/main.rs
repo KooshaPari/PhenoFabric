@@ -12,13 +12,11 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub mod relay;
-pub mod state;
 #[cfg(feature = "ssh")]
 pub mod ssh_tunnel;
+pub mod state;
 
 use state::SyncState;
-
-
 
 /// tf-sync: Cross-machine terminal synchronization
 #[derive(Parser)]
@@ -119,7 +117,10 @@ async fn main() -> Result<()> {
         Commands::ListPanes => {
             cmd_list_panes(&cli).await?;
         }
-        Commands::Capture { ref pane_id, ref format } => {
+        Commands::Capture {
+            ref pane_id,
+            ref format,
+        } => {
             cmd_capture(&cli, pane_id, format).await?;
         }
         Commands::Status => {
@@ -146,7 +147,7 @@ async fn cmd_sync(cli: &Cli, session: Option<&str>, panes: &str, poll_ms: u64) -
 
     // Establish SSH connection
     let tunnel = Arc::new(RwLock::new(
-        ssh_tunnel::SshTunnel::connect(target, &cli.socket).await?
+        ssh_tunnel::SshTunnel::connect(target, &cli.socket).await?,
     ));
 
     let state = Arc::new(RwLock::new(SyncState::new()));

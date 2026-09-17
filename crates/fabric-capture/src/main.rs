@@ -4,8 +4,8 @@
 //! and posts captured content to tf-web for remote viewing.
 
 mod capture;
-mod clipboard;
 mod client;
+mod clipboard;
 #[cfg(feature = "self-update")]
 mod self_update;
 mod uia;
@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
         if args.len() > 1 {
             match args[1].as_str() {
                 "self-update" => {
-#[cfg(feature = "self-update")]
+                    #[cfg(feature = "self-update")]
                     self_update::run("tf-win-capture")?;
                     return Ok(());
                 }
@@ -300,17 +300,10 @@ async fn run_capture_loop(args: &Args) -> Result<()> {
 
         // Post all captured data.
         if !pane_data_list.is_empty() {
-            if let Err(e) = client::post_panes(
-                &args.url,
-                &args.token,
-                &pane_data_list,
-            ).await {
+            if let Err(e) = client::post_panes(&args.url, &args.token, &pane_data_list).await {
                 tracing::warn!(error = %e, "Failed to post panes to tf-web");
             } else {
-                tracing::debug!(
-                    count = pane_data_list.len(),
-                    "Posted pane data to tf-web"
-                );
+                tracing::debug!(count = pane_data_list.len(), "Posted pane data to tf-web");
             }
         }
 

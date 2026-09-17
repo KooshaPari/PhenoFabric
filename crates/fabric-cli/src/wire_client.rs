@@ -36,9 +36,14 @@ pub enum WireClientError {
 ///
 /// Opens a TCP connection, sends the message as a single line, reads the
 /// response, and closes the connection (one-shot, no keep-alive).
-pub fn send_message(addr: &str, message: &serde_json::Value) -> Result<serde_json::Value, WireClientError> {
+pub fn send_message(
+    addr: &str,
+    message: &serde_json::Value,
+) -> Result<serde_json::Value, WireClientError> {
     let stream = match TcpStream::connect_timeout(
-        &addr.parse().map_err(|e: std::net::AddrParseError| WireClientError::DaemonError(e.to_string()))?,
+        &addr
+            .parse()
+            .map_err(|e: std::net::AddrParseError| WireClientError::DaemonError(e.to_string()))?,
         CONNECT_TIMEOUT,
     ) {
         Ok(s) => s,
@@ -55,8 +60,8 @@ pub fn send_message(addr: &str, message: &serde_json::Value) -> Result<serde_jso
 
     // Send message as a single JSON line.
     let mut writer = BufReader::new(&stream);
-    let msg_str = serde_json::to_string(message)
-        .map_err(|e| WireClientError::DaemonError(e.to_string()))?;
+    let msg_str =
+        serde_json::to_string(message).map_err(|e| WireClientError::DaemonError(e.to_string()))?;
     writer.get_mut().write_all(msg_str.as_bytes())?;
     writer.get_mut().write_all(b"\n")?;
     writer.get_mut().flush()?;

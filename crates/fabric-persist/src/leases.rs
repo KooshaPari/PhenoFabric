@@ -47,9 +47,8 @@ impl Persist {
                         created_at, terminated_at
                  FROM leases WHERE handle = ?1",
             )?;
-            let mut rows = stmt.query_map(params![handle.0.to_string()], |row| {
-                row_to_lease(row)
-            })?;
+            let mut rows =
+                stmt.query_map(params![handle.0.to_string()], row_to_lease)?;
             match rows.next() {
                 Some(r) => Ok(Some(r?)),
                 None => Ok(None),
@@ -146,13 +145,10 @@ impl Persist {
     }
 
     /// Count leases in each state.
-    pub fn count_leases_by_state(
-        &self,
-    ) -> Result<Vec<(String, i64)>, PersistError> {
+    pub fn count_leases_by_state(&self) -> Result<Vec<(String, i64)>, PersistError> {
         self.with_conn(|conn| {
-            let mut stmt = conn.prepare(
-                "SELECT state, COUNT(*) FROM leases GROUP BY state ORDER BY state",
-            )?;
+            let mut stmt =
+                conn.prepare("SELECT state, COUNT(*) FROM leases GROUP BY state ORDER BY state")?;
             let rows = stmt.query_map([], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
             })?;
@@ -189,9 +185,7 @@ fn row_to_lease(row: &rusqlite::Row<'_>) -> Result<SurfaceLease, rusqlite::Error
     let created_at_str: String = row.get(6)?;
     let terminated_at_str: Option<String> = row.get(7)?;
 
-    let handle = SurfaceHandle(
-        uuid::Uuid::parse_str(&handle_str).unwrap_or_default(),
-    );
+    let handle = SurfaceHandle(uuid::Uuid::parse_str(&handle_str).unwrap_or_default());
     let spec: SurfaceSpec = serde_json::from_str(&spec_json).unwrap_or_else(|_| {
         // Fallback: minimal valid spec.
         SurfaceSpec {
@@ -237,10 +231,10 @@ fn row_to_lease(row: &rusqlite::Row<'_>) -> Result<SurfaceLease, rusqlite::Error
 mod tests {
     use super::*;
     use crate::Persist;
+    use fabric_graph::model::TrustLevel;
+    use fabric_graph::surface::{CaptureDirection, SurfaceProtocol};
     use fabric_graph::surface::{LeaseState, SurfaceLease, SurfaceSpec};
     use fabric_graph::{LocalityTier, SurfaceHandle};
-    use fabric_graph::surface::{CaptureDirection, SurfaceProtocol};
-    use fabric_graph::model::TrustLevel;
 
     fn test_lease() -> SurfaceLease {
         SurfaceLease {
@@ -338,14 +332,10 @@ mod tests {
         lease2.state = LeaseState::Active;
         persist.save_lease(&lease2).unwrap();
 
-        let pending = persist
-            .load_leases_by_state(LeaseState::Pending)
-            .unwrap();
+        let pending = persist.load_leases_by_state(LeaseState::Pending).unwrap();
         assert_eq!(pending.len(), 1);
 
-        let active = persist
-            .load_leases_by_state(LeaseState::Active)
-            .unwrap();
+        let active = persist.load_leases_by_state(LeaseState::Active).unwrap();
         assert_eq!(active.len(), 1);
     }
 

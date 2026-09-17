@@ -8,8 +8,8 @@ use chrono::Utc;
 
 use crate::model::{RoutePlanId, RouteStep, Topology};
 use crate::surface::{
-    LeaseExitReason, LeaseState, RouteBinding, SurfaceError, SurfaceLease,
-    SurfaceSpec, SurfaceSpecError,
+    LeaseExitReason, LeaseState, RouteBinding, SurfaceError, SurfaceLease, SurfaceSpec,
+    SurfaceSpecError,
 };
 
 /// Compute the initial binding of `lease.spec` against the route plan.
@@ -25,10 +25,7 @@ pub fn bind(
     // Step 1: validate spec (only on initial bind — re-binds skip this since
     // the spec was already validated at first bind).
     if matches!(lease.state, LeaseState::Pending) {
-        lease
-            .spec
-            .validate()
-            .map_err(SurfaceError::InvalidSpec)?;
+        lease.spec.validate().map_err(SurfaceError::InvalidSpec)?;
     }
 
     // Step 2: lease FSM transition Pending → Pending (waiting) or → Active.
@@ -52,7 +49,9 @@ pub fn bind(
 
     if lease.current.is_some() {
         // re-bind: archive the old binding into history
-        lease.history.push(lease.current.take().expect("checked above"));
+        lease
+            .history
+            .push(lease.current.take().expect("checked above"));
     }
     lease.current = Some(new_binding);
     lease.state = LeaseState::Active;
@@ -74,10 +73,7 @@ pub fn complete(lease: &mut SurfaceLease) -> Result<(), SurfaceError> {
 }
 
 /// Invalidate a lease due to host failure (ADR-0030 trigger) or workload error.
-pub fn fail(
-    lease: &mut SurfaceLease,
-    reason: LeaseExitReason,
-) -> Result<(), SurfaceError> {
+pub fn fail(lease: &mut SurfaceLease, reason: LeaseExitReason) -> Result<(), SurfaceError> {
     if !matches!(lease.state, LeaseState::Active | LeaseState::Pending) {
         return Err(SurfaceError::IllegalTransition {
             from: lease.state,
@@ -154,7 +150,9 @@ fn derive_endpoint_for_step(step: &RouteStep) -> crate::surface::CapabilityEndpo
         "audio" => CapabilityEndpoint::Audio { index: 0 },
         "input" => CapabilityEndpoint::Input { index: 0 },
         "network" => CapabilityEndpoint::Network { port: 0 },
-        "storage" => CapabilityEndpoint::Storage { path: String::new() },
+        "storage" => CapabilityEndpoint::Storage {
+            path: String::new(),
+        },
         _ => CapabilityEndpoint::Compute { pid: 0 },
     }
 }
@@ -191,8 +189,7 @@ pub fn bind_with_topology(
         return Err(SurfaceError::SpecViolation {
             detail: format!(
                 "node {} locality tier {:?} (index {}) is farther than spec floor {:?} (index {})",
-                new_step.node, node.locality_tier, node_idx,
-                lease.spec.locality_floor, floor_idx
+                new_step.node, node.locality_tier, node_idx, lease.spec.locality_floor, floor_idx
             ),
         });
     }

@@ -9,8 +9,8 @@
 
 use fabric_daemon::federation::MergeStrategy;
 use fabric_frame_transport::Codec;
-use fabric_graph::multihop::builtin_stages;
 use fabric_graph::model::NodeId;
+use fabric_graph::multihop::builtin_stages;
 use std::time::Duration;
 
 use fabric_integration_tests::harness::federation::{
@@ -69,12 +69,13 @@ fn two_node_topology_exchange() {
 
     // Give daemon_a a full 2-node topology with an edge.
     let topo = build_2node_topology();
-    a.coordinator.set_topology(topo).expect("set topology for a");
+    a.coordinator
+        .set_topology(topo)
+        .expect("set topology for a");
 
     // B fetches A's topology over real TCP.
-    let snapshot =
-        fabric_daemon::federation::sync_topology(&a.addr)
-            .expect("sync_topology to a should succeed");
+    let snapshot = fabric_daemon::federation::sync_topology(&a.addr)
+        .expect("sync_topology to a should succeed");
 
     // The snapshot should contain node data from A.
     assert!(
@@ -203,10 +204,7 @@ fn two_node_frame_streaming() {
     );
 
     // Session elapsed time should be non-zero (at least some wall time).
-    assert!(
-        result.elapsed > Duration::ZERO,
-        "elapsed should be > 0"
-    );
+    assert!(result.elapsed > Duration::ZERO, "elapsed should be > 0");
 
     stop_daemon(b);
 }

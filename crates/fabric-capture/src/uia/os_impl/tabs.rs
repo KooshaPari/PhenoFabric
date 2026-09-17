@@ -21,11 +21,15 @@ fn infer_title_from_content(hwnd: isize, content: &str) -> Option<String> {
     // Log a few lines around the end for debugging.
     let total = non_empty.len();
     for i in (total.saturating_sub(5)..total).rev() {
-        diag(hwnd, &format!(
-            "  infer: line[{}/{}]: \"{}\"",
-            i, total,
-            &non_empty[i].chars().take(120).collect::<String>()
-        ));
+        diag(
+            hwnd,
+            &format!(
+                "  infer: line[{}/{}]: \"{}\"",
+                i,
+                total,
+                &non_empty[i].chars().take(120).collect::<String>()
+            ),
+        );
     }
 
     // Search in reverse — the last matching prompt is the current one.
@@ -161,10 +165,54 @@ unsafe fn send_ctrl_number(tab_index: u8) {
     let vk_number: u16 = 0x30 + tab_index as u16; // VK_1 = 0x31, VK_9 = 0x39
 
     let inputs = [
-        INPUT { r#type: INPUT_KEYBOARD, Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk_control, wScan: 0x1D, dwFlags: 0, time: 0, dwExtraInfo: 0 } } },
-        INPUT { r#type: INPUT_KEYBOARD, Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk_number, wScan: (tab_index as u16 + 1), dwFlags: 0, time: 0, dwExtraInfo: 0 } } },
-        INPUT { r#type: INPUT_KEYBOARD, Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk_number, wScan: (tab_index as u16 + 1), dwFlags: KEYEVENTF_KEYUP, time: 0, dwExtraInfo: 0 } } },
-        INPUT { r#type: INPUT_KEYBOARD, Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk_control, wScan: 0x1D, dwFlags: KEYEVENTF_KEYUP, time: 0, dwExtraInfo: 0 } } },
+        INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 {
+                ki: KEYBDINPUT {
+                    wVk: vk_control,
+                    wScan: 0x1D,
+                    dwFlags: 0,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+            },
+        },
+        INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 {
+                ki: KEYBDINPUT {
+                    wVk: vk_number,
+                    wScan: (tab_index as u16 + 1),
+                    dwFlags: 0,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+            },
+        },
+        INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 {
+                ki: KEYBDINPUT {
+                    wVk: vk_number,
+                    wScan: (tab_index as u16 + 1),
+                    dwFlags: KEYEVENTF_KEYUP,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+            },
+        },
+        INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 {
+                ki: KEYBDINPUT {
+                    wVk: vk_control,
+                    wScan: 0x1D,
+                    dwFlags: KEYEVENTF_KEYUP,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+            },
+        },
     ];
 
     SendInput(
@@ -188,10 +236,13 @@ pub(crate) fn capture_all_tabs_via_uia(wt_hwnd: isize) -> Vec<(TabInfo, String)>
         use windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
         let fg = unsafe { GetForegroundWindow() };
         if fg != wt_hwnd as _ {
-            diag(wt_hwnd, &format!(
-                "SKIPPING: WT not foreground (fg={}, wt={})",
-                fg as isize, wt_hwnd
-            ));
+            diag(
+                wt_hwnd,
+                &format!(
+                    "SKIPPING: WT not foreground (fg={}, wt={})",
+                    fg as isize, wt_hwnd
+                ),
+            );
             return Vec::new();
         }
     }
@@ -228,7 +279,10 @@ pub(crate) fn capture_all_tabs_via_uia(wt_hwnd: isize) -> Vec<(TabInfo, String)>
                 items
             }
             _ => {
-                diag(wt_hwnd, "No TabItem controls found, trying broader search...");
+                diag(
+                    wt_hwnd,
+                    "No TabItem controls found, trying broader search...",
+                );
                 let matcher2 = automation
                     .create_matcher()
                     .from_ref(&root)
@@ -248,10 +302,10 @@ pub(crate) fn capture_all_tabs_via_uia(wt_hwnd: isize) -> Vec<(TabInfo, String)>
                             })
                             .cloned()
                             .collect();
-                        diag(wt_hwnd, &format!(
-                            "Broad search found {} tab-like elements",
-                            tabs.len()
-                        ));
+                        diag(
+                            wt_hwnd,
+                            &format!("Broad search found {} tab-like elements", tabs.len()),
+                        );
                         tabs
                     }
                     Err(_) => Vec::new(),
@@ -271,42 +325,47 @@ pub(crate) fn capture_all_tabs_via_uia(wt_hwnd: isize) -> Vec<(TabInfo, String)>
     // Step 2: Click each visible tab and capture its content.
     for (i, tab) in tab_items.iter().enumerate() {
         let tab_title = tab.get_name().unwrap_or_else(|_| format!("Tab {}", i + 1));
-        diag(wt_hwnd, &format!("Switching to tab {}: \"{}\"", i, &tab_title));
+        diag(
+            wt_hwnd,
+            &format!("Switching to tab {}: \"{}\"", i, &tab_title),
+        );
 
         let mut switched = false;
-        if let Ok(invoke) =
-            tab.get_pattern::<uiautomation::patterns::UIInvokePattern>()
-        {
+        if let Ok(invoke) = tab.get_pattern::<uiautomation::patterns::UIInvokePattern>() {
             if invoke.invoke().is_ok() {
                 switched = true;
                 diag(wt_hwnd, &format!("  Tab {} clicked via Invoke", i));
             }
         }
         if !switched {
-            if let Ok(scroll) =
-                tab.get_pattern::<uiautomation::patterns::UIScrollItemPattern>()
-            {
+            if let Ok(scroll) = tab.get_pattern::<uiautomation::patterns::UIScrollItemPattern>() {
                 let _ = scroll.scroll_into_view();
             }
             if let Ok(rect) = tab.get_bounding_rectangle() {
                 let center_x = (rect.get_left() + rect.get_right()) / 2;
                 let center_y = (rect.get_top() + rect.get_bottom()) / 2;
-                diag(wt_hwnd, &format!(
-                    "  Tab {} rect: ({},{}) - ({},{}) center=({},{})",
-                    i,
-                    rect.get_left(),
-                    rect.get_top(),
-                    rect.get_right(),
-                    rect.get_bottom(),
-                    center_x,
-                    center_y
-                ));
+                diag(
+                    wt_hwnd,
+                    &format!(
+                        "  Tab {} rect: ({},{}) - ({},{}) center=({},{})",
+                        i,
+                        rect.get_left(),
+                        rect.get_top(),
+                        rect.get_right(),
+                        rect.get_bottom(),
+                        center_x,
+                        center_y
+                    ),
+                );
                 click_at_point(center_x, center_y);
                 switched = true;
-                diag(wt_hwnd, &format!(
-                    "  Tab {} clicked via mouse at ({},{})",
-                    i, center_x, center_y
-                ));
+                diag(
+                    wt_hwnd,
+                    &format!(
+                        "  Tab {} clicked via mouse at ({},{})",
+                        i, center_x, center_y
+                    ),
+                );
             }
         }
 
@@ -321,24 +380,29 @@ pub(crate) fn capture_all_tabs_via_uia(wt_hwnd: isize) -> Vec<(TabInfo, String)>
             if !content.is_empty() {
                 let trimmed = super::super::trim_terminal_content(&content);
                 let lines: Vec<String> = trimmed.lines().map(String::from).collect();
-                diag(wt_hwnd, &format!(
-                    "  Captured tab \"{}\": {} lines",
-                    &tab_title,
-                    lines.len()
-                ));
+                diag(
+                    wt_hwnd,
+                    &format!("  Captured tab \"{}\": {} lines", &tab_title, lines.len()),
+                );
                 seen_titles.insert(tab_title.clone());
-                results.push((TabInfo { index: i, title: tab_title }, trimmed));
-            } else {
-                diag(wt_hwnd, &format!(
-                    "  Tab \"{}\" returned empty content",
-                    &tab_title
+                results.push((
+                    TabInfo {
+                        index: i,
+                        title: tab_title,
+                    },
+                    trimmed,
                 ));
+            } else {
+                diag(
+                    wt_hwnd,
+                    &format!("  Tab \"{}\" returned empty content", &tab_title),
+                );
             }
         } else {
-            diag(wt_hwnd, &format!(
-                "  capture_via_uia returned None for tab \"{}\"",
-                &tab_title
-            ));
+            diag(
+                wt_hwnd,
+                &format!("  capture_via_uia returned None for tab \"{}\"", &tab_title),
+            );
         }
     }
 
@@ -347,9 +411,12 @@ pub(crate) fn capture_all_tabs_via_uia(wt_hwnd: isize) -> Vec<(TabInfo, String)>
     // UIA tab clicking (Step 2) handles visible tabs. For overflow tabs
     // that are scrolled off the tab strip, we scroll the strip and click.
 
-    diag(wt_hwnd, &format!(
-        "=== capture_all_tabs complete: {} tabs captured ===",
-        results.len()
-    ));
+    diag(
+        wt_hwnd,
+        &format!(
+            "=== capture_all_tabs complete: {} tabs captured ===",
+            results.len()
+        ),
+    );
     results
 }

@@ -94,7 +94,9 @@ pub unsafe extern "C" fn fabric_capability_to_json(
 ///
 /// The returned pointer is a static string — do not free it.
 #[no_mangle]
-pub extern "C" fn fabric_capability_error_message(code: FabricError) -> *const std::os::raw::c_char {
+pub extern "C" fn fabric_capability_error_message(
+    code: FabricError,
+) -> *const std::os::raw::c_char {
     let s: &'static str = match code {
         FabricError::Ok => "success",
         FabricError::Unsupported => "unsupported platform",
@@ -153,7 +155,9 @@ pub unsafe extern "C" fn fabric_capability_sign_json(
     match serde_json::to_string(&descriptor) {
         Ok(s) => {
             let cstring = std::ffi::CString::new(s).unwrap();
-            unsafe { *out_signed = cstring.into_raw(); }
+            unsafe {
+                *out_signed = cstring.into_raw();
+            }
             FabricError::Ok
         }
         Err(_) => FabricError::Serde,
@@ -216,7 +220,9 @@ pub unsafe extern "C" fn fabric_capability_generate_key(out_key: *mut [u8; 32]) 
     }
 
     let key = SigningKey::generate();
-    unsafe { *out_key = key.to_bytes(); }
+    unsafe {
+        *out_key = key.to_bytes();
+    }
     FabricError::Ok
 }
 

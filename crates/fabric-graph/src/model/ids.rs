@@ -8,9 +8,7 @@ use uuid::Uuid;
 /// Each capability advertisement and topology mutation increments the epoch.
 /// Route plans are pinned to an epoch: they are only valid if the current
 /// epoch matches the epoch they were compiled against.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub struct TopologyEpoch(pub u64);
 
 impl TopologyEpoch {

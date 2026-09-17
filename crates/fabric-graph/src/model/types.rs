@@ -7,18 +7,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Fabric does not *trust* descriptors by default; it requires an attestation
 /// chain. The trust level reflects how much verification has been performed.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    Default,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum TrustLevel {
     /// Node reported its own capabilities. No external verification.
     /// PF-FR-012: No default trust.

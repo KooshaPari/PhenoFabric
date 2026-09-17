@@ -62,8 +62,8 @@ pub fn stream_frames_between(
     frame_count: u32,
     codec: Codec,
 ) -> Result<StreamResult> {
-    let mut stream = TcpStream::connect(server_addr)
-        .with_context(|| format!("connect to {server_addr}"))?;
+    let mut stream =
+        TcpStream::connect(server_addr).with_context(|| format!("connect to {server_addr}"))?;
     stream
         .set_read_timeout(Some(Duration::from_secs(5)))
         .context("set read timeout")?;
@@ -82,8 +82,7 @@ pub fn stream_frames_between(
         "max_latency_ms": 33,
         "client_id": client_id,
     });
-    let init_line = serde_json::to_string(&session_init)
-        .context("serialize SessionInit")?;
+    let init_line = serde_json::to_string(&session_init).context("serialize SessionInit")?;
     stream
         .write_all(init_line.as_bytes())
         .context("send SessionInit")?;
@@ -127,8 +126,7 @@ pub fn stream_frames_between(
             "payload_len": frame_payload.len(),
             "duration_us": 16_667,
         });
-        let frame_line = serde_json::to_string(&frame_msg)
-            .context("serialize FrameData")?;
+        let frame_line = serde_json::to_string(&frame_msg).context("serialize FrameData")?;
         stream
             .write_all(frame_line.as_bytes())
             .context("send FrameData")?;

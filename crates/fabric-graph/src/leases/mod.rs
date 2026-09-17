@@ -97,7 +97,11 @@ mod tests {
     /// Two-node topology with a single edge. Compile picks the lower
     /// locality tier node first (`L1SameNuma`), so the route step will
     /// be on `a`.
-    fn two_node_topology() -> (crate::model::Topology, crate::model::NodeId, crate::model::NodeId) {
+    fn two_node_topology() -> (
+        crate::model::Topology,
+        crate::model::NodeId,
+        crate::model::NodeId,
+    ) {
         let a = crate::model::NodeId::new("a");
         let b = crate::model::NodeId::new("b");
         let topo = TopologyBuilder::new()
@@ -241,10 +245,7 @@ mod tests {
             is_terminal(lease.state),
             "Failed is a terminal state per spec 019"
         );
-        assert!(
-            lease.exit_reason.is_some(),
-            "exit_reason must be populated"
-        );
+        assert!(lease.exit_reason.is_some(), "exit_reason must be populated");
         assert_eq!(
             lease.handle, original_handle,
             "handle must be preserved even on Failed"
@@ -306,11 +307,7 @@ mod tests {
         // Lease must be unchanged (Active, handle preserved, no history).
         assert_eq!(lease.state, original_state, "lease must be unchanged");
         assert_eq!(lease.handle, original_handle);
-        assert_eq!(
-            lease.history.len(),
-            0,
-            "no re-bind should have happened"
-        );
+        assert_eq!(lease.history.len(), 0, "no re-bind should have happened");
     }
 
     // ---------------- T-L04 ----------------
@@ -318,8 +315,7 @@ mod tests {
     #[test]
     fn rebind_propagates_failover_error() {
         let (orig_topo, _, _) = two_node_topology();
-        let original_plan =
-            compile(&orig_topo, &intent("rebinds-4")).expect("compile");
+        let original_plan = compile(&orig_topo, &intent("rebinds-4")).expect("compile");
 
         // Empty intent name -> FailoverError::EmptyIntent -> SurfaceError.
         let empty_intent = IntentBuilder::new()
@@ -359,11 +355,7 @@ mod tests {
             lease.handle, original_handle,
             "handle must be preserved on error"
         );
-        assert_eq!(
-            lease.history.len(),
-            0,
-            "no re-bind should have happened"
-        );
+        assert_eq!(lease.history.len(), 0, "no re-bind should have happened");
     }
 
     // ---------------- T-L05 ----------------
@@ -374,8 +366,7 @@ mod tests {
             new_plan_id: crate::model::RoutePlanId::new(),
         };
         let json_rebound = serde_json::to_string(&rebound).expect("serialize Rebound");
-        let back: RebindOutcome =
-            serde_json::from_str(&json_rebound).expect("deserialize Rebound");
+        let back: RebindOutcome = serde_json::from_str(&json_rebound).expect("deserialize Rebound");
         assert_eq!(back, rebound);
 
         let failed = RebindOutcome::Failed {
@@ -384,15 +375,11 @@ mod tests {
             },
         };
         let json_failed = serde_json::to_string(&failed).expect("serialize Failed");
-        let back2: RebindOutcome =
-            serde_json::from_str(&json_failed).expect("deserialize Failed");
+        let back2: RebindOutcome = serde_json::from_str(&json_failed).expect("deserialize Failed");
         assert_eq!(back2, failed);
 
         // make_plan is here to silence the unused-import warning when no
         // integration tests reference it; the integration suite uses it.
-        let _ = make_plan(
-            vec![make_step("x", "y")],
-            crate::model::TopologyEpoch(0),
-        );
+        let _ = make_plan(vec![make_step("x", "y")], crate::model::TopologyEpoch(0));
     }
 }

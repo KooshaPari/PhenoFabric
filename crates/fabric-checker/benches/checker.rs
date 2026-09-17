@@ -1,14 +1,14 @@
 //! Criterion benchmarks for fabric-checker admission checks.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fabric_checker::{check, run_all};
-use fabric_checker::manifest::CheckerManifest;
+use fabric_capability::descriptor::CapabilityDescriptor;
 use fabric_capability::descriptor::{
-    AudioCapabilities, AudioDevice, Capabilities, ComputeCapabilities, DisplayCapabilities,
-    DisplayInfo, GpuInfo, AcceleratorCapabilities, HardwareCodecMatrix, InputCapabilities,
+    AcceleratorCapabilities, AudioCapabilities, AudioDevice, Capabilities, ComputeCapabilities,
+    DisplayCapabilities, DisplayInfo, GpuInfo, HardwareCodecMatrix, InputCapabilities,
     NetworkCapabilities, NetworkInterface, StorageCapabilities, StorageDevice,
 };
-use fabric_capability::descriptor::CapabilityDescriptor;
+use fabric_checker::manifest::CheckerManifest;
+use fabric_checker::{check, run_all};
 use uuid::Uuid;
 
 /// Build a descriptor that should pass most checks (16 GiB RAM, 8 cores, 1 TiB SSD).

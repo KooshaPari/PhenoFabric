@@ -5,9 +5,9 @@
 use std::fs;
 use std::path::PathBuf;
 
-use fabric_graph::builder::TopologyBuilder;
-use fabric_graph::model::{EdgeId, Node, NodeId, Edge};
 use fabric_capability::locality::LocalityTier;
+use fabric_graph::builder::TopologyBuilder;
+use fabric_graph::model::{Edge, EdgeId, Node, NodeId};
 
 fn temp_dir() -> PathBuf {
     let dir = std::env::temp_dir().join(format!(

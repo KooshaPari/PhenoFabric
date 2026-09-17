@@ -3,10 +3,8 @@
 //! Uses the real `sync_topology()` TCP code path for deterministic
 //! federation testing, then merges results via `merge_topologies_from_json`.
 
-use fabric_daemon::federation::{
-    MergeStrategy, MergedTopology, TopologySnapshot, sync_topology,
-};
 use super::DaemonInstance;
+use fabric_daemon::federation::{sync_topology, MergeStrategy, MergedTopology, TopologySnapshot};
 
 /// Fetch topology from `daemon_b` via TCP, then merge it into `daemon_a`'s
 /// local topology view.
@@ -33,10 +31,7 @@ pub fn exchange_and_merge(
     // by the federation sync thread in production). For testing, derive it
     // from the daemon's address so the merge logic can identify peer nodes.
     if peer_snapshot.federation_id.is_empty() {
-        peer_snapshot.federation_id = daemon_b
-            .addr
-            .replace(":", "-")
-            .to_string();
+        peer_snapshot.federation_id = daemon_b.addr.replace(":", "-").to_string();
     }
 
     // Get daemon_a's local topology as JSON (the probe_response format).
@@ -96,8 +91,8 @@ pub fn assert_min_epoch(merged: &MergedTopology, min_epoch: u64) {
 
 #[cfg(test)]
 mod tests {
+    use super::super::{build_2node_topology, start_two_daemons, stop_daemon};
     use super::*;
-    use super::super::{start_two_daemons, stop_daemon, build_2node_topology};
 
     #[test]
     fn exchange_and_merge_combines_two_nodes() {

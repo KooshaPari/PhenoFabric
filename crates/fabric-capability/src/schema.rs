@@ -34,11 +34,9 @@ pub fn validate_descriptor<T: Serialize>(value: &T) -> Result<()> {
         }
     });
 
-    let compiled = validator_for(&minimal_schema)
-        .map_err(|e| Error::Schema(e.to_string()))?;
+    let compiled = validator_for(&minimal_schema).map_err(|e| Error::Schema(e.to_string()))?;
 
-    let value_json = serde_json::to_value(value)
-        .map_err(|e| Error::Serde(e.to_string()))?;
+    let value_json = serde_json::to_value(value).map_err(|e| Error::Serde(e.to_string()))?;
 
     if let Err(e) = compiled.validate(&value_json) {
         // jsonschema 0.27 returns a single ValidationError

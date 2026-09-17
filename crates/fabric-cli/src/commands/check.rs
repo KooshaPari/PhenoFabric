@@ -32,7 +32,11 @@ pub fn dispatch(args: &CheckArgs) -> Result<()> {
     // Load manifest.
     let text = std::fs::read_to_string(&args.manifest)
         .with_context(|| format!("read {}", args.manifest.display()))?;
-    let manifest: CheckerManifest = if args.manifest.extension().is_some_and(|e| e == "yaml" || e == "yml") {
+    let manifest: CheckerManifest = if args
+        .manifest
+        .extension()
+        .is_some_and(|e| e == "yaml" || e == "yml")
+    {
         serde_yaml::from_str(&text).context("parse manifest YAML")?
     } else {
         serde_json::from_str(&text).context("parse manifest JSON")?
@@ -40,7 +44,9 @@ pub fn dispatch(args: &CheckArgs) -> Result<()> {
 
     // Probe local capabilities.
     let probe = default_probe();
-    let descriptor = probe.probe().context("capability probe failed on this host")?;
+    let descriptor = probe
+        .probe()
+        .context("capability probe failed on this host")?;
 
     // Run the checker.
     let decision = fabric_checker::check(&descriptor, &manifest);

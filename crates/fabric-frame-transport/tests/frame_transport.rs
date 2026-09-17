@@ -7,7 +7,7 @@ use bytes::Bytes;
 use fabric_frame_transport::transport::{encode_wire, parse_message};
 use fabric_frame_transport::{
     Codec, FrameAck, FrameHeader, FrameMessage, KeyFrameRequest, MessageType, Ping, Pong,
-    PROTOCOL_VERSION, SessionAck, SessionInit, TransportError,
+    SessionAck, SessionInit, TransportError, PROTOCOL_VERSION,
 };
 
 // ---------------------------------------------------------------------------
@@ -105,9 +105,8 @@ fn test_all_message_types_roundtrip() {
             payload_len: raw_frame.len() as u32,
             duration_us: 16_667,
         };
-        let mut body_buf = bytes::BytesMut::with_capacity(
-            FrameHeader::SERIALIZED_SIZE + raw_frame.len(),
-        );
+        let mut body_buf =
+            bytes::BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + raw_frame.len());
         header.encode(&mut body_buf);
         body_buf.extend_from_slice(&raw_frame);
         let wire = encode_wire(MessageType::FrameData, &body_buf).unwrap();
@@ -295,7 +294,10 @@ fn test_truncated_payload() {
     let mut frame_body = header_buf.to_vec();
     frame_body.extend_from_slice(&[0u8; 10]);
     let result = parse_message(MessageType::FrameData, Bytes::from(frame_body));
-    assert!(result.is_err(), "FrameData with mismatched payload_len should fail");
+    assert!(
+        result.is_err(),
+        "FrameData with mismatched payload_len should fail"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -320,8 +322,7 @@ fn test_max_frame_size() {
         duration_us: u32::MAX,
     };
 
-    let mut body_buf =
-        bytes::BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + frame_size);
+    let mut body_buf = bytes::BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + frame_size);
     header.encode(&mut body_buf);
     body_buf.extend_from_slice(&raw_frame);
 

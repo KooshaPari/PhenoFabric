@@ -5,19 +5,16 @@
 use clap::Parser;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-use fabric_cli::{Cli, Commands, commands};
+use fabric_cli::{commands, Cli, Commands};
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     // Initialize tracing
     let filter = match cli.verbose {
-        0 => EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new("warn")),
-        1 => EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new("info")),
-        2 => EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new("debug")),
+        0 => EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn")),
+        1 => EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        2 => EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug")),
         _ => EnvFilter::new("trace"),
     };
 

@@ -35,28 +35,13 @@ pub fn generate_completion(shell: Shell) -> String {
 
     match shell {
         Shell::Bash => {
-            clap_complete::generate(
-                clap_complete::Shell::Bash,
-                &mut cmd,
-                "fabric",
-                &mut buf,
-            );
+            clap_complete::generate(clap_complete::Shell::Bash, &mut cmd, "fabric", &mut buf);
         }
         Shell::Zsh => {
-            clap_complete::generate(
-                clap_complete::Shell::Zsh,
-                &mut cmd,
-                "fabric",
-                &mut buf,
-            );
+            clap_complete::generate(clap_complete::Shell::Zsh, &mut cmd, "fabric", &mut buf);
         }
         Shell::Fish => {
-            clap_complete::generate(
-                clap_complete::Shell::Fish,
-                &mut cmd,
-                "fabric",
-                &mut buf,
-            );
+            clap_complete::generate(clap_complete::Shell::Fish, &mut cmd, "fabric", &mut buf);
         }
     }
 
@@ -72,32 +57,38 @@ fn build_cli_command() -> clap::Command {
 
     Command::new("fabric")
         .about("Phenotype Fabric reference surface CLI")
-        .arg(
-            arg!(-q --quiet "Suppress all output except errors"),
-        )
+        .arg(arg!(-q --quiet "Suppress all output except errors"))
         .arg(
             clap::Arg::new("verbose")
                 .short('v')
                 .action(clap::ArgAction::Count)
                 .help("Enable verbose output (vv for trace-level)"),
         )
-        .arg(
-            arg!(-w --workspace <PATH> "Path to the workspace directory (default: ~/.fabric/)"),
-        )
+        .arg(arg!(-w --workspace <PATH> "Path to the workspace directory (default: ~/.fabric/)"))
         .subcommand(Command::new("cap").about("Probe and inspect machine capabilities"))
         .subcommand(Command::new("graph").about("Build and inspect the capability topology graph"))
         .subcommand(Command::new("route").about("Compile routes and manage route plans"))
         .subcommand(Command::new("workspace").about("Manage named workspaces"))
-        .subcommand(Command::new("surface").about("Manage surface leases (displays, audio, network endpoints)"))
-        .subcommand(Command::new("probe").about("Probe local machine capabilities (top-level, outputs JSON)"))
+        .subcommand(
+            Command::new("surface")
+                .about("Manage surface leases (displays, audio, network endpoints)"),
+        )
+        .subcommand(
+            Command::new("probe")
+                .about("Probe local machine capabilities (top-level, outputs JSON)"),
+        )
         .subcommand(Command::new("status").about("Show daemon health status"))
         .subcommand(Command::new("check").about("Run checker against a manifest"))
         .subcommand(Command::new("tui").about("Launch the interactive TUI topology explorer"))
-        .subcommand(Command::new("completions").about("Generate shell completion scripts").arg(
-            clap::arg!(-s --shell <SHELL> "Shell type (bash, zsh, fish)")
-                .required(true)
-                .value_parser(value_parser!(Shell)),
-        ))
+        .subcommand(
+            Command::new("completions")
+                .about("Generate shell completion scripts")
+                .arg(
+                    clap::arg!(-s --shell <SHELL> "Shell type (bash, zsh, fish)")
+                        .required(true)
+                        .value_parser(value_parser!(Shell)),
+                ),
+        )
 }
 
 #[cfg(test)]

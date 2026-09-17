@@ -4,11 +4,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::path::PathBuf;
 
-use fabric_capability::{
-    descriptor::CapabilityDescriptor,
-    probe::default_probe,
-    schema, signing,
-};
+use fabric_capability::{descriptor::CapabilityDescriptor, probe::default_probe, schema, signing};
 
 use crate::output;
 
@@ -73,7 +69,9 @@ pub fn dispatch(sub: &crate::CapCommand, _workspace: &std::path::Path) -> Result
 
 fn probe(args: &ProbeArgs) -> Result<()> {
     let probe = default_probe();
-    let mut descriptor = probe.probe().context("capability probe failed on this host")?;
+    let mut descriptor = probe
+        .probe()
+        .context("capability probe failed on this host")?;
     let key = signing::SigningKey::generate();
     signing::sign(&mut descriptor, &key).context("auto-sign failed")?;
     let format = output::resolve_format(args.json, args.pretty);
@@ -90,9 +88,13 @@ fn probe(args: &ProbeArgs) -> Result<()> {
 fn sign(args: &SignArgs) -> Result<()> {
     let json = std::fs::read_to_string(&args.descriptor)
         .with_context(|| format!("read {}", args.descriptor.display()))?;
-    let mut descriptor: CapabilityDescriptor = serde_json::from_str(&json).context("parse descriptor JSON")?;
-    let key_bytes = std::fs::read(&args.key).with_context(|| format!("read {}", args.key.display()))?;
-    let key_array: [u8; 32] = key_bytes.as_slice().try_into()
+    let mut descriptor: CapabilityDescriptor =
+        serde_json::from_str(&json).context("parse descriptor JSON")?;
+    let key_bytes =
+        std::fs::read(&args.key).with_context(|| format!("read {}", args.key.display()))?;
+    let key_array: [u8; 32] = key_bytes
+        .as_slice()
+        .try_into()
         .map_err(|_| anyhow::anyhow!("signing key must be exactly 32 bytes"))?;
     let key = signing::SigningKey::from_bytes(&key_array);
     signing::sign(&mut descriptor, &key).context("sign")?;
@@ -104,16 +106,23 @@ fn sign(args: &SignArgs) -> Result<()> {
 fn verify(args: &VerifyArgs) -> Result<()> {
     let json = std::fs::read_to_string(&args.descriptor)
         .with_context(|| format!("read {}", args.descriptor.display()))?;
-    let descriptor: CapabilityDescriptor = serde_json::from_str(&json).context("parse descriptor JSON")?;
-    let key_bytes = std::fs::read(&args.key).with_context(|| format!("read {}", args.key.display()))?;
-    let key_array: [u8; 32] = key_bytes.as_slice().try_into()
+    let descriptor: CapabilityDescriptor =
+        serde_json::from_str(&json).context("parse descriptor JSON")?;
+    let key_bytes =
+        std::fs::read(&args.key).with_context(|| format!("read {}", args.key.display()))?;
+    let key_array: [u8; 32] = key_bytes
+        .as_slice()
+        .try_into()
         .map_err(|_| anyhow::anyhow!("verification key must be exactly 32 bytes"))?;
     let vk = signing::VerificationKey::from_bytes(&key_array);
     let trusted_ids: Vec<String> = vec![vk.key_id().to_string()];
     let valid = signing::verify(&descriptor, &vk).is_ok();
     let trusted = descriptor.has_trusted_signature(&trusted_ids);
     if valid && trusted {
-        println!("OK: descriptor signature valid and trusted ({})", vk.key_id());
+        println!(
+            "OK: descriptor signature valid and trusted ({})",
+            vk.key_id()
+        );
         Ok(())
     } else {
         anyhow::bail!("verification failed (valid={}, trusted={})", valid, trusted)
@@ -123,10 +132,16 @@ fn verify(args: &VerifyArgs) -> Result<()> {
 fn export(args: &ExportArgs) -> Result<()> {
     let json = std::fs::read_to_string(&args.descriptor)
         .with_context(|| format!("read {}", args.descriptor.display()))?;
-    let descriptor: CapabilityDescriptor = serde_json::from_str(&json).context("parse descriptor JSON")?;
+    let descriptor: CapabilityDescriptor =
+        serde_json::from_str(&json).context("parse descriptor JSON")?;
     let pretty = serde_json::to_string_pretty(&descriptor)?;
-    std::fs::write(&args.output, &pretty).with_context(|| format!("write {}", args.output.display()))?;
-    println!("exported {} bytes to {}", pretty.len(), args.output.display());
+    std::fs::write(&args.output, &pretty)
+        .with_context(|| format!("write {}", args.output.display()))?;
+    println!(
+        "exported {} bytes to {}",
+        pretty.len(),
+        args.output.display()
+    );
     Ok(())
 }
 
@@ -152,6 +167,9 @@ fn validate(args: &ValidateArgs) -> Result<()> {
     let json = std::fs::read_to_string(&args.descriptor)
         .with_context(|| format!("read {}", args.descriptor.display()))?;
     schema::validate_descriptor(&json).context("schema validation failed")?;
-    println!("OK: {} matches capability.schema.json", args.descriptor.display());
+    println!(
+        "OK: {} matches capability.schema.json",
+        args.descriptor.display()
+    );
     Ok(())
 }

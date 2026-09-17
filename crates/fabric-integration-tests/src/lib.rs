@@ -2,13 +2,14 @@
 
 pub mod harness;
 
+use bytes::BytesMut;
 use chrono::Utc;
 use fabric_capability::descriptor::{
     AudioCapabilities, Capabilities, ComputeCapabilities, DisplayCapabilities, DisplayInfo,
     InputCapabilities, StorageCapabilities, StorageDevice,
 };
 use fabric_capability::LocalityTier;
-use fabric_daemon::config::{DatabaseConfig, DaemonConfig};
+use fabric_daemon::config::{DaemonConfig, DatabaseConfig};
 use fabric_daemon::coordinator::Coordinator;
 use fabric_frame_transport::transport::encode_wire;
 use fabric_frame_transport::{FrameHeader, MessageType};
@@ -16,7 +17,6 @@ use fabric_graph::model::{
     Edge, EdgeId, Intent, IntentId, IntentRequirements, Node, NodeId, Topology,
 };
 use std::sync::Arc;
-use bytes::BytesMut;
 use uuid::Uuid;
 
 /// Create a temporary database-backed Coordinator for testing.
@@ -38,10 +38,7 @@ pub fn make_coordinator() -> (Arc<Coordinator>, tempfile::TempDir) {
 pub fn build_4node_topology() -> Topology {
     let mut topo = Topology::new();
     topo.add_node(Node::new(NodeId::new("n1"), LocalityTier::L1SameNuma));
-    topo.add_node(Node::new(
-        NodeId::new("n2"),
-        LocalityTier::L2CrossNumaShm,
-    ));
+    topo.add_node(Node::new(NodeId::new("n2"), LocalityTier::L2CrossNumaShm));
     topo.add_node(Node::new(NodeId::new("n3"), LocalityTier::L6Lan));
     topo.add_node(Node::new(NodeId::new("n4"), LocalityTier::L7Wan));
 

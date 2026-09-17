@@ -13,11 +13,11 @@
 //!   check    — run checker against manifest
 //!   tui      — interactive TUI explorer
 
-pub mod completions;
 pub mod commands;
+pub mod completions;
+mod output;
 pub mod tui;
 pub mod wire_client;
-mod output;
 
 use clap::Parser;
 

@@ -53,21 +53,13 @@ fn main() {
         };
         match serde_json::from_str::<CapabilityDescriptor>(&raw) {
             Ok(d) => {
-                let mem = d
-                    .capabilities
-                    .compute
-                    .as_ref()
-                    .map(|c| c.memory_bytes);
+                let mem = d.capabilities.compute.as_ref().map(|c| c.memory_bytes);
                 let cores = d
                     .capabilities
                     .compute
                     .as_ref()
                     .map(|c| (c.cores_physical, c.cores_logical));
-                let proc = d
-                    .capabilities
-                    .compute
-                    .as_ref()
-                    .map(|c| c.processor.clone());
+                let proc = d.capabilities.compute.as_ref().map(|c| c.processor.clone());
                 desc_results.insert(
                     desc.file_name().unwrap().to_string_lossy().to_string(),
                     format!(
@@ -87,7 +79,10 @@ fn main() {
     for (k, v) in &desc_results {
         println!("  {k:50}  {v}");
     }
-    let d_ok = desc_results.values().filter(|v| v.starts_with("OK")).count();
+    let d_ok = desc_results
+        .values()
+        .filter(|v| v.starts_with("OK"))
+        .count();
     let d_err = desc_results.len() - d_ok;
 
     println!("\n=== manifest fixtures ({}) ===", manifest_files.len());

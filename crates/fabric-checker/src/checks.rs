@@ -29,12 +29,10 @@ fn core_count(caps: &CapabilityDescriptor) -> u32 {
 }
 
 fn storage_total_bytes(caps: &CapabilityDescriptor) -> Option<u64> {
-    caps.capabilities.storage.as_ref().map(|s| {
-        s.devices
-            .iter()
-            .map(|d| d.size_bytes)
-            .sum::<u64>()
-    })
+    caps.capabilities
+        .storage
+        .as_ref()
+        .map(|s| s.devices.iter().map(|d| d.size_bytes).sum::<u64>())
 }
 
 // ---------------------------------------------------------------------------
@@ -46,10 +44,8 @@ pub fn check_memory_sufficient(
     descriptor: &CapabilityDescriptor,
     manifest: &CheckerManifest,
 ) -> Result<(), CheckOutcome> {
-    let host_mem =
-        mem_total_bytes(descriptor).ok_or_else(|| {
-            CheckOutcome::hard(ReasonCode::MemoryUnknown, "host memory unknown")
-        })?;
+    let host_mem = mem_total_bytes(descriptor)
+        .ok_or_else(|| CheckOutcome::hard(ReasonCode::MemoryUnknown, "host memory unknown"))?;
     let req_mem = manifest.memory_bytes;
     if host_mem < req_mem {
         return Err(CheckOutcome::hard(
@@ -85,10 +81,8 @@ pub fn check_storage_sufficient(
     descriptor: &CapabilityDescriptor,
     manifest: &CheckerManifest,
 ) -> Result<(), CheckOutcome> {
-    let host_storage =
-        storage_total_bytes(descriptor).ok_or_else(|| {
-            CheckOutcome::soft(ReasonCode::StorageUnknown, "host storage unknown")
-        })?;
+    let host_storage = storage_total_bytes(descriptor)
+        .ok_or_else(|| CheckOutcome::soft(ReasonCode::StorageUnknown, "host storage unknown"))?;
     if host_storage < manifest.storage_bytes {
         return Err(CheckOutcome::hard(
             ReasonCode::StorageInsufficient,

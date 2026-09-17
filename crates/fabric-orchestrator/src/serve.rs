@@ -24,8 +24,8 @@ pub fn start_wire_server(
     auth: Arc<AuthMiddleware>,
     runtime: Arc<tokio::runtime::Runtime>,
 ) -> Result<(), WireServerError> {
-    let listener = TcpListener::bind(listen_addr)
-        .map_err(|e| WireServerError::Bind(e.to_string()))?;
+    let listener =
+        TcpListener::bind(listen_addr).map_err(|e| WireServerError::Bind(e.to_string()))?;
 
     info!(addr = %listen_addr, "wire server binding");
 

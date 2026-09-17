@@ -80,8 +80,8 @@ pub fn dispatch(sub: &crate::GraphCommand, workspace: &Path) -> Result<()> {
 fn build(args: &BuildArgs, workspace: &Path) -> Result<()> {
     let mut builder = TopologyBuilder::new().with_name(&args.name);
     for path in &args.descriptors {
-        let json = std::fs::read_to_string(path)
-            .with_context(|| format!("read {}", path.display()))?;
+        let json =
+            std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
         let desc: CapabilityDescriptor = serde_json::from_str(&json).context("parse descriptor")?;
         let node_id = NodeId::new(desc.node_id.to_string());
         let locality = LocalityTier::L0SameProcess;
@@ -178,8 +178,7 @@ fn add_edge(args: &AddEdgeArgs) -> Result<()> {
 }
 
 fn load_topology(path: &Path) -> Result<Topology> {
-    let json = std::fs::read_to_string(path)
-        .with_context(|| format!("read {}", path.display()))?;
+    let json = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     serde_json::from_str(&json).context("parse topology JSON")
 }
 
@@ -198,8 +197,7 @@ fn save_topology(
         }
     };
     let json = serde_json::to_string_pretty(topology)?;
-    std::fs::write(&out_path, json)
-        .with_context(|| format!("write {}", out_path.display()))?;
+    std::fs::write(&out_path, json).with_context(|| format!("write {}", out_path.display()))?;
     eprintln!("wrote {}", out_path.display());
     Ok(())
 }

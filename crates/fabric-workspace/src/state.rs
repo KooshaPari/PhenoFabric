@@ -9,7 +9,7 @@ use std::path::Path;
 use fabric_capability::locality::LocalityTier;
 
 use crate::error::{Error, Result};
-use crate::lease::{LifecycleState, SeatLease, SeatId, Transition};
+use crate::lease::{LifecycleState, SeatId, SeatLease, Transition};
 
 /// A Fabric workspace — a managed compute environment with assigned capabilities.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -163,7 +163,8 @@ impl WorkspaceStore {
                 message: "workspace already exists".into(),
             });
         }
-        self.workspaces.insert(workspace.id.clone(), workspace.clone());
+        self.workspaces
+            .insert(workspace.id.clone(), workspace.clone());
         self.save_workspace(&workspace)?;
         Ok(())
     }
@@ -194,11 +195,7 @@ impl WorkspaceStore {
 
     /// Detect seat conflicts for a proposed lease.
     /// Returns Ok if no conflict, or Error::Conflict if a seat is already held.
-    pub fn check_conflict(
-        &self,
-        workspace_id: &WorkspaceId,
-        seat_name: &str,
-    ) -> Result<()> {
+    pub fn check_conflict(&self, workspace_id: &WorkspaceId, seat_name: &str) -> Result<()> {
         let ws = self
             .workspaces
             .get(workspace_id)

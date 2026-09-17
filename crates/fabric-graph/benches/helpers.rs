@@ -4,12 +4,10 @@
 //! for benchmarking the graph compiler, negotiation, and failover paths.
 
 use fabric_graph::model::{
-    CapabilityRef, Edge, EdgeId, Intent, IntentId, IntentRequirements, LinkMetrics, Node,
-    NodeId, Topology, TopologyMeta, TrustLevel,
+    CapabilityRef, Edge, EdgeId, Intent, IntentId, IntentRequirements, LinkMetrics, Node, NodeId,
+    Topology, TopologyMeta, TrustLevel,
 };
-use fabric_graph::{score_locality, FairnessPolicy, FairnessQueue, LocalityTier,
-    TenantId,
-};
+use fabric_graph::{score_locality, FairnessPolicy, FairnessQueue, LocalityTier, TenantId};
 
 /// Build a fully-connected topology with `n` nodes.
 ///

@@ -9,9 +9,9 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use fabric_tray::{check_daemon_health, create_icon, DaemonStatus};
+use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tray_icon::TrayIconBuilder;
-use tao::event_loop::{ControlFlow, EventLoopBuilder};
 
 /// User events forwarded from muda to tao event loop.
 #[derive(Debug)]
@@ -176,9 +176,7 @@ impl TrayApp {
         }
         #[cfg(target_os = "windows")]
         {
-            let _ = Command::new("cmd")
-                .args(["/C", "start", &url])
-                .spawn();
+            let _ = Command::new("cmd").args(["/C", "start", &url]).spawn();
         }
     }
 
@@ -282,10 +280,7 @@ fn main() -> Result<()> {
                     "open-gui" => app.open_gui(),
                     "open-web" => app.open_web(),
                     "about" => {
-                        tracing::info!(
-                            "Phenotype Fabric v{}",
-                            env!("CARGO_PKG_VERSION")
-                        );
+                        tracing::info!("Phenotype Fabric v{}", env!("CARGO_PKG_VERSION"));
                     }
                     "quit" => {
                         tracing::info!("quit requested");

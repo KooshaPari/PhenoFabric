@@ -32,5 +32,3 @@ pub struct CheckerManifest {
     /// Whether the application requires a real-time scheduling island.
     pub realtime_island: bool,
 }
-
-

@@ -1,7 +1,7 @@
 //! Routes, capabilities, and health pages — simple data-fetching views.
 
-use leptos::prelude::*;
 use crate::api::*;
+use leptos::prelude::*;
 
 /// Routes page — shows compiled route plans.
 #[component]

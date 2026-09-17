@@ -53,10 +53,13 @@ pub fn validate_message(json: &str) -> ValidationResult {
     })?;
 
     // Must have a "type" field.
-    let msg_type = obj.get("type").and_then(|v| v.as_str()).ok_or_else(|| ValidationError {
-        message: "missing required field: type".into(),
-        code: "MISSING_TYPE".into(),
-    })?;
+    let msg_type = obj
+        .get("type")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ValidationError {
+            message: "missing required field: type".into(),
+            code: "MISSING_TYPE".into(),
+        })?;
 
     // Must be a known type.
     if !crate::schema::is_known_type(msg_type) {
@@ -259,9 +262,8 @@ mod tests {
 
     #[test]
     fn valid_compile_request() {
-        let result = validate_message(
-            r#"{"type":"compile_request","source":"a","destination":"b"}"#,
-        );
+        let result =
+            validate_message(r#"{"type":"compile_request","source":"a","destination":"b"}"#);
         assert!(result.is_ok());
     }
 
@@ -275,25 +277,20 @@ mod tests {
 
     #[test]
     fn valid_webrtc_offer() {
-        let result = validate_message(
-            r#"{"type":"webrtc_offer","target":"n1","sdp":"v=0..."}"#,
-        );
+        let result = validate_message(r#"{"type":"webrtc_offer","target":"n1","sdp":"v=0..."}"#);
         assert!(result.is_ok());
     }
 
     #[test]
     fn valid_webrtc_answer() {
-        let result = validate_message(
-            r#"{"type":"webrtc_answer","target":"n1","sdp":"v=0..."}"#,
-        );
+        let result = validate_message(r#"{"type":"webrtc_answer","target":"n1","sdp":"v=0..."}"#);
         assert!(result.is_ok());
     }
 
     #[test]
     fn valid_webrtc_ice() {
-        let result = validate_message(
-            r#"{"type":"webrtc_ice","from":"browser","candidate":"candidate:1"}"#,
-        );
+        let result =
+            validate_message(r#"{"type":"webrtc_ice","from":"browser","candidate":"candidate:1"}"#);
         assert!(result.is_ok());
     }
 
@@ -334,9 +331,7 @@ mod tests {
 
     #[test]
     fn compile_request_missing_source() {
-        let result = validate_message(
-            r#"{"type":"compile_request","destination":"b"}"#,
-        );
+        let result = validate_message(r#"{"type":"compile_request","destination":"b"}"#);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.code, "MISSING_FIELD");
@@ -345,9 +340,7 @@ mod tests {
 
     #[test]
     fn compile_request_missing_destination() {
-        let result = validate_message(
-            r#"{"type":"compile_request","source":"a"}"#,
-        );
+        let result = validate_message(r#"{"type":"compile_request","source":"a"}"#);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.code, "MISSING_FIELD");
@@ -356,72 +349,59 @@ mod tests {
 
     #[test]
     fn compile_request_wrong_type_source() {
-        let result = validate_message(
-            r#"{"type":"compile_request","source":123,"destination":"b"}"#,
-        );
+        let result =
+            validate_message(r#"{"type":"compile_request","source":123,"destination":"b"}"#);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "WRONG_TYPE");
     }
 
     #[test]
     fn compile_request_wrong_type_destination() {
-        let result = validate_message(
-            r#"{"type":"compile_request","source":"a","destination":true}"#,
-        );
+        let result =
+            validate_message(r#"{"type":"compile_request","source":"a","destination":true}"#);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "WRONG_TYPE");
     }
 
     #[test]
     fn compile_request_null_source() {
-        let result = validate_message(
-            r#"{"type":"compile_request","source":null,"destination":"b"}"#,
-        );
+        let result =
+            validate_message(r#"{"type":"compile_request","source":null,"destination":"b"}"#);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "NULL_FIELD");
     }
 
     #[test]
     fn webrtc_offer_missing_target() {
-        let result = validate_message(
-            r#"{"type":"webrtc_offer","sdp":"v=0..."}"#,
-        );
+        let result = validate_message(r#"{"type":"webrtc_offer","sdp":"v=0..."}"#);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "MISSING_FIELD");
     }
 
     #[test]
     fn webrtc_offer_missing_sdp() {
-        let result = validate_message(
-            r#"{"type":"webrtc_offer","target":"n1"}"#,
-        );
+        let result = validate_message(r#"{"type":"webrtc_offer","target":"n1"}"#);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "MISSING_FIELD");
     }
 
     #[test]
     fn webrtc_offer_wrong_type_target() {
-        let result = validate_message(
-            r#"{"type":"webrtc_offer","target":42,"sdp":"v=0..."}"#,
-        );
+        let result = validate_message(r#"{"type":"webrtc_offer","target":42,"sdp":"v=0..."}"#);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "WRONG_TYPE");
     }
 
     #[test]
     fn webrtc_ice_missing_from() {
-        let result = validate_message(
-            r#"{"type":"webrtc_ice","candidate":"c1"}"#,
-        );
+        let result = validate_message(r#"{"type":"webrtc_ice","candidate":"c1"}"#);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "MISSING_FIELD");
     }
 
     #[test]
     fn webrtc_ice_missing_candidate() {
-        let result = validate_message(
-            r#"{"type":"webrtc_ice","from":"browser"}"#,
-        );
+        let result = validate_message(r#"{"type":"webrtc_ice","from":"browser"}"#);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "MISSING_FIELD");
     }
@@ -467,9 +447,7 @@ mod tests {
 
     #[test]
     fn save_config_wrong_type_overrides() {
-        let result = validate_message(
-            r#"{"type":"save_config","overrides":"not-an-object"}"#,
-        );
+        let result = validate_message(r#"{"type":"save_config","overrides":"not-an-object"}"#);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "WRONG_TYPE");
     }

@@ -5,11 +5,11 @@
 //! to receive desktop frames over WebRTC data channels instead of TCP.
 
 use bytes::{Bytes, BytesMut};
-use fabric_frame_transport::{
-    FrameAck, FrameHeader, FrameMessage, KeyFrameRequest, MessageType,
-    Ping, Pong, SessionInit, TransportError,
-};
 use fabric_frame_transport::transport::{encode_wire, parse_message};
+use fabric_frame_transport::{
+    FrameAck, FrameHeader, FrameMessage, KeyFrameRequest, MessageType, Ping, Pong, SessionInit,
+    TransportError,
+};
 use std::cell::Cell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
@@ -69,7 +69,10 @@ pub struct WebRtcChannel {
 impl WebRtcChannel {
     /// Create a new WebRTC channel wrapper.
     pub fn new(channel: web_sys::RtcDataChannel) -> Self {
-        Self { channel, open: Rc::new(Cell::new(false)) }
+        Self {
+            channel,
+            open: Rc::new(Cell::new(false)),
+        }
     }
 
     /// Returns the underlying data channel label.
@@ -92,7 +95,10 @@ impl WebRtcChannel {
     }
 
     /// Send a SessionAck message.
-    pub fn send_session_ack(&self, ack: &fabric_frame_transport::SessionAck) -> Result<(), WebRtcTransportError> {
+    pub fn send_session_ack(
+        &self,
+        ack: &fabric_frame_transport::SessionAck,
+    ) -> Result<(), WebRtcTransportError> {
         let wire = encode_wire(MessageType::SessionAck, &serde_json::to_vec(ack).unwrap())
             .map_err(|e| WebRtcTransportError::SendFailed(e.to_string()))?;
         self.send_wire(&wire)
@@ -149,8 +155,11 @@ impl WebRtcChannel {
 
     /// Send a KeyFrameRequest message.
     pub fn send_keyframe_request(&self, req: &KeyFrameRequest) -> Result<(), WebRtcTransportError> {
-        let wire = encode_wire(MessageType::KeyFrameRequest, &serde_json::to_vec(req).unwrap())
-            .map_err(|e| WebRtcTransportError::SendFailed(e.to_string()))?;
+        let wire = encode_wire(
+            MessageType::KeyFrameRequest,
+            &serde_json::to_vec(req).unwrap(),
+        )
+        .map_err(|e| WebRtcTransportError::SendFailed(e.to_string()))?;
         self.send_wire(&wire)
     }
 
@@ -184,7 +193,8 @@ impl WebRtcChannel {
                 }
 
                 // Parse wire format: [4 bytes: total_len LE] [1 byte: msg_type] [payload]
-                let total_len = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
+                let total_len =
+                    u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
                 let msg_type_byte = bytes[4];
 
                 if total_len < 1 || bytes.len() < 4 + total_len {
@@ -207,8 +217,7 @@ impl WebRtcChannel {
                     Some(mt) => mt,
                     None => {
                         web_sys::console::warn_1(
-                            &format!("[fabric-web] Unknown message type: {msg_type_byte}")
-                                .into(),
+                            &format!("[fabric-web] Unknown message type: {msg_type_byte}").into(),
                         );
                         return;
                     }
@@ -225,7 +234,8 @@ impl WebRtcChannel {
             }
         }) as Box<dyn FnMut(web_sys::MessageEvent)>);
 
-        self.channel.set_onmessage(Some(closure.as_ref().unchecked_ref()));
+        self.channel
+            .set_onmessage(Some(closure.as_ref().unchecked_ref()));
         closure.forget(); // Leak the closure to keep it alive
     }
 

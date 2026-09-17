@@ -1,7 +1,7 @@
 //! Network page — shows UPnP, Tailscale, and STUN status.
 
-use leptos::prelude::*;
 use crate::api::*;
+use leptos::prelude::*;
 
 /// Network page — shows UPnP port mappings, Tailscale peers, and STUN external address.
 #[component]

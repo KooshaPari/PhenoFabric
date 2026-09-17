@@ -98,18 +98,18 @@ impl FabricPipeline {
         &self,
         topology_path: &std::path::Path,
     ) -> Result<serde_json::Value, PipelineError> {
-        let content = std::fs::read_to_string(topology_path)
-            .map_err(|e| PipelineError::Io(e.to_string()))?;
-        let topo: fabric_graph::Topology = serde_json::from_str(&content)
-            .map_err(|e| PipelineError::Parse(e.to_string()))?;
+        let content =
+            std::fs::read_to_string(topology_path).map_err(|e| PipelineError::Io(e.to_string()))?;
+        let topo: fabric_graph::Topology =
+            serde_json::from_str(&content).map_err(|e| PipelineError::Parse(e.to_string()))?;
 
         self.coordinator
             .set_topology(topo)
             .map_err(|e| PipelineError::Coordinator(e.to_string()))?;
 
         let plans_json = self.coordinator.plans_snapshot();
-        let plans: serde_json::Value = serde_json::from_str(&plans_json)
-            .map_err(|e| PipelineError::Parse(e.to_string()))?;
+        let plans: serde_json::Value =
+            serde_json::from_str(&plans_json).map_err(|e| PipelineError::Parse(e.to_string()))?;
 
         Ok(plans)
     }
@@ -206,7 +206,11 @@ mod tests {
 
         // Write an empty topology to disk.
         let topo_path = _dir.path().join("empty_topo.json");
-        std::fs::write(&topo_path, r#"{"epoch":0,"nodes":{},"edges":{},"meta":{"name":"empty","annotations":{}}}"#).unwrap();
+        std::fs::write(
+            &topo_path,
+            r#"{"epoch":0,"nodes":{},"edges":{},"meta":{"name":"empty","annotations":{}}}"#,
+        )
+        .unwrap();
 
         let result = pipeline.compile_topology(&topo_path);
         assert!(result.is_ok(), "compile failed: {result:?}");

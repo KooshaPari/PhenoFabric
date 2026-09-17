@@ -10,7 +10,10 @@ use fabric_graph::{
     decision::{reduce, Decision, Severity},
     lease_fsm::{can_transition, next_state},
     model::{RoutePlanId, RouteStep, TopologyEpoch},
-    surface::{CaptureDirection, LeaseState, LeaseExitReason, SurfaceProtocol, SurfaceSpec, SurfaceSpecError},
+    surface::{
+        CaptureDirection, LeaseExitReason, LeaseState, SurfaceProtocol, SurfaceSpec,
+        SurfaceSpecError,
+    },
     surface_ops::{bind, complete, expire, fail, is_terminal, new_lease, revoke},
     TrustLevel,
 };
@@ -165,8 +168,7 @@ fn next_state_pending_to_completed_rejects() {
 fn bind_then_complete_yields_completed_lease() {
     let spec = valid_spec("e2e-1");
     let mut lease = new_lease(spec).unwrap();
-    bind(&mut lease, RoutePlanId::new(), a_route_step())
-        .expect("bind Pending->Active");
+    bind(&mut lease, RoutePlanId::new(), a_route_step()).expect("bind Pending->Active");
     assert_eq!(lease.state, LeaseState::Active);
     assert!(lease.current.is_some(), "Active lease has a binding");
     complete(&mut lease).expect("complete Active->Completed");
@@ -257,10 +259,7 @@ fn route_plan_built_via_builder_compiles_for_surface_bind() {
         .add_simple_node("host-1", LocalityTier::L2CrossNumaShm)
         .connect("host-0", "host-1", LocalityTier::L2CrossNumaShm)
         .build();
-    let plan = make_plan(
-        vec![make_step("host-0", "compute")],
-        TopologyEpoch(1),
-    );
+    let plan = make_plan(vec![make_step("host-0", "compute")], TopologyEpoch(1));
     assert_eq!(topo.node_count(), 2);
     assert_eq!(topo.edge_count(), 1);
     assert_eq!(plan.steps.len(), 1);

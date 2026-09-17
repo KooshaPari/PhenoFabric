@@ -1,9 +1,7 @@
 //! Map an `odin.nvms` v0.2 manifest to the Fabric capabilities a
 //! target host must have to satisfy it.
 
-use fabric_capability::descriptor::{
-    AudioCapabilities, ComputeCapabilities, NetworkCapabilities,
-};
+use fabric_capability::descriptor::{AudioCapabilities, ComputeCapabilities, NetworkCapabilities};
 use phenotype_manifest::Manifest;
 use thiserror::Error;
 
@@ -62,15 +60,14 @@ pub fn required_capabilities(
     // CPU: derive from infra.resources.cpu (JSON value) or default to 1 core.
     let cores_physical: u32 = match manifest.infra.resources.as_ref() {
         Some(r) => match r.cpu.as_ref() {
-            Some(serde_json::Value::Number(n)) => n
-                .as_u64()
-                .map(|v| v as u32)
-                .ok_or_else(|| {
+            Some(serde_json::Value::Number(n)) => {
+                n.as_u64().map(|v| v as u32).ok_or_else(|| {
                     RequiredCapabilitiesError::Invalid(format!(
                         "infra.resources.cpu is not an integer: {}",
                         n
                     ))
-                })?,
+                })?
+            }
             Some(serde_json::Value::String(s)) => s.parse::<u32>().map_err(|_| {
                 RequiredCapabilitiesError::Invalid(format!(
                     "infra.resources.cpu is a string but not parseable as integer: {}",
@@ -92,10 +89,7 @@ pub fn required_capabilities(
     let memory_bytes: u64 = match manifest.infra.resources.as_ref() {
         Some(r) => match r.memory.as_ref() {
             Some(s) => parse_k8s_memory(s).map_err(|e| {
-                RequiredCapabilitiesError::Invalid(format!(
-                    "infra.resources.memory: {}",
-                    e
-                ))
+                RequiredCapabilitiesError::Invalid(format!("infra.resources.memory: {}", e))
             })?,
             None => 256 * 1024 * 1024, // 256 MiB default minimum
         },
@@ -107,19 +101,17 @@ pub fn required_capabilities(
     let mut interfaces = Vec::new();
     if let Some(net) = &manifest.network {
         for port in &net.ports {
-            interfaces.push(
-                fabric_capability::descriptor::NetworkInterface {
-                    name: format!("nvms-port-{}", port),
-                    mac_address: None,
-                    link_speed_mbps: None,
-                    mtu: 1500,
-                    rdma_capable: false,
-                    zerocopy_capable: false,
-                    rss_queues: 1,
-                    ipv4: None,
-                    ipv6: None,
-                },
-            );
+            interfaces.push(fabric_capability::descriptor::NetworkInterface {
+                name: format!("nvms-port-{}", port),
+                mac_address: None,
+                link_speed_mbps: None,
+                mtu: 1500,
+                rdma_capable: false,
+                zerocopy_capable: false,
+                rss_queues: 1,
+                ipv4: None,
+                ipv6: None,
+            });
             // Note: the `port` itself is encoded via the interface name
             // and surfaced to the route compiler as a port allocation
             // request; the descriptor struct doesn't have a port field

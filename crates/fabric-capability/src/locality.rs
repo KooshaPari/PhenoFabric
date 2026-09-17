@@ -4,8 +4,17 @@
 //! cost. The tiers are ordered from cheapest/fastest (L0) to most expensive (L8).
 
 /// A locality tier representing the communication cost between two endpoints.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+)]
 pub enum LocalityTier {
     /// Same NUMA node, same process.
     L0SameProcess,
@@ -138,8 +147,9 @@ pub fn locality_index(t: LocalityTier) -> u8 {
 ///
 /// These are a subset of locality tiers that specifically describe the
 /// available data-transfer paths between two nodes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
 pub enum CopyPath {
     /// Same NUMA node, shared memory.
     SharedMemory,

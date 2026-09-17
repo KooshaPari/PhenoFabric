@@ -156,8 +156,8 @@ fn capability_descriptor_round_trips_through_json() {
 
         // Re-serialize to JSON and parse it back; expect semantic equality
         // on the fields the checker actually reads.
-        let re_json = serde_json::to_string(&d)
-            .unwrap_or_else(|e| panic!("{name}: serialize failed: {e}"));
+        let re_json =
+            serde_json::to_string(&d).unwrap_or_else(|e| panic!("{name}: serialize failed: {e}"));
         let d2: CapabilityDescriptor = serde_json::from_str(&re_json)
             .unwrap_or_else(|e| panic!("{name}: re-deserialize failed: {e}"));
         assert_eq!(d.epoch, d2.epoch, "{name}: epoch round-trip differs");
@@ -169,8 +169,7 @@ fn capability_descriptor_round_trips_through_json() {
             d.topology_hash, d2.topology_hash,
             "{name}: topology_hash round-trip differs"
         );
-        if let (Some(c1), Some(c2)) = (&d.capabilities.compute, &d2.capabilities.compute)
-        {
+        if let (Some(c1), Some(c2)) = (&d.capabilities.compute, &d2.capabilities.compute) {
             assert_eq!(
                 c1.memory_bytes, c2.memory_bytes,
                 "{name}: memory_bytes round-trip differs"

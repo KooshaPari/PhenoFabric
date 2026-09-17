@@ -2,8 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use fabric_graph::model::{
-    CapabilityRef, Edge, EdgeId, LinkMetrics, Node, NodeId, Topology, TopologyEpoch,
-    TopologyMeta,
+    CapabilityRef, Edge, EdgeId, LinkMetrics, Node, NodeId, Topology, TopologyEpoch, TopologyMeta,
 };
 use fabric_graph::LocalityTier;
 use rusqlite::params;
@@ -233,10 +232,7 @@ impl Persist {
             let new_epoch = current_epoch + 1;
 
             // Update.
-            conn.execute(
-                "DELETE FROM topology_meta WHERE key = 'epoch'",
-                [],
-            )?;
+            conn.execute("DELETE FROM topology_meta WHERE key = 'epoch'", [])?;
             conn.execute(
                 "INSERT INTO topology_meta (key, value) VALUES ('epoch', ?1)",
                 params![new_epoch.to_string()],
@@ -335,17 +331,12 @@ mod tests {
         topo.meta.name = "full-meta-test".into();
         topo.meta.created_by = Some("test-agent".into());
         topo.meta.created_at = Some(Utc::now());
-        topo.meta
-            .annotations
-            .insert("env".into(), "staging".into());
+        topo.meta.annotations.insert("env".into(), "staging".into());
         persist.save_topology(&topo).unwrap();
 
         let loaded = persist.load_topology().unwrap().unwrap();
         assert_eq!(loaded.meta.name, "full-meta-test");
-        assert_eq!(
-            loaded.meta.created_by.as_deref(),
-            Some("test-agent")
-        );
+        assert_eq!(loaded.meta.created_by.as_deref(), Some("test-agent"));
         assert!(loaded.meta.created_at.is_some());
         assert_eq!(
             loaded.meta.annotations.get("env").map(|s| s.as_str()),

@@ -21,7 +21,10 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LeaseTransitionError {
     /// The transition was illegal for the current state.
-    IllegalTransition { from: LeaseState, attempted: &'static str },
+    IllegalTransition {
+        from: LeaseState,
+        attempted: &'static str,
+    },
     /// A guard predicate (e.g. expired-by-clock) rejected the transition.
     GuardRejected { reason: &'static str },
 }
@@ -48,10 +51,7 @@ pub fn can_transition(from: LeaseState, to: LeaseState) -> bool {
 /// Compute the new state after a successful transition; returns
 /// `LeaseTransitionError::IllegalTransition` if the requested transition
 /// isn't allowed.
-pub fn next_state(
-    from: LeaseState,
-    to: LeaseState,
-) -> Result<LeaseState, LeaseTransitionError> {
+pub fn next_state(from: LeaseState, to: LeaseState) -> Result<LeaseState, LeaseTransitionError> {
     if can_transition(from, to) {
         Ok(to)
     } else {

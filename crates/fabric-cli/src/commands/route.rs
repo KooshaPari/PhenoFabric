@@ -7,12 +7,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::path::{Path, PathBuf};
 
-use fabric_graph::{
-    builder::IntentBuilder,
-    compile,
-    model::TrustLevel,
-    planner,
-};
+use fabric_graph::{builder::IntentBuilder, compile, model::TrustLevel, planner};
 
 use crate::output;
 use crate::wire_client;
@@ -102,8 +97,8 @@ fn compile_route(args: &CompileArgs, workspace: &Path) -> Result<()> {
     // Load topology.
     let topology_json = std::fs::read_to_string(&args.topology)
         .with_context(|| format!("read {}", args.topology.display()))?;
-    let topology: fabric_graph::model::Topology = serde_json::from_str(&topology_json)
-        .context("parse topology")?;
+    let topology: fabric_graph::model::Topology =
+        serde_json::from_str(&topology_json).context("parse topology")?;
 
     // Load intent: try as file path first, fall back to inline name.
     let intent = if Path::new(&args.intent).exists() {
@@ -113,8 +108,8 @@ fn compile_route(args: &CompileArgs, workspace: &Path) -> Result<()> {
         if let Ok(full_intent) = serde_json::from_str::<fabric_graph::model::Intent>(&intent_json) {
             full_intent
         } else {
-            let obj: serde_json::Value = serde_json::from_str(&intent_json)
-                .context("parse intent JSON")?;
+            let obj: serde_json::Value =
+                serde_json::from_str(&intent_json).context("parse intent JSON")?;
             let name = obj
                 .get("name")
                 .and_then(|v| v.as_str())
@@ -157,14 +152,15 @@ fn compile_route(args: &CompileArgs, workspace: &Path) -> Result<()> {
     let plan = compile(&topology, &intent).context("compile failed")?;
 
     let out_path = args.output.clone().unwrap_or_else(|| {
-        workspace.join("routes").join(format!("{}.json", intent.name))
+        workspace
+            .join("routes")
+            .join(format!("{}.json", intent.name))
     });
     let json = serde_json::to_string_pretty(&plan)?;
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&out_path, &json)
-        .with_context(|| format!("write {}", out_path.display()))?;
+    std::fs::write(&out_path, &json).with_context(|| format!("write {}", out_path.display()))?;
     eprintln!("wrote {}", out_path.display());
 
     if args.json {
@@ -180,11 +176,7 @@ fn compile_route(args: &CompileArgs, workspace: &Path) -> Result<()> {
             println!("  score:       {:.3}", score.composite);
         }
         for (i, step) in plan.steps.iter().enumerate() {
-            println!(
-                "  step {}: node={}",
-                i,
-                step.node,
-            );
+            println!("  step {}: node={}", i, step.node,);
         }
     }
     Ok(())
@@ -216,10 +208,7 @@ fn list(args: &ListArgs) -> Result<()> {
                         .get("intent_id")
                         .and_then(|v| v.as_str())
                         .unwrap_or("?");
-                    let steps = route
-                        .get("steps")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
+                    let steps = route.get("steps").and_then(|v| v.as_u64()).unwrap_or(0);
                     let epoch = route
                         .get("topology_epoch")
                         .and_then(|v| v.as_u64())
@@ -274,16 +263,12 @@ fn list(args: &ListArgs) -> Result<()> {
 fn plan_sequence(args: &PlanArgs, workspace: &Path) -> Result<()> {
     let topology_json = std::fs::read_to_string(&args.topology)
         .with_context(|| format!("read {}", args.topology.display()))?;
-    let topology: fabric_graph::model::Topology = serde_json::from_str(&topology_json)
-        .context("parse topology")?;
+    let topology: fabric_graph::model::Topology =
+        serde_json::from_str(&topology_json).context("parse topology")?;
     let intents: Vec<_> = args
         .intents
         .iter()
-        .map(|name| {
-            IntentBuilder::new()
-                .name(name)
-                .build()
-        })
+        .map(|name| IntentBuilder::new().name(name).build())
         .collect();
     let plan = planner::plan_sequence(&topology, "cli-sequence", &intents)
         .context("plan_sequence failed")?;
@@ -296,8 +281,7 @@ fn plan_sequence(args: &PlanArgs, workspace: &Path) -> Result<()> {
         std::fs::create_dir_all(parent).ok();
     }
     let json = serde_json::to_string_pretty(&plan)?;
-    std::fs::write(&out_path, json)
-        .with_context(|| format!("write {}", out_path.display()))?;
+    std::fs::write(&out_path, json).with_context(|| format!("write {}", out_path.display()))?;
     println!(
         "wrote plan with {} routes to {}",
         plan.plans.len(),
@@ -309,8 +293,8 @@ fn plan_sequence(args: &PlanArgs, workspace: &Path) -> Result<()> {
 fn validate(args: &ValidateArgs) -> Result<()> {
     let json = std::fs::read_to_string(&args.input)
         .with_context(|| format!("read {}", args.input.display()))?;
-    let _plan: fabric_graph::model::RoutePlan = serde_json::from_str(&json)
-        .context("parse route plan JSON")?;
+    let _plan: fabric_graph::model::RoutePlan =
+        serde_json::from_str(&json).context("parse route plan JSON")?;
     println!("OK: {} is a valid RoutePlan", args.input.display());
     Ok(())
 }
@@ -318,8 +302,8 @@ fn validate(args: &ValidateArgs) -> Result<()> {
 fn show(args: &ShowArgs) -> Result<()> {
     let json = std::fs::read_to_string(&args.input)
         .with_context(|| format!("read {}", args.input.display()))?;
-    let plan: fabric_graph::model::RoutePlan = serde_json::from_str(&json)
-        .context("parse route plan JSON")?;
+    let plan: fabric_graph::model::RoutePlan =
+        serde_json::from_str(&json).context("parse route plan JSON")?;
     println!("{}", console::style("Route plan:").cyan().bold());
     println!("  id:    {:?}", plan.id);
     println!("  steps: {}", plan.steps.len());
@@ -327,11 +311,7 @@ fn show(args: &ShowArgs) -> Result<()> {
         println!("  score: {:.3}", score.composite);
     }
     for (i, step) in plan.steps.iter().enumerate() {
-        println!(
-            "  step {}: node={}",
-            i,
-            step.node,
-        );
+        println!("  step {}: node={}", i, step.node,);
     }
     Ok(())
 }

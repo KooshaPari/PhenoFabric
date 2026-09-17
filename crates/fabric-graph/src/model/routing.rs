@@ -10,7 +10,6 @@ use super::edges::Edge;
 use super::ids::{EdgeId, IntentId, NodeId, RoutePlanId, TopologyEpoch};
 use super::nodes::Node;
 
-
 // ---------------------------------------------------------------------------
 // Route plan
 // ---------------------------------------------------------------------------
@@ -237,8 +236,10 @@ impl ScoreBreakdown {
         capability_score: f64,
         trust_score: f64,
     ) -> Self {
-        let composite =
-            locality_score * 0.35 + latency_score * 0.30 + capability_score * 0.25 + trust_score * 0.10;
+        let composite = locality_score * 0.35
+            + latency_score * 0.30
+            + capability_score * 0.25
+            + trust_score * 0.10;
         Self {
             locality_score,
             latency_score,

@@ -180,7 +180,10 @@ impl Persist {
             if let Some((rt, rid)) = resource {
                 let idx1 = params_vec.len() + 1;
                 let idx2 = params_vec.len() + 2;
-                sql.push_str(&format!(" AND resource_type = ?{} AND resource_id = ?{}", idx1, idx2));
+                sql.push_str(&format!(
+                    " AND resource_type = ?{} AND resource_id = ?{}",
+                    idx1, idx2
+                ));
                 params_vec.push(Box::new(rt.to_string()));
                 params_vec.push(Box::new(rid.to_string()));
             }
@@ -203,8 +206,8 @@ impl Persist {
                 let result: String = row.get(5)?;
                 let observed_at: String = row.get(6)?;
 
-                let details: Option<serde_json::Value> = details_json
-                    .and_then(|j| serde_json::from_str(&j).ok());
+                let details: Option<serde_json::Value> =
+                    details_json.and_then(|j| serde_json::from_str(&j).ok());
                 let observed = DateTime::parse_from_rfc3339(&observed_at)
                     .map(|dt| dt.with_timezone(&Utc))
                     .unwrap_or_else(|_| Utc::now());

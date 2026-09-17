@@ -2,10 +2,10 @@
 
 use bytes::BytesMut;
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use fabric_frame_transport::transport::{encode_wire, parse_message};
 use fabric_frame_transport::{
     Codec, FrameHeader, FrameMessage, MessageType, SessionInit, PROTOCOL_VERSION,
 };
-use fabric_frame_transport::transport::{encode_wire, parse_message};
 
 // ---------------------------------------------------------------------------
 // Existing benchmarks: RGBA frame encode/decode
@@ -41,8 +41,7 @@ fn bench_encode_frame_1080p(c: &mut Criterion) {
 
     group.bench_function("wire_encode_full", |b| {
         b.iter(|| {
-            let mut body =
-                BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + payload.len());
+            let mut body = BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + payload.len());
             header.encode(&mut body);
             body.extend_from_slice(&payload);
             let wire = encode_wire(MessageType::FrameData, black_box(&body)).unwrap();
@@ -52,8 +51,7 @@ fn bench_encode_frame_1080p(c: &mut Criterion) {
 
     group.bench_function("header_payload_combined", |b| {
         b.iter(|| {
-            let mut body =
-                BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + payload.len());
+            let mut body = BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + payload.len());
             header.encode(&mut body);
             body.extend_from_slice(&payload);
             black_box(&body);
@@ -104,11 +102,7 @@ fn bench_decode_frame_1080p(c: &mut Criterion) {
 
     group.bench_function("wire_decode_full", |b| {
         b.iter(|| {
-            let msg = parse_message(
-                MessageType::FrameData,
-                black_box(wire_bytes.clone()),
-            )
-            .unwrap();
+            let msg = parse_message(MessageType::FrameData, black_box(wire_bytes.clone())).unwrap();
             black_box(&msg);
         });
     });
@@ -186,8 +180,7 @@ fn bench_encode_frame_nv12_1080p(c: &mut Criterion) {
 
     group.bench_function("wire_encode_full", |b| {
         b.iter(|| {
-            let mut body =
-                BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + payload.len());
+            let mut body = BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + payload.len());
             header.encode(&mut body);
             body.extend_from_slice(&payload);
             let wire = encode_wire(MessageType::FrameData, black_box(&body)).unwrap();
@@ -239,11 +232,7 @@ fn bench_decode_frame_nv12_1080p(c: &mut Criterion) {
 
     group.bench_function("wire_decode_full", |b| {
         b.iter(|| {
-            let msg = parse_message(
-                MessageType::FrameData,
-                black_box(wire_bytes.clone()),
-            )
-            .unwrap();
+            let msg = parse_message(MessageType::FrameData, black_box(wire_bytes.clone())).unwrap();
             black_box(&msg);
         });
     });
@@ -282,11 +271,7 @@ fn bench_roundtrip_session_init(c: &mut Criterion) {
 
     group.bench_function("decode", |b| {
         b.iter(|| {
-            let msg = parse_message(
-                MessageType::SessionInit,
-                black_box(wire.clone()),
-            )
-            .unwrap();
+            let msg = parse_message(MessageType::SessionInit, black_box(wire.clone())).unwrap();
             black_box(&msg);
         });
     });

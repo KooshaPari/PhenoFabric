@@ -1,8 +1,8 @@
 //! Ergonomic builders for topologies, intents, and route plans.
 
 use crate::model::{
-    CapabilityRef, Edge, EdgeId, Intent, IntentId, IntentRequirements, LinkMetrics, Node,
-    NodeId, RoutePlan, RoutePlanId, RouteStep, Topology, TopologyEpoch, TrustLevel,
+    CapabilityRef, Edge, EdgeId, Intent, IntentId, IntentRequirements, LinkMetrics, Node, NodeId,
+    RoutePlan, RoutePlanId, RouteStep, Topology, TopologyEpoch, TrustLevel,
 };
 use chrono::{DateTime, Utc};
 
@@ -45,9 +45,8 @@ impl TopologyBuilder {
         label: &str,
         tier: fabric_capability::locality::LocalityTier,
     ) -> Self {
-        self.inner.add_node(
-            Node::new(NodeId::new(id), tier).with_label(label),
-        );
+        self.inner
+            .add_node(Node::new(NodeId::new(id), tier).with_label(label));
         self
     }
 
@@ -70,9 +69,8 @@ impl TopologyBuilder {
         tier: fabric_capability::locality::LocalityTier,
         tag: &str,
     ) -> Self {
-        self.inner.add_node(
-            Node::new(NodeId::new(id), tier).with_tag(tag),
-        );
+        self.inner
+            .add_node(Node::new(NodeId::new(id), tier).with_tag(tag));
         self
     }
 
@@ -176,7 +174,9 @@ impl IntentBuilder {
 
     pub fn require_rt_island(mut self) -> Self {
         self.requirements.requires_rt_island = true;
-        self.requirements.required_tags.push("rt-island".to_string());
+        self.requirements
+            .required_tags
+            .push("rt-island".to_string());
         self
     }
 
@@ -302,12 +302,17 @@ mod tests {
         let topo = TopologyBuilder::new()
             .add_simple_node("a", LocalityTier::L1)
             .add_simple_node("b", LocalityTier::L1)
-            .connect_with_metrics("a", "b", LocalityTier::L1, LinkMetrics {
-                latency_us: Some(10.0),
-                bandwidth_bps: Some(1_000_000_000),
-                packet_loss: Some(0.0),
-                jitter_us: Some(1.0),
-            })
+            .connect_with_metrics(
+                "a",
+                "b",
+                LocalityTier::L1,
+                LinkMetrics {
+                    latency_us: Some(10.0),
+                    bandwidth_bps: Some(1_000_000_000),
+                    packet_loss: Some(0.0),
+                    jitter_us: Some(1.0),
+                },
+            )
             .build();
 
         let edge = topo.edge(&EdgeId::new("a-b")).unwrap();
@@ -336,11 +341,12 @@ mod tests {
 
     #[test]
     fn test_intent_builder_require_rt_island() {
-        let intent = IntentBuilder::new()
-            .require_rt_island()
-            .build();
+        let intent = IntentBuilder::new().require_rt_island().build();
         assert!(intent.requirements.requires_rt_island);
-        assert!(intent.requirements.required_tags.contains(&"rt-island".to_string()));
+        assert!(intent
+            .requirements
+            .required_tags
+            .contains(&"rt-island".to_string()));
     }
 
     #[test]

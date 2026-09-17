@@ -6,8 +6,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Cell, Padding, Row, Table};
 use ratatui::Frame;
 
-use fabric_graph::model::TrustLevel;
 use super::App;
+use fabric_graph::model::TrustLevel;
 
 /// Render the Topology tab — lists nodes in the topology graph.
 pub fn render_topology(f: &mut Frame, area: Rect, app: &App) {
@@ -264,7 +264,10 @@ pub fn render_capabilities(f: &mut Frame, area: Rect, app: &App) {
         let lines = vec![
             Line::from(""),
             Line::from(Span::styled(
-                format!("  {} capability descriptor(s) in workspace", app.data.cap_count),
+                format!(
+                    "  {} capability descriptor(s) in workspace",
+                    app.data.cap_count
+                ),
                 Style::default().fg(Color::Gray),
             )),
             Line::from(Span::styled(
@@ -312,18 +315,9 @@ pub fn render_health(f: &mut Frame, area: Rect, app: &App) {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )),
-        Line::from(vec![
-            Span::raw("  Daemon     "),
-            daemon_label,
-        ]),
-        Line::from(vec![
-            Span::raw("  Workspace  "),
-            ws_label,
-        ]),
-        Line::from(vec![
-            Span::raw("  Topology   "),
-            topo_label,
-        ]),
+        Line::from(vec![Span::raw("  Daemon     "), daemon_label]),
+        Line::from(vec![Span::raw("  Workspace  "), ws_label]),
+        Line::from(vec![Span::raw("  Topology   "), topo_label]),
         Line::from(""),
         Line::from(Span::styled(
             "  Summary",
@@ -339,10 +333,7 @@ pub fn render_health(f: &mut Frame, area: Rect, app: &App) {
             "  Edges:        {}",
             app.data.edge_count
         ))),
-        Line::from(Span::raw(format!(
-            "  Capabilities: {}",
-            app.data.cap_count
-        ))),
+        Line::from(Span::raw(format!("  Capabilities: {}", app.data.cap_count))),
         Line::from(Span::raw(format!(
             "  Route plans:  {}",
             app.data.routes.len()

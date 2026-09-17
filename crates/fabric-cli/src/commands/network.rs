@@ -86,29 +86,16 @@ fn network_status(args: &NetworkStatusArgs) -> Result<()> {
                     "ok" | "available" | "connected" => {
                         console::style(s).green().bold().to_string()
                     }
-                    "degraded" | "unavailable" => {
-                        console::style(s).yellow().bold().to_string()
-                    }
+                    "degraded" | "unavailable" => console::style(s).yellow().bold().to_string(),
                     "error" | "disabled" | "not_running" => {
                         console::style(s).red().bold().to_string()
                     }
                     _ => console::style(s).to_string(),
                 };
 
-                let mut out = format!(
-                    "{}\n\n",
-                    console::style("Network status:").cyan().bold(),
-                );
-                out.push_str(&format!(
-                    "  {:<16} {}\n",
-                    "UPnP:",
-                    fmt_status(upnp_status),
-                ));
-                out.push_str(&format!(
-                    "  {:<16} {}\n",
-                    "STUN:",
-                    fmt_status(stun_status),
-                ));
+                let mut out = format!("{}\n\n", console::style("Network status:").cyan().bold(),);
+                out.push_str(&format!("  {:<16} {}\n", "UPnP:", fmt_status(upnp_status),));
+                out.push_str(&format!("  {:<16} {}\n", "STUN:", fmt_status(stun_status),));
                 out.push_str(&format!(
                     "  {:<16} {}\n",
                     "Tailscale:",
@@ -265,28 +252,20 @@ fn tailscale(args: &TailscaleArgs) -> Result<()> {
                 );
 
                 if peers.is_empty() {
-                    out.push_str(&format!(
-                        "\n  {}\n",
-                        console::style("(no peers)").dim(),
-                    ));
+                    out.push_str(&format!("\n  {}\n", console::style("(no peers)").dim(),));
                 } else {
                     out.push_str(&format!(
                         "\n{:<20} {:<16} {:<20} {}\n",
                         "HOSTNAME", "TAILSCALE_IP", "OS", "ONLINE"
                     ));
                     for peer in &peers {
-                        let peer_host = peer
-                            .get("hostname")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("?");
+                        let peer_host =
+                            peer.get("hostname").and_then(|v| v.as_str()).unwrap_or("?");
                         let peer_ip = peer
                             .get("tailscale_ip")
                             .and_then(|v| v.as_str())
                             .unwrap_or("-");
-                        let peer_os = peer
-                            .get("os")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("-");
+                        let peer_os = peer.get("os").and_then(|v| v.as_str()).unwrap_or("-");
                         let online = peer
                             .get("online")
                             .and_then(|v| v.as_bool())

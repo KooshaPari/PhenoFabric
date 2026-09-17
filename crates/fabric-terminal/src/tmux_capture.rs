@@ -148,8 +148,7 @@ pub(crate) fn run_capture_loop_blocking(state: Arc<AppState>, poll_ms: u64) {
         tracing::info!("capture loop: found {} panes", entries.len());
 
         // --- capture each pane ---
-        let mut panes: HashMap<String, CachedPane> =
-            HashMap::with_capacity(entries.len());
+        let mut panes: HashMap<String, CachedPane> = HashMap::with_capacity(entries.len());
 
         for entry in &entries {
             let cap_result = std::process::Command::new(&bin)
@@ -159,22 +158,14 @@ pub(crate) fn run_capture_loop_blocking(state: Arc<AppState>, poll_ms: u64) {
                 .output();
 
             let capture_out = match cap_result {
-                Ok(o) if o.status.success() => {
-                    String::from_utf8_lossy(&o.stdout).into_owned()
-                }
+                Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
                 _ => {
-                    tracing::debug!(
-                        "capture failed for pane {}, skipping",
-                        entry.pane_id
-                    );
+                    tracing::debug!("capture failed for pane {}, skipping", entry.pane_id);
                     continue;
                 }
             };
 
-            let lines: Vec<String> = capture_out
-                .lines()
-                .map(|l| l.to_string())
-                .collect();
+            let lines: Vec<String> = capture_out.lines().map(|l| l.to_string()).collect();
             let height = lines.len() as u32;
             let width = lines.iter().map(|l| l.len() as u32).max().unwrap_or(0);
 
@@ -302,12 +293,16 @@ mod tests {
 
         // Set TMUX_BIN to nonexistent path so loop exits immediately
         // SAFETY: This test runs single-threaded; no concurrent env access.
-        unsafe { std::env::set_var("TMUX_BIN", "/nonexistent/path/tf-mux"); }
+        unsafe {
+            std::env::set_var("TMUX_BIN", "/nonexistent/path/tf-mux");
+        }
         let handle = std::thread::spawn(move || {
             run_capture_loop_blocking(state, 100);
         });
         // The function should return immediately since binary doesn't exist
         handle.join().expect("capture loop should exit cleanly");
-        unsafe { std::env::remove_var("TMUX_BIN"); }
+        unsafe {
+            std::env::remove_var("TMUX_BIN");
+        }
     }
 }

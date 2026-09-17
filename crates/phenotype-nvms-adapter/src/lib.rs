@@ -39,9 +39,7 @@ mod bound;
 mod required;
 
 pub use bound::{BoundManifest, BoundManifestBuilder, BoundManifestError};
-pub use required::{
-    required_capabilities, RequiredCapabilities, RequiredCapabilitiesError,
-};
+pub use required::{required_capabilities, RequiredCapabilities, RequiredCapabilitiesError};
 
 /// Re-export the upstream `phenotype_manifest` types so downstream
 /// consumers don't need to add a second dependency just to construct

@@ -54,11 +54,7 @@ impl FederationState {
     }
 
     /// Merge local topology with all cached peer snapshots.
-    pub fn merge_topologies(
-        &self,
-        local_json: &str,
-        strategy: &MergeStrategy,
-    ) -> MergedTopology {
+    pub fn merge_topologies(&self, local_json: &str, strategy: &MergeStrategy) -> MergedTopology {
         let peers = self.cached_snapshots();
         merge_topologies_from_json(local_json, &peers, strategy)
     }
@@ -103,10 +99,7 @@ mod tests {
 
     #[test]
     fn federation_state_cache_and_retrieve() {
-        let state = FederationState::new(
-            &FederationConfig::default(),
-            "test-node".into(),
-        );
+        let state = FederationState::new(&FederationConfig::default(), "test-node".into());
 
         let snapshot = make_peer_snapshot("peer", "1.2.3.4:9400", 10, &["n1"]);
         state.cache_snapshot(snapshot);
@@ -118,14 +111,9 @@ mod tests {
 
     #[test]
     fn federation_state_sync_epoch() {
-        let state = FederationState::new(
-            &FederationConfig::default(),
-            "node".into(),
-        );
+        let state = FederationState::new(&FederationConfig::default(), "node".into());
         assert_eq!(state.last_sync_epoch(), 0);
-        state
-            .last_sync_epoch
-            .fetch_add(1, Ordering::Relaxed);
+        state.last_sync_epoch.fetch_add(1, Ordering::Relaxed);
         assert_eq!(state.last_sync_epoch(), 1);
     }
 }

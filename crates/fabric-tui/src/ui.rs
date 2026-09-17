@@ -14,7 +14,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // tabs
+            Constraint::Length(3), // tabs
             Constraint::Min(0),    // content
             Constraint::Length(1), // status bar
         ])
@@ -45,11 +45,7 @@ fn draw_tabs(frame: &mut Frame, app: &App, area: Rect) {
         .collect();
 
     let tabs = Tabs::new(titles)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Fabric TUI"),
-        )
+        .block(Block::default().borders(Borders::ALL).title("Fabric TUI"))
         .select(
             Tab::all()
                 .iter()
@@ -102,12 +98,11 @@ fn draw_dashboard(frame: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
 
-    let topo_list = List::new(topo_items).block(
-        Block::default().borders(Borders::ALL).title(Span::styled(
+    let topo_list =
+        List::new(topo_items).block(Block::default().borders(Borders::ALL).title(Span::styled(
             format!(" Nodes ({})", app.topology.nodes.len()),
             Style::default().fg(Color::Cyan),
-        )),
-    );
+        )));
     frame.render_widget(topo_list, cols[0]);
 
     // Center: Routes summary
@@ -132,12 +127,10 @@ fn draw_dashboard(frame: &mut Frame, app: &App, area: Rect) {
     } else {
         List::new(route_items)
     }
-    .block(
-        Block::default().borders(Borders::ALL).title(Span::styled(
-            format!(" Routes ({})", app.routes.routes.len()),
-            Style::default().fg(Color::Blue),
-        )),
-    );
+    .block(Block::default().borders(Borders::ALL).title(Span::styled(
+        format!(" Routes ({})", app.routes.routes.len()),
+        Style::default().fg(Color::Blue),
+    )));
     frame.render_widget(route_list, cols[1]);
 
     // Right: Health + Leases
@@ -204,10 +197,9 @@ fn draw_dashboard(frame: &mut Frame, app: &App, area: Rect) {
     all_lines.append(&mut lease_lines);
 
     let health_block = Paragraph::new(all_lines).block(
-        Block::default().borders(Borders::ALL).title(Span::styled(
-            " Status ",
-            Style::default().fg(Color::Green),
-        )),
+        Block::default()
+            .borders(Borders::ALL)
+            .title(Span::styled(" Status ", Style::default().fg(Color::Green))),
     );
     frame.render_widget(health_block, cols[2]);
 }
@@ -288,11 +280,8 @@ fn draw_topology(frame: &mut Frame, app: &App, area: Rect) {
                 ])
             })
             .collect();
-        let edge_para = Paragraph::new(edge_text).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Edges "),
-        );
+        let edge_para = Paragraph::new(edge_text)
+            .block(Block::default().borders(Borders::ALL).title(" Edges "));
         frame.render_widget(edge_para, edge_area);
     }
 }
@@ -338,10 +327,9 @@ fn draw_routes(frame: &mut Frame, app: &App, area: Rect) {
     let table = Table::new(rows, widths)
         .header(header)
         .block(
-            Block::default().borders(Borders::ALL).title(format!(
-                " Routes ({}) ",
-                app.routes.routes.len()
-            )),
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!(" Routes ({}) ", app.routes.routes.len())),
         )
         .row_highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
@@ -399,10 +387,9 @@ fn draw_leases(frame: &mut Frame, app: &App, area: Rect) {
     let table = Table::new(rows, widths)
         .header(header)
         .block(
-            Block::default().borders(Borders::ALL).title(format!(
-                " Surface Leases ({}) ",
-                app.leases.leases.len()
-            )),
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!(" Surface Leases ({}) ", app.leases.leases.len())),
         )
         .row_highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
@@ -433,25 +420,16 @@ fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     };
 
     let bar = Line::from(vec![
-        Span::styled(
-            &left,
-            Style::default()
-                .fg(Color::White)
-                .bg(Color::DarkGray),
-        ),
+        Span::styled(&left, Style::default().fg(Color::White).bg(Color::DarkGray)),
         Span::raw(
             " ".repeat(area.width as usize)
                 .chars()
-                .take(
-                    area.width as usize - left.len() - right.len(),
-                )
+                .take(area.width as usize - left.len() - right.len())
                 .collect::<String>(),
         ),
         Span::styled(
             &right,
-            Style::default()
-                .fg(Color::White)
-                .bg(Color::DarkGray),
+            Style::default().fg(Color::White).bg(Color::DarkGray),
         ),
     ]);
 

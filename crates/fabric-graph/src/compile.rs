@@ -21,7 +21,10 @@ pub enum CompileError {
     NoCandidate { intent: String },
 
     #[error("topology epoch mismatch: plan={plan_epoch}, current={current_epoch}")]
-    EpochMismatch { plan_epoch: TopologyEpoch, current_epoch: TopologyEpoch },
+    EpochMismatch {
+        plan_epoch: TopologyEpoch,
+        current_epoch: TopologyEpoch,
+    },
 
     #[error("topology is empty (no nodes)")]
     EmptyTopology,
@@ -57,11 +60,12 @@ pub fn compile(topology: &Topology, intent: &Intent) -> Result<RoutePlan, Compil
 
     let result = negotiate(topology, intent);
 
-    let best = result.candidates.first().ok_or_else(|| {
-        CompileError::NoCandidate {
+    let best = result
+        .candidates
+        .first()
+        .ok_or_else(|| CompileError::NoCandidate {
             intent: intent.name.clone(),
-        }
-    })?;
+        })?;
 
     let steps = build_steps(topology, &best.node, intent)?;
 
@@ -96,29 +100,54 @@ pub fn compile(topology: &Topology, intent: &Intent) -> Result<RoutePlan, Compil
 }
 
 /// Compile all candidates without building plans.
-pub fn compile_all(topology: &Topology, intent: &Intent) -> Result<NegotiationResult, CompileError> {
+pub fn compile_all(
+    topology: &Topology,
+    intent: &Intent,
+) -> Result<NegotiationResult, CompileError> {
     if topology.nodes.is_empty() {
         return Err(CompileError::EmptyTopology);
     }
     Ok(negotiate(topology, intent))
 }
 
-fn build_steps(topology: &Topology, dest: &NodeId, intent: &Intent) -> Result<Vec<RouteStep>, CompileError> {
+fn build_steps(
+    topology: &Topology,
+    dest: &NodeId,
+    intent: &Intent,
+) -> Result<Vec<RouteStep>, CompileError> {
     // Find the best edge to reach dest (if any)
     let best_edge = topology
         .edges_for(dest)
         .into_iter()
         .filter(|e| e.up)
         .min_by(|a, b| {
-            let lat_a = a.metrics.as_ref().and_then(|m| m.latency_us).unwrap_or(f64::INFINITY);
-            let lat_b = b.metrics.as_ref().and_then(|m| m.latency_us).unwrap_or(f64::INFINITY);
-            lat_a.partial_cmp(&lat_b).unwrap_or(std::cmp::Ordering::Equal)
+            let lat_a = a
+                .metrics
+                .as_ref()
+                .and_then(|m| m.latency_us)
+                .unwrap_or(f64::INFINITY);
+            let lat_b = b
+                .metrics
+                .as_ref()
+                .and_then(|m| m.latency_us)
+                .unwrap_or(f64::INFINITY);
+            lat_a
+                .partial_cmp(&lat_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
     let (node, via_edge, action) = if let Some(edge) = best_edge {
-        let upstream = if edge.from == *dest { &edge.to } else { &edge.from };
+        let upstream = if edge.from == *dest {
+            &edge.to
+        } else {
+            &edge.from
+        };
         let _upstream_node = topology.node(upstream).expect("edge references valid node");
-        if intent.preferred_node.as_ref().is_some_and(|n| n == upstream) {
+        if intent
+            .preferred_node
+            .as_ref()
+            .is_some_and(|n| n == upstream)
+        {
             // Source is already the preferred node — direct execution
             (upstream.clone(), None, "source-execute".to_string())
         } else {
@@ -145,9 +174,9 @@ fn select_capability(
     node: &NodeId,
     intent: &Intent,
 ) -> Result<Option<String>, CompileError> {
-    let node_data = topology.node(node).ok_or_else(|| {
-        CompileError::CapabilityNotFound("unknown".to_string(), node.to_string())
-    })?;
+    let node_data = topology
+        .node(node)
+        .ok_or_else(|| CompileError::CapabilityNotFound("unknown".to_string(), node.to_string()))?;
 
     if node_data.capabilities.is_empty() {
         return Ok(None);
@@ -169,7 +198,11 @@ fn estimate_latency(topology: &Topology, steps: &[RouteStep]) -> Option<f64> {
     for step in steps {
         if let Some(ref edge_id) = step.via_edge {
             if let Some(edge) = topology.edge(edge_id) {
-                total += edge.metrics.as_ref().and_then(|m| m.latency_us).unwrap_or(0.0);
+                total += edge
+                    .metrics
+                    .as_ref()
+                    .and_then(|m| m.latency_us)
+                    .unwrap_or(0.0);
             }
         } else {
             // Local hop — negligible latency
@@ -186,7 +219,7 @@ fn estimate_latency(topology: &Topology, steps: &[RouteStep]) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{CapabilityRef, Edge, EdgeId, IntentRequirements, IntentId, Node, NodeId};
+    use crate::model::{CapabilityRef, Edge, EdgeId, IntentId, IntentRequirements, Node, NodeId};
     use fabric_capability::locality::LocalityTier;
 
     fn make_topology() -> Topology {
@@ -271,7 +304,10 @@ mod tests {
 
         let plan = compile(&topo, &intent).expect("should compile");
         // Should prefer the preferred node
-        assert!(plan.steps.iter().any(|s| s.node.to_string().contains("preferred")));
+        assert!(plan
+            .steps
+            .iter()
+            .any(|s| s.node.to_string().contains("preferred")));
     }
 
     #[test]

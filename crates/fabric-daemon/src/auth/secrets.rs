@@ -189,15 +189,10 @@ impl InfisicalClient {
         if !response.status().is_success() {
             let status = response.status();
             let resp_body = response.text().await.unwrap_or_default();
-            return Err(SecretsError::Auth(format!(
-                "HTTP {status}: {resp_body}"
-            )));
+            return Err(SecretsError::Auth(format!("HTTP {status}: {resp_body}")));
         }
 
-        let token_data: TokenResponse = response
-            .json()
-            .await
-            .map_err(SecretsError::http)?;
+        let token_data: TokenResponse = response.json().await.map_err(SecretsError::http)?;
 
         let expires_at = std::time::Instant::now()
             + std::time::Duration::from_secs(token_data.expires_in.saturating_sub(60));
@@ -225,11 +220,7 @@ impl InfisicalClient {
     /// # Arguments
     /// * `path` - The secret path (e.g., "/database/password")
     /// * `env` - The environment slug (e.g., "prod", "dev")
-    pub async fn get_secret(
-        &mut self,
-        path: &str,
-        env: &str,
-    ) -> Result<SecretValue, SecretsError> {
+    pub async fn get_secret(&mut self, path: &str, env: &str) -> Result<SecretValue, SecretsError> {
         let token = self.ensure_token().await?;
 
         let url = format!(
@@ -264,10 +255,7 @@ impl InfisicalClient {
             )));
         }
 
-        let secret_data: serde_json::Value = response
-            .json()
-            .await
-            .map_err(SecretsError::http)?;
+        let secret_data: serde_json::Value = response.json().await.map_err(SecretsError::http)?;
 
         let secret = secret_data
             .get("secret")
@@ -297,10 +285,7 @@ impl InfisicalClient {
     ///
     /// # Arguments
     /// * `env` - The environment slug (e.g., "prod", "dev")
-    pub async fn get_secrets(
-        &mut self,
-        env: &str,
-    ) -> Result<Vec<SecretValue>, SecretsError> {
+    pub async fn get_secrets(&mut self, env: &str) -> Result<Vec<SecretValue>, SecretsError> {
         let token = self.ensure_token().await?;
 
         let url = format!("{}/api/v1/secrets/raw", self.config.base_url);
@@ -325,10 +310,7 @@ impl InfisicalClient {
             )));
         }
 
-        let data: SecretsListResponse = response
-            .json()
-            .await
-            .map_err(SecretsError::http)?;
+        let data: SecretsListResponse = response.json().await.map_err(SecretsError::http)?;
 
         Ok(data
             .secrets
@@ -385,11 +367,7 @@ impl InfisicalClient {
     }
 
     /// Delete a secret by key and environment.
-    pub async fn delete_secret(
-        &mut self,
-        key: &str,
-        env: &str,
-    ) -> Result<(), SecretsError> {
+    pub async fn delete_secret(&mut self, key: &str, env: &str) -> Result<(), SecretsError> {
         let token = self.ensure_token().await?;
 
         let url = format!(

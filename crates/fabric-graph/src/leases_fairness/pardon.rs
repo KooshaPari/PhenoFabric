@@ -1,5 +1,5 @@
-use crate::surface_ops::new_lease;
 use crate::surface::{SurfaceLease, SurfaceSpec, SurfaceSpecError};
+use crate::surface_ops::new_lease;
 
 // ---------------------------------------------------------------------------
 // PardonError

@@ -165,18 +165,12 @@ fn list(args: &ListArgs) -> Result<()> {
                         "NODE", "DESCRIPTOR", "TRUST"
                     ));
                     for cap in caps_arr {
-                        let node = cap
-                            .get("node_name")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("?");
+                        let node = cap.get("node_name").and_then(|v| v.as_str()).unwrap_or("?");
                         let desc = cap
                             .get("descriptor_id")
                             .and_then(|v| v.as_str())
                             .unwrap_or("?");
-                        let trust = cap
-                            .get("trust")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("?");
+                        let trust = cap.get("trust").and_then(|v| v.as_str()).unwrap_or("?");
                         out.push_str(&format!("{:<24} {:<36} {}\n", node, desc, trust));
                     }
                 }
@@ -185,11 +179,14 @@ fn list(args: &ListArgs) -> Result<()> {
         }
         Err(wire_client::WireClientError::ConnectionRefused { addr }) => {
             if args.json {
-                println!("{}", serde_json::json!({
-                    "error": "daemon_unreachable",
-                    "address": addr,
-                    "surfaces": [],
-                }));
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "error": "daemon_unreachable",
+                        "address": addr,
+                        "surfaces": [],
+                    })
+                );
             } else {
                 eprintln!(
                     "{} daemon not reachable at {}",

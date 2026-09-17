@@ -106,7 +106,12 @@ impl SurfaceSpec {
             return Err(SurfaceSpecError::EmptyName);
         }
         if let Some(c) = self.capture {
-            if matches!(self.protocol, SurfaceProtocol::Posix) && !matches!(c, CaptureDirection::Source | CaptureDirection::Bidirectional) {
+            if matches!(self.protocol, SurfaceProtocol::Posix)
+                && !matches!(
+                    c,
+                    CaptureDirection::Source | CaptureDirection::Bidirectional
+                )
+            {
                 return Err(SurfaceSpecError::IncompatibleCapture {
                     protocol: self.protocol.clone(),
                     capture: c,
@@ -124,7 +129,10 @@ impl SurfaceSpec {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SurfaceSpecError {
     EmptyName,
-    IncompatibleCapture { protocol: SurfaceProtocol, capture: CaptureDirection },
+    IncompatibleCapture {
+        protocol: SurfaceProtocol,
+        capture: CaptureDirection,
+    },
     RtRequiresLocality,
 }
 
@@ -283,10 +291,16 @@ pub enum SurfaceError {
     NoMatchingRoute,
     /// The host has the required capability but at a trust level below the spec's
     /// `min_host_trust`.
-    InsufficientTrust { required: TrustLevel, offered: TrustLevel },
+    InsufficientTrust {
+        required: TrustLevel,
+        offered: TrustLevel,
+    },
     /// The lease FSM rejected the transition (e.g. trying to invalidate a
     /// Completed lease).
-    IllegalTransition { from: LeaseState, attempted: &'static str },
+    IllegalTransition {
+        from: LeaseState,
+        attempted: &'static str,
+    },
     /// Plan epoch drift invalidates the binding (`strict_epoch_binding`).
     EpochDrift { previous: u64, current: u64 },
     /// The referenced node does not exist in the topology (spec 024).

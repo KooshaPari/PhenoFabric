@@ -35,7 +35,10 @@ pub fn run(binary_name: &str) -> Result<()> {
         return Ok(());
     }
 
-    println!("Updating {} from {} to {}...", binary_name, current_version, latest_version);
+    println!(
+        "Updating {} from {} to {}...",
+        binary_name, current_version, latest_version
+    );
 
     // Download the new executable
     let download_url = format!(
@@ -57,7 +60,8 @@ pub fn run(binary_name: &str) -> Result<()> {
     if exe_bytes[0] != b'M' || exe_bytes[1] != b'Z' {
         bail!(
             "Downloaded file is not a valid PE executable (expected MZ header, got {:02X} {:02X})",
-            exe_bytes[0], exe_bytes[1]
+            exe_bytes[0],
+            exe_bytes[1]
         );
     }
 
@@ -87,7 +91,10 @@ pub fn run(binary_name: &str) -> Result<()> {
     }
     std::fs::rename(&tmp_path, &current_exe)?;
 
-    println!("Updated {} from {} to {}", binary_name, current_version, latest_version);
+    println!(
+        "Updated {} from {} to {}",
+        binary_name, current_version, latest_version
+    );
     println!("Restart {} to use the new version.", binary_name);
 
     Ok(())

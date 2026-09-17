@@ -20,31 +20,26 @@ use crate::config::FederationConfig;
 pub fn sync_topology(addr: &str) -> Result<TopologySnapshot, FederationError> {
     let timeout = Duration::from_secs(5);
     let stream = TcpStream::connect(addr).map_err(|e| {
-        FederationError::ConnectionFailed(format!(
-            "failed to connect to peer {addr}: {e}"
-        ))
+        FederationError::ConnectionFailed(format!("failed to connect to peer {addr}: {e}"))
     })?;
 
     stream.set_read_timeout(Some(timeout)).ok();
     stream.set_write_timeout(Some(timeout)).ok();
 
-    let mut writer = stream.try_clone().map_err(|e| {
-        FederationError::ConnectionFailed(format!("clone stream: {e}"))
-    })?;
+    let mut writer = stream
+        .try_clone()
+        .map_err(|e| FederationError::ConnectionFailed(format!("clone stream: {e}")))?;
 
     // Send topology request.
     let request = r#"{"type":"topology_request"}"#;
-    writeln!(writer, "{request}").map_err(|e| {
-        FederationError::ConnectionFailed(format!("write request: {e}"))
-    })?;
+    writeln!(writer, "{request}")
+        .map_err(|e| FederationError::ConnectionFailed(format!("write request: {e}")))?;
     writer.flush().ok();
 
     // Read response.
     let reader = BufReader::new(stream);
     for line in reader.lines() {
-        let line = line.map_err(|e| {
-            FederationError::ParseError(format!("read response: {e}"))
-        })?;
+        let line = line.map_err(|e| FederationError::ParseError(format!("read response: {e}")))?;
         if line.is_empty() {
             continue;
         }
@@ -61,18 +56,24 @@ pub(crate) fn parse_topology_response(
     addr: &str,
     json: &str,
 ) -> Result<TopologySnapshot, FederationError> {
-    let v: serde_json::Value = serde_json::from_str(json).map_err(|e| {
-        FederationError::ParseError(format!("invalid JSON: {e}"))
-    })?;
+    let v: serde_json::Value = serde_json::from_str(json)
+        .map_err(|e| FederationError::ParseError(format!("invalid JSON: {e}")))?;
 
-    let epoch = v.get("topology_epoch").and_then(|v| v.as_u64()).unwrap_or(0);
+    let epoch = v
+        .get("topology_epoch")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
     let node_count = v.get("node_count").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
     let edge_count = v.get("edge_count").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
 
     let mut nodes = HashMap::new();
     if let Some(node_list) = v.get("nodes").and_then(|v| v.as_array()) {
         for n in node_list {
-            let id = n.get("id").and_then(|v| v.as_str()).unwrap_or("" ).to_string();
+            let id = n
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             if id.is_empty() {
                 continue;
             }
@@ -80,8 +81,16 @@ pub(crate) fn parse_topology_response(
                 id.clone(),
                 NodeEntry {
                     id,
-                    label: n.get("label").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    locality: n.get("locality").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    label: n
+                        .get("label")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    locality: n
+                        .get("locality")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
                     cap_count: n.get("cap_count").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
                     tags: n
                         .get("tags")
@@ -101,7 +110,11 @@ pub(crate) fn parse_topology_response(
     let mut edges = HashMap::new();
     if let Some(edge_list) = v.get("edges").and_then(|v| v.as_array()) {
         for e in edge_list {
-            let id = e.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let id = e
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             if id.is_empty() {
                 continue;
             }
@@ -109,9 +122,21 @@ pub(crate) fn parse_topology_response(
                 id.clone(),
                 EdgeEntry {
                     id,
-                    from: e.get("from").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    to: e.get("to").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    locality: e.get("locality").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    from: e
+                        .get("from")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    to: e
+                        .get("to")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    locality: e
+                        .get("locality")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
                     federation_id: String::new(),
                 },
             );
@@ -133,10 +158,7 @@ pub(crate) fn parse_topology_response(
 ///
 /// Periodically fetches topology from all configured peers and caches the
 /// results. The coordinator can then merge them on demand.
-pub fn spawn_sync_thread(
-    state: Arc<FederationState>,
-    config: FederationConfig,
-) {
+pub fn spawn_sync_thread(state: Arc<FederationState>, config: FederationConfig) {
     let interval = Duration::from_secs(config.sync_interval_s);
     let shutdown = state.shutdown.clone();
 
@@ -171,9 +193,7 @@ pub fn spawn_sync_thread(
                 }
             }
 
-            state
-                .last_sync_epoch
-                .fetch_add(1, Ordering::Relaxed);
+            state.last_sync_epoch.fetch_add(1, Ordering::Relaxed);
 
             thread::sleep(interval);
         }

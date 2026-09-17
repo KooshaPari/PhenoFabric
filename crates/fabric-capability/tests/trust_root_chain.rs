@@ -172,7 +172,9 @@ fn it05_authority_wire_format_roundtrip() {
     // Verify the restored Authority's signature is still valid against
     // the parent's key.
     let mut store = TrustStore::new(root).unwrap();
-    store.add_authority(restored).expect("restored auth must be acceptable");
+    store
+        .add_authority(restored)
+        .expect("restored auth must be acceptable");
 }
 
 #[test]
@@ -198,7 +200,9 @@ fn it06_revocation_list_wire_format_roundtrip() {
 
     let root = Authority::trust_root(&root_key, "test-root");
     let mut store = TrustStore::new(root).unwrap();
-    store.set_revocation_list(restored).expect("restored list must be accepted");
+    store
+        .set_revocation_list(restored)
+        .expect("restored list must be accepted");
 }
 
 #[test]

@@ -2,9 +2,9 @@
 //!
 //! Builds a topology, compiles a route, validates and shows it.
 
+use fabric_capability::locality::LocalityTier;
 use fabric_graph::builder::{IntentBuilder, TopologyBuilder};
 use fabric_graph::compile;
-use fabric_capability::locality::LocalityTier;
 use fabric_graph::model::{NodeId, TrustLevel};
 
 fn small_topology() -> fabric_graph::model::Topology {
@@ -63,9 +63,7 @@ fn compile_route_plan_with_tag() {
 #[test]
 fn route_plan_serialization_roundtrip() {
     let topo = small_topology();
-    let intent = IntentBuilder::new()
-        .name("serial-test")
-        .build();
+    let intent = IntentBuilder::new().name("serial-test").build();
     let plan = compile(&topo, &intent).unwrap();
     let json = serde_json::to_string_pretty(&plan).unwrap();
     let loaded: fabric_graph::model::RoutePlan = serde_json::from_str(&json).unwrap();
@@ -76,24 +74,20 @@ fn route_plan_serialization_roundtrip() {
 #[test]
 fn compile_with_high_trust_requirement() {
     // Nodes with untrusted capabilities should NOT satisfy audited trust.
-    use fabric_graph::model::{CapabilityRef, Node};
     use fabric_graph::builder::TopologyBuilder;
+    use fabric_graph::model::{CapabilityRef, Node};
 
     let topo = TopologyBuilder::new()
         .with_name("trust-test")
         .add(
-            Node::new(NodeId::new("src"), LocalityTier::L0SameProcess)
-                .with_capability(
-                    CapabilityRef::new("cap-a".into())
-                        .with_trust(TrustLevel::Untrusted),
-                ),
+            Node::new(NodeId::new("src"), LocalityTier::L0SameProcess).with_capability(
+                CapabilityRef::new("cap-a".into()).with_trust(TrustLevel::Untrusted),
+            ),
         )
         .add(
-            Node::new(NodeId::new("dst"), LocalityTier::L6Lan)
-                .with_capability(
-                    CapabilityRef::new("cap-b".into())
-                        .with_trust(TrustLevel::Untrusted),
-                ),
+            Node::new(NodeId::new("dst"), LocalityTier::L6Lan).with_capability(
+                CapabilityRef::new("cap-b".into()).with_trust(TrustLevel::Untrusted),
+            ),
         )
         .connect("src", "dst", LocalityTier::L6Lan)
         .build();
@@ -121,5 +115,8 @@ fn compile_unsatisfiable_tag_fails() {
         .require_tag("nonexistent-tag")
         .build();
     let result = compile(&topo, &intent);
-    assert!(result.is_err(), "should fail when no node matches required tag");
+    assert!(
+        result.is_err(),
+        "should fail when no node matches required tag"
+    );
 }

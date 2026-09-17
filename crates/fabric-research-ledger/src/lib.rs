@@ -163,7 +163,9 @@ impl ResearchLedger {
             .iter()
             .filter(|r| {
                 r.title.to_lowercase().contains(&q)
-                    || r.findings.iter().any(|f| f.summary.to_lowercase().contains(&q))
+                    || r.findings
+                        .iter()
+                        .any(|f| f.summary.to_lowercase().contains(&q))
                     || r.findings
                         .iter()
                         .any(|f| f.tags.iter().any(|t| t.to_lowercase().contains(&q)))
@@ -249,8 +251,14 @@ mod tests {
         r2.category = ResearchCategory::Streaming;
         ledger.add_record(r2);
 
-        assert_eq!(ledger.list_by_category(&ResearchCategory::Topology).len(), 1);
-        assert_eq!(ledger.list_by_category(&ResearchCategory::Streaming).len(), 1);
+        assert_eq!(
+            ledger.list_by_category(&ResearchCategory::Topology).len(),
+            1
+        );
+        assert_eq!(
+            ledger.list_by_category(&ResearchCategory::Streaming).len(),
+            1
+        );
     }
 
     #[test]
@@ -278,13 +286,16 @@ mod tests {
         };
         assert!(ledger.add_finding("r1", finding));
         assert_eq!(ledger.get_record("r1").unwrap().findings.len(), 1);
-        assert!(!ledger.add_finding("nope", Finding {
-            id: "f2".into(),
-            summary: "orphan".into(),
-            evidence: vec![],
-            confidence: 0.5,
-            tags: vec![],
-        }));
+        assert!(!ledger.add_finding(
+            "nope",
+            Finding {
+                id: "f2".into(),
+                summary: "orphan".into(),
+                evidence: vec![],
+                confidence: 0.5,
+                tags: vec![],
+            }
+        ));
     }
 
     #[test]

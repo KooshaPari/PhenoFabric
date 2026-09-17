@@ -23,18 +23,11 @@ use crate::{MojoFrameBuffer, MojoKernel, MojoSurfaceError};
 /// as MLIR kernels; the CPU fallback uses Rust SIMD.
 pub trait FrameKernel {
     /// Encode a raw frame buffer into the target format.
-    fn encode(
-        &self,
-        input: &MojoFrameBuffer,
-        output: &mut [u8],
-    ) -> Result<usize, MojoSurfaceError>;
+    fn encode(&self, input: &MojoFrameBuffer, output: &mut [u8])
+        -> Result<usize, MojoSurfaceError>;
 
     /// Decode an encoded buffer back to raw pixels.
-    fn decode(
-        &self,
-        input: &[u8],
-        output: &mut MojoFrameBuffer,
-    ) -> Result<(), MojoSurfaceError>;
+    fn decode(&self, input: &[u8], output: &mut MojoFrameBuffer) -> Result<(), MojoSurfaceError>;
 
     /// Apply a per-pixel transform (e.g. brightness, color space).
     fn transform(
@@ -125,9 +118,7 @@ impl FrameKernel for CpuSimdKernel {
         while i < src.len() {
             let byte = src[i];
             let mut count: u8 = 1;
-            while i + (count as usize) < src.len()
-                && src[i + count as usize] == byte
-                && count < 255
+            while i + (count as usize) < src.len() && src[i + count as usize] == byte && count < 255
             {
                 count += 1;
             }
@@ -145,11 +136,7 @@ impl FrameKernel for CpuSimdKernel {
         Ok(written)
     }
 
-    fn decode(
-        &self,
-        input: &[u8],
-        output: &mut MojoFrameBuffer,
-    ) -> Result<(), MojoSurfaceError> {
+    fn decode(&self, input: &[u8], output: &mut MojoFrameBuffer) -> Result<(), MojoSurfaceError> {
         if input.len() % 2 != 0 {
             return Err(MojoSurfaceError::DispatchFailed(
                 "Invalid RLE input length".into(),
@@ -194,15 +181,14 @@ impl FrameKernel for CpuSimdKernel {
                     chunk[0] = 255 - chunk[0]; // R
                     chunk[1] = 255 - chunk[1]; // G
                     chunk[2] = 255 - chunk[2]; // B
-                    // A unchanged
+                                               // A unchanged
                 }
             }
             TransformType::Grayscale => {
                 for chunk in buffer.host_mapped_data.chunks_exact_mut(4) {
                     let gray = ((chunk[0] as f32 * 0.299)
                         + (chunk[1] as f32 * 0.587)
-                        + (chunk[2] as f32 * 0.114))
-                        as u8;
+                        + (chunk[2] as f32 * 0.114)) as u8;
                     chunk[0] = gray;
                     chunk[1] = gray;
                     chunk[2] = gray;
@@ -270,8 +256,7 @@ mod tests {
     fn test_buffer() -> MojoFrameBuffer {
         let mut buf = MojoFrameBuffer::new(1, 4, 4, "RGBA8", -1);
         // Fill with a known pattern: white pixels (RGBA = 255,255,255,255)
-        buf.host_mapped_data = vec
-![255u8; 4 * 4 * 4];
+        buf.host_mapped_data = vec![255u8; 4 * 4 * 4];
         buf
     }
 
@@ -279,8 +264,7 @@ mod tests {
     fn encode_decode_roundtrip() {
         let kernel = CpuSimdKernel::new();
         let input = test_buffer();
-        let mut encoded = vec
-![0u8; input.host_mapped_data.len() * 2];
+        let mut encoded = vec![0u8; input.host_mapped_data.len() * 2];
         let n = kernel.encode(&input, &mut encoded).unwrap();
         assert!(n > 0);
 
@@ -293,8 +277,9 @@ mod tests {
     fn transform_invert() {
         let kernel = CpuSimdKernel::new();
         let mut buf = MojoFrameBuffer::new(1, 2, 2, "RGBA8", -1);
-        buf.host_mapped_data = vec
-![0, 128, 255, 255, 0, 128, 255, 255, 0, 128, 255, 255, 0, 128, 255, 255];
+        buf.host_mapped_data = vec![
+            0, 128, 255, 255, 0, 128, 255, 255, 0, 128, 255, 255, 0, 128, 255, 255,
+        ];
 
         kernel.transform(&mut buf, TransformType::Invert).unwrap();
 
@@ -310,10 +295,11 @@ mod tests {
         let kernel = CpuSimdKernel::new();
         let mut buf = MojoFrameBuffer::new(1, 1, 1, "RGBA8", -1);
         // Pure red pixel: R=255, G=0, B=0, A=255
-        buf.host_mapped_data = vec
-![255, 0, 0, 255];
+        buf.host_mapped_data = vec![255, 0, 0, 255];
 
-        kernel.transform(&mut buf, TransformType::Grayscale).unwrap();
+        kernel
+            .transform(&mut buf, TransformType::Grayscale)
+            .unwrap();
 
         // gray = 255*0.299 + 0*0.587 + 0*0.114 = ~76
         let gray = buf.host_mapped_data[0];
@@ -326,8 +312,7 @@ mod tests {
     fn encode_empty_output_errors() {
         let kernel = CpuSimdKernel::new();
         let input = test_buffer();
-        let mut encoded = vec
-![];
+        let mut encoded = vec![];
         let result = kernel.encode(&input, &mut encoded);
         assert!(result.is_err());
     }

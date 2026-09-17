@@ -82,7 +82,8 @@ pub(crate) fn handle_webrtc_offer(
         Some(s) => s,
         None => {
             return Some(
-                r#"{"type":"webrtc_error","error":"missing_sdp","message":"sdp field required"}"#.into(),
+                r#"{"type":"webrtc_error","error":"missing_sdp","message":"sdp field required"}"#
+                    .into(),
             );
         }
     };
@@ -210,10 +211,13 @@ mod tests {
         // Add a node to the topology.
         let topo = fabric_graph::builder::TopologyBuilder::new()
             .with_name("test-topo")
-            .add(fabric_graph::Node::new(
-                fabric_graph::model::NodeId::new("n1"),
-                fabric_graph::LocalityTier::L5Loopback,
-            ).with_label("Node One"))
+            .add(
+                fabric_graph::Node::new(
+                    fabric_graph::model::NodeId::new("n1"),
+                    fabric_graph::LocalityTier::L5Loopback,
+                )
+                .with_label("Node One"),
+            )
             .build();
         coord.set_topology(topo).unwrap();
 

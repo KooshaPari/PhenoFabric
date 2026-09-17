@@ -20,22 +20,20 @@ fn temp_workspace() -> PathBuf {
 fn workspace_create_and_list() {
     let ws = temp_workspace();
     let result = fabric_cli::commands::workspace::dispatch(
-        &fabric_cli::WorkspaceCommand::Create(
-            fabric_cli::commands::workspace::CreateArgs {
-                name: "test-ws".into(),
-                tier: "L5Loopback".into(),
-                topology: None,
-            },
-        ),
+        &fabric_cli::WorkspaceCommand::Create(fabric_cli::commands::workspace::CreateArgs {
+            name: "test-ws".into(),
+            tier: "L5Loopback".into(),
+            topology: None,
+        }),
         &ws,
     );
     assert!(result.is_ok(), "workspace create failed: {:?}", result);
 
     // List should show it
     let result = fabric_cli::commands::workspace::dispatch(
-        &fabric_cli::WorkspaceCommand::List(
-            fabric_cli::commands::workspace::ListArgs { json: false },
-        ),
+        &fabric_cli::WorkspaceCommand::List(fabric_cli::commands::workspace::ListArgs {
+            json: false,
+        }),
         &ws,
     );
     assert!(result.is_ok(), "workspace list failed: {:?}", result);
@@ -50,37 +48,31 @@ fn workspace_create_show_delete() {
 
     // Create
     fabric_cli::commands::workspace::dispatch(
-        &fabric_cli::WorkspaceCommand::Create(
-            fabric_cli::commands::workspace::CreateArgs {
-                name: "my-workspace".into(),
-                tier: "L2CrossNumaShm".into(),
-                topology: None,
-            },
-        ),
+        &fabric_cli::WorkspaceCommand::Create(fabric_cli::commands::workspace::CreateArgs {
+            name: "my-workspace".into(),
+            tier: "L2CrossNumaShm".into(),
+            topology: None,
+        }),
         &ws,
     )
     .unwrap();
 
     // Show
     let result = fabric_cli::commands::workspace::dispatch(
-        &fabric_cli::WorkspaceCommand::Show(
-            fabric_cli::commands::workspace::ShowArgs {
-                name: "my-workspace".into(),
-                json: true,
-            },
-        ),
+        &fabric_cli::WorkspaceCommand::Show(fabric_cli::commands::workspace::ShowArgs {
+            name: "my-workspace".into(),
+            json: true,
+        }),
         &ws,
     );
     assert!(result.is_ok(), "workspace show failed: {:?}", result);
 
     // Delete with force
     let result = fabric_cli::commands::workspace::dispatch(
-        &fabric_cli::WorkspaceCommand::Delete(
-            fabric_cli::commands::workspace::DeleteArgs {
-                name: "my-workspace".into(),
-                force: true,
-            },
-        ),
+        &fabric_cli::WorkspaceCommand::Delete(fabric_cli::commands::workspace::DeleteArgs {
+            name: "my-workspace".into(),
+            force: true,
+        }),
         &ws,
     );
     assert!(result.is_ok(), "workspace delete failed: {:?}", result);
@@ -94,38 +86,32 @@ fn workspace_release() {
 
     // Create
     fabric_cli::commands::workspace::dispatch(
-        &fabric_cli::WorkspaceCommand::Create(
-            fabric_cli::commands::workspace::CreateArgs {
-                name: "release-test".into(),
-                tier: "L0SameProcess".into(),
-                topology: None,
-            },
-        ),
+        &fabric_cli::WorkspaceCommand::Create(fabric_cli::commands::workspace::CreateArgs {
+            name: "release-test".into(),
+            tier: "L0SameProcess".into(),
+            topology: None,
+        }),
         &ws,
     )
     .unwrap();
 
     // Release (no seats, should succeed with 0 released)
     let result = fabric_cli::commands::workspace::dispatch(
-        &fabric_cli::WorkspaceCommand::Release(
-            fabric_cli::commands::workspace::ReleaseArgs {
-                id: "release-test".into(),
-                force: true,
-                json: false,
-            },
-        ),
+        &fabric_cli::WorkspaceCommand::Release(fabric_cli::commands::workspace::ReleaseArgs {
+            id: "release-test".into(),
+            force: true,
+            json: false,
+        }),
         &ws,
     );
     assert!(result.is_ok(), "workspace release failed: {:?}", result);
 
     // Cleanup
     let _ = fabric_cli::commands::workspace::dispatch(
-        &fabric_cli::WorkspaceCommand::Delete(
-            fabric_cli::commands::workspace::DeleteArgs {
-                name: "release-test".into(),
-                force: true,
-            },
-        ),
+        &fabric_cli::WorkspaceCommand::Delete(fabric_cli::commands::workspace::DeleteArgs {
+            name: "release-test".into(),
+            force: true,
+        }),
         &ws,
     );
     fs::remove_dir_all(&ws).ok();

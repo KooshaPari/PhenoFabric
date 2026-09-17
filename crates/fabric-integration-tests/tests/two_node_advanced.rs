@@ -9,8 +9,8 @@
 
 use fabric_daemon::federation::MergeStrategy;
 use fabric_frame_transport::Codec;
-use fabric_graph::multihop::builtin_stages;
 use fabric_graph::model::NodeId;
+use fabric_graph::multihop::builtin_stages;
 
 use fabric_integration_tests::harness::federation::{
     assert_federation_ids, assert_merged_topology, assert_min_epoch, exchange_and_merge,
@@ -38,7 +38,9 @@ fn two_node_merge_strategy_comparison() {
     {
         let (a, b) = start_two_daemons();
         let topo = build_2node_topology();
-        a.coordinator.set_topology(topo).expect("set topology for a");
+        a.coordinator
+            .set_topology(topo)
+            .expect("set topology for a");
 
         let merged = exchange_and_merge(&a, &b, &MergeStrategy::MergeAll);
         // A: {node_a, node_b, edge-a-b}, B: {node_b (prefixed)} => 3 nodes, 1 edge.
@@ -53,7 +55,9 @@ fn two_node_merge_strategy_comparison() {
     {
         let (a, b) = start_two_daemons();
         let topo = build_2node_topology();
-        a.coordinator.set_topology(topo).expect("set topology for a");
+        a.coordinator
+            .set_topology(topo)
+            .expect("set topology for a");
 
         let merged = exchange_and_merge(&a, &b, &MergeStrategy::LocalPrimary);
         // B's node_b has same base name as local node_b -> peer version skipped.
@@ -68,7 +72,9 @@ fn two_node_merge_strategy_comparison() {
     {
         let (a, b) = start_two_daemons();
         let topo = build_2node_topology();
-        a.coordinator.set_topology(topo).expect("set topology for a");
+        a.coordinator
+            .set_topology(topo)
+            .expect("set topology for a");
 
         let merged = exchange_and_merge(&a, &b, &MergeStrategy::PeerPrimary);
         // All peer nodes added (prefixed) alongside local nodes.
@@ -103,12 +109,12 @@ fn two_node_merge_strategy_comparison() {
 fn two_node_failure_detection() {
     let (a, b) = start_two_daemons();
     let topo = build_2node_topology();
-    a.coordinator.set_topology(topo).expect("set topology for a");
+    a.coordinator
+        .set_topology(topo)
+        .expect("set topology for a");
 
     // Mark node_a as failed.
-    let affected = a
-        .coordinator
-        .mark_node_failed(&NodeId::new("node_a"));
+    let affected = a.coordinator.mark_node_failed(&NodeId::new("node_a"));
     assert_eq!(
         affected, 0,
         "no leases bound to node_a, so 0 should be affected"
@@ -305,15 +311,9 @@ fn two_node_full_pipeline() {
 
     // --- Step 2: Stream frames to B ---
     let frame_count = 5;
-    let stream_result = stream_frames_between(
-        &b.addr,
-        "pipeline-client",
-        64,
-        48,
-        frame_count,
-        Codec::Rgba,
-    )
-    .expect("stream_frames_between should succeed");
+    let stream_result =
+        stream_frames_between(&b.addr, "pipeline-client", 64, 48, frame_count, Codec::Rgba)
+            .expect("stream_frames_between should succeed");
 
     assert_eq!(
         stream_result.frames_sent, frame_count,

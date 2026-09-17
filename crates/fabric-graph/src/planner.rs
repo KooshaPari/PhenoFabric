@@ -86,9 +86,18 @@ mod tests {
 
     fn make_intents() -> Vec<Intent> {
         vec![
-            IntentBuilder::new().name("step-1").require_tag("rt-island").build(),
-            IntentBuilder::new().name("step-2").require_tag("rt-island").build(),
-            IntentBuilder::new().name("step-3").require_tag("rt-island").build(),
+            IntentBuilder::new()
+                .name("step-1")
+                .require_tag("rt-island")
+                .build(),
+            IntentBuilder::new()
+                .name("step-2")
+                .require_tag("rt-island")
+                .build(),
+            IntentBuilder::new()
+                .name("step-3")
+                .require_tag("rt-island")
+                .build(),
         ]
     }
 
@@ -112,7 +121,10 @@ mod tests {
     #[test]
     fn test_plan_sequence_one_intent() {
         let topo = make_topology();
-        let intents = vec![IntentBuilder::new().name("solo").require_tag("rt-island").build()];
+        let intents = vec![IntentBuilder::new()
+            .name("solo")
+            .require_tag("rt-island")
+            .build()];
         let multi = plan_sequence(&topo, "solo", &intents).expect("should plan");
         assert_eq!(multi.plans.len(), 1);
     }

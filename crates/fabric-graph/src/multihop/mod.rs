@@ -3,19 +3,19 @@
 //! Generates route plans that may span multiple topology hops,
 //! selecting appropriate transport stages at each hop.
 
-pub mod stages;
 pub mod cost;
-pub mod validate;
 pub mod fallback;
+pub mod stages;
+pub mod validate;
 
-pub use stages::{builtin_stages, TransportStage};
 pub use cost::{compute_route_cost, RouteCost};
+pub use stages::{builtin_stages, TransportStage};
 pub use validate::{validate_multihop, RouteValidationError};
 
 use crate::model::{Intent, NodeId, RoutePlan, RoutePlanId, RouteStep, Topology};
 use crate::LocalityTier;
-use fallback::generate_fallbacks;
 use chrono::Utc;
+use fallback::generate_fallbacks;
 use thiserror::Error;
 
 /// Errors from multi-hop compilation.
@@ -82,9 +82,7 @@ pub fn compile_multihop(
         let _to_node = topology.nodes.get(&window[1]);
         let edge = find_edge_between(topology, &window[0], &window[1]);
 
-        let tier = edge
-            .map(|e| e.locality_tier)
-            .unwrap_or(LocalityTier::L7Wan);
+        let tier = edge.map(|e| e.locality_tier).unwrap_or(LocalityTier::L7Wan);
 
         let stages = select_stages(tier, catalog);
         stages_per_hop.push(stages);
@@ -188,7 +186,10 @@ fn find_edge_between<'a>(
     from: &NodeId,
     to: &NodeId,
 ) -> Option<&'a crate::model::Edge> {
-    topology.edges.values().find(|e| e.from == *from && e.to == *to && e.up)
+    topology
+        .edges
+        .values()
+        .find(|e| e.from == *from && e.to == *to && e.up)
 }
 
 /// Select transport stages for a hop given the locality tier.

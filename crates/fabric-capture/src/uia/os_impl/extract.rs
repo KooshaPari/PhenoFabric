@@ -1,6 +1,6 @@
 use uiautomation::core::{UIAutomation, UIElement};
-use uiautomation::types::ControlType;
 use uiautomation::patterns::UITextPattern;
+use uiautomation::types::ControlType;
 
 use super::super::MAX_LINES;
 
@@ -12,9 +12,16 @@ pub(crate) fn diag(hwnd: isize, msg: &str) {
         .open("C:\\Users\\koosh\\Desktop\\tf-uia-debug.log")
         .and_then(|mut f| {
             use std::io::Write;
-            writeln!(f, "[{:?}] hwnd={:#x} {}", std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis(),
-                hwnd, msg)
+            writeln!(
+                f,
+                "[{:?}] hwnd={:#x} {}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis(),
+                hwnd,
+                msg
+            )
         });
 }
 
@@ -26,46 +33,69 @@ pub(crate) fn try_extract_via_text_pattern(hwnd: isize, element: &UIElement) -> 
             diag(hwnd, "  ITextPattern obtained!");
             // Try document range first (full scrollback buffer).
             match pattern.get_document_range() {
-                Ok(range) => {
-                    match range.get_text(100_000) {
-                        Ok(text) if !text.is_empty() => {
-                            diag(hwnd, &format!("  ITextProvider: got {} chars from document range", text.len()));
-                            return Some(text);
-                        }
-                        Ok(_) => {
-                            diag(hwnd, "  ITextProvider: document range returned empty text");
-                        }
-                        Err(e) => {
-                            diag(hwnd, &format!("  ITextProvider: get_text failed: {e}"));
-                        }
+                Ok(range) => match range.get_text(100_000) {
+                    Ok(text) if !text.is_empty() => {
+                        diag(
+                            hwnd,
+                            &format!(
+                                "  ITextProvider: got {} chars from document range",
+                                text.len()
+                            ),
+                        );
+                        return Some(text);
                     }
-                }
+                    Ok(_) => {
+                        diag(hwnd, "  ITextProvider: document range returned empty text");
+                    }
+                    Err(e) => {
+                        diag(hwnd, &format!("  ITextProvider: get_text failed: {e}"));
+                    }
+                },
                 Err(e) => {
-                    diag(hwnd, &format!("  ITextProvider: get_document_range failed: {e}"));
+                    diag(
+                        hwnd,
+                        &format!("  ITextProvider: get_document_range failed: {e}"),
+                    );
                 }
             }
             // Try visible ranges as fallback.
             match pattern.get_visible_ranges() {
                 Ok(ranges) => {
-                    diag(hwnd, &format!("  ITextProvider: {} visible ranges", ranges.len()));
+                    diag(
+                        hwnd,
+                        &format!("  ITextProvider: {} visible ranges", ranges.len()),
+                    );
                     let mut all_text = String::new();
                     for (i, range) in ranges.iter().enumerate() {
                         match range.get_text(100_000) {
                             Ok(text) if !text.is_empty() => {
-                                if !all_text.is_empty() { all_text.push('\n'); }
+                                if !all_text.is_empty() {
+                                    all_text.push('\n');
+                                }
                                 all_text.push_str(&text);
                             }
                             _ => {}
                         }
-                        if i >= 50 { break; }
+                        if i >= 50 {
+                            break;
+                        }
                     }
                     if !all_text.is_empty() {
-                        diag(hwnd, &format!("  ITextProvider: got {} chars from visible ranges", all_text.len()));
+                        diag(
+                            hwnd,
+                            &format!(
+                                "  ITextProvider: got {} chars from visible ranges",
+                                all_text.len()
+                            ),
+                        );
                         return Some(all_text);
                     }
                 }
                 Err(e) => {
-                    diag(hwnd, &format!("  ITextProvider: get_visible_ranges failed: {e}"));
+                    diag(
+                        hwnd,
+                        &format!("  ITextProvider: get_visible_ranges failed: {e}"),
+                    );
                 }
             }
             None
@@ -88,11 +118,14 @@ pub(crate) fn try_extract_text(
     // Terminal content has newlines; window titles are single-line.
     if let Ok(name) = element.get_name() {
         if name.contains('\n') && name.len() > 30 {
-            diag(hwnd, &format!(
-                "  Found multi-line name ({} chars): {}",
-                name.len(),
-                &name[..name.len().min(120)].replace('\n', "\\n")
-            ));
+            diag(
+                hwnd,
+                &format!(
+                    "  Found multi-line name ({} chars): {}",
+                    name.len(),
+                    &name[..name.len().min(120)].replace('\n', "\\n")
+                ),
+            );
             return Some(name);
         }
     }
@@ -183,10 +216,10 @@ pub(crate) fn try_extract_text(
             for child in elems.iter() {
                 if let Ok(name) = child.get_name() {
                     if name.contains('\n') && name.len() > 50 {
-                        diag(hwnd, &format!(
-                            "  Pane with multi-line name ({} chars)",
-                            name.len()
-                        ));
+                        diag(
+                            hwnd,
+                            &format!("  Pane with multi-line name ({} chars)", name.len()),
+                        );
                         return Some(name);
                     }
                 }

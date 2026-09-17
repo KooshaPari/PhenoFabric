@@ -39,7 +39,7 @@ impl SyncState {
         changed
     }
 
-#[allow(dead_code)]
+    #[allow(dead_code)]
     pub fn sequence(&self) -> u64 {
         self.sequence
     }

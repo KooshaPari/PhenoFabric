@@ -11,7 +11,9 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::execute;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
@@ -234,7 +236,7 @@ pub fn run(workspace: &Path) -> Result<()> {
                 .direction(ratatui::layout::Direction::Vertical)
                 .constraints([
                     Constraint::Length(3), // Tabs
-                    Constraint::Min(1),   // Content
+                    Constraint::Min(1),    // Content
                     Constraint::Length(1), // Status bar
                 ])
                 .split(area);
@@ -255,7 +257,11 @@ pub fn run(workspace: &Path) -> Result<()> {
                 .collect();
 
             let tabs_widget = Tabs::new(tab_titles)
-                .block(Block::default().borders(Borders::BOTTOM).title("Fabric Explorer"))
+                .block(
+                    Block::default()
+                        .borders(Borders::BOTTOM)
+                        .title("Fabric Explorer"),
+                )
                 .select(app.tab.index())
                 .style(Style::default().fg(Color::White))
                 .highlight_style(
@@ -287,7 +293,10 @@ pub fn run(workspace: &Path) -> Result<()> {
                 ),
                 Span::raw(" │"),
                 Span::styled(
-                    format!(" Nodes: {} │ Edges: {} ", app.data.node_count, app.data.edge_count),
+                    format!(
+                        " Nodes: {} │ Edges: {} ",
+                        app.data.node_count, app.data.edge_count
+                    ),
                     Style::default().fg(Color::DarkGray),
                 ),
                 Span::raw(" │"),

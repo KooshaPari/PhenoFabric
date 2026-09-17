@@ -54,8 +54,8 @@ fn build_replan_request(
     }
     let intent = ib.build();
 
-    let old_plan = fabric_graph::compile(&topo, &intent)
-        .expect("compile succeeds for surviving topology");
+    let old_plan =
+        fabric_graph::compile(&topo, &intent).expect("compile succeeds for surviving topology");
 
     let req = fabric_graph_cli::protocol::ReplanRequest {
         topology: topo,
@@ -148,8 +148,8 @@ fn cli_replan_pruned_only_node_returns_replaced_with_single_step() {
         .min_trust(fabric_graph::TrustLevel::Untrusted)
         .prefer_node("target")
         .build();
-    let old_plan = fabric_graph::compile(&full_topo, &intent)
-        .expect("compile succeeds for full topology");
+    let old_plan =
+        fabric_graph::compile(&full_topo, &intent).expect("compile succeeds for full topology");
     let req = fabric_graph_cli::protocol::ReplanRequest {
         topology: pruned_topo,
         intent,
@@ -163,9 +163,11 @@ fn cli_replan_pruned_only_node_returns_replaced_with_single_step() {
     assert_eq!(resp["status"], "replaced");
     assert!(resp["new_plan"].is_object());
     let steps = resp["new_plan"]["steps"].as_array().expect("steps array");
-    assert!(!steps.is_empty(),
+    assert!(
+        !steps.is_empty(),
         "remaining node must route; prune + replan returns Replaced with steps={:?}",
-        steps);
+        steps
+    );
 }
 
 #[test]
@@ -212,7 +214,11 @@ fn cli_no_subcommand_exits_one() {
         .stderr(Stdio::piped())
         .output()
         .expect("spawn");
-    assert_eq!(out.status.code(), Some(1), "exit code 1 for missing subcommand");
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "exit code 1 for missing subcommand"
+    );
 }
 
 #[test]

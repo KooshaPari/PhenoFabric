@@ -116,10 +116,13 @@ pub fn validate_against_schema(json: &str, _schema_name: &str) -> Result<(), Sch
     })?;
 
     // Must have a "type" field.
-    let msg_type = obj.get("type").and_then(|v| v.as_str()).ok_or_else(|| SchemaError {
-        message: "missing required field: type".into(),
-        code: "MISSING_TYPE".into(),
-    })?;
+    let msg_type = obj
+        .get("type")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| SchemaError {
+            message: "missing required field: type".into(),
+            code: "MISSING_TYPE".into(),
+        })?;
 
     // Must be a known type.
     if !is_known_type(msg_type) {
@@ -245,20 +248,15 @@ mod tests {
 
     #[test]
     fn validate_compile_request_missing_source_fails() {
-        let result = validate_against_schema(
-            r#"{"type":"compile_request","destination":"b"}"#,
-            "wire",
-        );
+        let result =
+            validate_against_schema(r#"{"type":"compile_request","destination":"b"}"#, "wire");
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "MISSING_FIELD");
     }
 
     #[test]
     fn validate_compile_request_missing_destination_fails() {
-        let result = validate_against_schema(
-            r#"{"type":"compile_request","source":"a"}"#,
-            "wire",
-        );
+        let result = validate_against_schema(r#"{"type":"compile_request","source":"a"}"#, "wire");
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "MISSING_FIELD");
     }
@@ -293,10 +291,7 @@ mod tests {
 
     #[test]
     fn validate_webrtc_offer_missing_target_fails() {
-        let result = validate_against_schema(
-            r#"{"type":"webrtc_offer","sdp":"v=0..."}"#,
-            "wire",
-        );
+        let result = validate_against_schema(r#"{"type":"webrtc_offer","sdp":"v=0..."}"#, "wire");
         assert!(result.is_err());
     }
 

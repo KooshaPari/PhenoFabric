@@ -91,8 +91,8 @@ fn load_index(workspace: &Path) -> Result<Vec<WorkspaceState>> {
     if !path.exists() {
         return Ok(Vec::new());
     }
-    let json = std::fs::read_to_string(&path)
-        .with_context(|| format!("read {}", path.display()))?;
+    let json =
+        std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
     if json.trim().is_empty() {
         return Ok(Vec::new());
     }
@@ -106,8 +106,7 @@ fn save_index(workspace: &Path, entries: &[WorkspaceState]) -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
     let json = serde_json::to_string_pretty(entries)?;
-    std::fs::write(&path, json)
-        .with_context(|| format!("write {}", path.display()))?;
+    std::fs::write(&path, json).with_context(|| format!("write {}", path.display()))?;
     Ok(())
 }
 
@@ -140,8 +139,7 @@ fn create(args: &CreateArgs, workspace: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&path, json)
-        .with_context(|| format!("write {}", path.display()))?;
+    std::fs::write(&path, json).with_context(|| format!("write {}", path.display()))?;
     let mut index = load_index(workspace).unwrap_or_default();
     index.push(entry);
     save_index(workspace, &index)?;
@@ -178,8 +176,8 @@ fn show(args: &ShowArgs, workspace: &Path) -> Result<()> {
     // Try to find by name first, then by ID.
     let path = workspace_path(workspace, &args.name);
     let entry = if path.exists() {
-        let json = std::fs::read_to_string(&path)
-            .with_context(|| format!("read {}", path.display()))?;
+        let json =
+            std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
         serde_json::from_str::<WorkspaceState>(&json).context("parse workspace")?
     } else {
         // Search by ID in the index.
@@ -213,8 +211,7 @@ fn delete(args: &DeleteArgs, workspace: &Path) -> Result<()> {
     let ws_name = find_workspace_name(workspace, &args.name)?;
     let path = workspace_path(workspace, &ws_name);
     if path.exists() {
-        std::fs::remove_file(&path)
-            .with_context(|| format!("remove {}", path.display()))?;
+        std::fs::remove_file(&path).with_context(|| format!("remove {}", path.display()))?;
     }
     let mut index = load_index(workspace).unwrap_or_default();
     index.retain(|w| w.name != ws_name && w.id != args.name);
@@ -238,8 +235,8 @@ fn release(args: &ReleaseArgs, workspace: &Path) -> Result<()> {
     let path = workspace_path(workspace, &ws_name);
 
     let mut entry: WorkspaceState = if path.exists() {
-        let json = std::fs::read_to_string(&path)
-            .with_context(|| format!("read {}", path.display()))?;
+        let json =
+            std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
         serde_json::from_str(&json).context("parse workspace")?
     } else {
         anyhow::bail!("workspace '{}' not found", args.id);
@@ -258,8 +255,7 @@ fn release(args: &ReleaseArgs, workspace: &Path) -> Result<()> {
 
     // Save updated workspace.
     let json = serde_json::to_string_pretty(&entry)?;
-    std::fs::write(&path, json)
-        .with_context(|| format!("write {}", path.display()))?;
+    std::fs::write(&path, json).with_context(|| format!("write {}", path.display()))?;
 
     // Update index.
     let mut index = load_index(workspace).unwrap_or_default();
@@ -327,10 +323,7 @@ fn output_pretty(w: &WorkspaceState) {
                 "pending" => console::style(&seat.state).yellow(),
                 _ => console::style(&seat.state),
             };
-            println!(
-                "    {:<20} {:<20} {}",
-                seat.name, seat.seat_id, state_color
-            );
+            println!("    {:<20} {:<20} {}", seat.name, seat.seat_id, state_color);
         }
     }
 }

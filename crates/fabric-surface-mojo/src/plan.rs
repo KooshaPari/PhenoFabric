@@ -49,18 +49,14 @@ impl GpuDispatchPlan {
     /// 2. Data transfer step (zero-copy for CPU, DMA for GPU, serialized for remote)
     /// 3. Kernel execution step
     /// 4. Result transfer step
-    pub fn for_frame(
-        tier: LocalityTier,
-        width: u32,
-        height: u32,
-    ) -> Self {
+    pub fn for_frame(tier: LocalityTier, width: u32, height: u32) -> Self {
         let pixel_count = (width as u64) * (height as u64);
         let frame_bytes = pixel_count * 4; // RGBA8
 
         let (backend, alloc_lat, transfer_lat, exec_lat, result_lat) = match tier {
-            LocalityTier::L0SameProcess | LocalityTier::L1SameNuma | LocalityTier::L2CrossNumaShm => {
-                (ComputeBackend::CpuSimd, 10.0, 0.0, 200.0, 0.0)
-            }
+            LocalityTier::L0SameProcess
+            | LocalityTier::L1SameNuma
+            | LocalityTier::L2CrossNumaShm => (ComputeBackend::CpuSimd, 10.0, 0.0, 200.0, 0.0),
             LocalityTier::L3PcieP2P | LocalityTier::L4Rdma | LocalityTier::L5Loopback => {
                 (ComputeBackend::Gpu, 50.0, 200.0, 100.0, 150.0)
             }
@@ -69,8 +65,7 @@ impl GpuDispatchPlan {
             }
         };
 
-        let steps = vec
-![
+        let steps = vec![
             GpuDispatchStep {
                 tier,
                 backend,
@@ -135,7 +130,11 @@ mod tests {
     fn cpu_plan_low_latency() {
         let plan = GpuDispatchPlan::for_frame(LocalityTier::L0SameProcess, 1920, 1080);
         assert_eq!(plan.steps.len(), 4);
-        assert!(plan.total_latency_us < 500.0, "CPU plan should be fast, got {}", plan.total_latency_us);
+        assert!(
+            plan.total_latency_us < 500.0,
+            "CPU plan should be fast, got {}",
+            plan.total_latency_us
+        );
         assert!(plan.estimated_fps() > 60.0);
     }
 

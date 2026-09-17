@@ -37,12 +37,7 @@ impl SurfaceRegistry {
 
     /// Insert a surface entry. If `handle` is already present, the old
     /// entry is silently replaced (idempotent — spec 024 §Semantics).
-    pub fn insert(
-        &mut self,
-        handle: SurfaceHandle,
-        lease: SurfaceLease,
-        spec: SurfaceSpec,
-    ) {
+    pub fn insert(&mut self, handle: SurfaceHandle, lease: SurfaceLease, spec: SurfaceSpec) {
         self.inner.insert(
             handle,
             RegistryEntry {
@@ -88,10 +83,7 @@ impl SurfaceRegistry {
     /// Returns the list of [`Invalidation`]s performed. The caller is
     /// responsible for any external notification (event log emission,
     /// Go-side handle drop).
-    pub fn notify_node_failure(
-        &mut self,
-        failed_nodes: &[NodeId],
-    ) -> Vec<Invalidation> {
+    pub fn notify_node_failure(&mut self, failed_nodes: &[NodeId]) -> Vec<Invalidation> {
         if failed_nodes.is_empty() {
             return Vec::new();
         }
@@ -282,8 +274,14 @@ mod tests {
 
         let spec = sample_spec("rt-a");
         let mut lease = new_lease(spec.clone()).unwrap();
-        let plan = crate::compile(&topo, &crate::builder::IntentBuilder::new().name("t").min_trust(TrustLevel::Untrusted).build())
-            .unwrap();
+        let plan = crate::compile(
+            &topo,
+            &crate::builder::IntentBuilder::new()
+                .name("t")
+                .min_trust(TrustLevel::Untrusted)
+                .build(),
+        )
+        .unwrap();
         let step = make_step("node-a", "compute");
         bind(&mut lease, plan.id.clone(), step).unwrap();
 
@@ -304,9 +302,17 @@ mod tests {
         // Lease on node-a
         let spec_a = sample_spec("rt-a");
         let mut lease_a = new_lease(spec_a.clone()).unwrap();
-        let intent = crate::builder::IntentBuilder::new().name("t").min_trust(TrustLevel::Untrusted).build();
+        let intent = crate::builder::IntentBuilder::new()
+            .name("t")
+            .min_trust(TrustLevel::Untrusted)
+            .build();
         let plan = crate::compile(&topo, &intent).unwrap();
-        bind(&mut lease_a, plan.id.clone(), make_step("node-a", "compute")).unwrap();
+        bind(
+            &mut lease_a,
+            plan.id.clone(),
+            make_step("node-a", "compute"),
+        )
+        .unwrap();
         let h_a = lease_a.handle;
         reg.insert(h_a, lease_a, spec_a);
 
@@ -314,7 +320,12 @@ mod tests {
         let spec_b = sample_spec("rt-b");
         let mut lease_b = new_lease(spec_b.clone()).unwrap();
         let plan2 = crate::compile(&topo, &intent).unwrap();
-        bind(&mut lease_b, plan2.id.clone(), make_step("node-b", "compute")).unwrap();
+        bind(
+            &mut lease_b,
+            plan2.id.clone(),
+            make_step("node-b", "compute"),
+        )
+        .unwrap();
         let h_b = lease_b.handle;
         reg.insert(h_b, lease_b, spec_b);
 
@@ -357,13 +368,15 @@ mod tests {
             make_step("nonexistent-node", "compute"),
             &topo,
         );
-        assert!(matches!(result, Err(crate::surface::SurfaceError::UnknownNode { .. })));
+        assert!(matches!(
+            result,
+            Err(crate::surface::SurfaceError::UnknownNode { .. })
+        ));
         assert_eq!(lease.state, LeaseState::Pending);
     }
 
     #[test]
     fn invalidation_to_wire_json_matches_spec025_shape() {
-
         let (topo, _a, _b) = two_node_topology();
         let mut reg = SurfaceRegistry::new();
 
@@ -401,10 +414,7 @@ mod tests {
         assert!(wire["lease_id"].is_string());
 
         // Verify lease_id matches the binding_id from the lease
-        assert_eq!(
-            wire["lease_id"].as_str().unwrap(),
-            binding_id.to_string()
-        );
+        assert_eq!(wire["lease_id"].as_str().unwrap(), binding_id.to_string());
     }
 
     #[test]
@@ -417,7 +427,9 @@ mod tests {
         };
         let wire = inv.to_wire_json();
         assert_eq!(wire["reason"], "Revoked");
-        assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
+        assert!(
+            wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty()
+        );
         assert_eq!(wire["epoch"], 7);
     }
 
@@ -431,7 +443,9 @@ mod tests {
         };
         let wire = inv.to_wire_json();
         assert_eq!(wire["reason"], "Expired");
-        assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
+        assert!(
+            wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty()
+        );
     }
 
     #[test]
@@ -447,7 +461,9 @@ mod tests {
         };
         let wire = inv.to_wire_json();
         assert_eq!(wire["reason"], "Failed");
-        assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
+        assert!(
+            wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty()
+        );
     }
 
     #[test]
@@ -460,7 +476,9 @@ mod tests {
         };
         let wire = inv.to_wire_json();
         assert_eq!(wire["reason"], "NormalCompletion");
-        assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
+        assert!(
+            wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty()
+        );
     }
 
     #[test]
@@ -476,7 +494,9 @@ mod tests {
         };
         let wire = inv.to_wire_json();
         assert_eq!(wire["reason"], "EpochDrift");
-        assert!(wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty());
+        assert!(
+            wire.get("failed_node").is_none() || wire["failed_node"].as_str().unwrap().is_empty()
+        );
         assert_eq!(wire["epoch"], 5);
     }
 

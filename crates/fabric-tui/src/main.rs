@@ -11,12 +11,12 @@ mod ui;
 use std::io;
 use std::time::{Duration, Instant};
 
+use clap::Parser;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use clap::Parser;
 use ratatui::prelude::*;
 
 use app::{App, Tab};
@@ -66,8 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
                     match key.code {
-                        KeyCode::Char('q')
-                        | KeyCode::Char('c')
+                        KeyCode::Char('q') | KeyCode::Char('c')
                             if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
                         {
                             app.running = false;
@@ -77,19 +76,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         KeyCode::Tab => {
                             let tabs = Tab::all();
-                            let idx = tabs
-                                .iter()
-                                .position(|t| *t == app.active_tab)
-                                .unwrap_or(0);
+                            let idx = tabs.iter().position(|t| *t == app.active_tab).unwrap_or(0);
                             app.active_tab = tabs[(idx + 1) % tabs.len()];
                             app.selected_row = 0;
                         }
                         KeyCode::BackTab => {
                             let tabs = Tab::all();
-                            let idx = tabs
-                                .iter()
-                                .position(|t| *t == app.active_tab)
-                                .unwrap_or(0);
+                            let idx = tabs.iter().position(|t| *t == app.active_tab).unwrap_or(0);
                             app.active_tab = tabs[(idx + tabs.len() - 1) % tabs.len()];
                             app.selected_row = 0;
                         }

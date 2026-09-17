@@ -274,11 +274,7 @@ pub fn migrate(conn: &Connection) -> Result<(), PersistError> {
 
     for m in &migrations {
         if m.version() > current {
-            info!(
-                version = m.version(),
-                name = m.name(),
-                "applying migration"
-            );
+            info!(version = m.version(), name = m.name(), "applying migration");
             conn.execute_batch("BEGIN;")?;
             conn.execute_batch(m.up())?;
             conn.execute_batch(&format!(

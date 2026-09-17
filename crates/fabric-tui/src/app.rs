@@ -176,9 +176,11 @@ impl App {
 // Wire protocol helpers
 // ---------------------------------------------------------------------------
 
-fn fetch_daemon_json<T: for<'de> Deserialize<'de>>(addr: &str, msg_type: &str) -> Result<T, String> {
-    let mut stream =
-        TcpStream::connect(addr).map_err(|e| format!("connect failed: {e}"))?;
+fn fetch_daemon_json<T: for<'de> Deserialize<'de>>(
+    addr: &str,
+    msg_type: &str,
+) -> Result<T, String> {
+    let mut stream = TcpStream::connect(addr).map_err(|e| format!("connect failed: {e}"))?;
     stream.set_read_timeout(Some(Duration::from_secs(3))).ok();
     stream.set_write_timeout(Some(Duration::from_secs(3))).ok();
 

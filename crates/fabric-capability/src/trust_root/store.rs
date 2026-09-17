@@ -66,10 +66,7 @@ impl TrustStore {
     /// 3. The authority's `signature` field is present and verifies
     ///    against the parent's `VerificationKey`.
     /// 4. The resulting chain depth does not exceed [`MAX_CHAIN_DEPTH`].
-    pub fn add_authority(
-        &mut self,
-        auth: Authority,
-    ) -> std::result::Result<(), TrustError> {
+    pub fn add_authority(&mut self, auth: Authority) -> std::result::Result<(), TrustError> {
         if self.by_key_id.contains_key(&auth.key_id) {
             return Err(TrustError::Crypto(format!(
                 "duplicate key_id {}",
@@ -83,9 +80,7 @@ impl TrustStore {
         let parent = self
             .by_key_id
             .get(&parent_key_id)
-            .ok_or_else(|| {
-                TrustError::ParentNotFound(parent_key_id.clone(), auth.key_id.clone())
-            })?
+            .ok_or_else(|| TrustError::ParentNotFound(parent_key_id.clone(), auth.key_id.clone()))?
             .clone();
         // Chain-depth check: walk from the parent up to the root,
         // counting hops. Reject before signature verification (cheaper)
@@ -180,17 +175,14 @@ impl TrustStore {
                 Some(a) => a.clone(),
                 None => {
                     if first_error.is_none() {
-                        first_error =
-                            Some(TrustError::UnknownAuthority(sig.key_id.clone()));
+                        first_error = Some(TrustError::UnknownAuthority(sig.key_id.clone()));
                     }
                     continue;
                 }
             };
             // b. Revocation check.
             if let Some(list) = &self.revocation_list {
-                if let Some(entry) =
-                    list.revocations.iter().find(|e| e.key_id == sig.key_id)
-                {
+                if let Some(entry) = list.revocations.iter().find(|e| e.key_id == sig.key_id) {
                     if first_error.is_none() {
                         first_error = Some(TrustError::KeyRevoked {
                             key_id: sig.key_id.clone(),
@@ -217,9 +209,7 @@ impl TrustStore {
             }
         }
         best.ok_or_else(|| {
-            first_error.unwrap_or_else(|| {
-                TrustError::UnknownAuthority(String::from("<none>"))
-            })
+            first_error.unwrap_or_else(|| TrustError::UnknownAuthority(String::from("<none>")))
         })
     }
 
@@ -250,9 +240,7 @@ impl TrustStore {
                 None => {
                     // Must be the root.
                     if current.key_id != self.root_key_id {
-                        return Err(TrustError::ChainNotAnchored(
-                            auth.key_id.clone(),
-                        ));
+                        return Err(TrustError::ChainNotAnchored(auth.key_id.clone()));
                     }
                     break;
                 }
@@ -260,9 +248,7 @@ impl TrustStore {
                     let parent = self
                         .by_key_id
                         .get(parent_id)
-                        .ok_or_else(|| {
-                            TrustError::UnknownAuthority(parent_id.clone())
-                        })?
+                        .ok_or_else(|| TrustError::UnknownAuthority(parent_id.clone()))?
                         .clone();
                     current = parent;
                 }
@@ -285,16 +271,12 @@ impl TrustStore {
             let sig = child
                 .signature
                 .as_ref()
-                .ok_or_else(|| {
-                    TrustError::BadAuthoritySignature(child.key_id.clone())
-                })?;
+                .ok_or_else(|| TrustError::BadAuthoritySignature(child.key_id.clone()))?;
             let bytes = child.canonical_bytes()?;
             parent
                 .verification_key
                 .verify_bytes(&bytes, sig)
-                .map_err(|_| {
-                    TrustError::BadAuthoritySignature(child.key_id.clone())
-                })?;
+                .map_err(|_| TrustError::BadAuthoritySignature(child.key_id.clone()))?;
         }
         // Verify the descriptor signature against the leaf's key.
         let leaf = &chain[0];
@@ -303,9 +285,7 @@ impl TrustStore {
             .map_err(|e| TrustError::Codec(e.to_string()))?;
         leaf.verification_key
             .verify_bytes(&desc_bytes, desc_sig)
-            .map_err(|_| {
-                TrustError::BadDescriptorSignature(desc_sig.key_id.clone())
-            })?;
+            .map_err(|_| TrustError::BadDescriptorSignature(desc_sig.key_id.clone()))?;
         Ok(ChainVerification {
             node_authority: leaf.clone(),
             chain_depth: depth,
@@ -336,28 +316,21 @@ mod tests {
 
     /// Builds a 3-level chain: root → intermediate → node, each signed
     /// by the previous. Returns the keys + authorities.
-    fn build_chain_3(
-    ) -> (SigningKey, SigningKey, SigningKey, Authority, Authority, Authority) {
+    fn build_chain_3() -> (
+        SigningKey,
+        SigningKey,
+        SigningKey,
+        Authority,
+        Authority,
+        Authority,
+    ) {
         let root_key = SigningKey::generate();
         let inter_key = SigningKey::generate();
         let node_key = SigningKey::generate();
         let root = Authority::trust_root(&root_key, "test-root");
-        let inter = Authority::signed_by(
-            &inter_key,
-            &root_key,
-            &root,
-            "test-intermediate",
-            None,
-        )
-        .unwrap();
-        let node = Authority::signed_by(
-            &node_key,
-            &inter_key,
-            &inter,
-            "test-node",
-            None,
-        )
-        .unwrap();
+        let inter =
+            Authority::signed_by(&inter_key, &root_key, &root, "test-intermediate", None).unwrap();
+        let node = Authority::signed_by(&node_key, &inter_key, &inter, "test-node", None).unwrap();
         (root_key, inter_key, node_key, root, inter, node)
     }
 
@@ -365,14 +338,7 @@ mod tests {
         let root_key = SigningKey::generate();
         let node_key = SigningKey::generate();
         let root = Authority::trust_root(&root_key, "test-root");
-        let node = Authority::signed_by(
-            &node_key,
-            &root_key,
-            &root,
-            "test-node",
-            None,
-        )
-        .unwrap();
+        let node = Authority::signed_by(&node_key, &root_key, &root, "test-node", None).unwrap();
         (root_key, node_key, root, node)
     }
 
@@ -411,8 +377,7 @@ mod tests {
             reason: RevocationReason::Compromised,
             revoked_at: Utc::now(),
         }];
-        let list =
-            RevocationList::build_and_sign(entries, &root_key).unwrap();
+        let list = RevocationList::build_and_sign(entries, &root_key).unwrap();
         let bytes = list.canonical_bytes().unwrap();
         store
             .by_key_id
@@ -432,8 +397,7 @@ mod tests {
             reason: RevocationReason::Compromised,
             revoked_at: Utc::now(),
         }];
-        let list =
-            RevocationList::build_and_sign(entries, &wrong_key).unwrap();
+        let list = RevocationList::build_and_sign(entries, &wrong_key).unwrap();
         let mut store = TrustStore::new(root).unwrap();
         let result = store.set_revocation_list(list);
         assert!(matches!(
@@ -451,14 +415,7 @@ mod tests {
         // Now build a 4th authority signed by `node` — this is depth 3
         // which exceeds MAX_CHAIN_DEPTH=2.
         let extra_key = SigningKey::generate();
-        let extra = Authority::signed_by(
-            &extra_key,
-            &node_key,
-            &node,
-            "too-deep",
-            None,
-        )
-        .unwrap();
+        let extra = Authority::signed_by(&extra_key, &node_key, &node, "too-deep", None).unwrap();
         let result = store.add_authority(extra);
         // Should fail because parent (node) is at depth 2, and adding
         // child makes depth 3.

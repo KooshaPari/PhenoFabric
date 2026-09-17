@@ -40,7 +40,10 @@ pub fn validate_multihop(
 
     // Epoch check.
     if plan.topology_epoch != topology.epoch {
-        return Err(RouteValidationError::EpochMismatch(plan.topology_epoch.0, topology.epoch.0));
+        return Err(RouteValidationError::EpochMismatch(
+            plan.topology_epoch.0,
+            topology.epoch.0,
+        ));
     }
 
     let mut visited = std::collections::HashSet::new();
@@ -61,7 +64,10 @@ pub fn validate_multihop(
             if let Some(ref edge_id) = step.via_edge {
                 if !topology.edges.contains_key(edge_id) {
                     let prev = &plan.steps[i - 1];
-                    return Err(RouteValidationError::MissingEdge(prev.node.0.clone(), step.node.0.clone()));
+                    return Err(RouteValidationError::MissingEdge(
+                        prev.node.0.clone(),
+                        step.node.0.clone(),
+                    ));
                 }
             }
             // Note: via_edge being None for i > 0 means same-machine hop
