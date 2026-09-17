@@ -281,7 +281,7 @@ impl WebRtcChannel {
 
     /// Close the data channel.
     pub fn close(&self) {
-        let _ = self.channel.close();
+        self.channel.close();
     }
 
     // ---- Private ----

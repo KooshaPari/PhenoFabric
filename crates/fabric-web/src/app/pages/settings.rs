@@ -1,5 +1,7 @@
 //! Settings page — daemon configuration and feature toggles.
 
+#![allow(clippy::unused_unit)] // Leptos `view! {}` macro expands to `()` in empty closures.
+
 use leptos::prelude::*;
 use crate::api::*;
 

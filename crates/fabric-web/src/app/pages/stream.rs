@@ -211,7 +211,7 @@ pub fn StreamPage() -> impl IntoView {
             {
                 let base_ice = base.clone();
                 let target_ice = target_clone.clone();
-                let add_log_ice = add_log.clone();
+                let add_log_ice = add_log;
 
                 let onice = Closure::wrap(Box::new(
                     move |event: web_sys::RtcPeerConnectionIceEvent| {
@@ -257,8 +257,8 @@ pub fn StreamPage() -> impl IntoView {
             // --- 8. Register ondatachannel handler ---
             {
                 let canvas_dc = canvas_clone.clone();
-                let add_log_dc = add_log.clone();
-                let set_status_dc = set_status.clone();
+                let add_log_dc = add_log;
+                let set_status_dc = set_status;
 
                 let ondc = Closure::wrap(Box::new(move |event: web_sys::RtcDataChannelEvent| {
                     let data_channel = event.channel();
@@ -272,7 +272,7 @@ pub fn StreamPage() -> impl IntoView {
                     // Register frame message handler.
                     {
                         let canvas_render = canvas_dc.clone();
-                        let set_status_frame = set_status_dc.clone();
+                        let set_status_frame = set_status_dc;
 
                         channel.on_message(move |msg| match msg {
                             FrameMessage::FrameData { header, payload } => {
@@ -293,7 +293,7 @@ pub fn StreamPage() -> impl IntoView {
 
                     // Mark channel as open.
                     {
-                        let set_status_open = set_status_dc.clone();
+                        let set_status_open = set_status_dc;
                         channel.on_open(move || {
                             set_status_open.set("Connected (channel open)".to_string());
                         });
@@ -310,7 +310,7 @@ pub fn StreamPage() -> impl IntoView {
 
     let disconnect = move |_: web_sys::MouseEvent| {
         if let Some(pc) = pc_ref_disconnect.borrow_mut().take() {
-            let _ = pc.close();
+            pc.close();
         }
         set_status.set("Disconnected".to_string());
         add_log("Connection closed".to_string());
@@ -385,7 +385,7 @@ fn render_frame(
     payload: &[u8],
 ) {
     let canvas_borrow = canvas.borrow();
-    let canvas = match canvas_borrow.as_ref().clone() {
+    let canvas = match canvas_borrow.as_ref() {
         Some(c) => c,
         None => {
             web_sys::console::warn_1(
