@@ -63,9 +63,12 @@ pub unsafe extern "C" fn fabric_capability_free_string(ptr: *mut std::os::raw::c
 ///
 /// Caller owns the returned pointer. Free with `fabric_capability_free_string`.
 /// Returns `null` on error.
-//
-// Safety contract:
-// - `descriptor_json` must be a valid, null-terminated C string.
+///
+/// # Safety
+///
+/// - `descriptor_json` must be a valid, null-terminated C string.
+/// - The caller must ensure `descriptor_json` remains valid for the duration
+///   of this call.
 #[no_mangle]
 pub unsafe extern "C" fn fabric_capability_to_json(
     descriptor_json: *const std::os::raw::c_char,
@@ -197,10 +200,17 @@ pub unsafe extern "C" fn fabric_capability_verify_json(
 
 /// Generates a new random Ed25519 signing key.
 ///
+/// Generates a new signing key and writes it to `out_key`.
+///
 /// The returned key is 32 bytes (seed). The caller owns the returned memory.
 /// Free with `fabric_capability_free_key`.
+///
+/// # Safety
+///
+/// - `out_key` must be a valid pointer to a `[u8; 32]` buffer.
+/// - The caller must ensure `out_key` is not null.
 #[no_mangle]
-pub extern "C" fn fabric_capability_generate_key(out_key: *mut [u8; 32]) -> FabricError {
+pub unsafe extern "C" fn fabric_capability_generate_key(out_key: *mut [u8; 32]) -> FabricError {
     if out_key.is_null() {
         return FabricError::NullPointer;
     }
@@ -213,8 +223,13 @@ pub extern "C" fn fabric_capability_generate_key(out_key: *mut [u8; 32]) -> Fabr
 /// Returns the key fingerprint (key_id) for a given key as a hex string.
 ///
 /// The returned pointer must be freed by the caller with `fabric_capability_free_string`.
+///
+/// # Safety
+///
+/// - `key_bytes` must be a valid pointer to a `[u8; 32]` buffer.
+/// - The caller must ensure `key_bytes` is not null.
 #[no_mangle]
-pub extern "C" fn fabric_capability_key_id(
+pub unsafe extern "C" fn fabric_capability_key_id(
     key_bytes: *const u8,
 ) -> *mut std::os::raw::c_char {
     if key_bytes.is_null() {
