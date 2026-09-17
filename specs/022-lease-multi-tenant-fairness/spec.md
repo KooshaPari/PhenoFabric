@@ -143,7 +143,7 @@ use crate::surface_ops::new_lease;
 /// lease is left in place (audit trail intact).
 pub fn pardon(
     spec: SurfaceSpec,
-    operator_token: &str, // signed operator identity, e.g. "ops:koosha@2026-09-08"
+    operator_token: &str, // signed operator identity, e.g. "ops:<REDACTED>@2026-09-08"
 ) -> Result<SurfaceLease, PardonError>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

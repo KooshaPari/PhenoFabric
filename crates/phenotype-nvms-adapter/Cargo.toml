@@ -8,7 +8,7 @@ description = "Bridge between odin.nvms v0.2 application manifests and Phenotype
 
 [dependencies]
 fabric-capability = { path = "../fabric-capability" }
-phenotype-manifest = { git = "https://github.com/<REDACTED>/nanovms.git" }
+phenotype-manifest = { path = "/Users/kooshapari/CodeProjects/Phenotype/repos/nanovms/crates/phenotype-manifest" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 schemars = "0.8"
