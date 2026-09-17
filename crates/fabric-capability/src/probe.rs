@@ -4,8 +4,8 @@
 //! so that macOS and Windows probes can be added in later releases without changing
 //! the descriptor types.
 
-use crate::descriptor::CapabilityDescriptor;
-use crate::error::Result;
+use crate::descriptor::{CacheInfo, CapabilityDescriptor};
+use crate::error::{Error, Result};
 use crate::locality::LocalityTier;
 
 /// A capability probe for a specific platform.
