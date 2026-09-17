@@ -7,8 +7,8 @@
 pub mod federation;
 pub mod frame_streamer;
 
-use fabric_daemon::auth::AuthMiddleware;
 use fabric_daemon::auth::middleware::AuthMiddlewareConfig;
+use fabric_daemon::auth::AuthMiddleware;
 use fabric_daemon::config::{DaemonConfig, DatabaseConfig, ServerConfig};
 use fabric_daemon::coordinator::Coordinator;
 use fabric_daemon::wire::run_wire_server;
@@ -180,7 +180,7 @@ pub fn send_and_receive(addr: &str, message: &str) -> String {
         .set_write_timeout(Some(Duration::from_secs(5)))
         .expect("set write timeout");
 
-    write!(stream, "{message}\n").expect("write message");
+    writeln!(stream, "{message}").expect("write message");
     stream.flush().expect("flush");
 
     let reader = BufReader::new(stream.try_clone().expect("clone stream"));

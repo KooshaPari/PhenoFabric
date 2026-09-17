@@ -26,7 +26,10 @@ use uuid::Uuid;
 /// - non-nil node_id
 /// - non-empty topology_hash
 /// - recent probed_at
-fn base_descriptor(cores_logical: u32, memory_bytes: u64) -> fabric_capability::CapabilityDescriptor {
+fn base_descriptor(
+    cores_logical: u32,
+    memory_bytes: u64,
+) -> fabric_capability::CapabilityDescriptor {
     fabric_capability::CapabilityDescriptor {
         node_id: Uuid::now_v7(),
         epoch: 1,
@@ -151,14 +154,11 @@ fn topology_compile_check_lease() {
     // 2. Compile a multihop route from n1 to n3.
     let source = NodeId::new("n1");
     let destination = NodeId::new("n3");
-    let intent = IntentBuilder::new()
-        .name("integration-route")
-        .build();
+    let intent = IntentBuilder::new().name("integration-route").build();
     let catalog = builtin_stages();
 
-    let result =
-        compile_multihop(&topology, &source, &destination, &intent, &catalog)
-            .expect("multihop compilation should succeed");
+    let result = compile_multihop(&topology, &source, &destination, &intent, &catalog)
+        .expect("multihop compilation should succeed");
 
     // Route should span 3 nodes (n1 -> n2 -> n3).
     assert_eq!(result.primary.steps.len(), 3);
@@ -187,8 +187,7 @@ fn topology_compile_check_lease() {
 
     // 7. Bind the lease to the first route step and verify Active.
     let first_step = result.primary.steps[0].clone();
-    surface_ops::bind(&mut lease, result.primary.id, first_step)
-        .expect("bind should succeed");
+    surface_ops::bind(&mut lease, result.primary.id, first_step).expect("bind should succeed");
     assert_eq!(lease.state, fabric_graph::surface::LeaseState::Active);
 }
 
@@ -208,9 +207,7 @@ fn checker_rejects_insufficient_resources() {
     // 3. Run the checker — should Reject with CoresInsufficient.
     let decision = check(&descriptor, &manifest);
     match &decision {
-        fabric_checker::Decision::Reject {
-            reason_code, ..
-        } => {
+        fabric_checker::Decision::Reject { reason_code, .. } => {
             assert_eq!(
                 *reason_code,
                 fabric_checker::ReasonCode::CoresInsufficient,
@@ -247,9 +244,7 @@ fn checker_rejects_missing_audio() {
     // 3. Run checker — should Reject (audio required but missing).
     let decision = check(&descriptor, &manifest);
     match &decision {
-        fabric_checker::Decision::Reject {
-            reason_code, ..
-        } => {
+        fabric_checker::Decision::Reject { reason_code, .. } => {
             assert_eq!(
                 *reason_code,
                 fabric_checker::ReasonCode::CaptureRequiredButMissing,
@@ -257,7 +252,10 @@ fn checker_rejects_missing_audio() {
                 reason_code
             );
         }
-        other => panic!("expected Reject with CaptureRequiredButMissing, got {:?}", other),
+        other => panic!(
+            "expected Reject with CaptureRequiredButMissing, got {:?}",
+            other
+        ),
     }
 }
 
@@ -275,20 +273,20 @@ fn multihop_compile_full_topology() {
     // 2. Compile route n1 -> n4.
     let source = NodeId::new("n1");
     let destination = NodeId::new("n4");
-    let intent = IntentBuilder::new()
-        .name("full-topology-route")
-        .build();
+    let intent = IntentBuilder::new().name("full-topology-route").build();
     let catalog = builtin_stages();
 
-    let result =
-        compile_multihop(&topology, &source, &destination, &intent, &catalog)
-            .expect("multihop compilation should succeed");
+    let result = compile_multihop(&topology, &source, &destination, &intent, &catalog)
+        .expect("multihop compilation should succeed");
 
     // 3. Verify route has 4 steps (one per node: n1 -> n2 -> n3 -> n4).
     assert_eq!(result.primary.steps.len(), 4);
 
     // 4. Verify cost is computed (non-negative).
-    assert!(result.cost.latency_us >= 0.0, "latency should be non-negative");
+    assert!(
+        result.cost.latency_us >= 0.0,
+        "latency should be non-negative"
+    );
 
     // 5. Verify fallbacks are generated.
     assert!(
@@ -327,14 +325,8 @@ fn daemon_probe_roundtrip() {
     // 2. Set a topology with 2 nodes and 1 edge.
     let mut topo = Topology::default();
     topo.meta.name = "probe-test".to_string();
-    topo.add_node(Node::new(
-        NodeId::new("host-a"),
-        LocalityTier::L1SameNuma,
-    ));
-    topo.add_node(Node::new(
-        NodeId::new("host-b"),
-        LocalityTier::L6Lan,
-    ));
+    topo.add_node(Node::new(NodeId::new("host-a"), LocalityTier::L1SameNuma));
+    topo.add_node(Node::new(NodeId::new("host-b"), LocalityTier::L6Lan));
     topo.add_edge(Edge::new(
         EdgeId::new("a-b"),
         NodeId::new("host-a"),
@@ -355,7 +347,7 @@ fn daemon_probe_roundtrip() {
     assert!(parsed["edge_count"].as_u64().unwrap() >= 1);
     assert!(parsed["topology_epoch"].as_u64().unwrap() > 0);
     assert!(parsed["nodes"].as_array().unwrap().len() >= 2);
-    assert!(parsed["edges"].as_array().unwrap().len() >= 1);
+    assert!(!parsed["edges"].as_array().unwrap().is_empty());
 
     // 4. Call plans_snapshot() — verify empty routes initially.
     let plans = coordinator.plans_snapshot();
@@ -366,13 +358,9 @@ fn daemon_probe_roundtrip() {
 
     // 5. Call capabilities_snapshot() — verify empty caps initially.
     let caps = coordinator.capabilities_snapshot();
-    let caps_parsed: serde_json::Value =
-        serde_json::from_str(&caps).expect("parse caps snapshot");
+    let caps_parsed: serde_json::Value = serde_json::from_str(&caps).expect("parse caps snapshot");
     assert_eq!(caps_parsed["type"], "capabilities_response");
-    assert!(caps_parsed["capabilities"]
-        .as_array()
-        .unwrap()
-        .is_empty());
+    assert!(caps_parsed["capabilities"].as_array().unwrap().is_empty());
 }
 
 // ===========================================================================
@@ -387,31 +375,23 @@ fn surface_lease_web_rtc() {
     // 2. Compile a route plan.
     let source = NodeId::new("n1");
     let destination = NodeId::new("n3");
-    let intent = IntentBuilder::new()
-        .name("webrtc-route")
-        .build();
+    let intent = IntentBuilder::new().name("webrtc-route").build();
     let catalog = builtin_stages();
 
-    let result =
-        compile_multihop(&topology, &source, &destination, &intent, &catalog)
-            .expect("multihop compilation");
+    let result = compile_multihop(&topology, &source, &destination, &intent, &catalog)
+        .expect("multihop compilation");
 
     // 3. Create a SurfaceSpec for WebRtc protocol.
     let spec = web_rtc_surface_spec();
     assert_eq!(spec.protocol, SurfaceProtocol::WebRtc);
 
     // 4. Create a SurfaceLease.
-    let mut lease =
-        surface_ops::new_lease(spec.clone()).expect("new_lease should succeed");
-    assert_eq!(
-        lease.state,
-        fabric_graph::surface::LeaseState::Pending
-    );
+    let mut lease = surface_ops::new_lease(spec.clone()).expect("new_lease should succeed");
+    assert_eq!(lease.state, fabric_graph::surface::LeaseState::Pending);
 
     // 5. Bind and verify lease state is Active.
     let step = result.primary.steps[0].clone();
-    surface_ops::bind(&mut lease, result.primary.id, step)
-        .expect("bind should succeed");
+    surface_ops::bind(&mut lease, result.primary.id, step).expect("bind should succeed");
     assert_eq!(lease.state, fabric_graph::surface::LeaseState::Active);
 
     // 6. Verify lease has correct protocol.
@@ -445,9 +425,11 @@ fn frame_transport_session_init() {
     assert!(json.contains("1080"));
 
     // 3. Verify it deserializes correctly.
-    let deserialized: SessionInit =
-        serde_json::from_str(&json).expect("deserialize SessionInit");
-    assert_eq!(deserialized.version, fabric_frame_transport::PROTOCOL_VERSION);
+    let deserialized: SessionInit = serde_json::from_str(&json).expect("deserialize SessionInit");
+    assert_eq!(
+        deserialized.version,
+        fabric_frame_transport::PROTOCOL_VERSION
+    );
     assert_eq!(deserialized.preferred_codec, Codec::Hevc);
     assert_eq!(deserialized.width, 1920);
     assert_eq!(deserialized.height, 1080);
@@ -483,12 +465,10 @@ fn nvms_to_checker_flow() {
         }
     }"#;
 
-    let manifest =
-        validate_manifest(manifest_json).expect("NVMS manifest should parse");
+    let manifest = validate_manifest(manifest_json).expect("NVMS manifest should parse");
 
     // 2. Convert to RequiredCapabilities using phenotype-nvms-adapter.
-    let req = required_capabilities(&manifest)
-        .expect("required_capabilities should succeed");
+    let req = required_capabilities(&manifest).expect("required_capabilities should succeed");
 
     // Verify the mapping extracted the right values.
     assert_eq!(req.compute.cores_physical, 4);

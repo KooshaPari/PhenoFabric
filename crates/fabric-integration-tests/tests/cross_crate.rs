@@ -7,14 +7,14 @@ use bytes::Bytes;
 use chrono::Utc;
 use fabric_capability::descriptor::{
     AudioCapabilities, Capabilities, ComputeCapabilities, DisplayCapabilities, DisplayInfo,
-    GpuInfo, AcceleratorCapabilities, HardwareCodecMatrix, InputCapabilities,
-    StorageCapabilities, StorageDevice,
+    InputCapabilities, StorageCapabilities, StorageDevice,
 };
 use fabric_capability::LocalityTier;
-use fabric_frame_transport::{Codec, FrameHeader, FrameMessage, MessageType, SessionInit, PROTOCOL_VERSION};
+use fabric_frame_transport::{
+    Codec, FrameHeader, FrameMessage, MessageType, SessionInit, PROTOCOL_VERSION,
+};
 use fabric_graph::model::{
-    Edge, EdgeId, Intent, IntentId, IntentRequirements, LinkMetrics, Node, NodeId,
-    Topology,
+    Edge, EdgeId, Intent, IntentId, IntentRequirements, LinkMetrics, Node, NodeId, Topology,
 };
 use fabric_graph::multihop::builtin_stages;
 use fabric_graph::surface::{CaptureDirection, LeaseState, SurfaceProtocol, SurfaceSpec};
@@ -25,7 +25,11 @@ use uuid::Uuid;
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn make_descriptor(cores: u32, memory_gib: u64, has_audio: bool) -> fabric_capability::descriptor::CapabilityDescriptor {
+fn make_descriptor(
+    cores: u32,
+    memory_gib: u64,
+    has_audio: bool,
+) -> fabric_capability::descriptor::CapabilityDescriptor {
     fabric_capability::descriptor::CapabilityDescriptor {
         node_id: Uuid::now_v7(),
         epoch: 1,
@@ -89,14 +93,10 @@ fn make_manifest(cores: u32, memory_gib: u64, audio: bool) -> fabric_checker::Ch
 fn build_linear_topology() -> Topology {
     let mut topo = Topology::new();
 
-    let n1 = Node::new(NodeId::new("n1"), LocalityTier::L1SameNuma)
-        .with_label("Host-1");
-    let n2 = Node::new(NodeId::new("n2"), LocalityTier::L3PcieP2P)
-        .with_label("Host-2");
-    let n3 = Node::new(NodeId::new("n3"), LocalityTier::L6Lan)
-        .with_label("Host-3");
-    let n4 = Node::new(NodeId::new("n4"), LocalityTier::L7Wan)
-        .with_label("Host-4");
+    let n1 = Node::new(NodeId::new("n1"), LocalityTier::L1SameNuma).with_label("Host-1");
+    let n2 = Node::new(NodeId::new("n2"), LocalityTier::L3PcieP2P).with_label("Host-2");
+    let n3 = Node::new(NodeId::new("n3"), LocalityTier::L6Lan).with_label("Host-3");
+    let n4 = Node::new(NodeId::new("n4"), LocalityTier::L7Wan).with_label("Host-4");
 
     topo.add_node(n1);
     topo.add_node(n2);
@@ -108,19 +108,22 @@ fn build_linear_topology() -> Topology {
         NodeId::new("n1"),
         NodeId::new("n2"),
         LocalityTier::L1SameNuma,
-    )).unwrap();
+    ))
+    .unwrap();
     topo.add_edge(Edge::new(
         EdgeId::new("e2-3"),
         NodeId::new("n2"),
         NodeId::new("n3"),
         LocalityTier::L3PcieP2P,
-    )).unwrap();
+    ))
+    .unwrap();
     topo.add_edge(Edge::new(
         EdgeId::new("e3-4"),
         NodeId::new("n3"),
         NodeId::new("n4"),
         LocalityTier::L6Lan,
-    )).unwrap();
+    ))
+    .unwrap();
 
     topo
 }
@@ -170,7 +173,10 @@ fn topology_compile_check_lease() {
     let manifest = make_manifest(4, 1, false);
     let decision = fabric_checker::check(&descriptor, &manifest);
     assert!(
-        matches!(decision, fabric_checker::Decision::Admit | fabric_checker::Decision::AdmitWithNotes { .. }),
+        matches!(
+            decision,
+            fabric_checker::Decision::Admit | fabric_checker::Decision::AdmitWithNotes { .. }
+        ),
         "checker should admit: got {decision:?}"
     );
 
@@ -270,7 +276,10 @@ fn persist_topology_roundtrip() {
     persist.save_topology(&topo).expect("save topology");
 
     // Load
-    let loaded = persist.load_topology().expect("load topology").expect("topology should exist");
+    let loaded = persist
+        .load_topology()
+        .expect("load topology")
+        .expect("topology should exist");
     assert_eq!(loaded.nodes.len(), 4);
     assert_eq!(loaded.edges.len(), 3);
     assert_eq!(loaded.epoch, topo.epoch);
@@ -361,16 +370,14 @@ fn frame_transport_binary_wire_format() {
     };
 
     // Encode header
-    let mut body = bytes::BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + header.payload_len as usize);
+    let mut body =
+        bytes::BytesMut::with_capacity(FrameHeader::SERIALIZED_SIZE + header.payload_len as usize);
     header.encode(&mut body);
     body.extend_from_slice(b"frame-payload!");
 
     // Verify wire format via encode_wire
-    let wire = fabric_frame_transport::transport::encode_wire(
-        MessageType::FrameData,
-        &body,
-    )
-    .unwrap();
+    let wire =
+        fabric_frame_transport::transport::encode_wire(MessageType::FrameData, &body).unwrap();
 
     // Wire should be: [4 bytes length LE] [1 byte type] [payload]
     let total_len = u32::from_le_bytes([wire[0], wire[1], wire[2], wire[3]]);
@@ -379,9 +386,13 @@ fn frame_transport_binary_wire_format() {
 
     // Parse back
     let payload = Bytes::copy_from_slice(&wire[5..]);
-    let msg = fabric_frame_transport::transport::parse_message(MessageType::FrameData, payload).unwrap();
+    let msg =
+        fabric_frame_transport::transport::parse_message(MessageType::FrameData, payload).unwrap();
     match msg {
-        FrameMessage::FrameData { header: h, payload: p } => {
+        FrameMessage::FrameData {
+            header: h,
+            payload: p,
+        } => {
             assert_eq!(h.seq, 42);
             assert_eq!(h.width, 2560);
             assert!(h.is_keyframe);
@@ -433,7 +444,10 @@ fn checker_display_check_headless_manifest() {
 
     let decision = fabric_checker::check(&descriptor, &manifest);
     assert!(
-        matches!(decision, fabric_checker::Decision::Admit | fabric_checker::Decision::AdmitWithNotes { .. }),
+        matches!(
+            decision,
+            fabric_checker::Decision::Admit | fabric_checker::Decision::AdmitWithNotes { .. }
+        ),
         "headless manifest should admit: got {decision:?}"
     );
 }
@@ -450,25 +464,27 @@ fn e2e_daemon_probe_topology_compile_persist() {
     topo.meta.created_by = Some("integration-test".to_string());
     topo.meta.created_at = Some(Utc::now());
 
-    let n1 = Node::new(NodeId::new("laptop"), LocalityTier::L1SameNuma)
-        .with_label("MacBook Pro");
+    let n1 = Node::new(NodeId::new("laptop"), LocalityTier::L1SameNuma).with_label("MacBook Pro");
     let n2 = Node::new(NodeId::new("desktop"), LocalityTier::L2CrossNumaShm)
         .with_label("Desktop Workstation");
 
     topo.add_node(n1);
     topo.add_node(n2);
 
-    topo.add_edge(Edge::new(
-        EdgeId::new("lan-link"),
-        NodeId::new("laptop"),
-        NodeId::new("desktop"),
-        LocalityTier::L2CrossNumaShm,
-    ).with_metrics(LinkMetrics {
-        latency_us: Some(100.0),
-        bandwidth_bps: Some(10_000_000_000),
-        packet_loss: Some(0.001),
-        jitter_us: Some(10.0),
-    }))
+    topo.add_edge(
+        Edge::new(
+            EdgeId::new("lan-link"),
+            NodeId::new("laptop"),
+            NodeId::new("desktop"),
+            LocalityTier::L2CrossNumaShm,
+        )
+        .with_metrics(LinkMetrics {
+            latency_us: Some(100.0),
+            bandwidth_bps: Some(10_000_000_000),
+            packet_loss: Some(0.001),
+            jitter_us: Some(10.0),
+        }),
+    )
     .unwrap();
 
     assert_eq!(topo.epoch.0, 3); // 2 node adds + 1 edge add = epoch 3
@@ -493,7 +509,10 @@ fn e2e_daemon_probe_topology_compile_persist() {
     let manifest = make_manifest(4, 2, false);
     let decision = fabric_checker::check(&descriptor, &manifest);
     assert!(
-        matches!(decision, fabric_checker::Decision::Admit | fabric_checker::Decision::AdmitWithNotes { .. }),
+        matches!(
+            decision,
+            fabric_checker::Decision::Admit | fabric_checker::Decision::AdmitWithNotes { .. }
+        ),
         "e2e check should admit: got {decision:?}"
     );
 
@@ -503,7 +522,10 @@ fn e2e_daemon_probe_topology_compile_persist() {
     let persist = fabric_persist::Persist::open(&db_path).expect("open persist");
     persist.save_topology(&topo).expect("save topology");
 
-    let loaded = persist.load_topology().expect("load topology").expect("topology exists");
+    let loaded = persist
+        .load_topology()
+        .expect("load topology")
+        .expect("topology exists");
     assert_eq!(loaded.nodes.len(), 2);
     assert_eq!(loaded.edges.len(), 1);
     assert_eq!(loaded.meta.name, "e2e-test-topology");

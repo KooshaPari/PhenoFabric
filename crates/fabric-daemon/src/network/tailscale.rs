@@ -49,7 +49,7 @@ pub struct TailscaleStatus {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct TailscaleClient {
     /// Path to the tailscale binary.
     binary_path: String,
@@ -162,11 +162,9 @@ fn parse_status_json(json: &str) -> Result<TailscaleStatus, NetworkError> {
         message: format!("Failed to parse tailscale status JSON: {e}"),
     })?;
 
-    let self_node = raw
-        .self_node
-        .ok_or_else(|| NetworkError::TailscaleCli {
-            message: "No Self node in tailscale status".into(),
-        })?;
+    let self_node = raw.self_node.ok_or_else(|| NetworkError::TailscaleCli {
+        message: "No Self node in tailscale status".into(),
+    })?;
 
     let self_node = convert_peer(self_node)?;
 

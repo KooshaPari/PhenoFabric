@@ -30,8 +30,7 @@ fn main() -> anyhow::Result<()> {
     // Initialize tracing (defaults to INFO, override with RUST_LOG).
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .init();
 
@@ -69,7 +68,7 @@ fn main() -> anyhow::Result<()> {
     let plan = compile(&topology, &intent)?;
     println!(
         "      Plan {:?} compiled with {} step(s), estimated latency: {:.0} us",
-        &plan.id,
+        plan.id,
         plan.steps.len(),
         plan.estimated_latency_us.unwrap_or(0.0)
     );
@@ -163,8 +162,8 @@ fn main() -> anyhow::Result<()> {
         tokio::runtime::Runtime::new().expect("failed to create tokio runtime"),
     );
     let server_handle = std::thread::spawn(move || {
-        let listener = std::net::TcpListener::bind(&addr_clone)
-            .expect("failed to bind wire server");
+        let listener =
+            std::net::TcpListener::bind(&addr_clone).expect("failed to bind wire server");
         fabric_daemon::wire::run_wire_server(listener, coord_ref, 16, 5000, auth, runtime)
             .expect("wire server error");
     });
@@ -186,18 +185,12 @@ fn main() -> anyhow::Result<()> {
     // 5b. Topology snapshot
     send_wire_message(&mut stream, r#"{"type":"topology_request"}"#)?;
     let topo_resp = read_wire_response(&mut stream)?;
-    println!(
-        "      Topology response: {} bytes",
-        topo_resp.len()
-    );
+    println!("      Topology response: {} bytes", topo_resp.len());
 
     // 5c. Routes snapshot
     send_wire_message(&mut stream, r#"{"type":"routes_request"}"#)?;
     let routes_resp = read_wire_response(&mut stream)?;
-    println!(
-        "      Routes response: {} bytes",
-        routes_resp.len()
-    );
+    println!("      Routes response: {} bytes", routes_resp.len());
 
     // 5d. Compile request (multihop)
     send_wire_message(
@@ -205,10 +198,7 @@ fn main() -> anyhow::Result<()> {
         r#"{"type":"compile_request","source":"gpu-node-alpha","destination":"remote-node-a"}"#,
     )?;
     let compile_resp = read_wire_response(&mut stream)?;
-    println!(
-        "      Compile response: {} bytes",
-        compile_resp.len()
-    );
+    println!("      Compile response: {} bytes", compile_resp.len());
 
     // 5e. Stream a test frame via the frame transport protocol.
     println!("      Streaming test frame (HEVC 1920x1080)...");
@@ -234,7 +224,10 @@ fn main() -> anyhow::Result<()> {
     println!();
     println!("Topology nodes: {}", topology.nodes.len());
     println!("Route steps:    {}", plan.steps.len());
-    println!("Multi-hop cost: per_frame={:.0} us, setup={:.0} us", multihop.cost.per_frame_us, multihop.cost.setup_us);
+    println!(
+        "Multi-hop cost: per_frame={:.0} us, setup={:.0} us",
+        multihop.cost.per_frame_us, multihop.cost.setup_us
+    );
     println!("Frame streamed: yes");
     println!();
 
@@ -384,7 +377,7 @@ fn make_coordinator() -> anyhow::Result<(
 // ---------------------------------------------------------------------------
 
 fn send_wire_message(stream: &mut TcpStream, msg: &str) -> anyhow::Result<()> {
-    write!(stream, "{msg}\n")?;
+    writeln!(stream, "{msg}")?;
     stream.flush()?;
     Ok(())
 }
@@ -415,9 +408,13 @@ fn stream_test_frame(stream: &mut TcpStream) -> anyhow::Result<()> {
 
     // --- SessionInit (type 0x01) ---
     let init = SessionInit {
-        version: PROTOCOL_VERSION, preferred_codec: Codec::Hevc,
-        width: 1920, height: 1080, target_fps: 60,
-        max_latency_ms: 33, client_id: "fabric-full-demo".into(),
+        version: PROTOCOL_VERSION,
+        preferred_codec: Codec::Hevc,
+        width: 1920,
+        height: 1080,
+        target_fps: 60,
+        max_latency_ms: 33,
+        client_id: "fabric-full-demo".into(),
     };
     let payload = serde_json::to_vec(&init)?;
     let total_len = (payload.len() + 1) as u32;
@@ -436,14 +433,27 @@ fn stream_test_frame(stream: &mut TcpStream) -> anyhow::Result<()> {
     stream.read_exact(&mut resp_buf)?;
     if let Some(MessageType::SessionAck) = resp_buf.first().and_then(|b| MessageType::from_u8(*b)) {
         let ack: fabric_frame_transport::SessionAck = serde_json::from_slice(&resp_buf[1..])?;
-        println!("      SessionAck: codec={}, {}x{}, fps={}, session={}",
-            ack.codec.name(), ack.width, ack.height, ack.fps, ack.session_id);
+        println!(
+            "      SessionAck: codec={}, {}x{}, fps={}, session={}",
+            ack.codec.name(),
+            ack.width,
+            ack.height,
+            ack.fps,
+            ack.session_id
+        );
     }
 
     // --- FrameData (type 0x03) ---
     let header = FrameHeader {
-        seq: 1, pts_us: 0, dts_us: 0, is_keyframe: true, codec: Codec::Hevc,
-        width: 1920, height: 1080, payload_len: 1024, duration_us: 16_667,
+        seq: 1,
+        pts_us: 0,
+        dts_us: 0,
+        is_keyframe: true,
+        codec: Codec::Hevc,
+        width: 1920,
+        height: 1080,
+        payload_len: 1024,
+        duration_us: 16_667,
     };
     let frame_data = vec![0xAB_u8; 1024];
     let frame_total = 1 + FrameHeader::SERIALIZED_SIZE + frame_data.len();
@@ -464,7 +474,9 @@ fn stream_test_frame(stream: &mut TcpStream) -> anyhow::Result<()> {
             let ack_len = u32::from_le_bytes(len_buf) as usize;
             let mut ack_buf = vec![0u8; ack_len];
             stream.read_exact(&mut ack_buf)?;
-            if let Some(MessageType::FrameAck) = ack_buf.first().and_then(|b| MessageType::from_u8(*b)) {
+            if let Some(MessageType::FrameAck) =
+                ack_buf.first().and_then(|b| MessageType::from_u8(*b))
+            {
                 let ack: fabric_frame_transport::FrameAck = serde_json::from_slice(&ack_buf[1..])?;
                 println!("      FrameAck: seq={}, rtt={} us", ack.seq, ack.rtt_us);
             }

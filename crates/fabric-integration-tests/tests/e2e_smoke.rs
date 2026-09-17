@@ -10,7 +10,7 @@ use fabric_daemon::coordinator::Coordinator;
 use fabric_daemon::wire::run_wire_server;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -76,7 +76,7 @@ fn send_and_receive(addr: &str, message: &str) -> String {
         .unwrap();
 
     // Send message with newline terminator.
-    write!(stream, "{}\n", message).unwrap();
+    writeln!(stream, "{}", message).unwrap();
     stream.flush().unwrap();
 
     // Read response line.

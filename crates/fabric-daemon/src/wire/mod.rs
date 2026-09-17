@@ -6,9 +6,9 @@
 mod handlers;
 pub mod protocol;
 
-use crate::auth::AuthMiddleware;
 use crate::auth::middleware::routes::auth_error_response;
 use crate::auth::middleware::set_current_user;
+use crate::auth::AuthMiddleware;
 use crate::coordinator::Coordinator;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -37,9 +37,9 @@ pub fn run_wire_server(
     // Use non-blocking mode so the accept loop periodically returns, allowing
     // the shutdown flag to be checked. Without this, a blocking `accept()`
     // would hang indefinitely, preventing `stop_daemon` / `thread::join()`.
-    listener.set_nonblocking(true).map_err(|e| {
-        WireServerError::Io(format!("failed to set listener to non-blocking: {e}"))
-    })?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|e| WireServerError::Io(format!("failed to set listener to non-blocking: {e}")))?;
 
     let timeout = Duration::from_millis(request_timeout_ms);
     let mut active_connections: usize = 0;
@@ -67,9 +67,9 @@ pub fn run_wire_server(
                         "connection limit reached, rejecting"
                     );
                     let mut stream = stream;
-                    let _ = write!(
+                    let _ = writeln!(
                         stream,
-                        "{{\"error\":\"server_busy\",\"message\":\"max connections reached\"}}\n"
+                        "{{\"error\":\"server_busy\",\"message\":\"max connections reached\"}}"
                     );
                     continue;
                 }
@@ -141,10 +141,7 @@ fn handle_connection(
 
     for line in reader.lines() {
         if coordinator.is_shutting_down() {
-            let _ = write!(
-                writer,
-                "{{\"error\":\"shutting_down\"}}\n"
-            );
+            let _ = writeln!(writer, "{{\"error\":\"shutting_down\"}}");
             break;
         }
 
@@ -186,10 +183,9 @@ fn handle_connection(
                     }
                     // Re-serialize for process_message (user field attached).
                     let re_serialized = msg.to_string();
-                    let response =
-                        protocol::process_message(&re_serialized, &coordinator);
+                    let response = protocol::process_message(&re_serialized, &coordinator);
                     if let Some(resp) = response {
-                        if let Err(e) = write!(writer, "{resp}\n") {
+                        if let Err(e) = writeln!(writer, "{resp}") {
                             debug!(peer = %peer, error = %e, "write error");
                             break;
                         }
@@ -199,7 +195,7 @@ fn handle_connection(
                     // Public route or auth disabled -- proceed normally.
                     let response = protocol::process_message(&line, &coordinator);
                     if let Some(resp) = response {
-                        if let Err(e) = write!(writer, "{resp}\n") {
+                        if let Err(e) = writeln!(writer, "{resp}") {
                             debug!(peer = %peer, error = %e, "write error");
                             break;
                         }
@@ -208,7 +204,7 @@ fn handle_connection(
                 Err(e) => {
                     warn!(peer = %peer, error = %e, "auth: rejected");
                     let resp = auth_error_response(&e);
-                    if let Err(write_err) = write!(writer, "{resp}\n") {
+                    if let Err(write_err) = writeln!(writer, "{resp}") {
                         debug!(peer = %peer, error = %write_err, "write error");
                         break;
                     }
@@ -218,7 +214,7 @@ fn handle_connection(
             // Invalid JSON -- let process_message return the validation error.
             let response = protocol::process_message(&line, &coordinator);
             if let Some(resp) = response {
-                if let Err(e) = write!(writer, "{resp}\n") {
+                if let Err(e) = writeln!(writer, "{resp}") {
                     debug!(peer = %peer, error = %e, "write error");
                     break;
                 }

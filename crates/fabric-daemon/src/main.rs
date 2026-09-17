@@ -155,10 +155,7 @@ fn cmd_start(
     let auth_enabled = config.auth.enabled;
     let auth_config: AuthMiddlewareConfig = config.auth.into();
     let auth = Arc::new(AuthMiddleware::new(auth_config));
-    info!(
-        enabled = auth_enabled,
-        "auth middleware initialized"
-    );
+    info!(enabled = auth_enabled, "auth middleware initialized");
 
     // Create a dedicated tokio runtime for auth middleware async operations.
     let runtime = Arc::new(
@@ -194,7 +191,7 @@ fn cmd_health(addr: &str) {
         Ok(mut stream) => {
             use std::io::Write;
             let msg = r#"{"type":"health_check"}"#;
-            let _ = write!(stream, "{msg}\n");
+            let _ = writeln!(stream, "{msg}");
 
             use std::io::BufRead;
             let reader = std::io::BufReader::new(&stream);

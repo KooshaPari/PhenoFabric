@@ -71,7 +71,7 @@ impl Default for StunBindConfig {
 }
 
 /// STUN client for discovering external addresses and hole-punching.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct StunClient {
     servers: Vec<String>,
     config: StunBindConfig,
@@ -158,11 +158,7 @@ impl StunClient {
         }))
     }
 
-    async fn send_udp(
-        &self,
-        server: &str,
-        request: &[u8],
-    ) -> Result<StunResponse, NetworkError> {
+    async fn send_udp(&self, server: &str, request: &[u8]) -> Result<StunResponse, NetworkError> {
         let addr = resolve_stun_addr(server)?;
         let socket = TokioUdpSocket::bind("0.0.0.0:0")
             .await
@@ -174,31 +170,42 @@ impl StunClient {
         let mut buf = vec![0u8; 1024];
         let (len, _) = timeout(self.config.timeout, socket.recv_from(&mut buf))
             .await
-            .map_err(|_| NetworkError::StunTimeout { server: server.to_string() })?
+            .map_err(|_| NetworkError::StunTimeout {
+                server: server.to_string(),
+            })?
             .map_err(|e| NetworkError::UdpRecv { source: e })?;
         parse_response(&buf[..len], server)
     }
 
-    async fn send_tcp(
-        &self,
-        server: &str,
-        request: &[u8],
-    ) -> Result<StunResponse, NetworkError> {
+    async fn send_tcp(&self, server: &str, request: &[u8]) -> Result<StunResponse, NetworkError> {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let addr = resolve_stun_addr(server)?;
         let mut stream = timeout(self.config.timeout, tokio::net::TcpStream::connect(addr))
             .await
-            .map_err(|_| NetworkError::StunTimeout { server: server.to_string() })?
-            .map_err(|e| NetworkError::StunTcp { server: server.to_string(), source: e })?;
+            .map_err(|_| NetworkError::StunTimeout {
+                server: server.to_string(),
+            })?
+            .map_err(|e| NetworkError::StunTcp {
+                server: server.to_string(),
+                source: e,
+            })?;
         stream
             .write_all(request)
             .await
-            .map_err(|e| NetworkError::StunTcp { server: server.to_string(), source: e })?;
+            .map_err(|e| NetworkError::StunTcp {
+                server: server.to_string(),
+                source: e,
+            })?;
         let mut buf = vec![0u8; 1024];
         let len = timeout(self.config.timeout, stream.read(&mut buf))
             .await
-            .map_err(|_| NetworkError::StunTimeout { server: server.to_string() })?
-            .map_err(|e| NetworkError::StunTcp { server: server.to_string(), source: e })?;
+            .map_err(|_| NetworkError::StunTimeout {
+                server: server.to_string(),
+            })?
+            .map_err(|e| NetworkError::StunTcp {
+                server: server.to_string(),
+                source: e,
+            })?;
         parse_response(&buf[..len], server)
     }
 }
@@ -206,7 +213,10 @@ impl StunClient {
 fn resolve_stun_addr(server: &str) -> Result<SocketAddr, NetworkError> {
     server
         .to_socket_addrs()
-        .map_err(|e| NetworkError::StunDns { server: server.to_string(), source: e })?
+        .map_err(|e| NetworkError::StunDns {
+            server: server.to_string(),
+            source: e,
+        })?
         .find(|a| a.is_ipv4())
         .ok_or_else(|| NetworkError::StunDns {
             server: server.to_string(),
@@ -320,7 +330,10 @@ fn parse_mapped(data: &[u8]) -> Option<SocketAddr> {
         0x02 if data.len() >= 20 => {
             let mut octets = [0u8; 16];
             octets.copy_from_slice(&data[4..20]);
-            Some(SocketAddr::new(std::net::Ipv6Addr::from(octets).into(), port))
+            Some(SocketAddr::new(
+                std::net::Ipv6Addr::from(octets).into(),
+                port,
+            ))
         }
         _ => None,
     }
@@ -335,13 +348,16 @@ fn parse_xor_mapped(data: &[u8], tid: &[u8; 12]) -> Option<SocketAddr> {
     match data[1] {
         0x01 if data.len() >= 8 => {
             let raw = u32::from_be_bytes(data[4..8].try_into().unwrap()) ^ MAGIC_COOKIE;
-            Some(SocketAddr::new(Ipv4Addr::from(raw.to_be_bytes()).into(), port))
+            Some(SocketAddr::new(
+                Ipv4Addr::from(raw.to_be_bytes()).into(),
+                port,
+            ))
         }
         0x02 if data.len() >= 20 => {
             let mut a = [0u8; 16];
             a.copy_from_slice(&data[4..20]);
-            for i in 0..4 {
-                a[i] ^= (MAGIC_COOKIE >> (24 - 8 * i)) as u8;
+            for (i, slot) in a.iter_mut().take(4).enumerate() {
+                *slot ^= (MAGIC_COOKIE >> (24 - 8 * i)) as u8;
             }
             for i in 0..12 {
                 a[4 + i] ^= tid[i];
@@ -362,7 +378,10 @@ mod tests {
         assert_eq!(req.len(), HEADER_SIZE);
         assert_eq!(&req[0..2], &[0x00, 0x01]);
         assert_eq!(&req[2..4], &[0x00, 0x00]);
-        assert_eq!(u32::from_be_bytes(req[4..8].try_into().unwrap()), MAGIC_COOKIE);
+        assert_eq!(
+            u32::from_be_bytes(req[4..8].try_into().unwrap()),
+            MAGIC_COOKIE
+        );
     }
 
     #[test]
@@ -385,7 +404,10 @@ mod tests {
         let mut data = vec![0x00, 0x01];
         data.extend_from_slice(&xport.to_be_bytes());
         data.extend_from_slice(&xip.to_be_bytes());
-        assert_eq!(parse_xor_mapped(&data, &[0u8; 12]), Some("10.0.0.1:12345".parse().unwrap()));
+        assert_eq!(
+            parse_xor_mapped(&data, &[0u8; 12]),
+            Some("10.0.0.1:12345".parse().unwrap())
+        );
     }
 
     #[test]

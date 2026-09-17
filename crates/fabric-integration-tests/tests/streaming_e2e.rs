@@ -15,9 +15,7 @@ use fabric_frame_transport::{
 };
 
 // Import shared helpers from the crate lib.
-use fabric_integration_tests::{
-    decode_frame_wire, encode_frame_wire, make_rgba_payload,
-};
+use fabric_integration_tests::{decode_frame_wire, encode_frame_wire, make_rgba_payload};
 
 // ===========================================================================
 // Test 1: Wire protocol roundtrip — RGBA pixel data
@@ -47,7 +45,11 @@ fn wire_protocol_rgba_frame_roundtrip() {
     // Verify wire structure: [4 bytes len LE] [1 byte type] [body]
     let declared_len = u32::from_le_bytes([wire[0], wire[1], wire[2], wire[3]]);
     assert_eq!(wire[4], MessageType::FrameData as u8);
-    assert_eq!(declared_len as usize, wire.len() - 5, "wire = [4 len] [1 type] [payload.len() bytes]");
+    assert_eq!(
+        declared_len as usize,
+        wire.len() - 5,
+        "wire = [4 len] [1 type] [payload.len() bytes]"
+    );
 
     let (decoded_header, decoded_payload) = decode_frame_wire(&wire);
 
@@ -133,7 +135,10 @@ fn frame_header_field_fidelity_across_codecs() {
 
             assert_eq!(decoded.seq, header.seq, "seq for {codec:?}");
             assert_eq!(decoded.pts_us, header.pts_us, "pts for {codec:?}");
-            assert_eq!(decoded.is_keyframe, header.is_keyframe, "keyframe for {codec:?}");
+            assert_eq!(
+                decoded.is_keyframe, header.is_keyframe,
+                "keyframe for {codec:?}"
+            );
             assert_eq!(decoded.codec, header.codec, "codec");
             assert_eq!(decoded.width, header.width, "width");
             assert_eq!(decoded.payload_len, header.payload_len, "payload_len");
@@ -147,7 +152,10 @@ fn frame_header_field_fidelity_across_codecs() {
 
 #[test]
 fn wire_protocol_keepalive_roundtrip() {
-    let ping = Ping { timestamp_us: 1_000_000_000, nonce: 42 };
+    let ping = Ping {
+        timestamp_us: 1_000_000_000,
+        nonce: 42,
+    };
     let wire = encode_wire(MessageType::Ping, &serde_json::to_vec(&ping).unwrap()).unwrap();
     let payload = bytes::Bytes::copy_from_slice(&wire[5..]);
     match parse_message(MessageType::Ping, payload).unwrap() {
@@ -155,7 +163,10 @@ fn wire_protocol_keepalive_roundtrip() {
         _ => panic!("expected Ping"),
     }
 
-    let pong = Pong { timestamp_us: 1_000_010_000, nonce: 42 };
+    let pong = Pong {
+        timestamp_us: 1_000_010_000,
+        nonce: 42,
+    };
     let wire = encode_wire(MessageType::Pong, &serde_json::to_vec(&pong).unwrap()).unwrap();
     let payload = bytes::Bytes::copy_from_slice(&wire[5..]);
     match parse_message(MessageType::Pong, payload).unwrap() {
@@ -176,64 +187,112 @@ fn webrtc_wire_format_json_message_compatibility() {
     let init = SessionInit {
         version: PROTOCOL_VERSION,
         preferred_codec: Codec::Hevc,
-        width: 1920, height: 1080,
-        target_fps: 60, max_latency_ms: 33,
+        width: 1920,
+        height: 1080,
+        target_fps: 60,
+        max_latency_ms: 33,
         client_id: "webrtc-client".to_string(),
     };
-    let wire = encode_wire(MessageType::SessionInit, &serde_json::to_vec(&init).unwrap()).unwrap();
+    let wire = encode_wire(
+        MessageType::SessionInit,
+        &serde_json::to_vec(&init).unwrap(),
+    )
+    .unwrap();
     let payload = bytes::Bytes::copy_from_slice(&wire[5..]);
-    if let FrameMessage::SessionInit(p) = parse_message(MessageType::SessionInit, payload).unwrap() {
+    if let FrameMessage::SessionInit(p) = parse_message(MessageType::SessionInit, payload).unwrap()
+    {
         assert_eq!(p.client_id, "webrtc-client");
         assert_eq!(p.width, 1920);
-    } else { panic!("expected SessionInit"); }
+    } else {
+        panic!("expected SessionInit");
+    }
 
     // SessionAck
-    let ack = SessionAck { codec: Codec::Rgba, width: 1920, height: 1080, fps: 60, session_id: 42, server_time_ms: 1_000_000 };
+    let ack = SessionAck {
+        codec: Codec::Rgba,
+        width: 1920,
+        height: 1080,
+        fps: 60,
+        session_id: 42,
+        server_time_ms: 1_000_000,
+    };
     let wire = encode_wire(MessageType::SessionAck, &serde_json::to_vec(&ack).unwrap()).unwrap();
     let payload = bytes::Bytes::copy_from_slice(&wire[5..]);
     if let FrameMessage::SessionAck(p) = parse_message(MessageType::SessionAck, payload).unwrap() {
         assert_eq!(p.session_id, 42);
-    } else { panic!("expected SessionAck"); }
+    } else {
+        panic!("expected SessionAck");
+    }
 
     // FrameAck
-    let fa = FrameAck { seq: 100, rtt_us: 5000, recv_pts_us: 3_000_000 };
+    let fa = FrameAck {
+        seq: 100,
+        rtt_us: 5000,
+        recv_pts_us: 3_000_000,
+    };
     let wire = encode_wire(MessageType::FrameAck, &serde_json::to_vec(&fa).unwrap()).unwrap();
     let payload = bytes::Bytes::copy_from_slice(&wire[5..]);
     if let FrameMessage::FrameAck(p) = parse_message(MessageType::FrameAck, payload).unwrap() {
         assert_eq!(p.seq, 100);
-    } else { panic!("expected FrameAck"); }
+    } else {
+        panic!("expected FrameAck");
+    }
 
     // Ping
-    let ping = Ping { timestamp_us: 12_345, nonce: 77 };
+    let ping = Ping {
+        timestamp_us: 12_345,
+        nonce: 77,
+    };
     let wire = encode_wire(MessageType::Ping, &serde_json::to_vec(&ping).unwrap()).unwrap();
     let payload = bytes::Bytes::copy_from_slice(&wire[5..]);
     if let FrameMessage::Ping(p) = parse_message(MessageType::Ping, payload).unwrap() {
         assert_eq!(p.nonce, 77);
-    } else { panic!("expected Ping"); }
+    } else {
+        panic!("expected Ping");
+    }
 
     // Pong
-    let pong = Pong { timestamp_us: 12_345, nonce: 77 };
+    let pong = Pong {
+        timestamp_us: 12_345,
+        nonce: 77,
+    };
     let wire = encode_wire(MessageType::Pong, &serde_json::to_vec(&pong).unwrap()).unwrap();
     let payload = bytes::Bytes::copy_from_slice(&wire[5..]);
     if let FrameMessage::Pong(p) = parse_message(MessageType::Pong, payload).unwrap() {
         assert_eq!(p.nonce, 77);
-    } else { panic!("expected Pong"); }
+    } else {
+        panic!("expected Pong");
+    }
 
     // Error
-    let err = TransportError { code: 503, message: "unavailable".into(), fatal: false };
+    let err = TransportError {
+        code: 503,
+        message: "unavailable".into(),
+        fatal: false,
+    };
     let wire = encode_wire(MessageType::Error, &serde_json::to_vec(&err).unwrap()).unwrap();
     let payload = bytes::Bytes::copy_from_slice(&wire[5..]);
     if let FrameMessage::Error(p) = parse_message(MessageType::Error, payload).unwrap() {
         assert_eq!(p.code, 503);
-    } else { panic!("expected Error"); }
+    } else {
+        panic!("expected Error");
+    }
 
     // KeyFrameRequest
     let kf = KeyFrameRequest { reason: 3 };
-    let wire = encode_wire(MessageType::KeyFrameRequest, &serde_json::to_vec(&kf).unwrap()).unwrap();
+    let wire = encode_wire(
+        MessageType::KeyFrameRequest,
+        &serde_json::to_vec(&kf).unwrap(),
+    )
+    .unwrap();
     let payload = bytes::Bytes::copy_from_slice(&wire[5..]);
-    if let FrameMessage::KeyFrameRequest(p) = parse_message(MessageType::KeyFrameRequest, payload).unwrap() {
+    if let FrameMessage::KeyFrameRequest(p) =
+        parse_message(MessageType::KeyFrameRequest, payload).unwrap()
+    {
         assert_eq!(p.reason, 3);
-    } else { panic!("expected KeyFrameRequest"); }
+    } else {
+        panic!("expected KeyFrameRequest");
+    }
 }
 
 /// Verify FrameData binary wire format matches the WebRtcChannel pattern:
@@ -242,9 +301,13 @@ fn webrtc_wire_format_json_message_compatibility() {
 fn webrtc_wire_format_frame_data_binary_compatibility() {
     let pixel_data = make_rgba_payload(320, 240);
     let header = FrameHeader {
-        seq: 7, pts_us: 8, dts_us: 9,
-        is_keyframe: true, codec: Codec::Hevc,
-        width: 320, height: 240,
+        seq: 7,
+        pts_us: 8,
+        dts_us: 9,
+        is_keyframe: true,
+        codec: Codec::Hevc,
+        width: 320,
+        height: 240,
         payload_len: pixel_data.len() as u32,
         duration_us: 33_333,
     };
@@ -265,7 +328,10 @@ fn webrtc_wire_format_frame_data_binary_compatibility() {
     // payload = bytes after the 4-byte length prefix and 1-byte message type
     let payload = bytes::Bytes::copy_from_slice(&wire[5..]);
     match parse_message(msg_type, payload).unwrap() {
-        FrameMessage::FrameData { header: h, payload: p } => {
+        FrameMessage::FrameData {
+            header: h,
+            payload: p,
+        } => {
             assert_eq!(h.seq, 7);
             assert_eq!(h.width, 320);
             assert!(h.is_keyframe);
@@ -288,10 +354,13 @@ async fn concurrent_frame_encode_decode_stress() {
             let pixel_data = make_rgba_payload(32, 32);
             for seq in 0..50 {
                 let header = FrameHeader {
-                    seq: (task_id * 1000 + seq) as u64,
-                    pts_us: seq * 33_333, dts_us: seq * 33_000,
-                    is_keyframe: seq == 0, codec: Codec::Rgba,
-                    width: 32, height: 32,
+                    seq: (task_id * 1000 + seq),
+                    pts_us: seq * 33_333,
+                    dts_us: seq * 33_000,
+                    is_keyframe: seq == 0,
+                    codec: Codec::Rgba,
+                    width: 32,
+                    height: 32,
                     payload_len: pixel_data.len() as u32,
                     duration_us: 16_667,
                 };

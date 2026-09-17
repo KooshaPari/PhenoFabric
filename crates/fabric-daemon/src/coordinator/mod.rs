@@ -289,11 +289,7 @@ impl Coordinator {
         let affected = state
             .active_leases
             .iter()
-            .filter(|l| {
-                l.current
-                    .as_ref()
-                    .map_or(false, |b| b.step_node == *node_id)
-            })
+            .filter(|l| l.current.as_ref().is_some_and(|b| b.step_node == *node_id))
             .count();
         state.dirty = true;
         affected
@@ -321,6 +317,7 @@ pub enum CoordinatorError {
     #[error("compile error: {0}")]
     Compile(String),
     #[error("config error: {0}")]
+    #[allow(dead_code)] // reserved for future config validation paths
     Config(String),
 }
 
@@ -475,6 +472,12 @@ mod tests {
         coord.set_topology(topo).unwrap();
         let affected = coord.mark_node_failed(&fabric_graph::model::NodeId::new("n1"));
         assert_eq!(affected, 0); // no leases touch n1
-        assert!(!coord.state.lock().unwrap().topology.nodes.contains_key(&fabric_graph::model::NodeId::new("n1")));
+        assert!(!coord
+            .state
+            .lock()
+            .unwrap()
+            .topology
+            .nodes
+            .contains_key(&fabric_graph::model::NodeId::new("n1")));
     }
 }
