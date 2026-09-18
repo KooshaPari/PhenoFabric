@@ -90,6 +90,10 @@ jobs:
             grep -E '^ *--> ' /tmp/clippy.log | head -20 | while IFS= read -r line; do
               echo "::error::at$line"
             done
+            echo "::error::--- last 40 lines of clippy.log ---"
+            tail -40 /tmp/clippy.log | while IFS= read -r line; do
+              echo "::error::$line"
+            done
             exit "$status"
           fi
 
@@ -107,6 +111,10 @@ jobs:
             done
             grep -E '^ *--> ' /tmp/clippy-selfupdate.log | head -20 | while IFS= read -r line; do
               echo "::error::at$line"
+            done
+            echo "::error::--- last 40 lines of clippy-selfupdate.log ---"
+            tail -40 /tmp/clippy-selfupdate.log | while IFS= read -r line; do
+              echo "::error::$line"
             done
             exit "$status"
           fi
@@ -213,6 +221,10 @@ jobs:
             grep -A 6 'panicked at' /tmp/unit.log | head -60 | while IFS= read -r line; do
               echo "::error::$line"
             done
+            echo "::error::--- last 40 lines of unit.log ---"
+            tail -40 /tmp/unit.log | while IFS= read -r line; do
+              echo "::error::$line"
+            done
             exit "$status"
           fi
 
@@ -272,6 +284,10 @@ jobs:
               echo "::error::$line"
             done
             grep -A 6 'panicked at' /tmp/integ.log | head -60 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            echo "::error::--- last 40 lines of integ.log ---"
+            tail -40 /tmp/integ.log | while IFS= read -r line; do
               echo "::error::$line"
             done
             exit "$status"
