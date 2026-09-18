@@ -75,12 +75,41 @@ jobs:
             libcairo2-dev
 
       - name: Run clippy (all targets)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        # Raw job logs are not readable by every collaborator on this repo, but
+        # the check-runs annotations API is. Emit the first failures as
+        # annotations so a red job is diagnosable without log access.
+        run: |
+          set +e
+          cargo clippy --workspace --all-targets -- -D warnings 2>&1 | tee /tmp/clippy.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "::error::clippy failed with exit $status on $(rustc --version) / $(cargo clippy --version)"
+            grep -E '^(error|warning: unused)' /tmp/clippy.log | head -20 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            grep -E '^ *--> ' /tmp/clippy.log | head -20 | while IFS= read -r line; do
+              echo "::error::at$line"
+            done
+            exit "$status"
+          fi
 
       # Feature-flag coverage formerly provided by the removed tf-ci.yml
       # (terminal-fabric crates absorbed into the workspace in e65cdfc).
       - name: Run clippy (self-update feature)
-        run: cargo clippy -p fabric-terminal -p fabric-capture --all-targets --features self-update -- -D warnings
+        run: |
+          set +e
+          cargo clippy -p fabric-terminal -p fabric-capture --all-targets --features self-update -- -D warnings 2>&1 | tee /tmp/clippy-selfupdate.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "::error::clippy (self-update) failed with exit $status on $(rustc --version)"
+            grep -E '^(error|warning: unused)' /tmp/clippy-selfupdate.log | head -20 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            grep -E '^ *--> ' /tmp/clippy-selfupdate.log | head -20 | while IFS= read -r line; do
+              echo "::error::at$line"
+            done
+            exit "$status"
+          fi
 
   # ── Check ───────────────────────────────────────────────────────────
   check:
@@ -169,7 +198,23 @@ jobs:
             libcairo2-dev
 
       - name: Run unit tests (--lib)
-        run: cargo test --workspace --lib --no-fail-fast
+        run: |
+          set +e
+          cargo test --workspace --lib --no-fail-fast 2>&1 | tee /tmp/unit.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "::error::unit tests failed with exit $status on $(rustc --version)"
+            grep -E '^error(\[|:)' /tmp/unit.log | head -20 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            grep -E '^(test result: FAILED|failures:)' /tmp/unit.log | head -20 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            grep -A 6 'panicked at' /tmp/unit.log | head -60 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            exit "$status"
+          fi
 
   # ── Integration tests ──────────────────────────────────────────────
   test-integration:
@@ -214,7 +259,23 @@ jobs:
             libcairo2-dev
 
       - name: Run integration tests (--test)
-        run: cargo test --workspace --test '*' --no-fail-fast
+        run: |
+          set +e
+          cargo test --workspace --test '*' --no-fail-fast 2>&1 | tee /tmp/integ.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "::error::integration tests failed with exit $status on $(rustc --version)"
+            grep -E '^error(\[|:)' /tmp/integ.log | head -20 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            grep -E '^(test result: FAILED|failures:)' /tmp/integ.log | head -20 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            grep -A 6 'panicked at' /tmp/integ.log | head -60 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            exit "$status"
+          fi
 
   # ── E2E smoke tests ─────────────────────────────────────────────────
   test-e2e:
