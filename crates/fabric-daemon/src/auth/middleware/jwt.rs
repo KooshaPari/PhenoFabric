@@ -59,9 +59,12 @@ pub(super) fn decode_jwt(token: &str, secret: &str) -> Result<AuthenticatedUser,
     validation.validate_exp = true;
     validation.required_spec_claims.insert("exp".to_owned());
 
-    let token_data =
-        jsonwebtoken::decode::<JwtClaims>(token, &DecodingKey::from_secret(secret.as_bytes()), &validation)
-            .map_err(|e| AuthError::JwtDecode(e.to_string()))?;
+    let token_data = jsonwebtoken::decode::<JwtClaims>(
+        token,
+        &DecodingKey::from_secret(secret.as_bytes()),
+        &validation,
+    )
+    .map_err(|e| AuthError::JwtDecode(e.to_string()))?;
 
     let claims = token_data.claims;
 
@@ -266,8 +269,7 @@ mod tests {
         // (whenever the signature happened to end in one of those four). Every
         // bit of the first character is significant, so this always changes the
         // signature.
-        let first = parts[2]
-            .remove(0);
+        let first = parts[2].remove(0);
         parts[2].insert(0, if first == 'A' { 'B' } else { 'A' });
         let tampered = parts.join(".");
 
