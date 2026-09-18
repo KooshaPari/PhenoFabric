@@ -111,7 +111,7 @@ All rows verified 2026-09-18 on this host unless noted.
 
 | Area | State | Evidence |
 |---|---|---|
-| Working tree | clean, `main` = `76656c2` | `git status --porcelain` → 0 |
+| Working tree | clean; `main` was `76656c2` when this handoff's measurements were taken, then advanced by the handoff's own doc commits (`6a17806`, `10aca92`, `d2d545b`) | `git status --porcelain` → 0 |
 | Toolchain resolution | stable **1.97.1** inside the repo (`rust-toolchain.toml` pins `stable`); the *default* toolchain on this host is nightly 1.99 | `rustc --version` in repo dir |
 | `cargo check --workspace` | passes | local |
 | Unit tests (`--lib`) | **451 passed, 0 failed** | `cargo test --workspace --lib` |
@@ -121,7 +121,7 @@ All rows verified 2026-09-18 on this host unless noted.
 | Tauri bundle | builds; `/Applications/Phenotype Fabric.app` installed, `CFBundleShortVersionString = 0.1.0-nightly` | `defaults read` |
 | GitHub Actions CI on `main` | **FAILING** — `Check` **passes** on Linux (1m13s); `Clippy`, `Unit tests`, `Integration tests` fail with exit 101. All three of those pass on macOS. | run `35323422107` |
 | Root cause of the Linux-only failures | **UNKNOWN at message level**, but narrowed to lint deltas + test failures (not a build failure) — see §6.1 | annotations API exposes only `exit code 101`; job logs are 403 |
-| Login card rendering (visual) | **UNVERIFIED** | no successful GUI automation (§10) |
+| Login card rendering (visual) | **UNVERIFIED** | no successful GUI automation (§6.2) |
 | SSO end-to-end (system-browser → callback → token) | **UNVERIFIED** — code path exists, never observed succeeding | — |
 | Clean-machine install | **NOT RUN** | — |
 
@@ -295,7 +295,7 @@ Hard gates before success can be claimed (`verification/acceptance-gates.md` is 
 
 ## 12. First actions for the new owner
 
-1. `git fetch --all`; confirm `main` = `76656c2` or later and that the tree is clean.
+1. `git fetch --all`; confirm `main` is `d2d545b` or later and that the tree is clean. (The §4 measurements were taken at `76656c2`.)
 2. Run §8's fast confidence loop to confirm the macOS numbers in §4 still hold.
 3. **Take §6.1** — run the Docker reproduction, read `/tmp/repro-clippy.log`, and fix the Linux-only failures. It is self-contained, needs no other machine, and unblocks the trustworthiness of everything else.
 4. Then **§6.6** (clean-machine install) from the desktop — smallest path to a verifiable installed product, and it needs a machine you already have.
