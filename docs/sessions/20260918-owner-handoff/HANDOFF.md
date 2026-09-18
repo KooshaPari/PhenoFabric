@@ -277,6 +277,22 @@ Resolve the observation problem before writing more GUI code. Options: a real in
 
 Test success, denial, cancellation, expired session, unavailable network, and native callback; compare expected local/offline behavior against accepted policy. **Acceptance:** no demo success, no credential leak, no irrecoverable login loop; actual scoped user state observed.
 
+#### Concrete defects found by source inspection (not by running it — the flow has never been executed)
+
+Read these before testing, because they probably explain why SSO has never completed. None of them requires the GUI to be observable to *fix*; they only require it to be observable to *verify*.
+
+| # | Defect | Evidence | Consequence |
+|---|---|---|---|
+| D1 | **The OAuth `state` parameter is never sent, and cannot be validated.** The frontend builds the authorize URL with no `state=`. Separately, the only command that could receive it, `complete_auth`, has a first parameter literally named `state` that is Tauri's DI handle (`State<'_, AppState>`), not the OAuth state. | `crates/fabric-gui/src/index.html:2180`; `crates/fabric-gui/src-tauri/src/commands.rs:116` | No CSRF protection on the callback. The `state` passed by `completeAuth` and emitted by `auth_callback.rs` is vestigial and structurally impossible to check. |
+| D2 | **Two mutually incompatible redirect URIs exist.** The Rust fallback uses a fixed `http://localhost:9400/auth/callback`; the frontend uses `http://localhost:${randomPort}/auth/callback`. WorkOS requires a pre-registered redirect URI, so at most one of these can be registered. | `commands.rs:106` vs `index.html:2179` | A strong candidate for the actual root cause of SSO never completing. Confirm which URI is registered in the WorkOS dashboard first; that single fact decides which path is viable. |
+| D3 | **The frontend ignores the daemon's `start_auth` entirely.** `start_auth` exists, generates a real `state: uuid::Uuid::new_v4()`, and returns it — and is never called. The frontend instead calls `start_auth_listener` and builds its own URL. | `commands.rs:92-112` vs `index.html:2167-2181` | The only CSRF token in the codebase is generated and discarded. Two auth implementations coexist; one is dead. |
+| D4 | **The listener binds IPv4 `127.0.0.1` while the redirect URI says `localhost`.** | `auth_callback.rs:15` vs `index.html:2179` | Where `localhost` resolves to `::1` first, the browser cannot reach the listener and the callback silently never arrives. |
+| D5 | **The one-shot listener is consumed by the first TCP connection, has no read timeout, and never retries.** Any local connection (a prefetch, a port scan, a health check) takes the accept slot; a client that connects and sends nothing blocks `read_line` forever. | `auth_callback.rs:22-33, 53-63` | The login flow can wedge permanently with no recovery path and no error surfaced. This is exactly the "irrecoverable login loop" A1 forbids. |
+| D6 | **Denial and cancellation are indistinguishable from success.** `?error=access_denied&error_description=...` is ignored; the code path yields `code: ""` and the UI reports "no code received". | `auth_callback.rs:78-87`; `index.html:2208-2215` | A1 explicitly requires testing cancellation; today it cannot be reported correctly. |
+| D7 | **`url_decode` corrupts non-ASCII and silently drops parameters.** It converts bytes to `char` one at a time (Latin-1), so percent-encoded UTF-8 becomes mojibake, and `u8::from_str_radix(..).ok()?` makes `filter_map` discard the whole parameter on a malformed escape. | `auth_callback.rs:105-120` | A malformed escape in one parameter silently drops it, including `code`. |
+
+Nothing here has been fixed. Report D1 and D2 to the operator before changing either, because D2's resolution depends on a value only the WorkOS dashboard holds.
+
 ### 6.5 `CUR-1363521465-A2` — prove one real two-node path
 
 The 2-node harness work (F.5 phases, `68ef121`, `88ecb74`, `f0f8f11`) built the integration scaffolding and split `two_node.rs` at the 500-line limit. Acceptance still requires genuine producer/consumer endpoints with negotiated capabilities, cancellation, disconnect/reconnect, and correct focus/input/output ownership — **no graph-only fixture standing in for working devices.**
