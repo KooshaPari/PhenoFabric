@@ -3,6 +3,11 @@
 **Working product name:** Phenotype Fabric  
 **Document baseline:** 0.1.0-draft, 2026-08-28
 
+> **Taking over this repo?** Read
+> [`docs/sessions/20260918-owner-handoff/HANDOFF.md`](docs/sessions/20260918-owner-handoff/HANDOFF.md)
+> first. It carries the dated verified state, the live machine/SSH topology, and the
+> prioritized pending work.
+
 ## Start here
 
 1. [README](README.md) — scope, principles, ecosystem boundary and map.
