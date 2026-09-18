@@ -87,7 +87,7 @@ Wake-on-LAN is configured for a *separate* host, `00:81:2a:ee:d4:9b` @ `192.168.
 
 - **Do repo work where the repo is.** Clone/fetch from GitHub on the desktop for read and light edits, but run `cargo` builds/tests and the Tauri bundle here — the toolchain and Linux-GUI-free macOS build path are provisioned here.
 - **Heavy work placement.** This laptop is 1TB/16GB/1 iGPU. A stronger box (5.5TB/64GB/2 real GPUs) exists. Rust compilation here is CPU-bound and fits; nothing in this repo currently needs a GPU. Decide placement before starting heavy work and record which placement served the job.
-- **CI billing is exhausted** (see §10). Do not rely on GitHub Actions to tell you whether a change is good. Verify locally, or reproduce Linux in Docker (§9).
+- **CI billing is exhausted** (see §10). Do not rely on GitHub Actions to tell you whether a change is good. Verify locally, or reproduce Linux on WSL2 Fedora (§9).
 
 ---
 
@@ -410,7 +410,7 @@ Docker is available on this host via `colima`. The script uses a container-local
 
 ## 10. Environment quirks and failure modes
 
-- **Actions billing is exhausted.** Per the operator's standing policy, do not treat a billed-runner failure as a blocking bug, and do not dispatch agent swarms that trigger CI. Prefer local verification and the Docker reproduction.
+- **Actions billing is exhausted.** Per the operator's standing policy, do not treat a billed-runner failure as a blocking bug, and do not dispatch agent swarms that trigger CI. Prefer local verification and the WSL2 Fedora reproduction (§9).
 - **`gh` cannot read job logs** on this repo (403, needs admin). It can read run lists, job lists, and annotations (which only say `exit code 101`). Plan around it.
 - **Two toolchains coexist.** The host default is nightly 1.99; entering the repo selects stable 1.97.1 via `rust-toolchain.toml`. Clippy output therefore differs if you run it from outside the repo directory. Always `cd` first.
 - **The working tree is clean at handoff** — the only untracked path is this handoff directory. An earlier session reported core dumps (`core.16371`, `core.20300`) at the repo root; **they are not present now and that report is unverified**. If a dump reappears, treat it as evidence the process under test is crashing and investigate the origin rather than deleting it.
