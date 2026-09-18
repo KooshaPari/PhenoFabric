@@ -119,8 +119,8 @@ All rows verified 2026-09-18 on this host unless noted.
 | `cargo clippy --workspace --all-targets` | 0 errors (warnings only, from dependencies) | local |
 | `cargo clippy -p fabric-terminal -p fabric-capture --features self-update` | 0 errors | local |
 | Tauri bundle | builds; `/Applications/Phenotype Fabric.app` installed, `CFBundleShortVersionString = 0.1.0-nightly` | `defaults read` |
-| GitHub Actions CI on `main` | **FAILING** — clippy, unit tests, integration tests fail on Linux while all three pass on macOS | run `35323422107` |
-| Root cause of the Linux-only failures | **UNKNOWN as of handoff** — see §7 |
+| GitHub Actions CI on `main` | **FAILING** — `Check` **passes** on Linux (1m13s); `Clippy`, `Unit tests`, `Integration tests` fail with exit 101. All three of those pass on macOS. | run `35323422107` |
+| Root cause of the Linux-only failures | **UNKNOWN at message level**, but narrowed to lint deltas + test failures (not a build failure) — see §6.1 | annotations API exposes only `exit code 101`; job logs are 403 |
 | Login card rendering (visual) | **UNVERIFIED** | no successful GUI automation (§10) |
 | SSO end-to-end (system-browser → callback → token) | **UNVERIFIED** — code path exists, never observed succeeding | — |
 | Clean-machine install | **NOT RUN** | — |
@@ -152,6 +152,21 @@ Ordering rule: smallest remaining effort, fastest useful outcome, fewest depende
 ### 6.1 Unblock Linux CI — do this first
 
 Everything below is untrustworthy while CI is red, and the fix is small and self-contained. The suites pass on macOS and fail on Linux for clippy, unit, and integration. Reproduce in Docker (§9), read the real errors, fix forward.
+
+**Already-narrowed diagnosis (verified, run `35323422107`, 2026-09-18).** The `Check` job — `cargo check --workspace --all-targets` — **passes on Linux in 1m13s**. That rules out a build/link failure, missing system library, and missing dependency. So the failures are two *separate* problems, not one:
+
+| Job | Result | What that implies |
+|---|---|---|
+| `Check` (`cargo check --workspace`) | **passes** | the workspace compiles cleanly on Linux; no missing pkg-config library |
+| `Clippy` (`-- -D warnings`) | fails, exit 101 | **Linux-only lint warnings**, promoted to errors by `-D warnings` |
+| `Unit tests` (`--lib`) | fails, exit 101 | **real test failures** on Linux (compile already proven fine by `Check`) |
+| `Integration tests` (`--test '*'`) | fails, exit 101 | **real test failures** on Linux |
+
+That also means: do **not** assume all three share one root cause. Fix the lint deltas and the test failures independently.
+
+Known lint traps in this workspace, both of which behave differently per platform:
+- `crates/fabric-workspace/src/lib.rs` carries `#![deny(missing_docs)]` and `#![warn(rust_2018_idioms)]`. Under CI's `-D warnings` the `warn` becomes an error, and `missing_docs` fires per-platform — an item that only exists on one target must be documented on that target.
+- Only six `#[cfg(target_os = "linux")]` blocks exist workspace-wide (`fabric-capability/src/probe.rs` ×4, `fabric-tray/src/main.rs` ×2). They were inspected and are correctly cfg-gated, so the linux-only warnings are most likely *not* there — look at `#[cfg(target_os = "macos")]` code whose Linux counterpart is missing, and at macOS-only helpers that become dead code on Linux.
 
 **Acceptance:** `cargo clippy --workspace --all-targets -- -D warnings` and both test commands produce 0 failures under Linux. Note: job logs are **403** for this identity (`Must have admin rights to Repository`) — the annotations API only exposes `exit code 101`. The Docker reproduction is the available path; do not assume the failure is unfixable, and do not guess at it.
 
@@ -237,6 +252,16 @@ tail -100 /tmp/repro-clippy.log
 ```
 
 Docker is available on this host via `colima`. The script uses a container-local `CARGO_TARGET_DIR` so it does not pollute the macOS `target/`, and mounts the host cargo registry to avoid re-downloading crates.
+
+**Environment caveats found at handoff (these cost real time — read before retrying):**
+
+- `colima status` reports **`runtime: QEMU`** and **`mountType: sshfs`**. Compiling a 22-crate workspace across an sshfs mount under QEMU is extremely slow. If the reproduction stalls, copy the repo *into* the container (`docker cp`) and build from container-local storage rather than building over the bind mount.
+- The cached `rust:1.90` and `rust:1.98` images on this host are **`linux/amd64`**, so they run under QEMU emulation on this arm64 machine — avoid them. Pull an explicit `--platform linux/arm64` image.
+- A prior attempt to run clippy in a container (`fabric-clippy`, `rust:1.98`) produced **no usable result**. It died in rustup, not in the code:
+  `error: could not download file from 'https://static.rust-lang.org/dist/channel-rust-stable.toml.sha256' ... tls handshake eof`.
+  Cause: the repo's `rust-toolchain.toml` pins `channel = "stable"`, so rustup tries to *install* stable inside the container instead of using the image's built-in toolchain. Network to `static.rust-lang.org` was later confirmed working (HTTP 200) from a container, so this was environment/emulation-flavoured, not a hard block.
+  **Workarounds, in order:** (a) `rustup toolchain install stable --profile minimal --component clippy` as an explicit first step so the failure is visible; (b) set `RUSTUP_TOOLCHAIN` to the image's own toolchain to bypass the `rust-toolchain.toml` download entirely — but note this changes the compiler version relative to CI, so verify version-sensitive findings against an image matching CI's stable.
+- Clean up leftovers: `docker rm -f fabric-clippy` (a stopped container from the earlier attempt still exists).
 
 **Do not "fix" Linux CI by weakening the workflow** (removing `-D warnings`, marking tests ignored, or deleting jobs). The macOS/stable toolchain agrees the code is clean; find what Linux does differently.
 
