@@ -183,12 +183,12 @@ All rows verified 2026-09-18 on this host unless noted.
 | Cargo "profiles for the non root package will be ignored" warning | **gone** (was emitted on every cargo invocation; `fabric-capture` carried an ignored member `[profile.release]`) | manifest inspection |
 | Tauri bundle | builds; `/Applications/Phenotype Fabric.app` installed, `CFBundleShortVersionString = 0.1.0-nightly` | `defaults read` |
 | Published release artifacts | **none** — no remote tags, no GitHub releases, no downloadable installer for any platform | `git ls-remote --tags origin`; `gh release list` |
-| GitHub Actions CI on `main` | **FAILING** — `Check` **passes** on Linux (1m13s); `Clippy`, `Unit tests`, `Integration tests` fail with exit 101. All three of those pass on macOS. | run `35323422107` |
+| GitHub Actions CI on `main` | **GREEN** — all 7 jobs pass (Format, Clippy, Check, Release build, Unit tests, Integration tests, E2E smoke), and the E2E workflow passes | run `35343038381` @ `fabc8c0` |
 | E2E workflow (`e2e.yml`) | `E2E smoke tests` **passes on Linux**; `E2E daemon binary` reached `Wait for daemon health check` ✓ and failed only at `Send test messages via nc` — both wrong assertions of which are fixed in `53047bf`, so this job is expected green on the next run | run `35326728003`; local replay of all six assertions |
 | `jsonwebtoken` / CVE-2026-25537 | **fixed** in `a7fdeb8` — now 10.3.0, HS256 pinned, `exp` required and enforced; 109 daemon tests pass (8/8 consecutive runs) | `cargo test -p fabric-daemon --lib` |
 | Dependabot alert refresh | **pending** — the API still showed the two `jsonwebtoken` alerts as `open` immediately post-push; re-check after a scan cycle | `gh api repos/KooshaPari/PhenoFabric/dependabot/alerts` |
 | Debug-mode daemon startup | **was broken** (clap `-l` collision panic); fixed in `53047bf` | `cargo build -p fabric-daemon` then `start --help` |
-| Root cause of the Linux-only failures | **UNKNOWN at message level**, but narrowed to lint deltas + test failures (not a build failure) — see §6.1 | annotations API exposes only `exit code 101`; job logs are 403 |
+| Causes of the CI failures | **all found and fixed** — two clippy lints, one missing link library (`libxdo`), one real latency defect (no `TCP_NODELAY`) | see §6.1 |
 | Login card rendering (visual) | **UNVERIFIED** | no successful GUI automation (§6.3) |
 | SSO end-to-end (system-browser → callback → token) | **UNVERIFIED** — code path exists, never observed succeeding | — |
 | Clean-machine install | **NOT RUN** | — |
@@ -201,6 +201,16 @@ Do not restate "tests pass" without naming the platform. The honest sentence is:
 
 | Commit | Summary |
 |---|---|
+| `fabc8c0` | **Set `TCP_NODELAY` on all 7 wire socket sites** (daemon accept + cli/tui/orchestrator/harness clients). A real latency defect: Nagle + the peer's delayed ACK held small framing writes ~40 ms. Fixed in the product, not by loosening the test. With this, CI went fully green. |
+| `f09ad76` | `ci.yml`: install `libxdo-dev` — the actual cause of the `fabric-tray` link failure (`rust-lld: unable to find library -lxdo`). |
+| `5eae828` | Reverted my own bad guess: `libappindicator3-dev` does not exist on Ubuntu 24.04 and broke the install step. Withdrew the claim that appindicator caused the link failure. |
+| `5a83ce5` | Cleared the Linux-only `clippy::bind_instead_of_map` in `probe.rs`, and made the CI failure annotations cap-aware and link-error-first. |
+| `0a53c4f` / `aa905ae` | Made CI failures readable at all: strip ANSI before filtering (CARGO_TERM_COLOR defeated `^error`), and emit prioritised `::error::` annotations, since job logs are 403 for this identity. |
+| `c1491b7` | `DaemonConfig` derives `Default` (its manual impl was genuinely derivable under clippy 1.98) while the field structs keep their meaningful manual impls. |
+| `268cf83` | First annotation-based failure reporting. |
+| `b556e80` | rustfmt the JWT middleware. |
+| `cb82774` | Fixed the SSO callback by binding **both** loopback families (§6.4 D4). |
+| `50fe00c` | Documented the corrupt Tauri `target/` as an environment trap rather than a source defect. |
 | `a7fdeb8` | **Closed the auth-bypass advisory.** `jsonwebtoken` 9 → 10.3.0 (`default-features = false, features = ["rust_crypto"]`; rust_crypto avoids adding aws-lc-rs and a C/cmake toolchain). `decode_jwt` no longer uses `Validation::default()`: it now pins `Algorithm::HS256` with `validate_exp = true` and an explicit `required_spec_claims` entry for `exp`, so the allowlist cannot widen and expiry cannot silently stop being enforced. 11 regression tests added (valid token, wrong secret, expiry, missing `exp`, tampered payload, tampered signature, `alg:none`, HMAC-under-RS256-header, algorithm outside the allowlist). One was flaky and was repaired before landing — see §6.2. |
 | `53047bf` | Fixed three real defects found by running the daemon locally: the debug-start panic (see below) and **two E2E assertions that could never pass** — the workflow grepped for lower-case `invalid_json` when the wire contract is upper-case `INVALID_JSON`, and for `unknown_message` when `validate_message` rejects unknown types as `UNKNOWN_TYPE` before dispatch. With both corrected, the E2E daemon job should now go green; the full six-assertion sequence was replayed locally and prints "All E2E message tests passed!". |
 | `fd6459a` | Handoff corrections: the desktop is an online **Windows** node with WSL2 Fedora (verified), the `v0.1.0-nightly` tag is **local-only** with zero published releases, and the clean-machine install must use the Windows installer. Also moved `fabric-capture`'s ignored member `[profile.release]` to a supported root package override. |
@@ -224,32 +234,33 @@ All pushed to `origin/main`.
 
 Ordering rule: smallest remaining effort, fastest useful outcome, fewest dependencies. `NEXT-ACTIONS.md` is authoritative if it disagrees.
 
-### 6.1 Unblock Linux CI — do this first
+### 6.1 Linux CI — RESOLVED (`fabc8c0`, all jobs green)
 
-Everything below is untrustworthy while CI is red, and the fix is small and self-contained. The suites pass on macOS and fail on Linux for clippy, unit, and integration. **Reproduce on the native Linux host that is now known to exist** — WSL2 Fedora on the desktop (§9) — read the real errors, fix forward.
+**Status: closed.** `main` is green: Format, Clippy, Check, Release build, Unit tests, Integration tests and E2E smoke tests all pass, and the separate E2E workflow passes too. This is the first fully green CI on this repository.
 
-**Already-narrowed diagnosis (verified, run `35323422107`, 2026-09-18).** The `Check` job — `cargo check --workspace --all-targets` — **passes on Linux in 1m13s**. That rules out a build/link failure, missing system library, and missing dependency. So the failures are two *separate* problems, not one:
+Four independent causes, none of which was what it first appeared to be:
 
-| Job | Result | What that implies |
+| # | Cause | Why it was invisible locally |
 |---|---|---|
-| `Check` (`cargo check --workspace`) | **passes** | the workspace compiles cleanly on Linux; no missing pkg-config library |
-| `Clippy` (`-- -D warnings`) | fails, exit 101 | **Linux-only lint warnings**, promoted to errors by `-D warnings` |
-| `Unit tests` (`--lib`) | fails, exit 101 | **real test failures** on Linux (compile already proven fine by `Check`) |
-| `Integration tests` (`--test '*'`) | fails, exit 101 | **real test failures** on Linux |
+| 1 | `clippy::bind_instead_of_map` at `crates/fabric-capability/src/probe.rs:224` | The expression sits inside `read_cache_info()`, which is `#[cfg(target_os = "linux")]`. A macOS clippy run never compiles it. **This was a platform difference, not a toolchain one** — the runner reported the same rustc/clippy 1.98.1 as local. |
+| 2 | `clippy::derivable_impls` on `DaemonConfig` | A clippy **version** difference: CI's `stable` resolves to 1.98, local `stable` was 1.97, and the lint fires from 1.98. This is the same lint that produced the original `1c21232` over-correction. |
+| 3 | `fabric-tray` could not link: `rust-lld: unable to find library -lxdo` | `fabric-tray` → `tray-icon` → `muda` → `libxdo`. `ci.yml` never installed `libxdo-dev`, though `release.yml` already does. This is why **`Check` passed while both test jobs failed**: `cargo check` never links, and only the test jobs produce binaries. |
+| 4 | `two_node_frame_streaming` failed its 10 ms loopback RTT assertion | **A real product defect, not a slow runner:** `TCP_NODELAY` was set nowhere in the codebase. Nagle plus the peer's delayed ACK holds small framing writes for ~40 ms. Fixed in the product (7 socket sites across daemon, cli, tui, orchestrator and the harness) rather than by loosening the assertion. |
 
-That also means: do **not** assume all three share one root cause. Fix the lint deltas and the test failures independently.
+Diagnostic lessons worth keeping, because each one cost real time here:
 
-Known lint traps in this workspace, both of which behave differently per platform:
-- `crates/fabric-workspace/src/lib.rs` carries `#![deny(missing_docs)]` and `#![warn(rust_2018_idioms)]`. Under CI's `-D warnings` the `warn` becomes an error, and `missing_docs` fires per-platform — an item that only exists on one target must be documented on that target.
-- Only six `#[cfg(target_os = "linux")]` blocks exist workspace-wide (`fabric-capability/src/probe.rs` ×4, `fabric-tray/src/main.rs` ×2). They were inspected and are correctly cfg-gated, so the linux-only warnings are most likely *not* there — look at `#[cfg(target_os = "macos")]` code whose Linux counterpart is missing, and at macOS-only helpers that become dead code on Linux.
+- **A warm cargo `target/` masks clippy lints.** Cargo caches lint results for fresh crates, so `cargo clippy` on a warm tree can report nothing while a cold tree reports errors. Two of my own "clippy passes on Linux" conclusions were warm-cache artefacts. Verify lints on a **fresh** `CARGO_TARGET_DIR`.
+- **`Check` green + tests red means a link-time missing library**, not a compile error and not an assertion failure. Read it that way first.
+- **`CARGO_TERM_COLOR: always` defeats an `^error` grep.** Lines arrive as `\x1b[1m\x1b[31merror…`, so anchors silently match nothing. Strip ANSI before filtering.
+- **GitHub caps annotations at 50 per step and keeps the earliest**, so a "log tail" emitted last gets dropped entirely. Emit few, prioritised lines.
+- **CI only builds release**, so debug-only failures (see §7) are structurally invisible to it.
+- **Job logs are 403 for this identity.** The `ci.yml` steps now emit `::error::` annotations, which the check-runs API *can* read; that is how every cause above was finally identified. Keep that instrumentation.
 
-**Acceptance:** `cargo clippy --workspace --all-targets -- -D warnings` and both test commands produce 0 failures under Linux. Note: job logs are **403** for this identity (`Must have admin rights to Repository`) — the annotations API only exposes `exit code 101`. Reproduce on WSL2 Fedora (§9); do not assume the failure is unfixable, and do not guess at it.
-
-### 6.2 Fix CVE-2026-25537 in the auth path (security) — FIXED, one check pending
+### 6.2 Fix CVE-2026-25537 in the auth path (security) — CLOSED
 
 **Status: fixed in `a7fdeb8` and pushed.** `jsonwebtoken` is now 10.3.0 with validation explicitly pinned (HS256 only, `exp` required and enforced). 109 daemon lib tests pass, verified over 8 consecutive runs; `cargo check --workspace --all-targets` and `cargo clippy -p fabric-daemon --all-targets -- -D warnings` are clean.
 
-**One thing still unconfirmed:** immediately after the push, `gh api repos/KooshaPari/PhenoFabric/dependabot/alerts` still listed the two `jsonwebtoken < 10.3.0` alerts as `open`. Dependabot re-scans asynchronously, so this is most likely a stale scan rather than a failed fix. **Re-check it; if it is still open after a scan cycle, the bump did not take and that needs investigating.** Do not report the advisory as closed until the API agrees.
+**Confirmed closed.** `gh api repos/KooshaPari/PhenoFabric/dependabot/alerts` now returns **zero** open `jsonwebtoken` alerts. The earlier `open` reading was indeed the stale scan, as suspected. The other six advisories (`glib` x2, `opentelemetry_sdk` x2, `protobuf`, `lru`) remain open and lower priority.
 
 **Lesson worth keeping:** the generated tests were good but one was subtly wrong. `rejects_tampered_signature` mutated the LAST base64url character of the signature. A 32-byte HMAC encodes to 43 characters (258 bits), so the final character carries only 4 significant bits and its low 2 bits are discarded on decode; `A` through `D` share the same top 4 bits, so rewriting the last character among them yields identical bytes and leaves the token valid. It would have failed ~6.25% of runs. It now mutates the first character, where all 6 bits are significant. When you generate crypto tests, make the mutation provably change the bytes rather than assuming it does.
 
@@ -350,7 +361,7 @@ There is no path to a stable version string until 6.2 and 6.6 are both done and 
   - `crates/fabric-terminal/src/web_main.rs:367` — `// TODO: proper auth via query param`. **This is the one that matters.** The `tf-web` HTTP surface authenticates via a query parameter. Treat that as an unqualified auth path: do not expose `tf-web` off-host until it is replaced, and do not cite it as evidence that Fabric's authentication is implemented.
   - `crates/fabric-cli/src/tui/mod.rs:319` — `// TODO: poll daemon health via TCP` (TUI shows static/absent health).
   - `crates/fabric-gui/src/index.html:2120` — `// TODO: implement search overlay` (cosmetic).
-- **CI only builds release, so debug-only bugs are invisible to it.** `cargo build -p fabric-daemon` (debug) previously **panicked on every startup**: `listen` and `log_level` both inferred the short flag `-l`, and clap's debug assertion aborts on the collision. Release builds were fine because that assertion is compiled out under `debug_assertions` — which is exactly why CI never caught it while local development was impossible. Fixed in `53047bf` (`--log-level` is now long-only), but the lesson generalises: **run `cargo build`/`cargo run` in debug at least once before trusting a green CI**, and be suspicious of any code path whose failure mode differs between debug and release.
+- **CI only builds release, so debug-only bugs are invisible to it** (the debug-start panic below is fixed in `53047bf`, but the structural gap remains). `cargo build -p fabric-daemon` (debug) previously **panicked on every startup**: `listen` and `log_level` both inferred the short flag `-l`, and clap's debug assertion aborts on the collision. Release builds were fine because that assertion is compiled out under `debug_assertions` — which is exactly why CI never caught it while local development was impossible. Fixed in `53047bf` (`--log-level` is now long-only), but the lesson generalises: **run `cargo build`/`cargo run` in debug at least once before trusting a green CI**, and be suspicious of any code path whose failure mode differs between debug and release.
 - **Eight open Dependabot alerts, one of them an auth bypass.** `jsonwebtoken` is pinned at `9` (resolved 9.3.1) in `crates/fabric-daemon` and used by the JWT middleware, and `jsonwebtoken < 10.3.0` carries CVE-2026-25537 (type confusion → potential authorization bypass). See §6.2. The rest are `glib` ×2 (unsound `VariantStrIter`, in `fabric-gui`'s separate Tauri lockfile), `opentelemetry_sdk` ×2 (unbounded allocation in W3C Baggage propagation, a DoS), `protobuf` (uncontrolled recursion), and `lru` (Stacked Borrows violation). A known auth-bypass advisory on the auth path is not a "someday" item.
 - **The on-disk Tauri `target/` directory is corrupt, and plain `cargo check` there fails until it is reset.** Reproduced twice on 2026-09-18: `cd crates/fabric-gui/src-tauri && cargo check` dies with
   `error: failed to run custom build command for fabric-gui ... failed to read plugin permissions: failed to read file '.../target/debug/build/tauri-.../out/permissions/app/autogenerated/commands/app_hide.toml': No such file or directory`.
@@ -486,7 +497,7 @@ Hard gates before success can be claimed (`verification/acceptance-gates.md` is 
 
 1. `git fetch --all`; confirm `main` is `d2d545b` or later and that the tree is clean. (The §4 measurements were taken at `76656c2`.)
 2. Run §8's fast confidence loop to confirm the macOS numbers in §4 still hold.
-3. **Take §6.1** — run the WSL reproduction (§9), read the real errors, and fix the Linux-only failures. It is self-contained, needs no other machine, and unblocks the trustworthiness of everything else.
+3. ~~Take §6.1~~ — **done**; CI is green. Start instead with **§6.3** (make the GUI verifiable), which is the largest remaining honest gap.
 4. Then **§6.7** (clean-machine install) from the desktop — smallest path to a verifiable installed product, and it needs a machine you already have.
 5. Resolve **§6.3**'s observation problem before writing any more GUI code. Two unverified features already exist; a third should not join them.
 6. Record results with dates. Update `docs-5/products/PhenoFabric/STATE.md` only after a verified pass, with a new observation date.
