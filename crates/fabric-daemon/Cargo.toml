@@ -37,7 +37,12 @@ toml = "0.8"
 ctrlc = "3"
 tokio = { version = "1", features = ["net", "io-util", "time", "process", "macros", "rt"] }
 reqwest = { version = "0.12", features = ["json"] }
-jsonwebtoken = "9"
+# 10.3.0 is the first release patched for CVE-2026-25537 / GHSA-h395-gr6q-cpjc
+# (type confusion leading to authorization bypass; vulnerable range < 10.3.0).
+# v10 requires an explicit crypto backend: `rust_crypto` is selected over
+# `aws_lc_rs` because this crate only uses HMAC-SHA256, and it keeps the build
+# pure-Rust instead of adding aws-lc-rs and its C/cmake toolchain dependency.
+jsonwebtoken = { version = "10.3.0", default-features = false, features = ["rust_crypto"] }
 
 [dev-dependencies]
 tempfile = "3"
