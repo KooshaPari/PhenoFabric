@@ -68,7 +68,7 @@ Other tailnet peers at handoff: `cachyos` (100.97.123.10, offline 41d), `kooshap
 
 ### Consequences of the desktop being Windows (read this before assigning work)
 
-1. **The clean-machine install smoke (§6.6) must use the Windows installer**, not the macOS `.dmg`.
+1. **The clean-machine install smoke (§6.7) must use the Windows installer**, not the macOS `.dmg`.
    `release.yml` already builds an MSI and an NSIS `.exe` for `x86_64-pc-windows-msvc`. The `.dmg`
    can only be installed on a Mac, so do not attempt that test from the desktop.
 2. **You have native Linux on the desktop via WSL2** — `FedoraLinux-44`, kernel
@@ -101,7 +101,7 @@ Wake-on-LAN is configured for a *separate* host, `00:81:2a:ee:d4:9b` @ `192.168.
 | HEAD at handoff | `76656c2` |
 | GitHub repo ID | `1363521465` (public) |
 | Tags | `v0.1.0-nightly` — **local only; never pushed**. `git ls-remote --tags origin` returns nothing, and `gh release list` is empty. **There are zero published releases and zero remote tags.** |
-| Workspace | 22 members, 249 `.rs` files, ~106.7k LOC under `crates/` + `examples/` |
+| Workspace | **23 members** (authoritative: `cargo metadata --no-deps`), 249 `.rs` files, ~106.7k LOC under `crates/` + `examples/` |
 | Live docs-5 dossier | `/Users/kooshapari/CodeProjects/docs/docs-5/products/PhenoFabric/` |
 
 The repo is a Cargo workspace, **not** a top-level Python project. There is no `cli.py`.
@@ -120,6 +120,27 @@ fabric-research-ledger   examples/full-demo
 ```
 
 `phenotype-manifest` is a **workspace member**, so `phenotype-nvms-adapter`'s path dependencies are self-contained. The workspace does not depend on any external git URL or on a checkout outside this repo. This was a real defect earlier (a 404 git dep) and is fixed.
+
+### Two exclusions you must know about
+
+The root manifest declares:
+
+```toml
+exclude = [
+    "crates/fabric-frame-transport/fuzz",
+    "crates/fabric-gui/src-tauri",
+]
+```
+
+- **`crates/fabric-gui/src-tauri` is NOT in the workspace.** It has its own `[workspace]` table and its own
+  `Cargo.lock`. Root-level `cargo clippy --workspace` / `cargo test --workspace` therefore **do not compile
+  it at all**, which means the Tauri app's Rust — including the new `auth_callback.rs` — is covered only by
+  `cargo tauri build` and by `release.yml`'s `build-gui` job. Its dependency advisories are also invisible to
+  root lockfile audits.
+- **There are two different crates both named `fabric-gui`**: the thin workspace member at
+  `crates/fabric-gui/` and the excluded Tauri app at `crates/fabric-gui/src-tauri/`. Read the path, not the
+  package name, whenever a `fabric-gui` reference is ambiguous. `cargo metadata` shows only one, because only
+  the member is in this workspace.
 
 ---
 
@@ -162,7 +183,7 @@ All rows verified 2026-09-18 on this host unless noted.
 | Published release artifacts | **none** — no remote tags, no GitHub releases, no downloadable installer for any platform | `git ls-remote --tags origin`; `gh release list` |
 | GitHub Actions CI on `main` | **FAILING** — `Check` **passes** on Linux (1m13s); `Clippy`, `Unit tests`, `Integration tests` fail with exit 101. All three of those pass on macOS. | run `35323422107` |
 | Root cause of the Linux-only failures | **UNKNOWN at message level**, but narrowed to lint deltas + test failures (not a build failure) — see §6.1 | annotations API exposes only `exit code 101`; job logs are 403 |
-| Login card rendering (visual) | **UNVERIFIED** | no successful GUI automation (§6.2) |
+| Login card rendering (visual) | **UNVERIFIED** | no successful GUI automation (§6.3) |
 | SSO end-to-end (system-browser → callback → token) | **UNVERIFIED** — code path exists, never observed succeeding | — |
 | Clean-machine install | **NOT RUN** | — |
 
@@ -216,7 +237,35 @@ Known lint traps in this workspace, both of which behave differently per platfor
 
 **Acceptance:** `cargo clippy --workspace --all-targets -- -D warnings` and both test commands produce 0 failures under Linux. Note: job logs are **403** for this identity (`Must have admin rights to Repository`) — the annotations API only exposes `exit code 101`. The Docker reproduction is the available path; do not assume the failure is unfixable, and do not guess at it.
 
-### 6.2 Make the GUI actually verifiable (largest honest gap)
+### 6.2 Fix CVE-2026-25537 in the auth path (security)
+
+The daemon's JWT validation uses a crate with a known authorization-bypass advisory.
+
+| Fact | Value |
+|---|---|
+| Advisory | **CVE-2026-25537** / GHSA-h395-gr6q-cpjc — "Type Confusion that leads to potential authorization bypass" |
+| Vulnerable range | `jsonwebtoken < 10.3.0` |
+| What this repo pins | `jsonwebtoken = "9"` in `crates/fabric-daemon/Cargo.toml` (line 40), resolving to **9.3.1** |
+| Where it is used | `crates/fabric-daemon/src/auth/middleware/jwt.rs` — `jsonwebtoken::decode` with `DecodingKey::from_secret` |
+| First patched version | **10.3.0** (latest on crates.io is 11.1.0) |
+| Severity as reported by Dependabot | medium |
+
+This is a **direct dependency on the authentication path**, not a transitive nuisance, and it lands squarely on
+work item A1 (qualify the authentication contract). Bumping it is a major-version change, so recreate the
+validation semantics deliberately rather than mechanically: confirm that claim validation, expiry, issuer,
+audience and algorithm expectations are unchanged or intentionally tightened, and add a regression test that
+proves a token rejected before is still rejected.
+
+**Acceptance:** `jsonwebtoken` is at 10.3.0 or later; `cargo tree -i jsonwebtoken` shows no vulnerable
+version; the JWT middleware tests pass; and there is an explicit test proving an invalid/forged token is
+still rejected. Re-run `gh api repos/KooshaPari/PhenoFabric/dependabot/alerts` and confirm this alert clears.
+
+The other seven open Dependabot alerts at handoff were `glib` ×2 (unsound `VariantStrIter`, `fabric-gui`'s
+Tauri lockfile), `opentelemetry_sdk` ×2 (unbounded allocation in W3C Baggage propagation, a DoS),
+`protobuf` (uncontrolled recursion crash), and `lru` (Stacked Borrows violation). Those are lower priority
+than the auth bypass but should be triaged in the same pass.
+
+### 6.3 Make the GUI actually verifiable (largest honest gap)
 
 Two independently written features have **never been observed working**: the rebuilt login card and the system-browser SSO flow. The blocker was never the code — it was that the Tauri WebView is invisible to macOS automation (`screencapture`, System Events, and Accessibility APIs all return 0 windows). The display also slept and could not be woken remotely.
 
@@ -224,19 +273,19 @@ Resolve the observation problem before writing more GUI code. Options: a real in
 
 **Acceptance:** a screenshot or video of the running app showing the populated login card; then a recorded successful SSO round-trip reaching an authenticated state. Until then the GUI is `-nightly` and unverified, and no release note may claim SSO works.
 
-### 6.3 `CUR-1363521465-A1` — qualify the authentication contract
+### 6.4 `CUR-1363521465-A1` — qualify the authentication contract
 
 Test success, denial, cancellation, expired session, unavailable network, and native callback; compare expected local/offline behavior against accepted policy. **Acceptance:** no demo success, no credential leak, no irrecoverable login loop; actual scoped user state observed.
 
-### 6.4 `CUR-1363521465-A2` — prove one real two-node path
+### 6.5 `CUR-1363521465-A2` — prove one real two-node path
 
 The 2-node harness work (F.5 phases, `68ef121`, `88ecb74`, `f0f8f11`) built the integration scaffolding and split `two_node.rs` at the 500-line limit. Acceptance still requires genuine producer/consumer endpoints with negotiated capabilities, cancellation, disconnect/reconnect, and correct focus/input/output ownership — **no graph-only fixture standing in for working devices.**
 
-### 6.5 `CUR-1363521465-A3` — locality and contention behavior
+### 6.6 `CUR-1363521465-A3` — locality and contention behavior
 
 Choose shared-memory/local transport where supported and qualified network adapters otherwise; measure tail latency, quality, and foreground impact. **Acceptance:** no hidden copies or queues, no unsupported-capability pass, real Mac/PC workflow proof.
 
-### 6.6 Clean-machine install smoke
+### 6.7 Clean-machine install smoke
 
 Install the `v0.1.0-nightly` **Windows** installer on the desktop (a machine without the repo), launch, and confirm the bundled frontend loads. Report signing/SmartScreen and missing-resource errors.
 
@@ -244,7 +293,7 @@ Do **not** attempt this with the macOS `.dmg`: the desktop is Windows (§1), so 
 
 This is the smallest gap to a verifiable *installed* product on the machine the owner actually uses.
 
-### 6.7 `-nightly` → nothing yet
+### 6.8 `-nightly` → nothing yet
 
 There is no path to a stable version string until 6.2 and 6.6 are both done and user-verified. Do not bump the version for a green test run.
 
@@ -255,11 +304,13 @@ There is no path to a stable version string until 6.2 and 6.6 are both done and 
 - **Linux CI failures are UNKNOWN at the message level.** Three jobs fail with rust exit 101; logs are inaccessible (403). Everything else in §4 was verified on macOS only, so Linux-specific `#[cfg(target_os = "linux")]` code paths and dependency resolution are effectively unqualified.
 - **A prior "clippy cleanup" commit silently broke runtime defaults.** Commit `1c21232` passed a local macOS clippy run while zeroing `ServerConfig::listen`, `DatabaseConfig::path`, `wal_mode`, `LoggingConfig::level` and `AuthConfig::public_routes`. It was caught only because three unit tests happened to assert those values. **Treat "clippy clean" as a lint signal, not a behaviour signal**, and be suspicious of commit messages that claim lint-driven API simplification.
 - **`.github/workflows/` had two permanently-red workflows for the whole lifetime of the repo.** They were never noticed because CI was already red for other reasons. Re-check that every workflow file references paths that exist.
-- **The GUI has no automated observation path** (§6.2). This is a process gap, not a code gap, and it is why two shipped features are unverified.
+- **The GUI has no automated observation path** (§6.3). This is a process gap, not a code gap, and it is why two shipped features are unverified.
 - **Only three in-tree TODOs exist, and one is security-relevant:**
   - `crates/fabric-terminal/src/web_main.rs:367` — `// TODO: proper auth via query param`. **This is the one that matters.** The `tf-web` HTTP surface authenticates via a query parameter. Treat that as an unqualified auth path: do not expose `tf-web` off-host until it is replaced, and do not cite it as evidence that Fabric's authentication is implemented.
   - `crates/fabric-cli/src/tui/mod.rs:319` — `// TODO: poll daemon health via TCP` (TUI shows static/absent health).
   - `crates/fabric-gui/src/index.html:2120` — `// TODO: implement search overlay` (cosmetic).
+- **Eight open Dependabot alerts, one of them an auth bypass.** `jsonwebtoken` is pinned at `9` (resolved 9.3.1) in `crates/fabric-daemon` and used by the JWT middleware, and `jsonwebtoken < 10.3.0` carries CVE-2026-25537 (type confusion → potential authorization bypass). See §6.2. The rest are `glib` ×2 (unsound `VariantStrIter`, in `fabric-gui`'s separate Tauri lockfile), `opentelemetry_sdk` ×2 (unbounded allocation in W3C Baggage propagation, a DoS), `protobuf` (uncontrolled recursion), and `lru` (Stacked Borrows violation). A known auth-bypass advisory on the auth path is not a "someday" item.
+- **Root-level "all tests pass" says nothing about the Tauri app** — `crates/fabric-gui/src-tauri` is excluded from the workspace and has its own lockfile (§2). It is compiled only by `cargo tauri build` and `release.yml`'s `build-gui` job, and its dependency advisories escape root audits. The new `auth_callback.rs` lives there, which is part of why the SSO flow has never been exercised by any test.
 - **Nothing has been published.** The `v0.1.0-nightly` tag exists only in this laptop's clone; it was never pushed, and there are no GitHub releases and no downloadable artifacts for any platform. The "release" is therefore a locally built `.app` plus a local tag — treat it as an unversioned local build, not as a shipped release. Pushing the tag would trigger `release.yml` (workspace bins + Tauri GUI + crates.io publish + Docker), which has never been exercised; expect that first run to surface failures.
 - **`gh` API access is asymmetric.** `gh run view` and `git push` work; `gh run view --log` and the job-logs API return 403 for this identity. CI diagnosis must go through the reproduction path, not the API.
 
@@ -387,9 +438,9 @@ Hard gates before success can be claimed (`verification/acceptance-gates.md` is 
 
 1. `git fetch --all`; confirm `main` is `d2d545b` or later and that the tree is clean. (The §4 measurements were taken at `76656c2`.)
 2. Run §8's fast confidence loop to confirm the macOS numbers in §4 still hold.
-3. **Take §6.1** — run the Docker reproduction, read `/tmp/repro-clippy.log`, and fix the Linux-only failures. It is self-contained, needs no other machine, and unblocks the trustworthiness of everything else.
-4. Then **§6.6** (clean-machine install) from the desktop — smallest path to a verifiable installed product, and it needs a machine you already have.
-5. Resolve **§6.2**'s observation problem before writing any more GUI code. Two unverified features already exist; a third should not join them.
+3. **Take §6.1** — run the WSL reproduction (§9), read the real errors, and fix the Linux-only failures. It is self-contained, needs no other machine, and unblocks the trustworthiness of everything else.
+4. Then **§6.7** (clean-machine install) from the desktop — smallest path to a verifiable installed product, and it needs a machine you already have.
+5. Resolve **§6.3**'s observation problem before writing any more GUI code. Two unverified features already exist; a third should not join them.
 6. Record results with dates. Update `docs-5/products/PhenoFabric/STATE.md` only after a verified pass, with a new observation date.
 7. Keep the version `-nightly`. Do not promote it.
 
