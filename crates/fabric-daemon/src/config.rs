@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Top-level daemon configuration.
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct DaemonConfig {
     pub server: ServerConfig,
@@ -23,7 +23,20 @@ pub struct DaemonConfig {
     pub auth: AuthConfig,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+impl Default for DaemonConfig {
+    fn default() -> Self {
+        Self {
+            server: ServerConfig::default(),
+            database: DatabaseConfig::default(),
+            topology: TopologyConfig::default(),
+            leases: LeaseConfig::default(),
+            logging: LoggingConfig::default(),
+            auth: AuthConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ServerConfig {
     /// Address to listen on (e.g. "127.0.0.1:9400").
@@ -34,7 +47,17 @@ pub struct ServerConfig {
     pub request_timeout_ms: u64,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            listen: "127.0.0.1:9400".into(),
+            max_connections: 64,
+            request_timeout_ms: 5000,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct DatabaseConfig {
     /// Path to SQLite database file.
@@ -45,7 +68,17 @@ pub struct DatabaseConfig {
     pub flush_interval_ms: u64,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        Self {
+            path: PathBuf::from("state.db"),
+            wal_mode: true,
+            flush_interval_ms: 1000,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct TopologyConfig {
     /// Auto-probe topology on startup.
@@ -56,7 +89,17 @@ pub struct TopologyConfig {
     pub epoch_persistence: bool,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+impl Default for TopologyConfig {
+    fn default() -> Self {
+        Self {
+            auto_probe: true,
+            probe_interval_s: 30,
+            epoch_persistence: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct LeaseConfig {
     /// Default lease TTL in seconds.
@@ -69,7 +112,18 @@ pub struct LeaseConfig {
     pub fairness_policy: String,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+impl Default for LeaseConfig {
+    fn default() -> Self {
+        Self {
+            default_ttl_s: 3600,
+            max_ttl_s: 86400,
+            renewal_window_s: 300,
+            fairness_policy: "FairShare".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct LoggingConfig {
     /// Log level (trace, debug, info, warn, error).
@@ -80,8 +134,18 @@ pub struct LoggingConfig {
     pub file: Option<PathBuf>,
 }
 
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            level: "info".into(),
+            format: "pretty".into(),
+            file: None,
+        }
+    }
+}
+
 /// Authentication configuration.
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct AuthConfig {
     /// Whether authentication is enabled.
@@ -102,6 +166,22 @@ pub struct AuthConfig {
     pub jwt_secret: Option<String>,
     /// Message types that are exempt from authentication.
     pub public_routes: Vec<String>,
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            workos_client_id: String::new(),
+            workos_client_secret: String::new(),
+            workos_redirect_uri: String::new(),
+            infisical_client_id: String::new(),
+            infisical_client_secret: String::new(),
+            infisical_project_id: String::new(),
+            jwt_secret: None,
+            public_routes: vec!["health_check".into(), "status_check".into()],
+        }
+    }
 }
 
 impl From<AuthConfig> for auth::AuthMiddlewareConfig {
@@ -131,7 +211,7 @@ impl From<AuthConfig> for auth::AuthMiddlewareConfig {
 
 /// Configuration for federation (multi-node topology sharing).
 #[allow(dead_code)]
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct FederationConfig {
     /// Whether federation is enabled.
@@ -142,6 +222,18 @@ pub struct FederationConfig {
     pub peers: Vec<String>,
     /// Merge strategy name.
     pub merge_strategy: String,
+}
+
+#[allow(dead_code)]
+impl Default for FederationConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            sync_interval_s: 30,
+            peers: Vec::new(),
+            merge_strategy: "MergeAll".into(),
+        }
+    }
 }
 
 impl DaemonConfig {
