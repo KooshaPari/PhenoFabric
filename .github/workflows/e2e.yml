@@ -128,15 +128,24 @@ jobs:
           echo "routes_request: $RESP"
           echo "$RESP" | grep -q "routes_response"
 
-          # Invalid message (should return error)
+          # Invalid message (should return an error).
+          # NOTE: the daemon's validation error code is upper-case "INVALID_JSON"
+          # (fabric-frame-transport/src/validation.rs, INVALID_JSON) and grep is
+          # case-sensitive, so the old lower-case pattern could never match.
           RESP=$(echo 'not json' | nc -w 2 127.0.0.1 9400)
           echo "invalid_json: $RESP"
-          echo "$RESP" | grep -q "invalid_json"
+          echo "$RESP" | grep -q "INVALID_JSON"
 
-          # Unknown message type
+          # Unknown message type.
+          # The wire contract is "UNKNOWN_TYPE", produced by validate_message
+          # (fabric-frame-transport/src/validation.rs) before dispatch. The
+          # dispatcher's own `unknown_message` arm in wire/protocol.rs is
+          # unreachable for wire traffic, and this repo's own unit test
+          # `process_unknown_type` asserts UNKNOWN_TYPE. The old expectation of
+          # "unknown_message" contradicted the project's own contract.
           RESP=$(echo '{"type":"unknown_type_xyz"}' | nc -w 2 127.0.0.1 9400)
           echo "unknown_message: $RESP"
-          echo "$RESP" | grep -q "unknown_message"
+          echo "$RESP" | grep -q "UNKNOWN_TYPE"
 
           echo "All E2E message tests passed!"
 

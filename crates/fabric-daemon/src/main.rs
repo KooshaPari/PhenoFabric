@@ -49,7 +49,14 @@ enum Commands {
         listen: Option<String>,
 
         /// Log level (overrides config).
-        #[arg(short, long)]
+        ///
+        /// Long-only on purpose: adding `short` here would infer `-l`, which
+        /// collides with `listen` above. clap's debug assertion turns that
+        /// collision into a panic at startup, which meant a debug build could
+        /// not start the daemon at all. Release builds were unaffected only
+        /// because that assertion is compiled out under `debug_assertions`.
+        /// Do not re-add a short flag that maps to `-l`.
+        #[arg(long)]
         log_level: Option<String>,
     },
 
