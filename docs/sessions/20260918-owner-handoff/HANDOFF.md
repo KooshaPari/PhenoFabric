@@ -309,12 +309,34 @@ Read these before testing, because they probably explain why SSO has never compl
 | # | Defect | Evidence | Consequence |
 |---|---|---|---|
 | D1 | **The OAuth `state` parameter is never sent, and cannot be validated.** The frontend builds the authorize URL with no `state=`. Separately, the only command that could receive it, `complete_auth`, has a first parameter literally named `state` that is Tauri's DI handle (`State<'_, AppState>`), not the OAuth state. | `crates/fabric-gui/src/index.html:2180`; `crates/fabric-gui/src-tauri/src/commands.rs:116` | No CSRF protection on the callback. The `state` passed by `completeAuth` and emitted by `auth_callback.rs` is vestigial and structurally impossible to check. |
-| D2 | **Two mutually incompatible redirect URIs exist.** The Rust fallback uses a fixed `http://localhost:9400/auth/callback`; the frontend uses `http://localhost:${randomPort}/auth/callback`. WorkOS requires a pre-registered redirect URI, so at most one of these can be registered. | `commands.rs:106` vs `index.html:2179` | A strong candidate for the actual root cause of SSO never completing. Confirm which URI is registered in the WorkOS dashboard first; that single fact decides which path is viable. |
+| D2 | **RESOLVED BY PROBE — and worse than first stated.** WorkOS rejects **every** redirect URI in the codebase. The client_id is valid: it resolves to the AuthKit instance `significant-vessel-93-staging` (note: a **staging** environment). With `response_type=code`, WorkOS answers precisely: `.../redirect-uri-invalid?invalid_redirect_uri=http://localhost:9400/auth/callback&client_id=client_01K4KYZR40RK7R9X3PPB5SEJ66`. Ten candidates were probed and **all** were rejected, including both URIs in the code, `127.0.0.1`, port 1420 (the Tauri devUrl), 3000, 5173, a custom `fabric://` scheme, and the bare origin. The registered URI is something else, and only the WorkOS dashboard can name it. | probed live 2026-09-18, see reproduction below | **My earlier claim that "at most one of the two URIs can be registered" was wrong** — neither is. SSO cannot succeed on either code path until the code is aligned to the registered URI. |
 | D3 | **The frontend ignores the daemon's `start_auth` entirely.** `start_auth` exists, generates a real `state: uuid::Uuid::new_v4()`, and returns it — and is never called. The frontend instead calls `start_auth_listener` and builds its own URL. | `commands.rs:92-112` vs `index.html:2167-2181` | The only CSRF token in the codebase is generated and discarded. Two auth implementations coexist; one is dead. |
 | D4 | **CONFIRMED, and a prime suspect for the whole flow failing.** The listener binds IPv4 `127.0.0.1` only, while the redirect URI the browser is sent to says `localhost`. On this machine `localhost` resolves to **`::1` first** (`/etc/hosts` maps both, and `getaddrinfo` returns `::1` ahead of `127.0.0.1`), so the browser's first connection attempt is refused. | `auth_callback.rs:15` vs `index.html:2179`; reproduced directly (below) | The OAuth callback is refused before it ever reaches the listener. Fix by binding both loopback addresses on the same port, not just IPv4. |
 | D5 | **The one-shot listener is consumed by the first TCP connection, has no read timeout, and never retries.** Any local connection (a prefetch, a port scan, a health check) takes the accept slot; a client that connects and sends nothing blocks `read_line` forever. | `auth_callback.rs:22-33, 53-63` | The login flow can wedge permanently with no recovery path and no error surfaced. This is exactly the "irrecoverable login loop" A1 forbids. |
 | D6 | **Denial and cancellation are indistinguishable from success.** `?error=access_denied&error_description=...` is ignored; the code path yields `code: ""` and the UI reports "no code received". | `auth_callback.rs:78-87`; `index.html:2208-2215` | A1 explicitly requires testing cancellation; today it cannot be reported correctly. |
 | D7 | **`url_decode` corrupts non-ASCII and silently drops parameters.** It converts bytes to `char` one at a time (Latin-1), so percent-encoded UTF-8 becomes mojibake, and `u8::from_str_radix(..).ok()?` makes `filter_map` discard the whole parameter on a malformed escape. | `auth_callback.rs:105-120` | A malformed escape in one parameter silently drops it, including `code`. |
+
+**D9 reproduction (probed live 2026-09-18).** Against a locally started daemon:
+
+```
+auth_start       -> {"type":"validation_error","error":"UNKNOWN_TYPE","message":"unknown message type: auth_start"}
+auth_complete    -> {"type":"validation_error","error":"UNKNOWN_TYPE","message":"unknown message type: auth_complete"}
+auth_email       -> {"type":"validation_error","error":"UNKNOWN_TYPE","message":"unknown message type: auth_email"}
+login            -> {"type":"validation_error","error":"UNKNOWN_TYPE","message":"unknown message type: login"}
+```
+
+**Three independent fatal layers, so SSO could never have worked:** D8 (WorkOS rejects the request without `response_type=code`), D2 (no registered redirect URI matches, so no code is ever issued), D9 (the daemon cannot exchange a code even if one arrived).
+
+**D2/D8 reproduction (probed live 2026-09-18).**
+
+```bash
+CID=client_01K4KYZR40RK7R9X3PPB5SEJ66
+curl -s -o /dev/null -w '%{redirect_url}\n' \
+  "https://api.workos.com/user_management/authorize?client_id=$CID&response_type=code&provider=authkit&redirect_uri=http%3A%2F%2Flocalhost%3A9400%2Fauth%2Fcallback"
+# -> https://significant-vessel-93-staging.authkit.app/redirect-uri-invalid?invalid_redirect_uri=...
+```
+
+Dropping `response_type=code` sends the same request to the generic `error.workos.com/sso` page instead, which is why the failure looked like a blank screen rather than an error.
 
 **D4 reproduction (run 2026-09-18).** Binding exactly as `auth_callback.rs` does and then connecting the way a browser would:
 
@@ -326,6 +348,10 @@ listener bound to 127.0.0.1:63902 (IPv4 only)
 ```
 
 `getaddrinfo("localhost")` on this host returns `['::1', '127.0.0.1']` — IPv6 first. So a callback to `http://localhost:<port>/auth/callback` is refused on the first attempt. **This alone is sufficient to make SSO fail on a machine configured like this one**, which is the strongest evidence yet for why the flow has never completed. It is a one-line-ish fix (bind both loopbacks on the same port) and does not depend on any value you would have to look up.
+
+| D8 | **The authorize URL omits `response_type=code`, which by itself prevents the flow from starting.** Probing the same URL with four variants produced: absent -> generic `error.workos.com/sso`; `bogus` -> generic error; `token` -> generic error; **`code` -> proceeds to redirect-URI validation**. So WorkOS rejects the request outright without it. The app's URL (`index.html`) sends only `client_id`, `redirect_uri` and `provider`, and the Rust fallback in `commands.rs` does the same. | `crates/fabric-gui/src/index.html`; `commands.rs:104`; probe above | Independently fatal, and it explains a blank/generic failure with no actionable message — consistent with the original "SSO is a white screen" report even after the iframe fix. |
+
+| D9 | **The daemon rejects every auth message the GUI sends — the login protocol is not implemented on the daemon side.** `wire/protocol.rs` dispatches heartbeat, health, probe, topology, routes, capabilities, webrtc, compile and save_config — and **no `auth_*` type at all**; the frame-transport validator has no auth types either. Probed against a live daemon: `auth_start`, `auth_complete`, `auth_email` and `login` all return `{"error":"UNKNOWN_TYPE","message":"unknown message type: auth_<x>"}`. Meanwhile `crates/fabric-daemon/src/auth/oauth.rs` is a **complete 460-line WorkOS provider** (`generate_auth_url`, token exchange, refresh, userinfo) that the wire path simply never reaches. | `wire/protocol.rs:30-66`; probed live 2026-09-18 (output below); `auth/oauth.rs` is reachable only from `auth/middleware/mod.rs` | Independently fatal. Even with a valid code in hand, `complete_auth` cannot succeed: the daemon answers `UNKNOWN_TYPE`, which `fetch_complete_auth` then fails to parse as `AuthStatus`. **The GUI cannot log in through the daemon by construction**, regardless of the WorkOS configuration. |
 
 Nothing here has been fixed. Report D1 and D2 to the operator before changing either, because D2's resolution depends on a value only the WorkOS dashboard holds.
 

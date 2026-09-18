@@ -2136,7 +2136,38 @@ a:hover { color: var(--color-teal-bright); }
 
     // ---- WorkOS AuthKit Login Flow ----
     const WORKOS_CLIENT_ID = 'client_01K4KYZR40RK7R9X3PPB5SEJ66';
+
+    // The redirect URI must EXACTLY match one registered in the WorkOS
+    // dashboard for this client, or WorkOS refuses with
+    // `redirect-uri-invalid`. Verified 2026-09-18: every URI this app used —
+    // `localhost:9400/auth/callback` (the daemon fallback) and
+    // `localhost:<random>/auth/callback` (this file) — is rejected, as are
+    // 127.0.0.1, ports 1420/3000/5173, and a `fabric://` scheme. Set the
+    // template below to the value the dashboard actually holds.
+    // `{port}` is substituted from the one-shot callback listener; drop the
+    // placeholder entirely if the registered URI pins a fixed port.
+    const AUTH_REDIRECT_TEMPLATE = 'http://localhost:{port}/auth/callback';
+
+    // OAuth `state`: generated per attempt, sent to WorkOS, and REQUIRED to
+    // match on return. Without it the callback is open to CSRF — any caller
+    // could hand us a code for a session we did not start.
+    let _authState = null;
     let _authListenerPort = null;  // port of the one-shot callback server
+
+    // Random, URL-safe state value for OAuth CSRF protection.
+    function generateAuthState() {
+      const bytes = new Uint8Array(32);
+      (window.crypto || window.msCrypto).getRandomValues(bytes);
+      return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // One-shot: consumes the expected value so a replayed callback cannot pass.
+    function validateAuthState(returned) {
+      if (!_authState || !returned) return false;
+      const matches = returned === _authState;
+      _authState = null;
+      return matches;
+    }
 
     function hideLogin() {
       const overlay = document.getElementById('login-overlay');
@@ -2176,8 +2207,22 @@ a:hover { color: var(--color-teal-bright); }
       }
       _authListenerPort = port;
 
-      const redirectUri = `http://localhost:${port}/auth/callback`;
-      const authUrl = `https://api.workos.com/user_management/authorize?client_id=${WORKOS_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&provider=authkit${additionalParams}`;
+      const redirectUri = AUTH_REDIRECT_TEMPLATE.replace('{port}', String(port));
+      _authState = generateAuthState();
+
+      // `response_type=code` is REQUIRED. WorkOS rejects the request outright
+      // without it: only `response_type=code` proceeds to redirect-URI
+      // validation, while an absent/`token`/`bogus` value lands on the generic
+      // error page. That is why the flow previously failed with a blank,
+      // actionless error even after the iframe problem was fixed.
+      const params = new URLSearchParams({
+        client_id: WORKOS_CLIENT_ID,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        provider: 'authkit',
+        state: _authState,
+      });
+      const authUrl = `https://api.workos.com/user_management/authorize?${params.toString()}${additionalParams}`;
 
       // Open in system browser
       window.open(authUrl, '_blank');
@@ -2207,12 +2252,17 @@ a:hover { color: var(--color-teal-bright); }
       if (_eventListen) {
         _eventListen('auth-code-received', (event) => {
           const { code, state } = event.payload || {};
-          if (code) {
-            appendLog('info', 'Auth code received from browser callback');
-            completeAuth(code, state);
-          } else {
+          if (!code) {
             showLoginError('Authentication failed — no code received.');
+            return;
           }
+          if (!validateAuthState(state)) {
+            appendLog('warn', 'Auth callback state mismatch — ignoring (possible CSRF).');
+            showLoginError('Sign-in could not be verified. Please try again.');
+            return;
+          }
+          appendLog('info', 'Auth code received from browser callback');
+          completeAuth(code, state);
         });
       }
     })();
