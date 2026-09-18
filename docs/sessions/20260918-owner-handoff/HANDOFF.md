@@ -33,7 +33,7 @@ The new session runs on the operator's **desktop**. The repo, the Rust/toolchain
 | Hardware | Apple M1 Pro, 16 GB, 1 TB, iGPU | 2026-09-18 |
 | OS | macOS 27.0 (build 26A5353q) | 2026-09-18 |
 
-Connect:
+Connect to this laptop (from the desktop):
 
 ```bash
 ssh kooshapari@100.112.14.98        # Tailscale, preferred
@@ -41,7 +41,45 @@ ssh kooshapari@192.168.1.23         # same LAN only
 ssh kooshapari@Kooshas-Laptop.local # mDNS on the same LAN
 ```
 
-Tailnet peers observed at handoff: `cachyos` (100.97.123.10, offline 41d), `kooshapari-desk-1` (100.84.189.31, offline 136d), `kooshapari-desk-2` (100.122.128.84, offline 16d), `iphone182` (online). **No desktop node was online at handoff** — if SSH from the desktop fails, confirm Tailscale is up on the desktop, then try the LAN address.
+**The desktop→laptop direction was verified working**, not assumed: running
+`ssh -o BatchMode=yes kooshapari@100.112.14.98 "echo ...; hostname"` *from the desktop* returned
+`Kooshas-Laptop.local`. The laptop already holds `kooshapari-desk-forge-recovery` and
+`kooshapari-desk-wsm3d` in `~/.ssh/authorized_keys`, so no new key exchange is needed.
+
+### The desktop is Windows, and it is online
+
+This corrects an earlier draft of this document, which claimed no desktop node was online. That was
+**wrong**. Verified 2026-09-18 from this laptop:
+
+| Fact | Value | Verified |
+|---|---|---|
+| Desktop hostname | `kooshapari-desk` | 2026-09-18 |
+| Desktop Tailscale | `kooshapari-desk` = `100.96.135.160` — **active**, direct `192.168.1.159:41641` | 2026-09-18 |
+| Desktop OS | **Windows 11** (Windows NT 10.0.28120.0), PowerShell 5.1 | 2026-09-18 |
+| Reach it from here | `ssh desk` (alias is in this laptop's `~/.ssh/config`; user `koosh` with `~/.ssh/id-git`, **not** `kooshapari`) | 2026-09-18 |
+| Desktop→laptop SSH | **verified working** | 2026-09-18 |
+| Desktop has | git 2.55.0, node, Docker Desktop, `wsl`, PowerShell 5.1 | 2026-09-18 |
+| Desktop lacks | **Rust (`cargo`/`rustc` absent on the Windows side)**, posh-git/VS Code `code` | 2026-09-18 |
+| WSL2 distros | `FedoraLinux-44` (**Running**), `podman-default` (**Running**), `docker-desktop` (Stopped) | 2026-09-18 |
+
+Other tailnet peers at handoff: `cachyos` (100.97.123.10, offline 41d), `kooshapari-desk-1`
+(100.84.189.31, offline 136d), `kooshapari-desk-2` (100.122.128.84, offline 16d), `iphone182`
+(online).
+
+### Consequences of the desktop being Windows (read this before assigning work)
+
+1. **The clean-machine install smoke (§6.6) must use the Windows installer**, not the macOS `.dmg`.
+   `release.yml` already builds an MSI and an NSIS `.exe` for `x86_64-pc-windows-msvc`. The `.dmg`
+   can only be installed on a Mac, so do not attempt that test from the desktop.
+2. **You have native Linux on the desktop via WSL2** — `FedoraLinux-44`, kernel
+   `6.18.40.1-microsoft-standard-WSL2`, **x86_64** (the same CPU arch as GitHub's `ubuntu-latest`
+   runners). It has git, gcc, cc, pkg-config, dnf and python3; `cargo`/`rustc`/`rustup` are absent
+   and must be installed. This is the best available host for reproducing Linux CI, and better than
+   the Docker route in §9.
+3. **WSL builds must live on the WSL-native filesystem** (`~/work/...`), not under `/mnt/c`. Building
+   a 22-crate workspace across the Windows mount is dramatically slower.
+4. **The laptop is still the only host with a provisioned Rust toolchain, the build cache and the
+   installed macOS app.** Use `ssh kooshapari@100.112.14.98` for those.
 
 Wake-on-LAN is configured for a *separate* host, `00:81:2a:ee:d4:9b` @ `192.168.1.62`, via `~/bin/wake-fabric-machine.sh` and `~/bin/wake-monitor.sh` (documented in `docs/sessions/20260917-doc-review/06_WOL_SETUP.md`). That is **not** this laptop (`192.168.1.23`). Do not confuse the two.
 
@@ -62,7 +100,7 @@ Wake-on-LAN is configured for a *separate* host, `00:81:2a:ee:d4:9b` @ `192.168.
 | Default branch | `main` |
 | HEAD at handoff | `76656c2` |
 | GitHub repo ID | `1363521465` (public) |
-| Tags present | `v0.1.0-nightly` only |
+| Tags | `v0.1.0-nightly` — **local only; never pushed**. `git ls-remote --tags origin` returns nothing, and `gh release list` is empty. **There are zero published releases and zero remote tags.** |
 | Workspace | 22 members, 249 `.rs` files, ~106.7k LOC under `crates/` + `examples/` |
 | Live docs-5 dossier | `/Users/kooshapari/CodeProjects/docs/docs-5/products/PhenoFabric/` |
 
@@ -119,6 +157,7 @@ All rows verified 2026-09-18 on this host unless noted.
 | `cargo clippy --workspace --all-targets` | 0 errors (warnings only, from dependencies) | local |
 | `cargo clippy -p fabric-terminal -p fabric-capture --features self-update` | 0 errors | local |
 | Tauri bundle | builds; `/Applications/Phenotype Fabric.app` installed, `CFBundleShortVersionString = 0.1.0-nightly` | `defaults read` |
+| Published release artifacts | **none** — no remote tags, no GitHub releases, no downloadable installer for any platform | `git ls-remote --tags origin`; `gh release list` |
 | GitHub Actions CI on `main` | **FAILING** — `Check` **passes** on Linux (1m13s); `Clippy`, `Unit tests`, `Integration tests` fail with exit 101. All three of those pass on macOS. | run `35323422107` |
 | Root cause of the Linux-only failures | **UNKNOWN at message level**, but narrowed to lint deltas + test failures (not a build failure) — see §6.1 | annotations API exposes only `exit code 101`; job logs are 403 |
 | Login card rendering (visual) | **UNVERIFIED** | no successful GUI automation (§6.2) |
@@ -151,7 +190,7 @@ Ordering rule: smallest remaining effort, fastest useful outcome, fewest depende
 
 ### 6.1 Unblock Linux CI — do this first
 
-Everything below is untrustworthy while CI is red, and the fix is small and self-contained. The suites pass on macOS and fail on Linux for clippy, unit, and integration. Reproduce in Docker (§9), read the real errors, fix forward.
+Everything below is untrustworthy while CI is red, and the fix is small and self-contained. The suites pass on macOS and fail on Linux for clippy, unit, and integration. **Reproduce on the native Linux host that is now known to exist** — WSL2 Fedora on the desktop (§9) — read the real errors, fix forward.
 
 **Already-narrowed diagnosis (verified, run `35323422107`, 2026-09-18).** The `Check` job — `cargo check --workspace --all-targets` — **passes on Linux in 1m13s**. That rules out a build/link failure, missing system library, and missing dependency. So the failures are two *separate* problems, not one:
 
@@ -192,7 +231,11 @@ Choose shared-memory/local transport where supported and qualified network adapt
 
 ### 6.6 Clean-machine install smoke
 
-Install the `v0.1.0-nightly` `.dmg` on a machine without the repo, launch, confirm the bundled frontend loads. Report signing/Gatekeeper and missing-resource errors. **Requires a different machine** — do it from the desktop. This is the smallest gap to a verifiable *installed* product.
+Install the `v0.1.0-nightly` **Windows** installer on the desktop (a machine without the repo), launch, and confirm the bundled frontend loads. Report signing/SmartScreen and missing-resource errors.
+
+Do **not** attempt this with the macOS `.dmg`: the desktop is Windows (§1), so the `.dmg` cannot be installed there. `release.yml` already produces an MSI and an NSIS `.exe` for `x86_64-pc-windows-msvc`, but **no `v0.1.0-nightly` Windows artifact has been built or published** — the only tag is `v0.1.0-nightly`, and verifying its release assets is part of this item. If no Windows installer exists, producing one is the prerequisite.
+
+This is the smallest gap to a verifiable *installed* product on the machine the owner actually uses.
 
 ### 6.7 `-nightly` → nothing yet
 
@@ -210,6 +253,7 @@ There is no path to a stable version string until 6.2 and 6.6 are both done and 
   - `crates/fabric-terminal/src/web_main.rs:367` — `// TODO: proper auth via query param`. **This is the one that matters.** The `tf-web` HTTP surface authenticates via a query parameter. Treat that as an unqualified auth path: do not expose `tf-web` off-host until it is replaced, and do not cite it as evidence that Fabric's authentication is implemented.
   - `crates/fabric-cli/src/tui/mod.rs:319` — `// TODO: poll daemon health via TCP` (TUI shows static/absent health).
   - `crates/fabric-gui/src/index.html:2120` — `// TODO: implement search overlay` (cosmetic).
+- **Nothing has been published.** The `v0.1.0-nightly` tag exists only in this laptop's clone; it was never pushed, and there are no GitHub releases and no downloadable artifacts for any platform. The "release" is therefore a locally built `.app` plus a local tag — treat it as an unversioned local build, not as a shipped release. Pushing the tag would trigger `release.yml` (workspace bins + Tauri GUI + crates.io publish + Docker), which has never been exercised; expect that first run to surface failures.
 - **`gh` API access is asymmetric.** `gh run view` and `git push` work; `gh run view --log` and the job-logs API return 403 for this identity. CI diagnosis must go through the reproduction path, not the API.
 
 ---
@@ -243,6 +287,45 @@ Version strings live in **two** places and must be changed together: `crates/fab
 ---
 
 ## 9. Linux CI reproduction (the tool that unblocks §6.1)
+
+### Preferred: native Linux via WSL2 on the desktop
+
+The desktop has `FedoraLinux-44` under WSL2, **native x86_64** — the same CPU architecture as
+GitHub's `ubuntu-latest` runners. Use this instead of Docker. Run it from this laptop with:
+
+```bash
+# write a bash script locally, copy it over, execute by path
+# (nested quoting through bash -> ssh -> powershell -> wsl -> bash silently truncates output,
+#  so never inline a multi-command string)
+cat > /tmp/step.sh <<'EOS'
+set -uo pipefail
+export PATH="$HOME/.cargo/bin:$PATH"
+cd ~/work/phenofabric
+cargo clippy --workspace --all-targets -- -D warnings; echo "CLIPPY=$?"
+EOS
+scp -o BatchMode=yes /tmp/step.sh desk:C:/Windows/Temp/step.sh
+ssh -o BatchMode=yes desk "powershell -NoProfile -Command \"wsl -d FedoraLinux-44 -- bash /mnt/c/Windows/Temp/step.sh\""
+```
+
+Install Rust in the distro first, then clone into the **WSL-native** filesystem
+(`~/work/...`, never `/mnt/c` — the Windows mount makes a 22-crate build crawl):
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+  --profile minimal --component clippy --component rustfmt
+git clone https://github.com/KooshaPari/PhenoFabric.git ~/work/phenofabric   # public repo, https is fine
+```
+
+You will also need the Linux build deps translated to Fedora names (`libxcb-devel`, `libxkbcommon-devel`,
+`wayland-devel`, `glib2-devel`, `atk-devel`, `at-spi2-atk-devel`, `dbus-devel`, `libsoup3-devel`,
+`gtk3-devel`, `gdk-pixbuf2-devel`, `pango-devel`, `cairo-devel`) plus **`openssl-devel` and
+`libssh2-devel`** — `openssl-sys` and `libssh2-sys` are in the Linux dependency tree (via
+`reqwest`/`native-tls` and `ssh2`) but not the macOS one, so the Linux build genuinely needs system
+OpenSSL. Fedora is not Ubuntu: if a package name differs, `dnf search <term>`. rustc/clippy version
+is what drives lint results and both get `stable`, so lint findings transfer; flag anything that
+looks Fedora-specific rather than a genuine Linux-vs-macOS delta.
+
+### Fallback: Docker on this laptop
 
 A working reproduction script exists at `~/.jcode/scratch/repro-linux-ci.sh`. It runs the official `rust:1.97-bookworm` image, installs the same GUI packages `ci.yml` does, mounts the repo, and runs clippy (`-D warnings`), unit tests and integration tests under Linux, writing logs to `/tmp/repro-{clippy,unit,integ}.log`.
 

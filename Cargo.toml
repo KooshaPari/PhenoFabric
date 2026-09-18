@@ -75,3 +75,14 @@ unused_must_use = "deny"
 lto = "thin"
 codegen-units = 1
 strip = "symbols"
+
+# fabric-capture is a small self-updating capture agent, so it prefers size over
+# speed. This was previously declared as a [profile.release] block inside
+# crates/fabric-capture/Cargo.toml, where Cargo silently ignores it (member
+# profiles do not apply; only the workspace root counts), so the setting never
+# took effect. Package overrides at the root are the supported spelling.
+# `lto` is intentionally omitted: Cargo rejects it inside a package override, and
+# the root profile's `lto = "thin"` still applies.
+[profile.release.package.fabric-capture]
+opt-level = "s"
+strip = "symbols"
