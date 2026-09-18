@@ -77,6 +77,11 @@ jobs:
       - name: Run clippy (all targets)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      # Feature-flag coverage formerly provided by the removed tf-ci.yml
+      # (terminal-fabric crates absorbed into the workspace in e65cdfc).
+      - name: Run clippy (self-update feature)
+        run: cargo clippy -p fabric-terminal -p fabric-capture --all-targets --features self-update -- -D warnings
+
   # ── Check ───────────────────────────────────────────────────────────
   check:
     name: Check
