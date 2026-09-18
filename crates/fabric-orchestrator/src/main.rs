@@ -213,6 +213,7 @@ fn cmd_status(addr: &str) -> anyhow::Result<()> {
     use std::net::TcpStream;
 
     let mut stream = TcpStream::connect(addr)?;
+    stream.set_nodelay(true)?;
 
     // Send health check.
     stream.write_all(b"{\"type\":\"health_check\"}")?;
@@ -230,6 +231,7 @@ fn cmd_status(addr: &str) -> anyhow::Result<()> {
 
     // Send routes request.
     let mut stream = TcpStream::connect(addr)?;
+    stream.set_nodelay(true)?;
     stream.write_all(b"{\"type\":\"routes_request\"}")?;
 
     let reader = BufReader::new(&stream);

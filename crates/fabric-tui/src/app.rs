@@ -181,6 +181,9 @@ fn fetch_daemon_json<T: for<'de> Deserialize<'de>>(
     msg_type: &str,
 ) -> Result<T, String> {
     let mut stream = TcpStream::connect(addr).map_err(|e| format!("connect failed: {e}"))?;
+    // Latency-sensitive request/response protocol: never let Nagle hold a
+    // small write waiting on the peer's delayed ACK.
+    stream.set_nodelay(true).ok();
     stream.set_read_timeout(Some(Duration::from_secs(3))).ok();
     stream.set_write_timeout(Some(Duration::from_secs(3))).ok();
 

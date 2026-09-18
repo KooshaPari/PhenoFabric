@@ -46,7 +46,12 @@ pub fn send_message(
             .map_err(|e: std::net::AddrParseError| WireClientError::DaemonError(e.to_string()))?,
         CONNECT_TIMEOUT,
     ) {
-        Ok(s) => s,
+        Ok(s) => {
+            // Request/response over a fresh connection; Nagle would add a
+            // delayed-ACK stall to every round trip.
+            let _ = s.set_nodelay(true);
+            s
+        }
         Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => {
             return Err(WireClientError::ConnectionRefused {
                 addr: addr.to_string(),

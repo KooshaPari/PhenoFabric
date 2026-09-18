@@ -82,6 +82,16 @@ pub fn run_wire_server(
                 // handler threads need blocking reads with timeouts.
                 stream.set_nonblocking(false).ok();
 
+                // Disable Nagle. This is a request/response protocol carrying
+                // small framing messages, and Nagle interacts badly with the
+                // peer's delayed-ACK timer: a small write can sit un-sent until
+                // an ACK arrives, which costs roughly 40 ms on loopback. That
+                // shows up directly as tail latency, which is the thing this
+                // product is supposed to measure honestly.
+                if let Err(e) = stream.set_nodelay(true) {
+                    debug!(error = %e, "could not set TCP_NODELAY on wire connection");
+                }
+
                 let coord = coordinator.clone();
                 let auth = auth.clone();
                 let rt = runtime.clone();

@@ -64,6 +64,13 @@ pub fn stream_frames_between(
 ) -> Result<StreamResult> {
     let mut stream =
         TcpStream::connect(server_addr).with_context(|| format!("connect to {server_addr}"))?;
+    // Disable Nagle, matching the daemon's wire server. Both directions must
+    // opt out: with Nagle left on, a small framing write waits for an ACK that
+    // the peer's delayed-ACK timer holds for ~40 ms, which dominates the RTT
+    // this harness measures.
+    stream
+        .set_nodelay(true)
+        .context("set TCP_NODELAY on frame stream")?;
     stream
         .set_read_timeout(Some(Duration::from_secs(5)))
         .context("set read timeout")?;

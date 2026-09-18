@@ -173,6 +173,7 @@ pub fn send_and_receive(addr: &str, message: &str) -> String {
     use std::time::Duration;
 
     let mut stream = TcpStream::connect(addr).expect("connect to daemon");
+    stream.set_nodelay(true).expect("set TCP_NODELAY");
     stream
         .set_read_timeout(Some(Duration::from_secs(5)))
         .expect("set read timeout");
