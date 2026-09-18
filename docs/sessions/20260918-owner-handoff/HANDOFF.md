@@ -4,6 +4,8 @@
 
 This document transfers ownership of `KooshaPari/PhenoFabric` and all future work on it. Read it **before touching anything**. Every claim here is either verified-with-date or explicitly marked UNKNOWN. Do not upgrade an UNKNOWN to a pass.
 
+**Provenance of the claims.** Every number, hash, path and line reference below was checked by running the command or reading the file, on 2026-09-18, from this laptop. An independent adversarial re-audit of this document was attempted and **did not complete** (the auditing agent died on a provider error), so treat individual claims as *author-verified, not independently verified*. Where a claim was corrected during writing it says so. If you find one that is wrong, correct it here rather than working around it — an earlier draft of this very document wrongly said the desktop was offline.
+
 ---
 
 ## 0. Read order
@@ -183,6 +185,8 @@ All rows verified 2026-09-18 on this host unless noted.
 | Published release artifacts | **none** — no remote tags, no GitHub releases, no downloadable installer for any platform | `git ls-remote --tags origin`; `gh release list` |
 | GitHub Actions CI on `main` | **FAILING** — `Check` **passes** on Linux (1m13s); `Clippy`, `Unit tests`, `Integration tests` fail with exit 101. All three of those pass on macOS. | run `35323422107` |
 | E2E workflow (`e2e.yml`) | `E2E smoke tests` **passes on Linux**; `E2E daemon binary` reached `Wait for daemon health check` ✓ and failed only at `Send test messages via nc` — both wrong assertions of which are fixed in `53047bf`, so this job is expected green on the next run | run `35326728003`; local replay of all six assertions |
+| `jsonwebtoken` / CVE-2026-25537 | **fixed** in `a7fdeb8` — now 10.3.0, HS256 pinned, `exp` required and enforced; 109 daemon tests pass (8/8 consecutive runs) | `cargo test -p fabric-daemon --lib` |
+| Dependabot alert refresh | **pending** — the API still showed the two `jsonwebtoken` alerts as `open` immediately post-push; re-check after a scan cycle | `gh api repos/KooshaPari/PhenoFabric/dependabot/alerts` |
 | Debug-mode daemon startup | **was broken** (clap `-l` collision panic); fixed in `53047bf` | `cargo build -p fabric-daemon` then `start --help` |
 | Root cause of the Linux-only failures | **UNKNOWN at message level**, but narrowed to lint deltas + test failures (not a build failure) — see §6.1 | annotations API exposes only `exit code 101`; job logs are 403 |
 | Login card rendering (visual) | **UNVERIFIED** | no successful GUI automation (§6.3) |
@@ -197,6 +201,7 @@ Do not restate "tests pass" without naming the platform. The honest sentence is:
 
 | Commit | Summary |
 |---|---|
+| `a7fdeb8` | **Closed the auth-bypass advisory.** `jsonwebtoken` 9 → 10.3.0 (`default-features = false, features = ["rust_crypto"]`; rust_crypto avoids adding aws-lc-rs and a C/cmake toolchain). `decode_jwt` no longer uses `Validation::default()`: it now pins `Algorithm::HS256` with `validate_exp = true` and an explicit `required_spec_claims` entry for `exp`, so the allowlist cannot widen and expiry cannot silently stop being enforced. 11 regression tests added (valid token, wrong secret, expiry, missing `exp`, tampered payload, tampered signature, `alg:none`, HMAC-under-RS256-header, algorithm outside the allowlist). One was flaky and was repaired before landing — see §6.2. |
 | `53047bf` | Fixed three real defects found by running the daemon locally: the debug-start panic (see below) and **two E2E assertions that could never pass** — the workflow grepped for lower-case `invalid_json` when the wire contract is upper-case `INVALID_JSON`, and for `unknown_message` when `validate_message` rejects unknown types as `UNKNOWN_TYPE` before dispatch. With both corrected, the E2E daemon job should now go green; the full six-assertion sequence was replayed locally and prints "All E2E message tests passed!". |
 | `fd6459a` | Handoff corrections: the desktop is an online **Windows** node with WSL2 Fedora (verified), the `v0.1.0-nightly` tag is **local-only** with zero published releases, and the clean-machine install must use the Windows installer. Also moved `fabric-capture`'s ignored member `[profile.release]` to a supported root package override. |
 | `0d33b36` | Handoff: corrected a stale HEAD value and two section cross-references. |
@@ -240,9 +245,15 @@ Known lint traps in this workspace, both of which behave differently per platfor
 
 **Acceptance:** `cargo clippy --workspace --all-targets -- -D warnings` and both test commands produce 0 failures under Linux. Note: job logs are **403** for this identity (`Must have admin rights to Repository`) — the annotations API only exposes `exit code 101`. Reproduce on WSL2 Fedora (§9); do not assume the failure is unfixable, and do not guess at it.
 
-### 6.2 Fix CVE-2026-25537 in the auth path (security)
+### 6.2 Fix CVE-2026-25537 in the auth path (security) — FIXED, one check pending
 
-The daemon's JWT validation uses a crate with a known authorization-bypass advisory.
+**Status: fixed in `a7fdeb8` and pushed.** `jsonwebtoken` is now 10.3.0 with validation explicitly pinned (HS256 only, `exp` required and enforced). 109 daemon lib tests pass, verified over 8 consecutive runs; `cargo check --workspace --all-targets` and `cargo clippy -p fabric-daemon --all-targets -- -D warnings` are clean.
+
+**One thing still unconfirmed:** immediately after the push, `gh api repos/KooshaPari/PhenoFabric/dependabot/alerts` still listed the two `jsonwebtoken < 10.3.0` alerts as `open`. Dependabot re-scans asynchronously, so this is most likely a stale scan rather than a failed fix. **Re-check it; if it is still open after a scan cycle, the bump did not take and that needs investigating.** Do not report the advisory as closed until the API agrees.
+
+**Lesson worth keeping:** the generated tests were good but one was subtly wrong. `rejects_tampered_signature` mutated the LAST base64url character of the signature. A 32-byte HMAC encodes to 43 characters (258 bits), so the final character carries only 4 significant bits and its low 2 bits are discarded on decode; `A` through `D` share the same top 4 bits, so rewriting the last character among them yields identical bytes and leaves the token valid. It would have failed ~6.25% of runs. It now mutates the first character, where all 6 bits are significant. When you generate crypto tests, make the mutation provably change the bytes rather than assuming it does.
+
+
 
 | Fact | Value |
 |---|---|
