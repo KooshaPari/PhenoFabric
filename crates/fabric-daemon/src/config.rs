@@ -12,7 +12,19 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Top-level daemon configuration.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+///
+/// `Default` is derived here on purpose: this impl only forwards to each field's
+/// own `Default`, so it is exactly what `derive` produces and clippy's
+/// `derivable_impls` (which fires from 1.98 onward) rejects a hand-written
+/// version. The meaningful defaults live on the *field* structs below, which
+/// keep manual impls because theirs are not derivable — `listen` is
+/// `"127.0.0.1:9400"`, `path` is `"state.db"`, `wal_mode` is `true`, and so on.
+///
+/// Do NOT "fix" a clippy complaint about the field structs by deriving them:
+/// that is what previously happened here and it silently replaced every one of
+/// those values with `String::new()`/`false`/`0`, which broke first-boot
+/// behaviour (an empty listen address and an empty database path).
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct DaemonConfig {
     pub server: ServerConfig,
@@ -21,19 +33,6 @@ pub struct DaemonConfig {
     pub leases: LeaseConfig,
     pub logging: LoggingConfig,
     pub auth: AuthConfig,
-}
-
-impl Default for DaemonConfig {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            database: DatabaseConfig::default(),
-            topology: TopologyConfig::default(),
-            leases: LeaseConfig::default(),
-            logging: LoggingConfig::default(),
-            auth: AuthConfig::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
