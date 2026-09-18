@@ -72,7 +72,9 @@ jobs:
             libgtk-3-dev \
             libgdk-pixbuf-2.0-dev \
             libpango1.0-dev \
-            libcairo2-dev
+            libcairo2-dev \
+            libayatana-appindicator3-dev \
+            libappindicator3-dev
 
       - name: Run clippy (all targets)
         # Raw job logs are not readable by every collaborator on this repo, but
@@ -83,50 +85,36 @@ jobs:
           cargo clippy --workspace --all-targets -- -D warnings 2>&1 | tee /tmp/clippy.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            echo "::error::clippy failed with exit $status on $(rustc --version) / $(cargo clippy --version)"
-            # CARGO_TERM_COLOR=always wraps messages in ANSI codes, which stops
-            # ^error from matching. Strip them before extracting.
-            sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/clippy.log > /tmp/clippy.clean
-
-            grep -E '^(error|warning: unused)' /tmp/clippy.clean | head -20 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            grep -E '^ *--> ' /tmp/clippy.clean | head -20 | while IFS= read -r line; do
-              echo "::error::at$line"
-            done
-            echo "::error::--- last 40 lines of clippy.log ---"
-            tail -40 /tmp/clippy.clean | while IFS= read -r line; do
-              echo "::error::$line"
-            done
+            echo "::error::clippy failed (exit ${status}) on $(rustc --version)"
+            # CARGO_TERM_COLOR=always wraps messages in ANSI codes, which defeats
+            # an '^error' anchor. Strip them, then surface only the highest-value
+            # lines: link failures first (a missing -l is the classic case), then
+            # compile errors, then test failures. Kept well under GitHub's
+            # 50-annotation-per-step cap; exceeding it silently drops the tail.
+            sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/clippy.log > /tmp/clippy.log.clean
+            grep -nE 'cannot find -l|undefined reference|/usr/bin/ld:|collect2:|error\[|^error|warning: unused|panicked at|test result: FAILED|^failures:' /tmp/clippy.log.clean \
+              | head -22 | while IFS= read -r l; do echo "::error::$l"; done
             exit "$status"
           fi
-
       # Feature-flag coverage formerly provided by the removed tf-ci.yml
       # (terminal-fabric crates absorbed into the workspace in e65cdfc).
       - name: Run clippy (self-update feature)
         run: |
           set +e
-          cargo clippy -p fabric-terminal -p fabric-capture --all-targets --features self-update -- -D warnings 2>&1 | tee /tmp/clippy-selfupdate.log
+          cargo clippy -p fabric-terminal -p fabric-capture --all-targets --features self-update -- -D warnings 2>&1 | tee /tmp/clippy-su.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            echo "::error::clippy (self-update) failed with exit $status on $(rustc --version)"
-            # CARGO_TERM_COLOR=always wraps messages in ANSI codes, which stops
-            # ^error from matching. Strip them before extracting.
-            sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/clippy-selfupdate.log > /tmp/clippy-selfupdate.clean
-
-            grep -E '^(error|warning: unused)' /tmp/clippy-selfupdate.clean | head -20 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            grep -E '^ *--> ' /tmp/clippy-selfupdate.clean | head -20 | while IFS= read -r line; do
-              echo "::error::at$line"
-            done
-            echo "::error::--- last 40 lines of clippy-selfupdate.log ---"
-            tail -40 /tmp/clippy-selfupdate.clean | while IFS= read -r line; do
-              echo "::error::$line"
-            done
+            echo "::error::clippy (self-update) failed (exit ${status}) on $(rustc --version)"
+            # CARGO_TERM_COLOR=always wraps messages in ANSI codes, which defeats
+            # an '^error' anchor. Strip them, then surface only the highest-value
+            # lines: link failures first (a missing -l is the classic case), then
+            # compile errors, then test failures. Kept well under GitHub's
+            # 50-annotation-per-step cap; exceeding it silently drops the tail.
+            sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/clippy-su.log > /tmp/clippy-su.log.clean
+            grep -nE 'cannot find -l|undefined reference|/usr/bin/ld:|collect2:|error\[|^error|warning: unused|panicked at|test result: FAILED|^failures:' /tmp/clippy-su.log.clean \
+              | head -22 | while IFS= read -r l; do echo "::error::$l"; done
             exit "$status"
           fi
-
   # ── Check ───────────────────────────────────────────────────────────
   check:
     name: Check
@@ -166,7 +154,9 @@ jobs:
             libgtk-3-dev \
             libgdk-pixbuf-2.0-dev \
             libpango1.0-dev \
-            libcairo2-dev
+            libcairo2-dev \
+            libayatana-appindicator3-dev \
+            libappindicator3-dev
 
       - name: Cargo check (workspace)
         run: cargo check --workspace --all-targets
@@ -211,7 +201,9 @@ jobs:
             libgtk-3-dev \
             libgdk-pixbuf-2.0-dev \
             libpango1.0-dev \
-            libcairo2-dev
+            libcairo2-dev \
+            libayatana-appindicator3-dev \
+            libappindicator3-dev
 
       - name: Run unit tests (--lib)
         run: |
@@ -219,27 +211,17 @@ jobs:
           cargo test --workspace --lib --no-fail-fast 2>&1 | tee /tmp/unit.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            echo "::error::unit tests failed with exit $status on $(rustc --version)"
-            # CARGO_TERM_COLOR=always wraps messages in ANSI codes, which stops
-            # ^error from matching. Strip them before extracting.
-            sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/unit.log > /tmp/unit.clean
-
-            grep -E '^error(\[|:)' /tmp/unit.clean | head -20 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            grep -E '^(test result: FAILED|failures:)' /tmp/unit.clean | head -20 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            grep -A 6 'panicked at' /tmp/unit.clean | head -60 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            echo "::error::--- last 40 lines of unit.log ---"
-            tail -40 /tmp/unit.clean | while IFS= read -r line; do
-              echo "::error::$line"
-            done
+            echo "::error::unit tests failed (exit ${status}) on $(rustc --version)"
+            # CARGO_TERM_COLOR=always wraps messages in ANSI codes, which defeats
+            # an '^error' anchor. Strip them, then surface only the highest-value
+            # lines: link failures first (a missing -l is the classic case), then
+            # compile errors, then test failures. Kept well under GitHub's
+            # 50-annotation-per-step cap; exceeding it silently drops the tail.
+            sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/unit.log > /tmp/unit.log.clean
+            grep -nE 'cannot find -l|undefined reference|/usr/bin/ld:|collect2:|error\[|^error|warning: unused|panicked at|test result: FAILED|^failures:' /tmp/unit.log.clean \
+              | head -22 | while IFS= read -r l; do echo "::error::$l"; done
             exit "$status"
           fi
-
   # ── Integration tests ──────────────────────────────────────────────
   test-integration:
     name: Integration tests
@@ -280,7 +262,9 @@ jobs:
             libgtk-3-dev \
             libgdk-pixbuf-2.0-dev \
             libpango1.0-dev \
-            libcairo2-dev
+            libcairo2-dev \
+            libayatana-appindicator3-dev \
+            libappindicator3-dev
 
       - name: Run integration tests (--test)
         run: |
@@ -288,27 +272,17 @@ jobs:
           cargo test --workspace --test '*' --no-fail-fast 2>&1 | tee /tmp/integ.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            echo "::error::integration tests failed with exit $status on $(rustc --version)"
-            # CARGO_TERM_COLOR=always wraps messages in ANSI codes, which stops
-            # ^error from matching. Strip them before extracting.
-            sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/integ.log > /tmp/integ.clean
-
-            grep -E '^error(\[|:)' /tmp/integ.clean | head -20 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            grep -E '^(test result: FAILED|failures:)' /tmp/integ.clean | head -20 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            grep -A 6 'panicked at' /tmp/integ.clean | head -60 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            echo "::error::--- last 40 lines of integ.log ---"
-            tail -40 /tmp/integ.clean | while IFS= read -r line; do
-              echo "::error::$line"
-            done
+            echo "::error::integration tests failed (exit ${status}) on $(rustc --version)"
+            # CARGO_TERM_COLOR=always wraps messages in ANSI codes, which defeats
+            # an '^error' anchor. Strip them, then surface only the highest-value
+            # lines: link failures first (a missing -l is the classic case), then
+            # compile errors, then test failures. Kept well under GitHub's
+            # 50-annotation-per-step cap; exceeding it silently drops the tail.
+            sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/integ.log > /tmp/integ.log.clean
+            grep -nE 'cannot find -l|undefined reference|/usr/bin/ld:|collect2:|error\[|^error|warning: unused|panicked at|test result: FAILED|^failures:' /tmp/integ.log.clean \
+              | head -22 | while IFS= read -r l; do echo "::error::$l"; done
             exit "$status"
           fi
-
   # ── E2E smoke tests ─────────────────────────────────────────────────
   test-e2e:
     name: E2E smoke tests
@@ -349,7 +323,9 @@ jobs:
             libgtk-3-dev \
             libgdk-pixbuf-2.0-dev \
             libpango1.0-dev \
-            libcairo2-dev
+            libcairo2-dev \
+            libayatana-appindicator3-dev \
+            libappindicator3-dev
 
       - name: Run E2E smoke tests
         run: cargo test -p fabric-integration-tests --test e2e_smoke --no-fail-fast
@@ -394,7 +370,9 @@ jobs:
             libgtk-3-dev \
             libgdk-pixbuf-2.0-dev \
             libpango1.0-dev \
-            libcairo2-dev
+            libcairo2-dev \
+            libayatana-appindicator3-dev \
+            libappindicator3-dev
 
       - name: Build release binaries
         run: cargo build --workspace --release --bins

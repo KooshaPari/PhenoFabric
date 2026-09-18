@@ -223,7 +223,7 @@ mod cpu {
                 .unwrap_or(64);
             let cores_sharing = std::fs::read_to_string(path.join("shared_cpu_list"))
                 .ok()
-                .and_then(|s| Some(s.trim().matches(',').count() as u32))
+                .map(|s| s.trim().matches(',').count() as u32)
                 .unwrap_or(0)
                 + 1;
             if level > 0 {
