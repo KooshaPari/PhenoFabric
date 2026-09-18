@@ -235,7 +235,7 @@ Known lint traps in this workspace, both of which behave differently per platfor
 - `crates/fabric-workspace/src/lib.rs` carries `#![deny(missing_docs)]` and `#![warn(rust_2018_idioms)]`. Under CI's `-D warnings` the `warn` becomes an error, and `missing_docs` fires per-platform — an item that only exists on one target must be documented on that target.
 - Only six `#[cfg(target_os = "linux")]` blocks exist workspace-wide (`fabric-capability/src/probe.rs` ×4, `fabric-tray/src/main.rs` ×2). They were inspected and are correctly cfg-gated, so the linux-only warnings are most likely *not* there — look at `#[cfg(target_os = "macos")]` code whose Linux counterpart is missing, and at macOS-only helpers that become dead code on Linux.
 
-**Acceptance:** `cargo clippy --workspace --all-targets -- -D warnings` and both test commands produce 0 failures under Linux. Note: job logs are **403** for this identity (`Must have admin rights to Repository`) — the annotations API only exposes `exit code 101`. The Docker reproduction is the available path; do not assume the failure is unfixable, and do not guess at it.
+**Acceptance:** `cargo clippy --workspace --all-targets -- -D warnings` and both test commands produce 0 failures under Linux. Note: job logs are **403** for this identity (`Must have admin rights to Repository`) — the annotations API only exposes `exit code 101`. Reproduce on WSL2 Fedora (§9); do not assume the failure is unfixable, and do not guess at it.
 
 ### 6.2 Fix CVE-2026-25537 in the auth path (security)
 
