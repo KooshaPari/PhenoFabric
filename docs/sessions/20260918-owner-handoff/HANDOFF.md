@@ -156,6 +156,8 @@ All rows verified 2026-09-18 on this host unless noted.
 | Integration tests (`--test '*'`) | **174 passed, 0 failed** across 23 test binaries | `cargo test --workspace --test '*'` |
 | `cargo clippy --workspace --all-targets` | 0 errors (warnings only, from dependencies) | local |
 | `cargo clippy -p fabric-terminal -p fabric-capture --features self-update` | 0 errors | local |
+| `fabric-capture` release profile override | **effective** — its own units compile at `-C opt-level=s` (2 units) while all 63 others use `opt-level=3`; binary 1.42 MB | `cargo build -p fabric-capture --release --verbose` |
+| Cargo "profiles for the non root package will be ignored" warning | **gone** (was emitted on every cargo invocation; `fabric-capture` carried an ignored member `[profile.release]`) | manifest inspection |
 | Tauri bundle | builds; `/Applications/Phenotype Fabric.app` installed, `CFBundleShortVersionString = 0.1.0-nightly` | `defaults read` |
 | Published release artifacts | **none** — no remote tags, no GitHub releases, no downloadable installer for any platform | `git ls-remote --tags origin`; `gh release list` |
 | GitHub Actions CI on `main` | **FAILING** — `Check` **passes** on Linux (1m13s); `Clippy`, `Unit tests`, `Integration tests` fail with exit 101. All three of those pass on macOS. | run `35323422107` |
@@ -172,6 +174,11 @@ Do not restate "tests pass" without naming the platform. The honest sentence is:
 
 | Commit | Summary |
 |---|---|
+| `fd6459a` | Handoff corrections: the desktop is an online **Windows** node with WSL2 Fedora (verified), the `v0.1.0-nightly` tag is **local-only** with zero published releases, and the clean-machine install must use the Windows installer. Also moved `fabric-capture`'s ignored member `[profile.release]` to a supported root package override. |
+| `0d33b36` | Handoff: corrected a stale HEAD value and two section cross-references. |
+| `d2d545b` | Handoff: narrowed the Linux CI failure (`Check` passes on Linux ⇒ not a build break) and recorded the Docker/QEMU/sshfs environment traps. |
+| `10aca92` | Linked the handoff from `INDEX.md`. |
+| `6a17806` | The handoff document itself. |
 | `76656c2` | Removed stale `tf-ci.yml` and `tf-release.yml` (both referenced `rust/` and `rust/windows-capture/` paths that never existed after the terminal-fabric absorption in `e65cdfc`; both failed on every push, and `tf-release.yml` collided with `release.yml` on the same `v*` trigger). Folded the one unique piece — a clippy pass over `fabric-terminal`/`fabric-capture` with `self-update` — into `ci.yml`. |
 | `9b2394f` | Restored the manual `Default` impls in `crates/fabric-daemon/src/config.rs`. Commit `1c21232` ("final clippy cleanup") had replaced all 8 with `derive(Default)`, which silently zeroed operational defaults: listen address `""`, database path `""`, `wal_mode=false`, log level `""`, empty `public_routes`, etc. Fixed 3 failing unit tests (`default_config_is_valid`, `save_and_load_roundtrip`, `coordinator_config_snapshot`) **and** a real first-boot defect: with no config file the daemon would bind to an empty address and use an empty DB path. |
 | `6da7489` | `ci.yml`: `libpango-1.0-dev` → `libpango1.0-dev` (the former does not exist on the runner image). |
