@@ -328,9 +328,27 @@ login            -> {"type":"validation_error","error":"UNKNOWN_TYPE","message":
 **Three independent fatal layers, so SSO could never have worked:** D8 (WorkOS rejects the request without `response_type=code`), D2 (no registered redirect URI matches, so no code is ever issued), D9 (the daemon cannot exchange a code even if one arrived).
 
 
-**D2 follow-up — the proper fix is a wildcard redirect URI (found 2026-09-19 via the WorkOS docs MCP).** WorkOS's own Redirect URIs document, section *Ports*, says: "a wildcard may be used in place of the port number... strictly limited to `localhost` and loopback IP addresses. Example: `http://localhost:*/auth/callback` is valid." That is RFC 8252 section 7.3, the native-app OAuth standard — so the original ephemeral-port design was **correct in principle** and failed only because the dashboard holds *specific* ports rather than the wildcard. Probed 2026-09-19: `http://localhost:*/auth/callback` and `http://127.0.0.1:*/auth/callback` are both **rejected**, so the wildcard is not registered; the code therefore binds the specific registered ports as a workaround. **Recommended: add `http://localhost:*/auth/callback` in the dashboard, then set `REGISTERED_REDIRECT_PORTS = [0]`** — that restores the ephemeral design, removes the busy-port failure mode, and stops a constant tracking the dashboard.
+**D2 RESOLVED PROPERLY (2026-09-19).** The WorkOS CLI was set up and authenticated, and the wildcard redirect URIs were **registered**, so the listener no longer has to bind a fixed port:
 
-The same document also notes that a redirect URI must be **selected as the environment default**, that routing to an undefined URI errors, and that HTTP+localhost URIs are only permitted in Sandbox/staging — which matches the `significant-vessel-93-staging` instance this client belongs to.
+```
+workos authkit redirect-uris list      # 14 URIs, default = http://localhost:5173/auth/callback
+workos authkit redirect-uris set --dry-run --uri ... --default ...
+```
+
+Both `http://localhost:*/auth/callback` and `http://127.0.0.1:*/auth/callback` are now registered (16 URIs total; the dashboard default is unchanged). Verified independently against the authorize endpoint: `http://localhost:49999/auth/callback` and `http://127.0.0.1:49999/auth/callback` both pass, and both were rejected before. That is RFC 8252 section 7.3, the native-app OAuth standard, and it is what the original ephemeral-port code intended. `REGISTERED_REDIRECT_PORTS` is therefore `[0]`.
+
+Full registered set, for reference: `localhost:4000`, `127.0.0.1:4000`, `127.0.0.1:5173`, `localhost:5173` (**default**), `byte.kooshapari.com` x4, `127.0.0.1:3000` x3 (incl. `(auth)`), `127.0.0.1:55348`, `zen.kooshapari.com` x2, plus the two wildcards. A backup of the pre-change list is at `~/.workos-backups/redirect-uris-backup-20260919-0226.json`.
+
+Also learned from WorkOS's docs: a redirect URI must be marked **default** for the environment, routing to an undefined URI errors, and HTTP+localhost is only permitted in Sandbox/staging - which matches the `significant-vessel-93-staging` instance this client belongs to.
+
+**Tooling now available to a session on this machine (set up 2026-09-19):**
+
+| Tool | State |
+|---|---|
+| WorkOS CLI (`workos` 0.22.0, `~/.local/bin/workos`) | **Authenticated** as `kooshapari@gmail.com`, active environment `staging`. Use `--mode agent --insecure-storage`; the default keyring path blocks on a macOS Keychain prompt. |
+| `workos-docs` MCP | Connected in Jcode (4 tools: search, docs, examples, changelogs) and configured in Codex + Forge. |
+| `workos` MCP (management) | Configured in all three harnesses. Jcode reaches it through the `mcp-remote` stdio bridge because Jcode accepts **stdio MCP servers only** - it recognises and skips `"type": "http"` entries. OAuth consent still required per harness. |
+| WorkOS skills (`workos`, `workos-widgets`, 48 references) | Installed to `~/.agents/skills` and symlinked into `~/.jcode`, `~/.codex`, `~/.forge`, `~/.claude` so all harnesses share one copy. The pre-existing per-harness copies were stale (40 refs) and are kept as `*.stale-*`. |
 
 **D2/D8 reproduction (probed live 2026-09-18).**
 
