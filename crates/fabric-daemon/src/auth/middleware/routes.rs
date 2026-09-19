@@ -11,7 +11,7 @@ pub fn auth_error_response(error: &AuthError) -> String {
         AuthError::TokenExpired => ("TOKEN_EXPIRED", error.to_string()),
         AuthError::UserNotFound => ("USER_NOT_FOUND", error.to_string()),
         AuthError::JwtDecode(msg) => ("JWT_DECODE_ERROR", msg.clone()),
-        AuthError::Introspection(msg) => ("INTROSPECTION_ERROR", msg.clone()),
+        AuthError::TokenVerification(msg) => ("TOKEN_VERIFICATION_FAILED", msg.clone()),
         AuthError::Disabled => ("AUTH_DISABLED", error.to_string()),
     };
 

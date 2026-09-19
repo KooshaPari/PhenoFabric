@@ -161,7 +161,7 @@ pub struct AuthConfig {
     pub infisical_client_secret: String,
     /// Infisical project ID.
     pub infisical_project_id: String,
-    /// JWT secret for local token decoding (alternative to WorkOS introspection).
+    /// JWT secret for local token decoding (alternative to WorkOS JWKS verification).
     pub jwt_secret: Option<String>,
     /// Message types that are exempt from authentication.
     pub public_routes: Vec<String>,

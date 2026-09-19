@@ -37,6 +37,12 @@ pub enum OAuthError {
     #[error("magic auth failed: {0}")]
     MagicAuth(String),
 
+    #[error("token verification failed: {0}")]
+    TokenVerification(String),
+
+    #[error("JWKS fetch failed: {0}")]
+    Jwks(String),
+
     #[error("serialization error: {0}")]
     Serialization(String),
 }
@@ -266,7 +272,7 @@ impl WorkOsProvider {
         params.insert("client_secret", &self.config.client_secret);
         params.insert("refresh_token", refresh_token);
 
-        let url = format!("{}/oauth/token", self.config.base_url);
+        let url = authenticate_url(&self.config.base_url);
 
         let response = self
             .http
@@ -282,18 +288,15 @@ impl WorkOsProvider {
             return Err(OAuthError::TokenRefresh(format!("HTTP {status}: {body}")));
         }
 
-        let token_data: TokenData = response.json().await.map_err(OAuthError::http)?;
-
-        // Fetch user info with the refreshed access token.
-        let user = self.get_user(&token_data.access_token).await?;
-
-        Ok(TokenResponse {
-            access_token: token_data.access_token,
-            refresh_token: token_data.refresh_token,
-            expires_in: token_data.expires_in,
-            token_type: token_data.token_type,
-            user,
-        })
+        let data: AuthenticateData = response.json().await.map_err(OAuthError::http)?;
+        let mut tokens = data.into_token_response();
+        if tokens.refresh_token.is_empty() {
+            // WorkOS rotates refresh tokens and returns the replacement, but if
+            // one is ever omitted, keep the token already held rather than
+            // discarding it and breaking the next refresh.
+            tokens.refresh_token = refresh_token.to_string();
+        }
+        Ok(tokens)
     }
 
     /// Send a Magic Auth (passwordless) code to the user's email address.
@@ -358,85 +361,155 @@ impl WorkOsProvider {
             return Err(OAuthError::MagicAuth(format!("HTTP {status}: {body}")));
         }
 
-        let token_data: TokenData = response.json().await.map_err(OAuthError::http)?;
+        let data: AuthenticateData = response.json().await.map_err(OAuthError::http)?;
 
-        // Fetch user info with the new access token.
-        let user = self.get_user(&token_data.access_token).await?;
-
-        Ok(TokenResponse {
-            access_token: token_data.access_token,
-            refresh_token: token_data.refresh_token,
-            expires_in: token_data.expires_in,
-            token_type: token_data.token_type,
-            user,
-        })
+        Ok(data.into_token_response())
     }
 
-    /// Retrieve the authenticated user's info from WorkOS.
-    pub async fn get_user(&self, access_token: &str) -> Result<WorkOsUser, OAuthError> {
-        let url = format!("{}/users/me", self.config.base_url);
-
-        let response = self
-            .http
-            .get(&url)
-            .bearer_auth(access_token)
-            .send()
-            .await
-            .map_err(OAuthError::http)?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(OAuthError::UserInfo(format!("HTTP {status}: {body}")));
-        }
-
-        let user: WorkOsUser = response.json().await.map_err(OAuthError::http)?;
-
-        Ok(user)
-    }
-
-    /// Introspect a token to check if it is active.
+    /// URL of the JWKS that signs AuthKit access tokens.
     ///
-    /// Calls the WorkOS `/oauth/token/introspect` endpoint.
-    pub async fn introspect_token(&self, token: &str) -> Result<TokenIntrospection, OAuthError> {
-        let mut params = HashMap::new();
-        params.insert("token", token);
-        params.insert("client_id", &self.config.client_id);
-        params.insert("client_secret", &self.config.client_secret);
+    /// AuthKit access tokens are RS256 JWTs and WorkOS exposes no introspection
+    /// endpoint (`/oauth/token/introspect` answers 404 - live check
+    /// 2026-09-19), so signature verification against these keys is the only
+    /// validation path.
+    pub fn jwks_url(&self) -> String {
+        format!(
+            "{}/sso/jwks/{}",
+            self.config.base_url, self.config.client_id
+        )
+    }
 
-        let url = format!("{}/oauth/token/introspect", self.config.base_url);
+    /// Fetch the JWKS document for this client.
+    pub async fn fetch_jwks(&self) -> Result<jsonwebtoken::jwk::JwkSet, OAuthError> {
+        let url = self.jwks_url();
 
-        let response = self
-            .http
-            .post(&url)
-            .json(&params)
-            .send()
-            .await
-            .map_err(OAuthError::http)?;
+        let response = self.http.get(&url).send().await.map_err(OAuthError::http)?;
 
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(OAuthError::TokenExchange(format!("HTTP {status}: {body}")));
+            return Err(OAuthError::Jwks(format!("HTTP {status}: {body}")));
         }
 
-        let introspection: TokenIntrospection = response.json().await.map_err(OAuthError::http)?;
-
-        Ok(introspection)
+        response.json().await.map_err(OAuthError::http)
     }
+
+    /// Verify an AuthKit access token and return its claims.
+    pub async fn verify_access_token(&self, token: &str) -> Result<AccessTokenClaims, OAuthError> {
+        let jwks = self.fetch_jwks().await?;
+        verify_access_token_with_jwks(token, &jwks, &self.config.client_id, &self.config.base_url)
+    }
+}
+
+/// Path of the AuthKit code exchange and token refresh endpoint.
+///
+/// Both operations post here. The plain OAuth endpoint (`/oauth/token`) does
+/// not exist on the WorkOS API - it answers 404 - which is what silently broke
+/// every live login before this was pinned (live check 2026-09-19).
+pub const AUTHENTICATE_PATH: &str = "/user_management/authenticate";
+
+/// Full URL of the AuthKit authenticate endpoint.
+fn authenticate_url(base_url: &str) -> String {
+    format!("{base_url}{AUTHENTICATE_PATH}")
+}
+
+/// Claims carried by a WorkOS AuthKit access token.
+///
+/// Field list taken from the WorkOS session-tokens reference (2026-09-19).
+/// There is no `aud` claim: the client is identified by `client_id`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccessTokenClaims {
+    /// Issuer, `https://api.workos.com`.
+    pub iss: String,
+    /// WorkOS user id.
+    pub sub: String,
+    /// Client the token was issued to.
+    pub client_id: String,
+    /// Organization the session belongs to.
+    #[serde(default)]
+    pub org_id: Option<String>,
+    /// Primary role.
+    #[serde(default)]
+    pub role: Option<String>,
+    /// All roles.
+    #[serde(default)]
+    pub roles: Vec<String>,
+    /// Session id.
+    #[serde(default)]
+    pub sid: Option<String>,
+    /// Expiry, seconds since the epoch.
+    pub exp: u64,
+    /// Issued-at, seconds since the epoch.
+    #[serde(default)]
+    pub iat: Option<u64>,
+}
+
+/// Verify a token against a JWKS document.
+///
+/// Separate from the provider method so the rules can be tested without a
+/// network round trip.
+fn verify_access_token_with_jwks(
+    token: &str,
+    jwks: &jsonwebtoken::jwk::JwkSet,
+    expected_client_id: &str,
+    expected_issuer: &str,
+) -> Result<AccessTokenClaims, OAuthError> {
+    let header = jsonwebtoken::decode_header(token)
+        .map_err(|e| OAuthError::TokenVerification(format!("malformed token header: {e}")))?;
+
+    let kid = header
+        .kid
+        .ok_or_else(|| OAuthError::TokenVerification("token header carries no kid".into()))?;
+
+    let jwk = jwks
+        .find(&kid)
+        .ok_or_else(|| OAuthError::TokenVerification(format!("no JWKS key matches kid {kid}")))?;
+
+    let key = jsonwebtoken::DecodingKey::from_jwk(jwk)
+        .map_err(|e| OAuthError::TokenVerification(format!("unusable JWKS key: {e}")))?;
+
+    verify_token_with_key(
+        token,
+        &key,
+        jsonwebtoken::Algorithm::RS256,
+        expected_client_id,
+        expected_issuer,
+    )
+}
+
+/// Verify a token against an explicit key, algorithm, client id and issuer.
+///
+/// The algorithm is supplied by the caller and never read from the token, which
+/// is what makes an algorithm-confusion downgrade impossible. Production always
+/// passes RS256 with a key taken from the WorkOS JWKS.
+fn verify_token_with_key(
+    token: &str,
+    key: &jsonwebtoken::DecodingKey,
+    algorithm: jsonwebtoken::Algorithm,
+    expected_client_id: &str,
+    expected_issuer: &str,
+) -> Result<AccessTokenClaims, OAuthError> {
+    let mut validation = jsonwebtoken::Validation::new(algorithm);
+    validation.set_issuer(&[expected_issuer]);
+    // AuthKit identifies the client with a `client_id` claim, not `aud`.
+    validation.validate_aud = false;
+
+    let data = jsonwebtoken::decode::<AccessTokenClaims>(token, key, &validation)
+        .map_err(|e| OAuthError::TokenVerification(e.to_string()))?;
+
+    if data.claims.client_id != expected_client_id {
+        return Err(OAuthError::TokenVerification(format!(
+            "token was issued to client {}, not {expected_client_id}",
+            data.claims.client_id
+        )));
+    }
+
+    Ok(data.claims)
 }
 
 // ---------------------------------------------------------------------------
 // Internal types for WorkOS API responses
 // ---------------------------------------------------------------------------
-
-#[derive(Debug, Deserialize)]
-struct TokenData {
-    access_token: String,
-    refresh_token: String,
-    expires_in: u64,
-    token_type: String,
-}
 
 /// Grant type for the AuthKit authorization-code exchange.
 pub const AUTHORIZATION_CODE_GRANT_TYPE: &str = "authorization_code";
@@ -546,31 +619,6 @@ fn access_token_expires_in(access_token: &str) -> Option<u64> {
     let decoded = jsonwebtoken::dangerous::insecure_decode::<Claims>(access_token).ok()?;
     let now = chrono::Utc::now().timestamp().max(0) as u64;
     Some(decoded.claims.exp.saturating_sub(now))
-}
-
-/// Result of token introspection.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenIntrospection {
-    /// Whether the token is currently active.
-    pub active: bool,
-    /// The client ID the token was issued to.
-    #[serde(default)]
-    pub client_id: Option<String>,
-    /// The scope of the token.
-    #[serde(default)]
-    pub scope: Option<String>,
-    /// The subject (user ID) of the token.
-    #[serde(default)]
-    pub sub: Option<String>,
-    /// The token expiration timestamp (Unix epoch).
-    #[serde(default)]
-    pub exp: Option<u64>,
-    /// The token issuance timestamp (Unix epoch).
-    #[serde(default)]
-    pub iat: Option<u64>,
-    /// The token type.
-    #[serde(default)]
-    pub token_type: Option<String>,
 }
 
 impl WorkOsConfig {
@@ -778,5 +826,180 @@ mod tests {
     #[test]
     fn non_jwt_access_token_has_no_readable_expiry() {
         assert!(access_token_expires_in("not-a-jwt").is_none());
+    }
+
+    const TEST_ISSUER: &str = "https://api.workos.com";
+
+    /// Sign a token with a symmetric key.
+    ///
+    /// Production verification is RS256 against the WorkOS JWKS, but the rules
+    /// under test - issuer, client id, expiry, claim extraction - are
+    /// algorithm-independent, and HS256 lets them be exercised without an RSA
+    /// fixture. The algorithm is always supplied by the caller, never read from
+    /// the token, so this cannot mask an algorithm-confusion bug.
+    fn sign_test_token(
+        secret: &[u8],
+        client_id: &str,
+        issuer: &str,
+        exp: u64,
+        kid: Option<&str>,
+    ) -> String {
+        #[derive(serde::Serialize)]
+        struct Claims {
+            iss: String,
+            sub: String,
+            client_id: String,
+            org_id: String,
+            exp: u64,
+        }
+
+        let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256);
+        header.kid = kid.map(str::to_string);
+        jsonwebtoken::encode(
+            &header,
+            &Claims {
+                iss: issuer.to_string(),
+                sub: "user_1".into(),
+                client_id: client_id.to_string(),
+                org_id: "org_1".into(),
+                exp,
+            },
+            &jsonwebtoken::EncodingKey::from_secret(secret),
+        )
+        .unwrap()
+    }
+
+    fn empty_jwks() -> jsonwebtoken::jwk::JwkSet {
+        serde_json::from_str(r#"{"keys":[]}"#).unwrap()
+    }
+
+    fn verify_with_secret(token: &str, secret: &[u8]) -> Result<AccessTokenClaims, OAuthError> {
+        verify_token_with_key(
+            token,
+            &jsonwebtoken::DecodingKey::from_secret(secret),
+            jsonwebtoken::Algorithm::HS256,
+            "client_1",
+            TEST_ISSUER,
+        )
+    }
+
+    fn future_exp() -> u64 {
+        (chrono::Utc::now().timestamp() + 600).max(0) as u64
+    }
+
+    #[test]
+    fn jwks_url_targets_the_client_jwks() {
+        let provider = WorkOsProvider::new(WorkOsConfig {
+            client_id: "client_1".into(),
+            ..Default::default()
+        });
+        assert_eq!(
+            provider.jwks_url(),
+            "https://api.workos.com/sso/jwks/client_1"
+        );
+    }
+
+    #[test]
+    fn authenticate_url_uses_the_user_management_endpoint() {
+        // Regression guard: the plain OAuth endpoint answers 404 on the live
+        // API (checked 2026-09-19), so exchanging or refreshing there breaks
+        // every login.
+        let url = authenticate_url("https://api.workos.com");
+        assert_eq!(url, "https://api.workos.com/user_management/authenticate");
+        assert!(!url.ends_with("/oauth/token"));
+    }
+
+    #[test]
+    fn valid_token_yields_claims() {
+        let secret = b"test-secret";
+        let token = sign_test_token(secret, "client_1", TEST_ISSUER, future_exp(), Some("k1"));
+
+        let claims = verify_with_secret(&token, secret).expect("valid token verifies");
+        assert_eq!(claims.sub, "user_1");
+        assert_eq!(claims.client_id, "client_1");
+        assert_eq!(claims.org_id.as_deref(), Some("org_1"));
+    }
+
+    #[test]
+    fn token_for_another_client_is_rejected() {
+        let secret = b"test-secret";
+        let token = sign_test_token(
+            secret,
+            "client_other",
+            TEST_ISSUER,
+            future_exp(),
+            Some("k1"),
+        );
+
+        let err = verify_with_secret(&token, secret).unwrap_err();
+        assert!(
+            err.to_string().contains("issued to client client_other"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn token_from_another_issuer_is_rejected() {
+        let secret = b"test-secret";
+        let token = sign_test_token(
+            secret,
+            "client_1",
+            "https://evil.example",
+            future_exp(),
+            Some("k1"),
+        );
+
+        let err = verify_with_secret(&token, secret).unwrap_err();
+        assert!(err.to_string().contains("InvalidIssuer"), "{err}");
+    }
+
+    #[test]
+    fn expired_token_is_rejected() {
+        let secret = b"test-secret";
+        let past = (chrono::Utc::now().timestamp() - 3600).max(0) as u64;
+        let token = sign_test_token(secret, "client_1", TEST_ISSUER, past, Some("k1"));
+
+        let err = verify_with_secret(&token, secret).unwrap_err();
+        assert!(err.to_string().contains("ExpiredSignature"), "{err}");
+    }
+
+    #[test]
+    fn token_with_a_foreign_signature_is_rejected() {
+        let token = sign_test_token(
+            b"signing-secret",
+            "client_1",
+            TEST_ISSUER,
+            future_exp(),
+            Some("k1"),
+        );
+
+        let err = verify_with_secret(&token, b"different-secret").unwrap_err();
+        assert!(err.to_string().contains("InvalidSignature"), "{err}");
+    }
+
+    #[test]
+    fn jwks_verification_requires_a_kid() {
+        let token = sign_test_token(b"s", "client_1", TEST_ISSUER, future_exp(), None);
+
+        let err = verify_access_token_with_jwks(&token, &empty_jwks(), "client_1", TEST_ISSUER)
+            .unwrap_err();
+        assert!(err.to_string().contains("no kid"), "{err}");
+    }
+
+    #[test]
+    fn jwks_verification_rejects_an_unknown_kid() {
+        let token = sign_test_token(b"s", "client_1", TEST_ISSUER, future_exp(), Some("other"));
+
+        let err = verify_access_token_with_jwks(&token, &empty_jwks(), "client_1", TEST_ISSUER)
+            .unwrap_err();
+        assert!(err.to_string().contains("no JWKS key matches kid"), "{err}");
+    }
+
+    #[test]
+    fn malformed_token_is_rejected_without_panicking() {
+        let err =
+            verify_access_token_with_jwks("not-a-jwt", &empty_jwks(), "client_1", TEST_ISSUER)
+                .unwrap_err();
+        assert!(err.to_string().contains("malformed token header"), "{err}");
     }
 }

@@ -1,7 +1,7 @@
 //! Authentication middleware for fabric-daemon wire transport.
 //!
 //! Validates Bearer tokens from wire protocol messages and request contexts.
-//! Supports both JWT decoding and WorkOS token introspection.
+//! Supports both local JWT decoding and WorkOS JWKS verification.
 //!
 //! Public routes (`health_check`, `status_check`) skip authentication.
 
@@ -41,8 +41,8 @@ pub enum AuthError {
     #[error("JWT decode error: {0}")]
     JwtDecode(String),
 
-    #[error("OAuth introspection error: {0}")]
-    Introspection(String),
+    #[error("token verification failed: {0}")]
+    TokenVerification(String),
 
     #[error("authentication disabled")]
     Disabled,
@@ -66,9 +66,9 @@ pub struct AuthMiddlewareConfig {
     pub enabled: bool,
     /// Message types that are exempt from authentication.
     pub public_routes: HashSet<String>,
-    /// WorkOS configuration for token introspection.
+    /// WorkOS configuration for token verification.
     pub workos_config: Option<WorkOsConfig>,
-    /// JWT secret for local token decoding (alternative to introspection).
+    /// JWT secret for local token decoding (alternative to WorkOS verification).
     pub jwt_secret: Option<String>,
 }
 
@@ -227,20 +227,22 @@ impl AuthMiddleware {
             }
         }
 
-        // Fall back to WorkOS introspection.
+        // Fall back to WorkOS token verification. AuthKit access tokens are
+        // RS256 JWTs verified against the client's JWKS; WorkOS exposes no
+        // introspection endpoint to call instead.
         if let Some(ref provider) = self.provider {
-            return match provider.introspect_token(token).await {
-                Ok(introspection) if introspection.active => {
+            return match provider.verify_access_token(token).await {
+                Ok(claims) => {
                     let user = AuthenticatedUser {
-                        user_id: introspection.sub.unwrap_or_else(|| "unknown".to_string()),
-                        email: String::new(), // Introspection doesn't return email.
-                        org_id: None,
+                        user_id: claims.sub,
+                        // AuthKit access tokens carry no email claim.
+                        email: String::new(),
+                        org_id: claims.org_id,
                     };
                     self.cache_user(token, &user, 300).await;
                     Ok(Some(user))
                 }
-                Ok(_) => Err(AuthError::TokenExpired),
-                Err(e) => Err(AuthError::Introspection(e.to_string())),
+                Err(e) => Err(AuthError::TokenVerification(e.to_string())),
             };
         }
 
