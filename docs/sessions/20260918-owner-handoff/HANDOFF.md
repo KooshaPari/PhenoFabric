@@ -327,6 +327,11 @@ login            -> {"type":"validation_error","error":"UNKNOWN_TYPE","message":
 
 **Three independent fatal layers, so SSO could never have worked:** D8 (WorkOS rejects the request without `response_type=code`), D2 (no registered redirect URI matches, so no code is ever issued), D9 (the daemon cannot exchange a code even if one arrived).
 
+
+**D2 follow-up — the proper fix is a wildcard redirect URI (found 2026-09-19 via the WorkOS docs MCP).** WorkOS's own Redirect URIs document, section *Ports*, says: "a wildcard may be used in place of the port number... strictly limited to `localhost` and loopback IP addresses. Example: `http://localhost:*/auth/callback` is valid." That is RFC 8252 section 7.3, the native-app OAuth standard — so the original ephemeral-port design was **correct in principle** and failed only because the dashboard holds *specific* ports rather than the wildcard. Probed 2026-09-19: `http://localhost:*/auth/callback` and `http://127.0.0.1:*/auth/callback` are both **rejected**, so the wildcard is not registered; the code therefore binds the specific registered ports as a workaround. **Recommended: add `http://localhost:*/auth/callback` in the dashboard, then set `REGISTERED_REDIRECT_PORTS = [0]`** — that restores the ephemeral design, removes the busy-port failure mode, and stops a constant tracking the dashboard.
+
+The same document also notes that a redirect URI must be **selected as the environment default**, that routing to an undefined URI errors, and that HTTP+localhost URIs are only permitted in Sandbox/staging — which matches the `significant-vessel-93-staging` instance this client belongs to.
+
 **D2/D8 reproduction (probed live 2026-09-18).**
 
 ```bash
@@ -353,7 +358,7 @@ listener bound to 127.0.0.1:63902 (IPv4 only)
 
 | D9 | **The daemon rejects every auth message the GUI sends — the login protocol is not implemented on the daemon side.** `wire/protocol.rs` dispatches heartbeat, health, probe, topology, routes, capabilities, webrtc, compile and save_config — and **no `auth_*` type at all**; the frame-transport validator has no auth types either. Probed against a live daemon: `auth_start`, `auth_complete`, `auth_email` and `login` all return `{"error":"UNKNOWN_TYPE","message":"unknown message type: auth_<x>"}`. Meanwhile `crates/fabric-daemon/src/auth/oauth.rs` is a **complete 460-line WorkOS provider** (`generate_auth_url`, token exchange, refresh, userinfo) that the wire path simply never reaches. | `wire/protocol.rs:30-66`; probed live 2026-09-18 (output below); `auth/oauth.rs` is reachable only from `auth/middleware/mod.rs` | Independently fatal. Even with a valid code in hand, `complete_auth` cannot succeed: the daemon answers `UNKNOWN_TYPE`, which `fetch_complete_auth` then fails to parse as `AuthStatus`. **The GUI cannot log in through the daemon by construction**, regardless of the WorkOS configuration. |
 
-Nothing here has been fixed. Report D1 and D2 to the operator before changing either, because D2's resolution depends on a value only the WorkOS dashboard holds.
+**Status of these defects:** D1 (state), D2 (redirect URI, workaround in place), D4 (IPv6) and D8 (`response_type=code`) are **fixed**. D3 (dead `start_auth`) and D9 (daemon has no auth handlers) are **not** — D9 is the last blocker on the login path, and it needs a working registered redirect URI plus a WorkOS client secret to verify end to end.
 
 ### 6.5 `CUR-1363521465-A2` — prove one real two-node path
 
