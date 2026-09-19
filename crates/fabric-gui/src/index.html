@@ -2153,12 +2153,38 @@ a:hover { color: var(--color-teal-bright); }
     // could hand us a code for a session we did not start.
     let _authState = null;
     let _authListenerPort = null;  // port of the one-shot callback server
+    let _authCodeVerifier = null;  // PKCE verifier for the in-flight login
 
     // Random, URL-safe state value for OAuth CSRF protection.
     function generateAuthState() {
       const bytes = new Uint8Array(32);
       (window.crypto || window.msCrypto).getRandomValues(bytes);
       return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // ---- PKCE (RFC 7636) ----
+    // The authorize request carries the challenge; the verifier stays in this
+    // page and travels with the code at exchange time. That is what lets the
+    // daemon exchange the code as a public client instead of needing a client
+    // secret baked into the desktop app.
+    function base64UrlEncode(bytes) {
+      let binary = '';
+      bytes.forEach((b) => { binary += String.fromCharCode(b); });
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function generateCodeVerifier() {
+      const bytes = new Uint8Array(32);
+      (window.crypto || window.msCrypto).getRandomValues(bytes);
+      return base64UrlEncode(bytes);
+    }
+
+    async function codeChallengeFor(verifier) {
+      const digest = await window.crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(verifier),
+      );
+      return base64UrlEncode(new Uint8Array(digest));
     }
 
     // One-shot: consumes the expected value so a replayed callback cannot pass.
@@ -2209,6 +2235,9 @@ a:hover { color: var(--color-teal-bright); }
 
       const redirectUri = AUTH_REDIRECT_TEMPLATE.replace('{port}', String(port));
       _authState = generateAuthState();
+      // PKCE: send the challenge now, keep the verifier for the exchange.
+      _authCodeVerifier = generateCodeVerifier();
+      const codeChallenge = await codeChallengeFor(_authCodeVerifier);
 
       // `response_type=code` is REQUIRED. WorkOS rejects the request outright
       // without it: only `response_type=code` proceeds to redirect-URI
@@ -2221,6 +2250,8 @@ a:hover { color: var(--color-teal-bright); }
         response_type: 'code',
         provider: 'authkit',
         state: _authState,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
       });
       const authUrl = `https://api.workos.com/user_management/authorize?${params.toString()}${additionalParams}`;
 
@@ -2279,8 +2310,14 @@ a:hover { color: var(--color-teal-bright); }
     async function completeAuth(code, state) {
       showLoginStatus('Completing sign-in...');
       try {
-        const result = await api('complete_auth', { code, state: state || '' });
+        // Tauri maps `codeVerifier` onto the command's `code_verifier`.
+        const result = await api('complete_auth', {
+          code,
+          state: state || '',
+          codeVerifier: _authCodeVerifier || null,
+        });
         if (result && result.logged_in) {
+          _authCodeVerifier = null;
           hideLogin();
           setDaemonStatus('connected');
           await refreshAll();

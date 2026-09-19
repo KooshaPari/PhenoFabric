@@ -47,7 +47,14 @@ pub(crate) async fn handle_auth_complete(
         ));
     };
 
-    match provider.exchange_code(code).await {
+    // Optional: a PKCE verifier marks the caller as a public client. When it is
+    // absent the daemon falls back to the configured client secret.
+    let code_verifier = parsed.get("code_verifier").and_then(|v| v.as_str());
+
+    match provider
+        .authenticate_with_authorization_code(code, code_verifier)
+        .await
+    {
         Ok(tokens) => Some(login_success(
             coordinator,
             &tokens,
@@ -314,9 +321,9 @@ mod tests {
         // response line into fabric-gui's AuthStatus, which requires these
         // exact fields. Reconstruct that struct here (same serde shape) and
         // verify the daemon's success response parses into it.
-        // exchange_code against the real WorkOS API fails with an invalid
-        // test client, so pin the success shape through the formatter
-        // directly instead of through the full exchange path.
+        // authenticate_with_authorization_code against the real WorkOS API
+        // fails with an invalid test client, so pin the success shape through
+        // the formatter directly instead of through the full exchange path.
         let tokens = crate::auth::TokenResponse {
             access_token: "at".into(),
             refresh_token: "rt".into(),

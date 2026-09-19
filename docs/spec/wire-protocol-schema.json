@@ -378,6 +378,10 @@
         },
         "state": {
           "type": "string"
+        },
+        "code_verifier": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": true

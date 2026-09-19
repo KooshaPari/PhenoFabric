@@ -111,12 +111,16 @@ pub async fn start_auth(state: State<'_, AppState>) -> Result<AuthStartResponse,
     }
 }
 
-/// Complete WorkOS OAuth — exchange code for tokens.
+/// Complete WorkOS AuthKit login — exchange code for tokens.
 #[tauri::command]
-pub async fn complete_auth(state: State<'_, AppState>, code: String) -> Result<AuthStatus, String> {
+pub async fn complete_auth(
+    state: State<'_, AppState>,
+    code: String,
+    code_verifier: Option<String>,
+) -> Result<AuthStatus, String> {
     let daemon = state.daemon.lock().await;
     let addr = daemon.listen_addr().to_string();
-    daemon::fetch_complete_auth(&addr, &code).await
+    daemon::fetch_complete_auth(&addr, &code, code_verifier.as_deref()).await
 }
 
 /// Start passwordless email auth — send magic link.

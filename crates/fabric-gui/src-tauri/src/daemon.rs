@@ -614,18 +614,30 @@ pub async fn fetch_auth_start(addr: &str) -> Result<AuthStartResponse, String> {
     .map_err(|e| format!("task join: {e}"))?
 }
 
-/// Exchange authorization code for tokens.
-pub async fn fetch_complete_auth(addr: &str, code: &str) -> Result<AuthStatus, String> {
+/// Exchange an AuthKit authorization code for tokens.
+///
+/// `code_verifier` is the PKCE verifier for the challenge used in the
+/// authorize request. Forwarding it lets the daemon exchange the code as a
+/// public client instead of relying on a configured client secret.
+pub async fn fetch_complete_auth(
+    addr: &str,
+    code: &str,
+    code_verifier: Option<&str>,
+) -> Result<AuthStatus, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
         let code = code.to_string();
+        let code_verifier = code_verifier.map(str::to_string);
         move || {
             let mut stream = TcpStream::connect(&addr).map_err(|e| format!("connect: {e}"))?;
             stream
                 .set_read_timeout(Some(TCP_TIMEOUT))
                 .map_err(|e| format!("timeout: {e}"))?;
 
-            let msg = serde_json::json!({"type": "auth_complete", "code": code});
+            let mut msg = serde_json::json!({"type": "auth_complete", "code": code});
+            if let Some(verifier) = code_verifier {
+                msg["code_verifier"] = serde_json::Value::String(verifier);
+            }
             writeln!(stream, "{}", msg).map_err(|e| format!("write: {e}"))?;
 
             let mut reader = BufReader::new(&stream);

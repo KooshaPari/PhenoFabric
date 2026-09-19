@@ -62,6 +62,7 @@ const FIELD_TYPES: &[(&str, &str, &str)] = &[
     ("config", "object", "save_config"),
     ("overrides", "object", "save_config"),
     ("code", "string", "auth_complete"),
+    ("code_verifier", "string", "auth_complete"),
     ("email", "string", "auth_email"),
     ("email", "string", "auth_verify"),
     ("code", "string", "auth_verify"),
