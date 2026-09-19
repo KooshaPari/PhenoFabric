@@ -29,6 +29,23 @@ const READ_TIMEOUT: Duration = Duration::from_secs(30);
 /// fallback) and the ephemeral scheme were both rejected with
 /// `redirect-uri-invalid`. The dashboard showed 14 registered URIs in total;
 /// these two are the ones confirmed to be plain `http://localhost:<port>/auth/callback`.
+///
+/// # Proper long-term fix
+///
+/// Binding a fixed port is a workaround, not the intended design. WorkOS
+/// supports a **wildcard port** for exactly this case, per its Redirect URIs
+/// documentation (section "Ports"): "a wildcard may be used in place of the
+/// port number... strictly limited to `localhost` and loopback IP addresses.
+/// Example: `http://localhost:*/auth/callback` is valid." That mirrors
+/// RFC 8252 section 7.3, the standard for native-app OAuth, and is what an
+/// ephemeral port relies on.
+///
+/// Probed 2026-09-19: `http://localhost:*/auth/callback` and
+/// `http://127.0.0.1:*/auth/callback` are currently **rejected** - the wildcard
+/// is not registered. Once it is added in the WorkOS dashboard, replace this
+/// list with `[0]` so the kernel picks a free port. That removes the
+/// "registered port is busy" failure mode entirely and stops this constant
+/// having to track the dashboard.
 const REGISTERED_REDIRECT_PORTS: [u16; 2] = [5173, 4000];
 
 /// Bind both loopback addresses, on one shared port.
