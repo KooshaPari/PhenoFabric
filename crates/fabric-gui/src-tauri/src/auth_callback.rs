@@ -16,37 +16,27 @@ use tauri::Emitter;
 /// blocks the reader forever and wedges the whole login flow.
 const READ_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// Loopback ports whose `/auth/callback` redirect URI is registered for this
-/// WorkOS client, in preference order.
+/// Candidate ports for the callback listener, in order.
 ///
-/// WorkOS rejects any redirect URI that is not registered, so the listener MUST
-/// bind one of these. Binding an ephemeral port (the previous behaviour) can
-/// never match a registered URI, which is why the callback never completed.
+/// `0` means "let the kernel pick a free ephemeral port", which is the design
+/// RFC 8252 section 7.3 prescribes for native-app OAuth. That is only valid if
+/// the WorkOS environment accepts a wildcard port in the redirect URI, so this
+/// constant is coupled to the dashboard configuration.
 ///
-/// Verified 2026-09-18 by probing the authorize endpoint with
-/// `response_type=code` for `client_01K4KYZR40RK7R9X3PPB5SEJ66`: of the ports
-/// tested, only 5173 and 4000 were accepted. 9400 (the URI in the Rust
-/// fallback) and the ephemeral scheme were both rejected with
-/// `redirect-uri-invalid`. The dashboard showed 14 registered URIs in total;
-/// these two are the ones confirmed to be plain `http://localhost:<port>/auth/callback`.
+/// **Verified 2026-09-19:** `http://localhost:*/auth/callback` and
+/// `http://127.0.0.1:*/auth/callback` are both registered for client
+/// `client_01K4KYZR40RK7R9X3PPB5SEJ66`, and probing the authorize endpoint
+/// confirms arbitrary ports are now accepted - `http://localhost:49999/auth/callback`
+/// and `http://127.0.0.1:49999/auth/callback` both pass, and both were rejected
+/// before the wildcards were added. So `0` is correct here.
 ///
-/// # Proper long-term fix
-///
-/// Binding a fixed port is a workaround, not the intended design. WorkOS
-/// supports a **wildcard port** for exactly this case, per its Redirect URIs
-/// documentation (section "Ports"): "a wildcard may be used in place of the
-/// port number... strictly limited to `localhost` and loopback IP addresses.
-/// Example: `http://localhost:*/auth/callback` is valid." That mirrors
-/// RFC 8252 section 7.3, the standard for native-app OAuth, and is what an
-/// ephemeral port relies on.
-///
-/// Probed 2026-09-19: `http://localhost:*/auth/callback` and
-/// `http://127.0.0.1:*/auth/callback` are currently **rejected** - the wildcard
-/// is not registered. Once it is added in the WorkOS dashboard, replace this
-/// list with `[0]` so the kernel picks a free port. That removes the
-/// "registered port is busy" failure mode entirely and stops this constant
-/// having to track the dashboard.
-const REGISTERED_REDIRECT_PORTS: [u16; 2] = [5173, 4000];
+/// **If the wildcards are ever removed**, restore them in the dashboard or
+/// change this to specific registered ports. The dashboard's default URI is
+/// `http://localhost:5173/auth/callback`, and `http://localhost:4000/auth/callback`
+/// is also registered, so `[5173, 4000]` is the known-good fallback set.
+/// Binding a port that is not registered makes WorkOS refuse with
+/// `redirect-uri-invalid`, so no code is ever issued - that was the original defect.
+const REGISTERED_REDIRECT_PORTS: [u16; 1] = [0];
 
 /// Bind both loopback addresses, on one shared port.
 ///
@@ -317,25 +307,22 @@ mod tests {
         assert_eq!(READ_TIMEOUT, Duration::from_secs(30));
         assert!(!READ_TIMEOUT.is_zero(), "a zero timeout is not a timeout");
     }
-    /// The listener MUST bind a port whose redirect URI WorkOS has registered,
-    /// because WorkOS rejects every other URI. This asserts the constant is
-    /// populated and that the default bind lands on one of those ports, rather
-    /// than silently falling back to an unregistered ephemeral one.
+    /// The default bind must succeed and produce a usable, non-zero port.
     ///
-    /// A busy registered port is a real failure here, not a reason to skip: if
-    /// every registered port is taken, the OAuth callback cannot complete.
+    /// This no longer asserts the port is in a fixed registered list: the
+    /// dashboard carries a wildcard port (`http://localhost:*/auth/callback`),
+    /// so an ephemeral port is valid by design. What must not regress is that a
+    /// bind succeeds - a listener with no port means the callback never lands.
     #[test]
-    fn default_bind_uses_a_registered_port() {
+    fn default_bind_yields_a_usable_port() {
         assert!(
             !REGISTERED_REDIRECT_PORTS.is_empty(),
-            "at least one registered redirect port is required"
+            "at least one candidate port is required"
         );
-        let (_listeners, port) = bind_loopback().unwrap_or_else(|e| {
-            panic!("could not bind a registered port ({e}); the OAuth callback cannot complete")
+        let (listeners, port) = bind_loopback().unwrap_or_else(|e| {
+            panic!("could not bind a callback port ({e}); the OAuth callback cannot complete")
         });
-        assert!(
-            REGISTERED_REDIRECT_PORTS.contains(&port),
-            "bound port {port} is not among the registered ports {REGISTERED_REDIRECT_PORTS:?}"
-        );
+        assert!(port != 0, "the kernel must resolve port 0 to a real port");
+        assert!(!listeners.is_empty(), "at least one listener must be bound");
     }
 }
