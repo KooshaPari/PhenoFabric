@@ -16,6 +16,21 @@ use tauri::Emitter;
 /// blocks the reader forever and wedges the whole login flow.
 const READ_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// Loopback ports whose `/auth/callback` redirect URI is registered for this
+/// WorkOS client, in preference order.
+///
+/// WorkOS rejects any redirect URI that is not registered, so the listener MUST
+/// bind one of these. Binding an ephemeral port (the previous behaviour) can
+/// never match a registered URI, which is why the callback never completed.
+///
+/// Verified 2026-09-18 by probing the authorize endpoint with
+/// `response_type=code` for `client_01K4KYZR40RK7R9X3PPB5SEJ66`: of the ports
+/// tested, only 5173 and 4000 were accepted. 9400 (the URI in the Rust
+/// fallback) and the ephemeral scheme were both rejected with
+/// `redirect-uri-invalid`. The dashboard showed 14 registered URIs in total;
+/// these two are the ones confirmed to be plain `http://localhost:<port>/auth/callback`.
+const REGISTERED_REDIRECT_PORTS: [u16; 2] = [5173, 4000];
+
 /// Bind both loopback addresses, on one shared port.
 ///
 /// Binding `127.0.0.1` alone is not sufficient. The redirect URI handed to the
@@ -30,29 +45,58 @@ const READ_TIMEOUT: Duration = Duration::from_secs(30);
 /// under `::1`. Either bind may fail independently; as long as one succeeds the
 /// listener is usable.
 fn bind_loopback() -> Result<(Vec<TcpListener>, u16), String> {
-    let mut listeners = Vec::new();
-    let mut port: Option<u16> = None;
+    bind_loopback_on(&REGISTERED_REDIRECT_PORTS)
+}
 
-    match TcpListener::bind((Ipv6Addr::LOCALHOST, 0)) {
+/// Bind both loopback families on the first available port from `candidates`.
+///
+/// Passing `&[0]` asks the kernel for an ephemeral port, which is what tests
+/// use. `start_listener` passes the registered ports instead.
+fn bind_loopback_on(candidates: &[u16]) -> Result<(Vec<TcpListener>, u16), String> {
+    let mut last_err = String::from("no candidate ports supplied");
+
+    for &candidate in candidates {
+        match bind_both_families(candidate) {
+            Ok(bound) => return Ok(bound),
+            Err(e) => {
+                last_err = e;
+                tracing::warn!(port = candidate, error = %last_err, "auth callback: port unavailable, trying next");
+            }
+        }
+    }
+
+    Err(format!(
+        "could not bind a registered callback port (tried {candidates:?}): {last_err}. \
+         The WorkOS redirect URI must match a registered port, so free one of these \
+         ports or register another and add it to REGISTERED_REDIRECT_PORTS."
+    ))
+}
+
+fn bind_both_families(port: u16) -> Result<(Vec<TcpListener>, u16), String> {
+    let mut listeners = Vec::new();
+    let mut port_out: Option<u16> = None;
+
+    match TcpListener::bind((Ipv6Addr::LOCALHOST, port)) {
         Ok(l) => {
-            port = l.local_addr().ok().map(|a| a.port());
+            port_out = l.local_addr().ok().map(|a| a.port());
             listeners.push(l);
         }
         Err(e) => tracing::warn!("auth callback: IPv6 loopback bind failed: {e}"),
     }
 
-    let v4_addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port.unwrap_or(0)));
+    // Reuse the port the IPv6 bind actually landed on (relevant when `port` is 0).
+    let v4_addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port_out.unwrap_or(port)));
     match TcpListener::bind(v4_addr) {
         Ok(l) => {
-            if port.is_none() {
-                port = l.local_addr().ok().map(|a| a.port());
+            if port_out.is_none() {
+                port_out = l.local_addr().ok().map(|a| a.port());
             }
             listeners.push(l);
         }
         Err(e) => tracing::warn!("auth callback: IPv4 loopback bind failed: {e}"),
     }
 
-    match port {
+    match port_out {
         Some(port) if !listeners.is_empty() => Ok((listeners, port)),
         _ => Err("could not bind either loopback address".to_string()),
     }
@@ -115,18 +159,13 @@ fn handle_callback(mut stream: TcpStream, app_handle: &tauri::AppHandle) -> Resu
         .read_line(&mut request_line)
         .map_err(|e| e.to_string())?;
 
-    let path = request_line
-        .split_whitespace()
-        .nth(1)
-        .unwrap_or("/");
+    let path = request_line.split_whitespace().nth(1).unwrap_or("/");
 
     // Drain remaining headers
     let mut header = String::new();
     loop {
         header.clear();
-        reader
-            .read_line(&mut header)
-            .map_err(|e| e.to_string())?;
+        reader.read_line(&mut header).map_err(|e| e.to_string())?;
         if header.trim().is_empty() {
             break;
         }
@@ -200,7 +239,7 @@ mod tests {
     /// reachable on the one returned port.
     #[test]
     fn binds_both_loopback_families_on_the_same_port() {
-        let (listeners, port) = bind_loopback().expect("bind_loopback should succeed");
+        let (listeners, port) = bind_loopback_on(&[0]).expect("ephemeral bind should succeed");
 
         assert!(
             !listeners.is_empty(),
@@ -236,12 +275,11 @@ mod tests {
     /// that made the login flow unreachable.
     #[test]
     fn localhost_resolution_order_is_reachable() {
-        let (_listeners, port) = bind_loopback().expect("bind_loopback should succeed");
+        let (_listeners, port) = bind_loopback_on(&[0]).expect("ephemeral bind should succeed");
 
-        let addrs: Vec<SocketAddr> =
-            std::net::ToSocketAddrs::to_socket_addrs(&("localhost", port))
-                .expect("localhost should resolve")
-                .collect();
+        let addrs: Vec<SocketAddr> = std::net::ToSocketAddrs::to_socket_addrs(&("localhost", port))
+            .expect("localhost should resolve")
+            .collect();
         assert!(!addrs.is_empty(), "localhost must resolve to something");
 
         // Every address localhost resolves to must be connectable, including
@@ -261,5 +299,26 @@ mod tests {
     fn read_timeout_is_configured() {
         assert_eq!(READ_TIMEOUT, Duration::from_secs(30));
         assert!(!READ_TIMEOUT.is_zero(), "a zero timeout is not a timeout");
+    }
+    /// The listener MUST bind a port whose redirect URI WorkOS has registered,
+    /// because WorkOS rejects every other URI. This asserts the constant is
+    /// populated and that the default bind lands on one of those ports, rather
+    /// than silently falling back to an unregistered ephemeral one.
+    ///
+    /// A busy registered port is a real failure here, not a reason to skip: if
+    /// every registered port is taken, the OAuth callback cannot complete.
+    #[test]
+    fn default_bind_uses_a_registered_port() {
+        assert!(
+            !REGISTERED_REDIRECT_PORTS.is_empty(),
+            "at least one registered redirect port is required"
+        );
+        let (_listeners, port) = bind_loopback().unwrap_or_else(|e| {
+            panic!("could not bind a registered port ({e}); the OAuth callback cannot complete")
+        });
+        assert!(
+            REGISTERED_REDIRECT_PORTS.contains(&port),
+            "bound port {port} is not among the registered ports {REGISTERED_REDIRECT_PORTS:?}"
+        );
     }
 }
