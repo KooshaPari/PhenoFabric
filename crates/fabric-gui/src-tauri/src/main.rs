@@ -17,6 +17,8 @@ use tokio::sync::Mutex;
 /// Shared application state injected into Tauri commands via `State<>`.
 pub struct AppState {
     pub daemon: Arc<Mutex<daemon::DaemonManager>>,
+    /// The signed-in session, or `None` when signed out.
+    pub session: Arc<Mutex<Option<daemon::SessionToken>>>,
 }
 
 fn main() {
@@ -32,6 +34,7 @@ fn main() {
     let daemon_manager = daemon::DaemonManager::new(daemon::DaemonConfig::default_config());
     let app_state = AppState {
         daemon: Arc::new(Mutex::new(daemon_manager)),
+        session: Arc::new(Mutex::new(None)),
     };
 
     tauri::Builder::default()
@@ -56,6 +59,7 @@ fn main() {
             commands::complete_auth,
             commands::start_email_auth,
             commands::verify_email_auth,
+            commands::logout,
             commands::start_auth_listener,
         ])
         .run(tauri::generate_context!())

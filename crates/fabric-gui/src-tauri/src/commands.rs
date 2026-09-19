@@ -10,6 +10,19 @@ use crate::daemon;
 use crate::types::*;
 use crate::AppState;
 
+/// The session token to present on protected requests.
+///
+/// Returns `None` when no login has happened or the token's reported lifetime
+/// has elapsed, in which case the request goes out unauthenticated and the
+/// daemon answers with an auth error the UI can act on.
+async fn session_token(state: &AppState) -> Option<String> {
+    let guard = state.session.lock().await;
+    match guard.as_ref() {
+        Some(token) if !token.is_expired() => Some(token.access_token.clone()),
+        _ => None,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Data commands — fetch from daemon wire protocol
 // ---------------------------------------------------------------------------
@@ -18,49 +31,56 @@ use crate::AppState;
 #[tauri::command]
 pub async fn get_health(state: State<'_, AppState>) -> Result<HealthResponse, String> {
     let addr = state.daemon.lock().await.listen_addr().to_string();
-    daemon::fetch_health(&addr).await
+    let token = session_token(&state).await;
+    daemon::fetch_health(&addr, token.as_deref()).await
 }
 
 /// Fetch network topology graph.
 #[tauri::command]
 pub async fn get_topology(state: State<'_, AppState>) -> Result<TopologyResponse, String> {
     let addr = state.daemon.lock().await.listen_addr().to_string();
-    daemon::fetch_topology(&addr).await
+    let token = session_token(&state).await;
+    daemon::fetch_topology(&addr, token.as_deref()).await
 }
 
 /// Fetch active routing plans.
 #[tauri::command]
 pub async fn get_routes(state: State<'_, AppState>) -> Result<RoutesResponse, String> {
     let addr = state.daemon.lock().await.listen_addr().to_string();
-    daemon::fetch_routes(&addr).await
+    let token = session_token(&state).await;
+    daemon::fetch_routes(&addr, token.as_deref()).await
 }
 
 /// Fetch active surface leases.
 #[tauri::command]
 pub async fn get_leases(state: State<'_, AppState>) -> Result<LeasesResponse, String> {
     let addr = state.daemon.lock().await.listen_addr().to_string();
-    daemon::fetch_leases(&addr).await
+    let token = session_token(&state).await;
+    daemon::fetch_leases(&addr, token.as_deref()).await
 }
 
 /// Fetch network connectivity status (Tailscale, UPnP, NAT).
 #[tauri::command]
 pub async fn get_network(state: State<'_, AppState>) -> Result<NetworkStatus, String> {
     let addr = state.daemon.lock().await.listen_addr().to_string();
-    daemon::fetch_network(&addr).await
+    let token = session_token(&state).await;
+    daemon::fetch_network(&addr, token.as_deref()).await
 }
 
 /// Fetch streaming statistics (frames, latency, codec).
 #[tauri::command]
 pub async fn get_streaming(state: State<'_, AppState>) -> Result<StreamingStats, String> {
     let addr = state.daemon.lock().await.listen_addr().to_string();
-    daemon::fetch_streaming(&addr).await
+    let token = session_token(&state).await;
+    daemon::fetch_streaming(&addr, token.as_deref()).await
 }
 
 /// Fetch authentication status.
 #[tauri::command]
 pub async fn get_auth(state: State<'_, AppState>) -> Result<AuthStatus, String> {
     let addr = state.daemon.lock().await.listen_addr().to_string();
-    daemon::fetch_auth(&addr).await
+    let token = session_token(&state).await;
+    daemon::fetch_auth(&addr, token.as_deref()).await
 }
 
 /// Fetch recent daemon log entries.
@@ -80,7 +100,8 @@ pub async fn get_settings(_state: State<'_, AppState>) -> Result<SettingsState, 
 #[tauri::command]
 pub async fn refresh_data(state: State<'_, AppState>) -> Result<GuiData, String> {
     let addr = state.daemon.lock().await.listen_addr().to_string();
-    daemon::fetch_all_data(&addr).await
+    let token = session_token(&state).await;
+    daemon::fetch_all_data(&addr, token.as_deref()).await
 }
 
 // ---------------------------------------------------------------------------
@@ -136,9 +157,23 @@ pub async fn complete_auth(
     code: String,
     code_verifier: Option<String>,
 ) -> Result<AuthStatus, String> {
-    let daemon = state.daemon.lock().await;
-    let addr = daemon.listen_addr().to_string();
-    daemon::fetch_complete_auth(&addr, &code, code_verifier.as_deref()).await
+    let addr = state.daemon.lock().await.listen_addr().to_string();
+    let completion = daemon::fetch_complete_auth(&addr, &code, code_verifier.as_deref()).await?;
+
+    // Hold the token so later requests can authenticate, and return the status
+    // the frontend already consumes.
+    let status = completion.status.clone();
+    *state.session.lock().await = daemon::SessionToken::from_completion(&completion);
+    Ok(status)
+}
+
+/// Sign out: clear the daemon session and the locally held token.
+#[tauri::command]
+pub async fn logout(state: State<'_, AppState>) -> Result<AuthStatus, String> {
+    let addr = state.daemon.lock().await.listen_addr().to_string();
+    let status = daemon::fetch_logout(&addr).await?;
+    *state.session.lock().await = None;
+    Ok(status)
 }
 
 /// Start passwordless email auth — send magic link.
@@ -159,9 +194,11 @@ pub async fn verify_email_auth(
     email: String,
     code: String,
 ) -> Result<AuthStatus, String> {
-    let daemon = state.daemon.lock().await;
-    let addr = daemon.listen_addr().to_string();
-    daemon::fetch_verify_email_auth(&addr, &email, &code).await
+    let addr = state.daemon.lock().await.listen_addr().to_string();
+    let completion = daemon::fetch_verify_email_auth(&addr, &email, &code).await?;
+    let status = completion.status.clone();
+    *state.session.lock().await = daemon::SessionToken::from_completion(&completion);
+    Ok(status)
 }
 
 /// Start the fabric-daemon process.

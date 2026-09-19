@@ -165,6 +165,16 @@ pub(crate) async fn handle_auth_verify(
     }
 }
 
+/// Handle an `auth_logout` message: clear the stored session.
+///
+/// Public like the other auth bootstrap routes: it only clears local session
+/// state, so an expired token still lets a user sign out. The worst a hostile
+/// local process can do with it is force a re-login.
+pub(crate) async fn handle_auth_logout(coordinator: &Coordinator) -> Option<String> {
+    coordinator.clear_auth_session();
+    Some(LOGGED_OUT_STATUS.into())
+}
+
 /// The logged-out `AuthStatus` shape (mirrors the GUI struct's defaults).
 const LOGGED_OUT_STATUS: &str = r#"{"type":"auth_status_response","status":"ok","logged_in":false,"user_name":"-","user_email":"-","org_name":"-","roles":[],"session_expiry_secs":0,"active_sessions":[]}"#;
 
@@ -198,13 +208,18 @@ fn login_success(
 /// live login fail at the parse step even after a successful exchange, so the
 /// shape is a cross-crate contract pinned by the
 /// `auth_complete_success_parses_as_gui_auth_status` test.
+///
+/// `access_token` is included so the GUI can authenticate its own later
+/// requests: the middleware validates it against the WorkOS JWKS, so the token
+/// has to reach the client that will present it.
 fn auth_success_response(msg_type: &str, tokens: &crate::auth::TokenResponse) -> String {
     format!(
-        r#"{{"type":"{msg_type}","status":"ok","logged_in":true,"user_name":{},"user_email":{},"org_name":{},"roles":[],"session_expiry_secs":{},"active_sessions":[],"user":{}}}"#,
+        r#"{{"type":"{msg_type}","status":"ok","logged_in":true,"user_name":{},"user_email":{},"org_name":{},"roles":[],"session_expiry_secs":{},"active_sessions":[],"access_token":{},"user":{}}}"#,
         json_string(&tokens.user.name),
         json_string(&tokens.user.email),
         json_string(tokens.user.org_id.as_deref().unwrap_or("-")),
         tokens.expires_in,
+        json_string(&tokens.access_token),
         serde_json::to_string(&tokens.user).unwrap_or_else(|_| "{}".into())
     )
 }
@@ -463,5 +478,61 @@ mod tests {
         // provider and must come back as a validation error.
         assert!(resp.contains("validation") || resp.contains("code"));
         assert!(!resp.contains("auth_verify_response"));
+    }
+
+    #[tokio::test]
+    async fn auth_logout_clears_the_session() {
+        let coord = make_coordinator();
+        coord.set_auth_session(crate::coordinator::AuthSessionState {
+            session_id: "sess-1".into(),
+            user_name: "Dev User".into(),
+            user_email: "dev@example.com".into(),
+            org_name: "org_456".into(),
+            roles: vec![],
+            expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
+            created: chrono::Utc::now(),
+        });
+        assert!(coord.auth_session().is_some());
+
+        let resp = process_message(r#"{"type":"auth_logout"}"#, &coord)
+            .await
+            .unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["logged_in"], serde_json::json!(false));
+        assert_parses_as_gui_auth_status(&resp);
+
+        // The session must actually be gone, not just reported as gone.
+        assert!(coord.auth_session().is_none());
+        let after = process_message(r#"{"type":"auth_status"}"#, &coord)
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&after).unwrap()["logged_in"],
+            serde_json::json!(false)
+        );
+    }
+
+    #[test]
+    fn login_response_carries_the_access_token() {
+        // The GUI has to present this token on its own later requests, so the
+        // login response is the only place it can come from.
+        let tokens = crate::auth::TokenResponse {
+            access_token: "at_secret".into(),
+            refresh_token: "rt".into(),
+            expires_in: 3600,
+            token_type: "Bearer".into(),
+            user: crate::auth::WorkOsUser {
+                id: "user_123".into(),
+                email: "dev@example.com".into(),
+                name: "Dev User".into(),
+                org_id: Some("org_456".into()),
+            },
+        };
+
+        let resp = auth_success_response("auth_complete_response", &tokens);
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["access_token"], serde_json::json!("at_secret"));
+        // The GUI's AuthStatus parse must still succeed with the extra field.
+        assert_parses_as_gui_auth_status(&resp);
     }
 }

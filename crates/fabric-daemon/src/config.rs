@@ -188,6 +188,7 @@ impl Default for AuthConfig {
                 "auth_email".into(),
                 "auth_status".into(),
                 "auth_verify".into(),
+                "auth_logout".into(),
             ],
         }
     }

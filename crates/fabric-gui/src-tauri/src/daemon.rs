@@ -8,7 +8,7 @@ use std::net::TcpStream;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Deserialize};
 
 use crate::types::*;
 
@@ -454,11 +454,30 @@ impl Drop for DaemonManager {
 // TCP wire-protocol client
 // ---------------------------------------------------------------------------
 
+/// Build the one-line JSON request for a wire message.
+///
+/// The token is attached as a top-level field when present, which is where the
+/// daemon's middleware looks for it, and is JSON-escaped rather than
+/// interpolated so a token containing quotes cannot corrupt the line.
+fn build_request(msg_type: &str, token: Option<&str>) -> String {
+    match token {
+        Some(token) => format!(
+            "{{\"type\":\"{msg_type}\",\"token\":{}}}\n",
+            serde_json::to_string(token).unwrap_or_else(|_| "\"\"".into())
+        ),
+        None => format!("{{\"type\":\"{msg_type}\"}}\n"),
+    }
+}
+
 /// Connect to the daemon at `addr`, send a JSON message with the given
 /// `msg_type`, and deserialize the JSON response.
 ///
 /// Protocol: send `{"type":"<msg_type>"}\n`, read one line of JSON.
-fn fetch_daemon_json<T: DeserializeOwned>(addr: &str, msg_type: &str) -> Result<T, String> {
+fn fetch_daemon_json<T: DeserializeOwned>(
+    addr: &str,
+    msg_type: &str,
+    token: Option<&str>,
+) -> Result<T, String> {
     let parsed: std::net::SocketAddr = addr
         .parse()
         .map_err(|e| format!("invalid address '{addr}': {e}"))?;
@@ -473,7 +492,10 @@ fn fetch_daemon_json<T: DeserializeOwned>(addr: &str, msg_type: &str) -> Result<
         .set_write_timeout(Some(TCP_TIMEOUT))
         .map_err(|e| format!("set write timeout: {e}"))?;
 
-    let request = format!("{{\"type\":\"{msg_type}\"}}\n");
+    // Protected routes require a bearer token; the middleware reads it from
+    // the top-level `token` field. Public routes ignore it, so it is always
+    // attached when present.
+    let request = build_request(msg_type, token);
     stream
         .write_all(request.as_bytes())
         .map_err(|e| format!("write: {e}"))?;
@@ -492,37 +514,53 @@ fn fetch_daemon_json<T: DeserializeOwned>(addr: &str, msg_type: &str) -> Result<
 }
 
 /// Fetch a specific data type from the daemon.
-pub async fn fetch_health(addr: &str) -> Result<HealthResponse, String> {
+pub async fn fetch_health(
+    addr: &str,
+    token: Option<&str>,
+) -> Result<HealthResponse, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
-        move || fetch_daemon_json::<HealthResponse>(&addr, "health_check")
+        let token = token.map(str::to_string);
+        move || fetch_daemon_json::<HealthResponse>(&addr, "health_check", token.as_deref())
     })
     .await
     .map_err(|e| format!("task join: {e}"))?
 }
 
-pub async fn fetch_topology(addr: &str) -> Result<TopologyResponse, String> {
+pub async fn fetch_topology(
+    addr: &str,
+    token: Option<&str>,
+) -> Result<TopologyResponse, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
-        move || fetch_daemon_json::<TopologyResponse>(&addr, "topology_request")
+        let token = token.map(str::to_string);
+        move || fetch_daemon_json::<TopologyResponse>(&addr, "topology_request", token.as_deref())
     })
     .await
     .map_err(|e| format!("task join: {e}"))?
 }
 
-pub async fn fetch_routes(addr: &str) -> Result<RoutesResponse, String> {
+pub async fn fetch_routes(
+    addr: &str,
+    token: Option<&str>,
+) -> Result<RoutesResponse, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
-        move || fetch_daemon_json::<RoutesResponse>(&addr, "routes_request")
+        let token = token.map(str::to_string);
+        move || fetch_daemon_json::<RoutesResponse>(&addr, "routes_request", token.as_deref())
     })
     .await
     .map_err(|e| format!("task join: {e}"))?
 }
 
-pub async fn fetch_leases(addr: &str) -> Result<LeasesResponse, String> {
+pub async fn fetch_leases(
+    addr: &str,
+    token: Option<&str>,
+) -> Result<LeasesResponse, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
-        move || fetch_daemon_json::<LeasesResponse>(&addr, "leases_request")
+        let token = token.map(str::to_string);
+        move || fetch_daemon_json::<LeasesResponse>(&addr, "leases_request", token.as_deref())
     })
     .await
     .map_err(|e| format!("task join: {e}"))?
@@ -530,16 +568,21 @@ pub async fn fetch_leases(addr: &str) -> Result<LeasesResponse, String> {
 
 /// Fetch network status. Attempts a "network_status" request;
 /// falls back to building from health data.
-pub async fn fetch_network(addr: &str) -> Result<NetworkStatus, String> {
+pub async fn fetch_network(
+    addr: &str,
+    token: Option<&str>,
+) -> Result<NetworkStatus, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
+        let token = token.map(str::to_string);
         move || {
             // Try the network-specific wire-protocol message first
-            match fetch_daemon_json::<NetworkStatus>(&addr, "network_status") {
+            match fetch_daemon_json::<NetworkStatus>(&addr, "network_status", token.as_deref()) {
                 Ok(status) => Ok(status),
                 Err(_) => {
                     // Fallback: derive from health check connectivity
-                    let health = fetch_daemon_json::<HealthResponse>(&addr, "health_check");
+                    let health =
+                        fetch_daemon_json::<HealthResponse>(&addr, "health_check", token.as_deref());
                     Ok(NetworkStatus {
                         daemon_connected: health.is_ok(),
                         ..NetworkStatus::default()
@@ -554,10 +597,14 @@ pub async fn fetch_network(addr: &str) -> Result<NetworkStatus, String> {
 
 /// Fetch streaming stats. Attempts a "streaming_stats" request;
 /// falls back to defaults.
-pub async fn fetch_streaming(addr: &str) -> Result<StreamingStats, String> {
+pub async fn fetch_streaming(
+    addr: &str,
+    token: Option<&str>,
+) -> Result<StreamingStats, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
-        move || match fetch_daemon_json::<StreamingStats>(&addr, "streaming_stats") {
+        let token = token.map(str::to_string);
+        move || match fetch_daemon_json::<StreamingStats>(&addr, "streaming_stats", token.as_deref()) {
             Ok(stats) => Ok(stats),
             Err(_) => Ok(StreamingStats::default()),
         }
@@ -568,10 +615,11 @@ pub async fn fetch_streaming(addr: &str) -> Result<StreamingStats, String> {
 
 /// Fetch auth status. Attempts an "auth_status" request;
 /// falls back to defaults.
-pub async fn fetch_auth(addr: &str) -> Result<AuthStatus, String> {
+pub async fn fetch_auth(addr: &str, token: Option<&str>) -> Result<AuthStatus, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
-        move || match fetch_daemon_json::<AuthStatus>(&addr, "auth_status") {
+        let token = token.map(str::to_string);
+        move || match fetch_daemon_json::<AuthStatus>(&addr, "auth_status", token.as_deref()) {
             Ok(status) => Ok(status),
             Err(_) => Ok(AuthStatus::default()),
         }
@@ -581,15 +629,15 @@ pub async fn fetch_auth(addr: &str) -> Result<AuthStatus, String> {
 }
 
 /// Fetch all data from daemon in parallel.
-pub async fn fetch_all_data(addr: &str) -> Result<GuiData, String> {
+pub async fn fetch_all_data(addr: &str, token: Option<&str>) -> Result<GuiData, String> {
     let (health, topology, routes, leases, network, streaming, auth) = tokio::join!(
-        fetch_health(addr),
-        fetch_topology(addr),
-        fetch_routes(addr),
-        fetch_leases(addr),
-        fetch_network(addr),
-        fetch_streaming(addr),
-        fetch_auth(addr),
+        fetch_health(addr, token),
+        fetch_topology(addr, token),
+        fetch_routes(addr, token),
+        fetch_leases(addr, token),
+        fetch_network(addr, token),
+        fetch_streaming(addr, token),
+        fetch_auth(addr, token),
     );
 
     Ok(GuiData {
@@ -635,6 +683,48 @@ pub async fn fetch_auth_start(addr: &str) -> Result<AuthStartResponse, String> {
     .map_err(|e| format!("task join: {e}"))?
 }
 
+/// A completed login: the GUI's `AuthStatus` plus the access token.
+///
+/// The token is flattened out of the same response the daemon already sends,
+/// so the `AuthStatus` shape the frontend consumes is unchanged.
+#[derive(Debug, Clone, Deserialize)]
+pub struct AuthCompletion {
+    #[serde(flatten)]
+    pub status: AuthStatus,
+    /// WorkOS access token to present on later protected requests.
+    #[serde(default)]
+    pub access_token: Option<String>,
+}
+
+/// The GUI's session credential, held in memory for the process lifetime.
+///
+/// Deliberately not persisted: a restarted GUI logs in again. Writing a bearer
+/// token to disk needs the OS keychain, which is a separate change.
+#[derive(Debug, Clone)]
+pub struct SessionToken {
+    pub access_token: String,
+    /// Expiry taken from the session lifetime the daemon reported.
+    pub expires_at: std::time::SystemTime,
+}
+
+impl SessionToken {
+    /// Build from a login response, or `None` when no token was returned.
+    pub fn from_completion(completion: &AuthCompletion) -> Option<Self> {
+        let access_token = completion.access_token.clone()?;
+        let expires_at = std::time::SystemTime::now()
+            + std::time::Duration::from_secs(completion.status.session_expiry_secs);
+        Some(Self {
+            access_token,
+            expires_at,
+        })
+    }
+
+    /// Whether the token is past the lifetime the daemon reported.
+    pub fn is_expired(&self) -> bool {
+        std::time::SystemTime::now() >= self.expires_at
+    }
+}
+
 /// Exchange an AuthKit authorization code for tokens.
 ///
 /// `code_verifier` is the PKCE verifier for the challenge used in the
@@ -644,7 +734,7 @@ pub async fn fetch_complete_auth(
     addr: &str,
     code: &str,
     code_verifier: Option<&str>,
-) -> Result<AuthStatus, String> {
+) -> Result<AuthCompletion, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
         let code = code.to_string();
@@ -667,7 +757,7 @@ pub async fn fetch_complete_auth(
                 .read_line(&mut line)
                 .map_err(|e| format!("read: {e}"))?;
 
-            serde_json::from_str::<AuthStatus>(&line).map_err(|e| format!("parse: {e}"))
+            serde_json::from_str::<AuthCompletion>(&line).map_err(|e| format!("parse: {e}"))
         }
     })
     .await
@@ -709,7 +799,7 @@ pub async fn fetch_verify_email_auth(
     addr: &str,
     email: &str,
     code: &str,
-) -> Result<AuthStatus, String> {
+) -> Result<AuthCompletion, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
         let email = email.to_string();
@@ -729,9 +819,99 @@ pub async fn fetch_verify_email_auth(
                 .read_line(&mut line)
                 .map_err(|e| format!("read: {e}"))?;
 
+            serde_json::from_str::<AuthCompletion>(&line).map_err(|e| format!("parse: {e}"))
+        }
+    })
+    .await
+    .map_err(|e| format!("task join: {e}"))?
+}
+
+/// Sign out: clear the daemon-side session.
+pub async fn fetch_logout(addr: &str) -> Result<AuthStatus, String> {
+    tokio::task::spawn_blocking({
+        let addr = addr.to_string();
+        move || {
+            let mut stream = TcpStream::connect(&addr).map_err(|e| format!("connect: {e}"))?;
+            stream
+                .set_read_timeout(Some(TCP_TIMEOUT))
+                .map_err(|e| format!("timeout: {e}"))?;
+
+            let msg = serde_json::json!({"type": "auth_logout"});
+            writeln!(stream, "{}", msg).map_err(|e| format!("write: {e}"))?;
+
+            let mut reader = BufReader::new(&stream);
+            let mut line = String::new();
+            reader
+                .read_line(&mut line)
+                .map_err(|e| format!("read: {e}"))?;
+
             serde_json::from_str::<AuthStatus>(&line).map_err(|e| format!("parse: {e}"))
         }
     })
     .await
     .map_err(|e| format!("task join: {e}"))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The exact response the daemon sends on a successful login.
+    const LOGIN_RESPONSE: &str = r#"{"type":"auth_complete_response","status":"ok","logged_in":true,"user_name":"Dev User","user_email":"dev@example.com","org_name":"org_456","roles":[],"session_expiry_secs":3600,"active_sessions":[],"access_token":"at_secret","user":{"id":"user_1","email":"dev@example.com","name":"Dev User","org_id":"org_456"}}"#;
+
+    #[test]
+    fn login_response_parses_with_token() {
+        let c: AuthCompletion = serde_json::from_str(LOGIN_RESPONSE).unwrap();
+        assert!(c.status.logged_in);
+        assert_eq!(c.status.user_email, "dev@example.com");
+        assert_eq!(c.status.session_expiry_secs, 3600);
+        assert_eq!(c.access_token.as_deref(), Some("at_secret"));
+    }
+
+    #[test]
+    fn session_token_takes_the_reported_lifetime() {
+        let c: AuthCompletion = serde_json::from_str(LOGIN_RESPONSE).unwrap();
+        let t = SessionToken::from_completion(&c).expect("token present");
+        assert_eq!(t.access_token, "at_secret");
+        assert!(!t.is_expired());
+    }
+
+    #[test]
+    fn no_token_in_the_response_means_no_session() {
+        let body = LOGIN_RESPONSE.replace(r#","access_token":"at_secret""#, "");
+        let c: AuthCompletion = serde_json::from_str(&body).unwrap();
+        assert!(c.access_token.is_none());
+        assert!(SessionToken::from_completion(&c).is_none());
+    }
+
+    #[test]
+    fn zero_lifetime_session_is_already_expired() {
+        let body = LOGIN_RESPONSE.replace(r#""session_expiry_secs":3600"#, r#""session_expiry_secs":0"#);
+        let c: AuthCompletion = serde_json::from_str(&body).unwrap();
+        assert!(SessionToken::from_completion(&c).unwrap().is_expired());
+    }
+
+    #[test]
+    fn request_carries_the_token_when_present() {
+        let v: serde_json::Value =
+            serde_json::from_str(build_request("topology_request", Some("at_secret")).trim()).unwrap();
+        assert_eq!(v["type"], "topology_request");
+        assert_eq!(v["token"], "at_secret");
+    }
+
+    #[test]
+    fn request_omits_the_token_when_absent() {
+        let v: serde_json::Value =
+            serde_json::from_str(build_request("health_check", None).trim()).unwrap();
+        assert_eq!(v["type"], "health_check");
+        assert!(v.get("token").is_none());
+    }
+
+    #[test]
+    fn token_is_escaped_not_interpolated() {
+        // A token containing a quote must not produce a malformed line.
+        let raw = build_request("topology_request", Some("a\"b"));
+        let v: serde_json::Value = serde_json::from_str(raw.trim()).unwrap();
+        assert_eq!(v["token"], "a\"b");
+    }
 }

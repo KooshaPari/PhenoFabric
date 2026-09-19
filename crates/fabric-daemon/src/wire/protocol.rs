@@ -71,6 +71,7 @@ pub async fn process_message(message: &str, coordinator: &Coordinator) -> Option
         "auth_verify" | "AuthVerify" => {
             super::auth_handlers::handle_auth_verify(&validated.value, coordinator).await
         }
+        "auth_logout" | "AuthLogout" => super::auth_handlers::handle_auth_logout(coordinator).await,
         _ => Some(format!(
             r#"{{"error":"unknown_message","type":"{}"}}"#,
             msg_type

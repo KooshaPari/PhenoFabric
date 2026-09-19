@@ -451,6 +451,23 @@
         }
       },
       "additionalProperties": true
+    },
+    {
+      "$comment": "auth_logout: clear the stored session (sign out)",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "auth_logout",
+            "AuthLogout"
+          ]
+        }
+      },
+      "additionalProperties": true
     }
   ]
 }

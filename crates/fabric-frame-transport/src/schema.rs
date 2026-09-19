@@ -24,6 +24,7 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     "auth_email",
     "auth_status",
     "auth_verify",
+    "auth_logout",
 ];
 
 /// Required fields per message type (fields that MUST be present and non-null).
@@ -43,6 +44,7 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
     ("auth_email", &["email"]),
     ("auth_status", &[]),
     ("auth_verify", &["email", "code"]),
+    ("auth_logout", &[]),
 ];
 
 /// Expected field types (field_name, expected_json_type).
@@ -373,6 +375,14 @@ mod auth_types_tests {
     fn auth_verify_requires_email_and_code() {
         assert!(is_known_type("auth_verify"));
         assert_eq!(required_fields("auth_verify"), &["email", "code"]);
+    }
+
+    #[test]
+    fn auth_logout_is_known_and_requires_nothing() {
+        for t in ["auth_logout", "AuthLogout"] {
+            assert!(is_known_type(t), "{t} should be a known type");
+            assert!(required_fields(t).is_empty(), "{t} requires no fields");
+        }
     }
 
     #[test]

@@ -1277,6 +1277,14 @@ a:hover { color: var(--color-teal-bright); }
         <span class="status-dot status-disconnected" id="daemon-dot"></span>
         <span id="daemon-label">Daemon offline</span>
       </div>
+      <button class="btn btn-icon tooltip" id="signout-btn" data-tip="Sign out"
+              onclick="signOut()" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
       <button class="btn btn-icon tooltip" data-tip="Search" onclick="openSearch()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round">
@@ -2198,6 +2206,29 @@ a:hover { color: var(--color-teal-bright); }
     function hideLogin() {
       const overlay = document.getElementById('login-overlay');
       overlay.classList.add('hidden');
+      revealSignOut();
+    }
+
+    // The sign-out control only makes sense while a session exists.
+    function revealSignOut() {
+      const btn = document.getElementById('signout-btn');
+      if (btn) btn.hidden = false;
+    }
+
+    // Sign out: clear the daemon session and the locally held token, then return
+    // to the login overlay. A failed call still clears the local token, because
+    // leaving the user apparently signed in would be worse.
+    async function signOut() {
+      try {
+        await api('logout');
+      } catch (e) {
+        appendLog('warn', 'Sign-out call failed; clearing the local session anyway.');
+      }
+      const btn = document.getElementById('signout-btn');
+      if (btn) btn.hidden = true;
+      const overlay = document.getElementById('login-overlay');
+      if (overlay) overlay.classList.remove('hidden');
+      appendLog('info', 'Signed out');
     }
 
     function showLoginError(msg) {
