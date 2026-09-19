@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "",
+    "beforeBuildCommand": "bash src-tauri/scripts/stage-sidecar.sh",
     "frontendDist": "../src"
   },
   "app": {
@@ -50,7 +50,10 @@
           "libappindicator3-dev"
         ]
       }
-    }
+    },
+    "externalBin": [
+      "binaries/fabric-daemon"
+    ]
   },
   "plugins": {
     "shell": {

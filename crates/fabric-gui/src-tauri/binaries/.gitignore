@@ -1,0 +1,4 @@
+# Staged Tauri sidecars are build artifacts produced by
+# scripts/stage-sidecar.sh during `cargo tauri build`. Never commit them.
+*
+!.gitignore
