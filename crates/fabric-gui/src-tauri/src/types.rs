@@ -273,5 +273,3 @@ pub struct DaemonStatusResponse {
     pub restart_count: u32,
     pub listen_addr: String,
 }
-
-

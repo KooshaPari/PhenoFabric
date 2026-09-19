@@ -54,9 +54,17 @@ impl DaemonConfig {
 #[allow(dead_code)]
 pub enum DaemonLifecycle {
     NotStarted,
-    Starting { started_at: Instant },
-    Running { pid: u32, started_at: Instant },
-    Failed { error: String, last_attempt: Instant },
+    Starting {
+        started_at: Instant,
+    },
+    Running {
+        pid: u32,
+        started_at: Instant,
+    },
+    Failed {
+        error: String,
+        last_attempt: Instant,
+    },
     Stopped,
 }
 
@@ -144,9 +152,7 @@ impl DaemonManager {
         self.log_buffer
             .iter()
             .map(|msg| LogEntry {
-                timestamp: chrono::Local::now()
-                    .format("%Y-%m-%d %H:%M:%S")
-                    .to_string(),
+                timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
                 level: if msg.contains("error") || msg.contains("fail") {
                     "ERROR".into()
                 } else if msg.contains("warn") {
@@ -323,18 +329,11 @@ impl DaemonManager {
             Err(_) => return false,
         };
 
-        stream
-            .set_read_timeout(Some(HEALTH_CONNECT_TIMEOUT))
-            .ok();
-        stream
-            .set_write_timeout(Some(HEALTH_CONNECT_TIMEOUT))
-            .ok();
+        stream.set_read_timeout(Some(HEALTH_CONNECT_TIMEOUT)).ok();
+        stream.set_write_timeout(Some(HEALTH_CONNECT_TIMEOUT)).ok();
 
         let mut stream = stream;
-        if stream
-            .write_all(b"{\"type\":\"health_check\"}\n")
-            .is_err()
-        {
+        if stream.write_all(b"{\"type\":\"health_check\"}\n").is_err() {
             return false;
         }
 
@@ -362,10 +361,7 @@ impl DaemonManager {
                 if healthy || started_at.elapsed() > Duration::from_secs(10) {
                     if healthy {
                         let pid = self.child.as_ref().map(|c| c.id()).unwrap_or(0);
-                        self.lifecycle = DaemonLifecycle::Running {
-                            pid,
-                            started_at,
-                        };
+                        self.lifecycle = DaemonLifecycle::Running { pid, started_at };
                         self.push_log("[daemon] became healthy".into());
                         self.restart_count = 0;
                     } else if let Some(ref mut child) = self.child {
@@ -597,8 +593,7 @@ pub async fn fetch_auth_start(addr: &str) -> Result<AuthStartResponse, String> {
     tokio::task::spawn_blocking({
         let addr = addr.to_string();
         move || {
-            let mut stream = TcpStream::connect(&addr)
-                .map_err(|e| format!("connect: {e}"))?;
+            let mut stream = TcpStream::connect(&addr).map_err(|e| format!("connect: {e}"))?;
             stream
                 .set_read_timeout(Some(TCP_TIMEOUT))
                 .map_err(|e| format!("timeout: {e}"))?;
@@ -608,10 +603,11 @@ pub async fn fetch_auth_start(addr: &str) -> Result<AuthStartResponse, String> {
 
             let mut reader = BufReader::new(&stream);
             let mut line = String::new();
-            reader.read_line(&mut line).map_err(|e| format!("read: {e}"))?;
+            reader
+                .read_line(&mut line)
+                .map_err(|e| format!("read: {e}"))?;
 
-            serde_json::from_str::<AuthStartResponse>(&line)
-                .map_err(|e| format!("parse: {e}"))
+            serde_json::from_str::<AuthStartResponse>(&line).map_err(|e| format!("parse: {e}"))
         }
     })
     .await
@@ -624,8 +620,7 @@ pub async fn fetch_complete_auth(addr: &str, code: &str) -> Result<AuthStatus, S
         let addr = addr.to_string();
         let code = code.to_string();
         move || {
-            let mut stream = TcpStream::connect(&addr)
-                .map_err(|e| format!("connect: {e}"))?;
+            let mut stream = TcpStream::connect(&addr).map_err(|e| format!("connect: {e}"))?;
             stream
                 .set_read_timeout(Some(TCP_TIMEOUT))
                 .map_err(|e| format!("timeout: {e}"))?;
@@ -635,10 +630,11 @@ pub async fn fetch_complete_auth(addr: &str, code: &str) -> Result<AuthStatus, S
 
             let mut reader = BufReader::new(&stream);
             let mut line = String::new();
-            reader.read_line(&mut line).map_err(|e| format!("read: {e}"))?;
+            reader
+                .read_line(&mut line)
+                .map_err(|e| format!("read: {e}"))?;
 
-            serde_json::from_str::<AuthStatus>(&line)
-                .map_err(|e| format!("parse: {e}"))
+            serde_json::from_str::<AuthStatus>(&line).map_err(|e| format!("parse: {e}"))
         }
     })
     .await
@@ -651,8 +647,7 @@ pub async fn fetch_email_auth(addr: &str, email: &str) -> Result<EmailAuthRespon
         let addr = addr.to_string();
         let email = email.to_string();
         move || {
-            let mut stream = TcpStream::connect(&addr)
-                .map_err(|e| format!("connect: {e}"))?;
+            let mut stream = TcpStream::connect(&addr).map_err(|e| format!("connect: {e}"))?;
             stream
                 .set_read_timeout(Some(TCP_TIMEOUT))
                 .map_err(|e| format!("timeout: {e}"))?;
@@ -662,10 +657,11 @@ pub async fn fetch_email_auth(addr: &str, email: &str) -> Result<EmailAuthRespon
 
             let mut reader = BufReader::new(&stream);
             let mut line = String::new();
-            reader.read_line(&mut line).map_err(|e| format!("read: {e}"))?;
+            reader
+                .read_line(&mut line)
+                .map_err(|e| format!("read: {e}"))?;
 
-            serde_json::from_str::<EmailAuthResponse>(&line)
-                .map_err(|e| format!("parse: {e}"))
+            serde_json::from_str::<EmailAuthResponse>(&line).map_err(|e| format!("parse: {e}"))
         }
     })
     .await

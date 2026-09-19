@@ -113,10 +113,7 @@ pub async fn start_auth(state: State<'_, AppState>) -> Result<AuthStartResponse,
 
 /// Complete WorkOS OAuth — exchange code for tokens.
 #[tauri::command]
-pub async fn complete_auth(
-    state: State<'_, AppState>,
-    code: String,
-) -> Result<AuthStatus, String> {
+pub async fn complete_auth(state: State<'_, AppState>, code: String) -> Result<AuthStatus, String> {
     let daemon = state.daemon.lock().await;
     let addr = daemon.listen_addr().to_string();
     daemon::fetch_complete_auth(&addr, &code).await
@@ -159,9 +156,7 @@ pub async fn restart_daemon(state: State<'_, AppState>) -> Result<DaemonStatusRe
 
 /// Get current daemon lifecycle status.
 #[tauri::command]
-pub async fn get_daemon_status(
-    state: State<'_, AppState>,
-) -> Result<DaemonStatusResponse, String> {
+pub async fn get_daemon_status(state: State<'_, AppState>) -> Result<DaemonStatusResponse, String> {
     let daemon = state.daemon.lock().await;
     Ok(daemon.status_snapshot())
 }
