@@ -130,6 +130,18 @@ pub async fn start_email_auth(
     daemon::fetch_email_auth(&addr, &email).await
 }
 
+/// Verify a Magic Auth code — completes passwordless login.
+#[tauri::command]
+pub async fn verify_email_auth(
+    state: State<'_, AppState>,
+    email: String,
+    code: String,
+) -> Result<AuthStatus, String> {
+    let daemon = state.daemon.lock().await;
+    let addr = daemon.listen_addr().to_string();
+    daemon::fetch_verify_email_auth(&addr, &email, &code).await
+}
+
 /// Start the fabric-daemon process.
 #[tauri::command]
 pub async fn start_daemon(state: State<'_, AppState>) -> Result<DaemonStatusResponse, String> {

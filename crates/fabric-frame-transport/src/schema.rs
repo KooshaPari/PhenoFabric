@@ -22,6 +22,8 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     "auth_start",
     "auth_complete",
     "auth_email",
+    "auth_status",
+    "auth_verify",
 ];
 
 /// Required fields per message type (fields that MUST be present and non-null).
@@ -39,6 +41,8 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
     ("auth_start", &[]),
     ("auth_complete", &["code"]),
     ("auth_email", &["email"]),
+    ("auth_status", &[]),
+    ("auth_verify", &["email", "code"]),
 ];
 
 /// Expected field types (field_name, expected_json_type).
@@ -59,6 +63,8 @@ const FIELD_TYPES: &[(&str, &str, &str)] = &[
     ("overrides", "object", "save_config"),
     ("code", "string", "auth_complete"),
     ("email", "string", "auth_email"),
+    ("email", "string", "auth_verify"),
+    ("code", "string", "auth_verify"),
 ];
 
 /// Error type for schema validation failures.
@@ -352,6 +358,20 @@ mod auth_types_tests {
     fn auth_email_requires_email() {
         assert!(is_known_type("auth_email"));
         assert_eq!(required_fields("auth_email"), &["email"]);
+    }
+
+    #[test]
+    fn auth_status_is_known_and_requires_nothing() {
+        for t in ["auth_status", "AuthStatus"] {
+            assert!(is_known_type(t), "{t} should be a known type");
+            assert!(required_fields(t).is_empty(), "{t} requires no fields");
+        }
+    }
+
+    #[test]
+    fn auth_verify_requires_email_and_code() {
+        assert!(is_known_type("auth_verify"));
+        assert_eq!(required_fields("auth_verify"), &["email", "code"]);
     }
 
     #[test]

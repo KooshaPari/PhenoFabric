@@ -33,11 +33,30 @@ pub struct Coordinator {
     pub(super) config_path: Mutex<Option<PathBuf>>,
 }
 
+/// Authenticated login state, stored after a successful WorkOS exchange.
+///
+/// In-memory only: a daemon restart requires a fresh login. Persisting
+/// refresh tokens is a future increment.
+#[derive(Debug, Clone)]
+pub struct AuthSessionState {
+    /// Opaque session identifier (reported to the GUI).
+    pub session_id: String,
+    pub user_name: String,
+    pub user_email: String,
+    pub org_name: String,
+    pub roles: Vec<String>,
+    /// When the access token expires.
+    pub expires_at: chrono::DateTime<chrono::Utc>,
+    /// When this session was created.
+    pub created: chrono::DateTime<chrono::Utc>,
+}
+
 /// Mutable coordinator state.
 pub(super) struct CoordinatorState {
     topology: Topology,
     active_leases: Vec<SurfaceLease>,
     active_plans: Vec<RoutePlan>,
+    auth_session: Option<AuthSessionState>,
     dirty: bool,
 }
 
@@ -64,6 +83,7 @@ impl Coordinator {
             topology: recovered.topology,
             active_leases: recovered.active_leases,
             active_plans: recovered.active_plans,
+            auth_session: None,
             dirty: false,
         };
 
@@ -317,12 +337,14 @@ impl Coordinator {
         if config.auth.workos_client_id.is_empty() {
             return None;
         }
-        Some(crate::auth::WorkOsProvider::new(crate::auth::WorkOsConfig {
-            client_id: config.auth.workos_client_id,
-            client_secret: config.auth.workos_client_secret,
-            redirect_uri: config.auth.workos_redirect_uri,
-            ..Default::default()
-        }))
+        Some(crate::auth::WorkOsProvider::new(
+            crate::auth::WorkOsConfig {
+                client_id: config.auth.workos_client_id,
+                client_secret: config.auth.workos_client_secret,
+                redirect_uri: config.auth.workos_redirect_uri,
+                ..Default::default()
+            },
+        ))
     }
 
     /// Get the configured WorkOS redirect URI.
@@ -332,6 +354,31 @@ impl Coordinator {
             .unwrap_or_else(|e| e.into_inner())
             .auth
             .workos_redirect_uri
+            .clone()
+    }
+
+    /// Store the authenticated session (called after a successful login).
+    pub fn set_auth_session(&self, session: AuthSessionState) {
+        self.state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .auth_session = Some(session);
+    }
+
+    /// Clear the authenticated session (logout).
+    pub fn clear_auth_session(&self) {
+        self.state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .auth_session = None;
+    }
+
+    /// Get a snapshot of the authenticated session, if any.
+    pub fn auth_session(&self) -> Option<AuthSessionState> {
+        self.state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .auth_session
             .clone()
     }
 }
@@ -481,6 +528,28 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&snapshot).unwrap();
         assert_eq!(parsed["server"]["listen"], "0.0.0.0:7777");
         assert_eq!(parsed["logging"]["level"], "trace");
+    }
+
+    #[test]
+    fn coordinator_auth_session_lifecycle() {
+        let (config, _dir) = test_config();
+        let coord = Coordinator::new(config).unwrap();
+        assert!(coord.auth_session().is_none());
+        coord.set_auth_session(AuthSessionState {
+            session_id: "s1".into(),
+            user_name: "Dev User".into(),
+            user_email: "dev@example.com".into(),
+            org_name: "org_456".into(),
+            roles: vec![],
+            expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
+            created: chrono::Utc::now(),
+        });
+        let s = coord.auth_session().expect("session stored");
+        assert_eq!(s.user_email, "dev@example.com");
+        assert_eq!(s.org_name, "org_456");
+        assert!(s.expires_at > s.created);
+        coord.clear_auth_session();
+        assert!(coord.auth_session().is_none());
     }
 
     #[test]

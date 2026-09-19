@@ -55,6 +55,7 @@ fn main() {
             commands::start_auth,
             commands::complete_auth,
             commands::start_email_auth,
+            commands::verify_email_auth,
             commands::start_auth_listener,
         ])
         .run(tauri::generate_context!())

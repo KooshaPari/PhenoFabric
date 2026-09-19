@@ -403,6 +403,50 @@
         }
       },
       "additionalProperties": true
+    },
+    {
+      "$comment": "auth_status: report current login state (AuthStatus contract fields)",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "auth_status",
+            "AuthStatus"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "$comment": "auth_verify: verify a Magic Auth code and complete passwordless login",
+      "type": "object",
+      "required": [
+        "type",
+        "email",
+        "code"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "auth_verify",
+            "AuthVerify"
+          ]
+        },
+        "email": {
+          "type": "string",
+          "minLength": 1
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
     }
   ]
 }

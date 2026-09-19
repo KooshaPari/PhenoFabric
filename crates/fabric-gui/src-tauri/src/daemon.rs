@@ -667,3 +667,38 @@ pub async fn fetch_email_auth(addr: &str, email: &str) -> Result<EmailAuthRespon
     .await
     .map_err(|e| format!("task join: {e}"))?
 }
+
+/// Verify a Magic Auth code and complete passwordless login.
+///
+/// Completes the flow started by `fetch_email_auth`: the daemon exchanges the
+/// emailed code for tokens and returns the resulting `AuthStatus`.
+pub async fn fetch_verify_email_auth(
+    addr: &str,
+    email: &str,
+    code: &str,
+) -> Result<AuthStatus, String> {
+    tokio::task::spawn_blocking({
+        let addr = addr.to_string();
+        let email = email.to_string();
+        let code = code.to_string();
+        move || {
+            let mut stream = TcpStream::connect(&addr).map_err(|e| format!("connect: {e}"))?;
+            stream
+                .set_read_timeout(Some(TCP_TIMEOUT))
+                .map_err(|e| format!("timeout: {e}"))?;
+
+            let msg = serde_json::json!({"type": "auth_verify", "email": email, "code": code});
+            writeln!(stream, "{}", msg).map_err(|e| format!("write: {e}"))?;
+
+            let mut reader = BufReader::new(&stream);
+            let mut line = String::new();
+            reader
+                .read_line(&mut line)
+                .map_err(|e| format!("read: {e}"))?;
+
+            serde_json::from_str::<AuthStatus>(&line).map_err(|e| format!("parse: {e}"))
+        }
+    })
+    .await
+    .map_err(|e| format!("task join: {e}"))?
+}

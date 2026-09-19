@@ -62,11 +62,14 @@ pub async fn process_message(message: &str, coordinator: &Coordinator) -> Option
         // --- Auth (public routes, pre-auth bootstrap) ---
         "auth_start" | "AuthStart" => super::auth_handlers::handle_auth_start(coordinator).await,
         "auth_complete" | "AuthComplete" => {
-            super::auth_handlers::handle_auth_complete(&validated.value, coordinator)
-                .await
+            super::auth_handlers::handle_auth_complete(&validated.value, coordinator).await
         }
         "auth_email" | "AuthEmail" => {
             super::auth_handlers::handle_auth_email(&validated.value, coordinator).await
+        }
+        "auth_status" | "AuthStatus" => super::auth_handlers::handle_auth_status(coordinator).await,
+        "auth_verify" | "AuthVerify" => {
+            super::auth_handlers::handle_auth_verify(&validated.value, coordinator).await
         }
         _ => Some(format!(
             r#"{{"error":"unknown_message","type":"{}"}}"#,
