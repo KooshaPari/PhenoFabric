@@ -376,7 +376,24 @@ listener bound to 127.0.0.1:63902 (IPv4 only)
 
 | D9 | **The daemon rejects every auth message the GUI sends — the login protocol is not implemented on the daemon side.** `wire/protocol.rs` dispatches heartbeat, health, probe, topology, routes, capabilities, webrtc, compile and save_config — and **no `auth_*` type at all**; the frame-transport validator has no auth types either. Probed against a live daemon: `auth_start`, `auth_complete`, `auth_email` and `login` all return `{"error":"UNKNOWN_TYPE","message":"unknown message type: auth_<x>"}`. Meanwhile `crates/fabric-daemon/src/auth/oauth.rs` is a **complete 460-line WorkOS provider** (`generate_auth_url`, token exchange, refresh, userinfo) that the wire path simply never reaches. | `wire/protocol.rs:30-66`; probed live 2026-09-18 (output below); `auth/oauth.rs` is reachable only from `auth/middleware/mod.rs` | Independently fatal. Even with a valid code in hand, `complete_auth` cannot succeed: the daemon answers `UNKNOWN_TYPE`, which `fetch_complete_auth` then fails to parse as `AuthStatus`. **The GUI cannot log in through the daemon by construction**, regardless of the WorkOS configuration. |
 
-**Status of these defects:** D1 (state), D2 (redirect URI, workaround in place), D4 (IPv6) and D8 (`response_type=code`) are **fixed**. D3 (dead `start_auth`) and D9 (daemon has no auth handlers) are **not** — D9 is the last blocker on the login path, and it needs a working registered redirect URI plus a WorkOS client secret to verify end to end.
+**D9 design correction (2026-09-19) — PKCE, NOT a client secret.** I previously said D9 needed a WorkOS client secret to verify. **That was wrong.** WorkOS's `POST /user_management/authenticate` reference marks `client_secret` **optional**, and marks `code_verifier` as "**required** when the client secret is not present". That is PKCE (RFC 7636), and it is the correct design for a desktop/native client, which cannot keep a secret: RFC 8252 says public clients must use PKCE rather than a shared secret.
+
+So the exchange is: generate a `code_verifier`, send `code_challenge` + `code_challenge_method=S256` on the authorize URL, and exchange the returned `code` together with the original `code_verifier` — **no client secret anywhere**. Verified 2026-09-19 that WorkOS accepts the PKCE parameters: a S256 challenge (43-char verifier/challenge) on the real client id with an arbitrary wildcard-registered port produces a redirect to the **AuthKit sign-in page** (`https://significant-vessel-93-staging.authkit.app/bootstrap?client_id=...`) rather than the error page.
+
+That is the first time this authorize URL has reached a sign-in page at all, which is the clearest end-to-end signal yet that D2 + D8 were the outer blockers and D9 is the remaining one.
+
+**Environment finding worth a product decision.** `workos project list` shows "Phenotype's Project" with **two** environments:
+
+| Environment | Client ID | Sandbox | AuthKit domain |
+|---|---|---|---|
+| **Production** | `client_01K4KYZRCW03JJWG5X1E7YBERG` | `false` | `interested-plant-75.authkit.app` |
+| **Staging** | `client_01K4KYZR40RK7R9X3PPB5SEJ66` | `true` | `significant-vessel-93-staging.authkit.app` |
+
+**The app hardcodes the STAGING client id.** `whoami` also reports `productionState: "Inactive"` for the Phenotype team. So either point the app at Production once it is active, or accept that it authenticates real users against a sandbox. Decide deliberately.
+
+**`workos verify-login` result (2026-09-19):** `create_user` **passed** (and cleaned up: `userCleanedUp: true`), `authenticate` **failed** with "Email-password authentication is not allowed." That is a configuration fact, not a bug — password auth is disabled in this environment, consistent with an AuthKit/SSO setup. Note the command only supports `--method password`, so it cannot verify the SSO/PKCE flow the app actually uses.
+
+**Status of these defects:** D1 (state), D2 (redirect URI, workaround in place), D4 (IPv6) and D8 (`response_type=code`) are **fixed**. D3 (dead `start_auth`) and D9 (daemon has no auth handlers) are **not** — D9 is the last blocker on the login path. It does **not** need a client secret (PKCE, see above); it needs the exchange wired to `auth/oauth.rs`.
 
 ### 6.5 `CUR-1363521465-A2` — prove one real two-node path
 
