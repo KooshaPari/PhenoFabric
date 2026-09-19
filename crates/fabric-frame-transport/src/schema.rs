@@ -19,6 +19,9 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     "webrtc_answer",
     "webrtc_ice",
     "save_config",
+    "auth_start",
+    "auth_complete",
+    "auth_email",
 ];
 
 /// Required fields per message type (fields that MUST be present and non-null).
@@ -33,6 +36,9 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
     ("webrtc_offer", &["target", "sdp"]),
     ("webrtc_answer", &["target", "sdp"]),
     ("webrtc_ice", &["from", "candidate"]),
+    ("auth_start", &[]),
+    ("auth_complete", &["code"]),
+    ("auth_email", &["email"]),
 ];
 
 /// Expected field types (field_name, expected_json_type).
@@ -51,6 +57,8 @@ const FIELD_TYPES: &[(&str, &str, &str)] = &[
     ("candidate", "string", "webrtc_ice"),
     ("config", "object", "save_config"),
     ("overrides", "object", "save_config"),
+    ("code", "string", "auth_complete"),
+    ("email", "string", "auth_email"),
 ];
 
 /// Error type for schema validation failures.
@@ -319,5 +327,36 @@ mod tests {
         // save_config has no required fields.
         let result = validate_against_schema(r#"{"type":"save_config"}"#, "wire");
         assert!(result.is_ok());
+    }
+}
+
+#[cfg(test)]
+mod auth_types_tests {
+    use super::*;
+
+    #[test]
+    fn auth_start_is_known_and_requires_nothing() {
+        for t in ["auth_start", "AuthStart"] {
+            assert!(is_known_type(t), "{t} should be a known type");
+            assert!(required_fields(t).is_empty(), "{t} requires no fields");
+        }
+    }
+
+    #[test]
+    fn auth_complete_requires_code() {
+        assert!(is_known_type("auth_complete"));
+        assert_eq!(required_fields("auth_complete"), &["code"]);
+    }
+
+    #[test]
+    fn auth_email_requires_email() {
+        assert!(is_known_type("auth_email"));
+        assert_eq!(required_fields("auth_email"), &["email"]);
+    }
+
+    #[test]
+    fn unknown_still_rejected() {
+        assert!(!is_known_type("auth_destroy"));
+        assert!(!is_known_type("definitely_not_a_type"));
     }
 }

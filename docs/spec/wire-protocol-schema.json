@@ -6,77 +6,131 @@
   "$defs": {
     "topology_node": {
       "type": "object",
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
-        "id": { "type": "string" },
-        "label": { "type": "string" },
-        "locality": { "type": "string" },
-        "metadata": { "type": "object" }
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "locality": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object"
+        }
       },
       "additionalProperties": true
     },
     "topology_edge": {
       "type": "object",
-      "required": ["source", "target"],
+      "required": [
+        "source",
+        "target"
+      ],
       "properties": {
-        "source": { "type": "string" },
-        "target": { "type": "string" },
-        "edge_type": { "type": "string" },
-        "metadata": { "type": "object" }
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "edge_type": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object"
+        }
       },
       "additionalProperties": true
     },
     "route": {
       "type": "object",
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
-        "id": { "type": "string" },
-        "source": { "type": "string" },
-        "destination": { "type": "string" },
+        "id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "destination": {
+          "type": "string"
+        },
         "stages": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
-        "metadata": { "type": "object" }
+        "metadata": {
+          "type": "object"
+        }
       },
       "additionalProperties": true
     },
     "capability": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string" },
-        "node": { "type": "string" },
-        "parameters": { "type": "object" }
+        "name": {
+          "type": "string"
+        },
+        "node": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "object"
+        }
       },
       "additionalProperties": true
     },
     "node_list": {
       "type": "array",
-      "items": { "$ref": "#/$defs/topology_node" }
+      "items": {
+        "$ref": "#/$defs/topology_node"
+      }
     },
     "edge_list": {
       "type": "array",
-      "items": { "$ref": "#/$defs/topology_edge" }
+      "items": {
+        "$ref": "#/$defs/topology_edge"
+      }
     },
     "route_list": {
       "type": "array",
-      "items": { "$ref": "#/$defs/route" }
+      "items": {
+        "$ref": "#/$defs/route"
+      }
     },
     "capability_list": {
       "type": "array",
-      "items": { "$ref": "#/$defs/capability" }
+      "items": {
+        "$ref": "#/$defs/capability"
+      }
     }
   },
   "oneOf": [
     {
       "$comment": "heartbeat: keepalive ping from client",
       "type": "object",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["heartbeat", "Heartbeat"]
+          "enum": [
+            "heartbeat",
+            "Heartbeat"
+          ]
         }
       },
       "additionalProperties": false
@@ -84,11 +138,16 @@
     {
       "$comment": "health_check: request daemon health status",
       "type": "object",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["health_check", "HealthCheck"]
+          "enum": [
+            "health_check",
+            "HealthCheck"
+          ]
         }
       },
       "additionalProperties": false
@@ -96,11 +155,16 @@
     {
       "$comment": "topology_request: request current topology",
       "type": "object",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["topology_request", "TopologyRequest"]
+          "enum": [
+            "topology_request",
+            "TopologyRequest"
+          ]
         }
       },
       "additionalProperties": false
@@ -108,11 +172,16 @@
     {
       "$comment": "routes_request: request compiled routes/plans",
       "type": "object",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["routes_request", "RoutesRequest"]
+          "enum": [
+            "routes_request",
+            "RoutesRequest"
+          ]
         }
       },
       "additionalProperties": false
@@ -120,11 +189,16 @@
     {
       "$comment": "capabilities_request: request node capabilities",
       "type": "object",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["capabilities_request", "CapabilitiesRequest"]
+          "enum": [
+            "capabilities_request",
+            "CapabilitiesRequest"
+          ]
         }
       },
       "additionalProperties": false
@@ -132,11 +206,16 @@
     {
       "$comment": "probe_request: request topology snapshot",
       "type": "object",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["probe_request", "ProbeRequest"]
+          "enum": [
+            "probe_request",
+            "ProbeRequest"
+          ]
         }
       },
       "additionalProperties": false
@@ -144,60 +223,184 @@
     {
       "$comment": "compile_request: compile a multihop route",
       "type": "object",
-      "required": ["type", "source", "destination"],
+      "required": [
+        "type",
+        "source",
+        "destination"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["compile_request", "CompileRequest"]
+          "enum": [
+            "compile_request",
+            "CompileRequest"
+          ]
         },
-        "source": { "type": "string", "minLength": 1 },
-        "destination": { "type": "string", "minLength": 1 },
-        "intent_name": { "type": "string" }
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "destination": {
+          "type": "string",
+          "minLength": 1
+        },
+        "intent_name": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     },
     {
       "$comment": "webrtc_offer: WebRTC SDP offer from client",
       "type": "object",
-      "required": ["type", "target", "sdp"],
+      "required": [
+        "type",
+        "target",
+        "sdp"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["webrtc_offer", "WebRTCOffer"]
+          "enum": [
+            "webrtc_offer",
+            "WebRTCOffer"
+          ]
         },
-        "target": { "type": "string", "minLength": 1 },
-        "sdp": { "type": "string", "minLength": 1 },
-        "from": { "type": "string" }
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sdp": {
+          "type": "string",
+          "minLength": 1
+        },
+        "from": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     },
     {
       "$comment": "webrtc_answer: WebRTC SDP answer from client",
       "type": "object",
-      "required": ["type", "target", "sdp"],
+      "required": [
+        "type",
+        "target",
+        "sdp"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["webrtc_answer", "WebRTCAnswer"]
+          "enum": [
+            "webrtc_answer",
+            "WebRTCAnswer"
+          ]
         },
-        "target": { "type": "string", "minLength": 1 },
-        "sdp": { "type": "string", "minLength": 1 },
-        "from": { "type": "string" }
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sdp": {
+          "type": "string",
+          "minLength": 1
+        },
+        "from": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     },
     {
       "$comment": "webrtc_ice: ICE candidate relay",
       "type": "object",
-      "required": ["type", "from", "candidate"],
+      "required": [
+        "type",
+        "from",
+        "candidate"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["webrtc_ice", "WebRTCIce"]
+          "enum": [
+            "webrtc_ice",
+            "WebRTCIce"
+          ]
         },
-        "from": { "type": "string", "minLength": 1 },
-        "candidate": { "type": "string", "minLength": 1 },
-        "target": { "type": "string" }
+        "from": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "$comment": "auth_start: begin WorkOS AuthKit login, returns authorize URL + state + PKCE challenge",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "auth_start",
+            "AuthStart"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "$comment": "auth_complete: exchange the authorization code for tokens (PKCE)",
+      "type": "object",
+      "required": [
+        "type",
+        "code"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "auth_complete",
+            "AuthComplete"
+          ]
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "$comment": "auth_email: start passwordless magic-link login for an email address",
+      "type": "object",
+      "required": [
+        "type",
+        "email"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "auth_email",
+            "AuthEmail"
+          ]
+        },
+        "email": {
+          "type": "string",
+          "minLength": 1
+        }
       },
       "additionalProperties": true
     }
