@@ -11,7 +11,7 @@ use super::handlers;
 use tracing::warn;
 
 /// Process a single wire message and return an optional response.
-pub fn process_message(message: &str, coordinator: &Coordinator) -> Option<String> {
+pub async fn process_message(message: &str, coordinator: &Coordinator) -> Option<String> {
     // Validate the incoming message before processing.
     let validated = match validate_message(message) {
         Ok(v) => v,
@@ -59,6 +59,15 @@ pub fn process_message(message: &str, coordinator: &Coordinator) -> Option<Strin
             handlers::handle_compile_request(&validated.value, coordinator)
         }
         "save_config" | "SaveConfig" => handlers::handle_save_config(&validated.value, coordinator),
+        // --- Auth (public routes, pre-auth bootstrap) ---
+        "auth_start" | "AuthStart" => super::auth_handlers::handle_auth_start(coordinator).await,
+        "auth_complete" | "AuthComplete" => {
+            super::auth_handlers::handle_auth_complete(&validated.value, coordinator)
+                .await
+        }
+        "auth_email" | "AuthEmail" => {
+            super::auth_handlers::handle_auth_email(&validated.value, coordinator).await
+        }
         _ => Some(format!(
             r#"{{"error":"unknown_message","type":"{}"}}"#,
             msg_type
@@ -84,104 +93,104 @@ mod tests {
         Arc::new(Coordinator::new(config).unwrap())
     }
 
-    #[test]
-    fn process_heartbeat() {
+    #[tokio::test]
+    async fn process_heartbeat() {
         let coord = make_coordinator();
         let msg = r#"{"type":"heartbeat"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("heartbeat_ack"));
     }
 
-    #[test]
-    fn process_health_check() {
+    #[tokio::test]
+    async fn process_health_check() {
         let coord = make_coordinator();
         let msg = r#"{"type":"health_check"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("healthy"));
     }
 
-    #[test]
-    fn process_probe_request_returns_topology() {
+    #[tokio::test]
+    async fn process_probe_request_returns_topology() {
         let coord = make_coordinator();
         let msg = r#"{"type":"probe_request"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("probe_response"));
         assert!(resp.contains("topology_epoch"));
         assert!(resp.contains("node_count"));
         assert!(resp.contains("edge_count"));
     }
 
-    #[test]
-    fn process_topology_request() {
+    #[tokio::test]
+    async fn process_topology_request() {
         let coord = make_coordinator();
         let msg = r#"{"type":"topology_request"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("probe_response"));
         assert!(resp.contains("nodes"));
     }
 
-    #[test]
-    fn process_routes_request() {
+    #[tokio::test]
+    async fn process_routes_request() {
         let coord = make_coordinator();
         let msg = r#"{"type":"routes_request"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("routes_response"));
         assert!(resp.contains("routes"));
     }
 
-    #[test]
-    fn process_capabilities_request() {
+    #[tokio::test]
+    async fn process_capabilities_request() {
         let coord = make_coordinator();
         let msg = r#"{"type":"capabilities_request"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("capabilities_response"));
         assert!(resp.contains("capabilities"));
     }
 
-    #[test]
-    fn process_invalid_json() {
+    #[tokio::test]
+    async fn process_invalid_json() {
         let coord = make_coordinator();
-        let resp = process_message("not json", &coord).unwrap();
+        let resp = process_message("not json", &coord).await.unwrap();
         assert!(resp.contains("validation_error") || resp.contains("INVALID_JSON"));
     }
 
-    #[test]
-    fn process_unknown_type() {
+    #[tokio::test]
+    async fn process_unknown_type() {
         let coord = make_coordinator();
         let msg = r#"{"type":"foo_bar"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("UNKNOWN_TYPE"));
     }
 
-    #[test]
-    fn process_missing_type_field() {
+    #[tokio::test]
+    async fn process_missing_type_field() {
         let coord = make_coordinator();
         let msg = r#"{"foo":"bar"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("MISSING_TYPE"));
     }
 
-    #[test]
-    fn process_compile_request_missing_source_rejected() {
+    #[tokio::test]
+    async fn process_compile_request_missing_source_rejected() {
         let coord = make_coordinator();
         let msg = r#"{"type":"compile_request","destination":"b"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("MISSING_FIELD"));
     }
 
-    #[test]
-    fn process_webrtc_offer_missing_target_rejected() {
+    #[tokio::test]
+    async fn process_webrtc_offer_missing_target_rejected() {
         let coord = make_coordinator();
         let msg = r#"{"type":"webrtc_offer","sdp":"v=0..."}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("MISSING_FIELD"));
     }
 
-    #[test]
-    fn process_compile_request_wrong_type_rejected() {
+    #[tokio::test]
+    async fn process_compile_request_wrong_type_rejected() {
         let coord = make_coordinator();
         let msg = r#"{"type":"compile_request","source":123,"destination":"b"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("WRONG_TYPE"));
     }
 }

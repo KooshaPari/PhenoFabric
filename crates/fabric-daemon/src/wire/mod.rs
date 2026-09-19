@@ -3,6 +3,7 @@
 //! Listens on a TCP socket and handles incoming wire messages.
 //! Implements the server side of spec 025.
 
+mod auth_handlers;
 mod handlers;
 pub mod protocol;
 
@@ -96,7 +97,10 @@ pub fn run_wire_server(
                 let auth = auth.clone();
                 let rt = runtime.clone();
                 let handle = std::thread::spawn(move || {
-                    handle_connection(stream, coord, timeout, &auth, &rt);
+                    // handle_connection is async (process_message awaits auth
+                    // handlers); drive it to completion on this thread through
+                    // the shared tokio runtime.
+                    rt.block_on(handle_connection(stream, coord, timeout, &auth));
                     // Decrement is handled by Drop of a counter or we accept the leak
                     // for now -- in production, use an AtomicUsize counter.
                 });
@@ -124,12 +128,11 @@ pub fn run_wire_server(
 }
 
 /// Handle a single TCP connection.
-fn handle_connection(
+async fn handle_connection(
     stream: TcpStream,
     coordinator: Arc<Coordinator>,
     timeout: Duration,
     auth: &AuthMiddleware,
-    runtime: &tokio::runtime::Runtime,
 ) {
     let peer = stream
         .peer_addr()
@@ -183,7 +186,7 @@ fn handle_connection(
         // Parse the message for auth checking. If JSON is invalid, let
         // process_message handle the validation error downstream.
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&line) {
-            match runtime.block_on(auth.validate_message(&parsed)) {
+            match auth.validate_message(&parsed).await {
                 Ok(Some(user)) => {
                     debug!(peer = %peer, user_id = %user.user_id, "auth: authenticated");
                     // Attach user to the message for downstream handlers.
@@ -193,7 +196,7 @@ fn handle_connection(
                     }
                     // Re-serialize for process_message (user field attached).
                     let re_serialized = msg.to_string();
-                    let response = protocol::process_message(&re_serialized, &coordinator);
+                    let response = protocol::process_message(&re_serialized, &coordinator).await;
                     if let Some(resp) = response {
                         if let Err(e) = writeln!(writer, "{resp}") {
                             debug!(peer = %peer, error = %e, "write error");
@@ -203,7 +206,7 @@ fn handle_connection(
                 }
                 Ok(None) => {
                     // Public route or auth disabled -- proceed normally.
-                    let response = protocol::process_message(&line, &coordinator);
+                    let response = protocol::process_message(&line, &coordinator).await;
                     if let Some(resp) = response {
                         if let Err(e) = writeln!(writer, "{resp}") {
                             debug!(peer = %peer, error = %e, "write error");
@@ -222,7 +225,7 @@ fn handle_connection(
             }
         } else {
             // Invalid JSON -- let process_message return the validation error.
-            let response = protocol::process_message(&line, &coordinator);
+            let response = protocol::process_message(&line, &coordinator).await;
             if let Some(resp) = response {
                 if let Err(e) = writeln!(writer, "{resp}") {
                     debug!(peer = %peer, error = %e, "write error");

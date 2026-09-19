@@ -22,8 +22,8 @@ use fabric_integration_tests::{
 // ===========================================================================
 
 /// topology_request -> routes_request -> surface_lease sequence.
-#[test]
-fn daemon_wire_message_flow_topo_routes_lease() {
+#[tokio::test]
+async fn daemon_wire_message_flow_topo_routes_lease() {
     let (coord, _dir) = make_coordinator();
     let topo = build_4node_topology();
     coord.set_topology(topo).unwrap();
@@ -31,7 +31,7 @@ fn daemon_wire_message_flow_topo_routes_lease() {
     // -- topology_request --
     let topo_req = serde_json::json!({"type": "topology_request"});
     let resp =
-        fabric_daemon::wire::protocol::process_message(&topo_req.to_string(), &coord).unwrap();
+        fabric_daemon::wire::protocol::process_message(&topo_req.to_string(), &coord).await.unwrap();
     let val: serde_json::Value = serde_json::from_str(&resp).unwrap();
     assert_eq!(val["type"].as_str().unwrap(), "probe_response");
     assert!(val["topology_epoch"].is_number());
@@ -42,7 +42,7 @@ fn daemon_wire_message_flow_topo_routes_lease() {
     // -- routes_request --
     let routes_req = serde_json::json!({"type": "routes_request"});
     let resp =
-        fabric_daemon::wire::protocol::process_message(&routes_req.to_string(), &coord).unwrap();
+        fabric_daemon::wire::protocol::process_message(&routes_req.to_string(), &coord).await.unwrap();
     let val: serde_json::Value = serde_json::from_str(&resp).unwrap();
     assert_eq!(val["type"].as_str().unwrap(), "routes_response");
     assert!(val["routes"].is_array());
@@ -73,21 +73,21 @@ fn daemon_wire_message_flow_topo_routes_lease() {
 // Test 2: Daemon wire health -> topology -> compile sequence
 // ===========================================================================
 
-#[test]
-fn daemon_wire_health_topology_compile_sequence() {
+#[tokio::test]
+async fn daemon_wire_health_topology_compile_sequence() {
     let (coord, _dir) = make_coordinator();
     let topo = build_4node_topology();
     coord.set_topology(topo).unwrap();
 
     // health_check
-    let resp = fabric_daemon::wire::protocol::process_message(r#"{"type":"health_check"}"#, &coord)
+    let resp = fabric_daemon::wire::protocol::process_message(r#"{"type":"health_check"}"#, &coord).await
         .unwrap();
     let val: serde_json::Value = serde_json::from_str(&resp).unwrap();
     assert_eq!(val["status"].as_str().unwrap(), "healthy");
 
     // topology_request
     let resp =
-        fabric_daemon::wire::protocol::process_message(r#"{"type":"topology_request"}"#, &coord)
+        fabric_daemon::wire::protocol::process_message(r#"{"type":"topology_request"}"#, &coord).await
             .unwrap();
     let val: serde_json::Value = serde_json::from_str(&resp).unwrap();
     assert_eq!(val["node_count"].as_u64().unwrap(), 4);
@@ -96,7 +96,7 @@ fn daemon_wire_health_topology_compile_sequence() {
     let resp = fabric_daemon::wire::protocol::process_message(
         r#"{"type":"compile_request","source":"n1","destination":"n4","intent_name":"stream"}"#,
         &coord,
-    )
+    ).await
     .unwrap();
     let val: serde_json::Value = serde_json::from_str(&resp).unwrap();
     assert_eq!(val["type"].as_str().unwrap(), "compile_response");
@@ -177,8 +177,8 @@ async fn multihop_compile_and_frame_flow() {
 // Test 4: Full E2E pipeline — compile + check + persist + lease + frame
 // ===========================================================================
 
-#[test]
-fn full_e2e_pipeline_compile_check_persist_frame() {
+#[tokio::test]
+async fn full_e2e_pipeline_compile_check_persist_frame() {
     let topo = build_4node_topology();
 
     // Compile multihop route n1 -> n4.
@@ -258,24 +258,24 @@ fn full_e2e_pipeline_compile_check_persist_frame() {
 // Test 5: Daemon wire error handling
 // ===========================================================================
 
-#[test]
-fn daemon_wire_invalid_json_and_unknown_type() {
+#[tokio::test]
+async fn daemon_wire_invalid_json_and_unknown_type() {
     let (coord, _dir) = make_coordinator();
 
     // Invalid JSON
-    let resp = fabric_daemon::wire::protocol::process_message("not json", &coord).unwrap();
+    let resp = fabric_daemon::wire::protocol::process_message("not json", &coord).await.unwrap();
     assert!(resp.contains("INVALID_JSON") || resp.contains("invalid_json"));
 
     // Unknown message type
     let resp =
-        fabric_daemon::wire::protocol::process_message(r#"{"type":"foo_bar"}"#, &coord).unwrap();
+        fabric_daemon::wire::protocol::process_message(r#"{"type":"foo_bar"}"#, &coord).await.unwrap();
     assert!(resp.contains("UNKNOWN_TYPE") || resp.contains("unknown_message"));
 
     // Compile request with missing source
     let resp = fabric_daemon::wire::protocol::process_message(
         r#"{"type":"compile_request","destination":"b"}"#,
         &coord,
-    )
+    ).await
     .unwrap();
     assert!(resp.contains("MISSING_FIELD") || resp.contains("missing_source"));
 
@@ -283,7 +283,7 @@ fn daemon_wire_invalid_json_and_unknown_type() {
     let resp = fabric_daemon::wire::protocol::process_message(
         r#"{"type":"compile_request","source":"a","destination":"b"}"#,
         &coord,
-    )
+    ).await
     .unwrap();
     assert!(resp.contains("compile_error") || resp.contains("compile_failed"));
 }

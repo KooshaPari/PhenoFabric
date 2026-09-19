@@ -178,7 +178,15 @@ impl Default for AuthConfig {
             infisical_client_secret: String::new(),
             infisical_project_id: String::new(),
             jwt_secret: None,
-            public_routes: vec!["health_check".into(), "status_check".into()],
+            // Auth bootstrap messages must be reachable before a user is
+            // authenticated; everything else requires a token.
+            public_routes: vec![
+                "health_check".into(),
+                "status_check".into(),
+                "auth_start".into(),
+                "auth_complete".into(),
+                "auth_email".into(),
+            ],
         }
     }
 }

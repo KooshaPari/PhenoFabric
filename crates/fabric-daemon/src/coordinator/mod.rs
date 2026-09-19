@@ -304,6 +304,36 @@ impl Coordinator {
             .listen
             .clone()
     }
+
+    /// Get a WorkOS provider built from the current config, if configured.
+    ///
+    /// Returns `None` when `auth.workos_client_id` is empty.
+    pub fn workos_provider(&self) -> Option<crate::auth::WorkOsProvider> {
+        let config = self
+            .config
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        if config.auth.workos_client_id.is_empty() {
+            return None;
+        }
+        Some(crate::auth::WorkOsProvider::new(crate::auth::WorkOsConfig {
+            client_id: config.auth.workos_client_id,
+            client_secret: config.auth.workos_client_secret,
+            redirect_uri: config.auth.workos_redirect_uri,
+            ..Default::default()
+        }))
+    }
+
+    /// Get the configured WorkOS redirect URI.
+    pub fn redirect_uri(&self) -> String {
+        self.config
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .auth
+            .workos_redirect_uri
+            .clone()
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

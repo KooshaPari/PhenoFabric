@@ -178,34 +178,34 @@ mod tests {
         Arc::new(Coordinator::new(config).unwrap())
     }
 
-    #[test]
-    fn process_webrtc_offer_requires_target() {
+    #[tokio::test]
+    async fn process_webrtc_offer_requires_target() {
         let coord = make_coordinator();
         let msg = r#"{"type":"webrtc_offer"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("MISSING_FIELD") || resp.contains("missing_target"));
     }
 
-    #[test]
-    fn process_webrtc_offer_with_target() {
+    #[tokio::test]
+    async fn process_webrtc_offer_with_target() {
         let coord = make_coordinator();
         let msg = r#"{"type":"webrtc_offer","target":"node-1","sdp":"v=0..."}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("webrtc_answer"));
         assert!(resp.contains("relay_pending"));
     }
 
-    #[test]
-    fn process_webrtc_ice() {
+    #[tokio::test]
+    async fn process_webrtc_ice() {
         let coord = make_coordinator();
         let msg = r#"{"type":"webrtc_ice","from":"browser","candidate":"candidate:..."}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("webrtc_ice_ack"));
         assert!(resp.contains("browser"));
     }
 
-    #[test]
-    fn process_probe_request_with_nodes() {
+    #[tokio::test]
+    async fn process_probe_request_with_nodes() {
         let coord = make_coordinator();
 
         // Add a node to the topology.
@@ -222,7 +222,7 @@ mod tests {
         coord.set_topology(topo).unwrap();
 
         let msg = r#"{"type":"probe_request"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(parsed["node_count"], 1);
         assert_eq!(parsed["topology_name"], "test-topo");
@@ -232,56 +232,56 @@ mod tests {
         assert_eq!(nodes[0]["label"], "Node One");
     }
 
-    #[test]
-    fn process_compile_request_missing_source() {
+    #[tokio::test]
+    async fn process_compile_request_missing_source() {
         let coord = make_coordinator();
         let msg = r#"{"type":"compile_request","destination":"b"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("MISSING_FIELD") || resp.contains("missing_source"));
     }
 
-    #[test]
-    fn process_compile_request_missing_destination() {
+    #[tokio::test]
+    async fn process_compile_request_missing_destination() {
         let coord = make_coordinator();
         let msg = r#"{"type":"compile_request","source":"a"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("MISSING_FIELD") || resp.contains("missing_destination"));
     }
 
-    #[test]
-    fn process_compile_request_empty_topology_returns_error() {
+    #[tokio::test]
+    async fn process_compile_request_empty_topology_returns_error() {
         let coord = make_coordinator();
         // Empty topology -> compile fails.
         let msg = r#"{"type":"compile_request","source":"a","destination":"b"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("compile_error") || resp.contains("compile_failed"));
     }
 
-    #[test]
-    fn process_save_config_overrides() {
+    #[tokio::test]
+    async fn process_save_config_overrides() {
         let coord = make_coordinator();
         let msg = r#"{"type":"save_config","overrides":{"server":{"listen":"0.0.0.0:5555"},"logging":{"level":"trace"}}}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("save_config_response"));
         assert!(resp.contains("ok"));
         assert!(resp.contains("0.0.0.0:5555"));
         assert!(resp.contains("trace"));
     }
 
-    #[test]
-    fn process_save_config_missing_payload() {
+    #[tokio::test]
+    async fn process_save_config_missing_payload() {
         let coord = make_coordinator();
         let msg = r#"{"type":"save_config"}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("save_config_error"));
         assert!(resp.contains("missing_payload"));
     }
 
-    #[test]
-    fn process_save_config_full_replacement() {
+    #[tokio::test]
+    async fn process_save_config_full_replacement() {
         let coord = make_coordinator();
         let msg = r#"{"type":"save_config","config":{"server":{"listen":"0.0.0.0:8888","max_connections":32,"request_timeout_ms":10000},"database":{"path":"state.db","wal_mode":true,"flush_interval_ms":1000},"topology":{"auto_probe":false,"probe_interval_s":60,"epoch_persistence":true},"leases":{"default_ttl_s":3600,"max_ttl_s":86400,"renewal_window_s":300,"fairness_policy":"FairShare"},"logging":{"level":"debug","format":"compact","file":null},"auth":{"enabled":false,"workos_client_id":"","workos_client_secret":"","workos_redirect_uri":"","infisical_client_id":"","infisical_client_secret":"","infisical_project_id":"","jwt_secret":null,"public_routes":["health_check","status_check"]}}}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("save_config_response"));
         assert!(resp.contains("ok"));
         // Verify the config was actually updated.
@@ -291,8 +291,8 @@ mod tests {
         assert_eq!(parsed["logging"]["level"], "debug");
     }
 
-    #[test]
-    fn process_save_config_persists_to_file() {
+    #[tokio::test]
+    async fn process_save_config_persists_to_file() {
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let cfg_path = dir.path().join("daemon.toml");
@@ -308,7 +308,7 @@ mod tests {
         coord.set_config_path(cfg_path.clone());
 
         let msg = r#"{"type":"save_config","overrides":{"server":{"listen":"0.0.0.0:9999"}}}"#;
-        let resp = process_message(msg, &coord).unwrap();
+        let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("save_config_response"));
 
         // Verify the file was written.

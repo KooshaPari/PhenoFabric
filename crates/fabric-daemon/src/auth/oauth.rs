@@ -34,6 +34,9 @@ pub enum OAuthError {
     #[error("user info fetch failed: {0}")]
     UserInfo(String),
 
+    #[error("magic auth failed: {0}")]
+    MagicAuth(String),
+
     #[error("serialization error: {0}")]
     Serialization(String),
 }
@@ -122,6 +125,24 @@ pub struct WorkOsUser {
     pub name: String,
     /// Organization ID, if the user belongs to one.
     pub org_id: Option<String>,
+}
+
+/// Grant type for Magic Auth (passwordless) authentication.
+pub const MAGIC_AUTH_GRANT_TYPE: &str = "urn:workos:oauth:grant-type:magic-auth:code";
+
+/// A WorkOS Magic Auth code (passwordless one-time code).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MagicAuthCode {
+    /// Magic Auth code ID.
+    pub id: String,
+    /// The user the code was created for.
+    pub user_id: String,
+    /// The email address the code was sent to.
+    pub email: String,
+    /// When the code expires.
+    pub expires_at: String,
+    /// When the code was created.
+    pub created_at: String,
 }
 
 /// WorkOS OAuth provider.
@@ -262,6 +283,82 @@ impl WorkOsProvider {
         let token_data: TokenData = response.json().await.map_err(OAuthError::http)?;
 
         // Fetch user info with the refreshed access token.
+        let user = self.get_user(&token_data.access_token).await?;
+
+        Ok(TokenResponse {
+            access_token: token_data.access_token,
+            refresh_token: token_data.refresh_token,
+            expires_in: token_data.expires_in,
+            token_type: token_data.token_type,
+            user,
+        })
+    }
+
+    /// Send a Magic Auth (passwordless) code to the user's email address.
+    ///
+    /// Calls the WorkOS `POST /user_management/magic_auth` endpoint, which
+    /// creates a one-time 6-digit code (10 minute expiry) and emails it.
+    /// The user then completes login via `authenticate_with_magic_auth_code`.
+    pub async fn send_magic_auth_code(&self, email: &str) -> Result<MagicAuthCode, OAuthError> {
+        let mut params = HashMap::new();
+        params.insert("email", email);
+
+        let url = format!("{}/user_management/magic_auth", self.config.base_url);
+
+        let response = self
+            .http
+            .post(&url)
+            .json(&params)
+            .send()
+            .await
+            .map_err(OAuthError::http)?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(OAuthError::MagicAuth(format!("HTTP {status}: {body}")));
+        }
+
+        let magic_auth: MagicAuthCode = response.json().await.map_err(OAuthError::http)?;
+
+        Ok(magic_auth)
+    }
+
+    /// Authenticate a user with a Magic Auth code (passwordless).
+    ///
+    /// Calls the WorkOS `POST /user_management/authenticate` endpoint with the
+    /// `urn:workos:oauth:grant-type:magic-auth:code` grant type.
+    pub async fn authenticate_with_magic_auth_code(
+        &self,
+        email: &str,
+        code: &str,
+    ) -> Result<TokenResponse, OAuthError> {
+        let mut params = HashMap::new();
+        params.insert("grant_type", MAGIC_AUTH_GRANT_TYPE);
+        params.insert("client_id", &self.config.client_id);
+        params.insert("client_secret", &self.config.client_secret);
+        params.insert("email", email);
+        params.insert("code", code);
+
+        let url = format!("{}/user_management/authenticate", self.config.base_url);
+
+        let response = self
+            .http
+            .post(&url)
+            .json(&params)
+            .send()
+            .await
+            .map_err(OAuthError::http)?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(OAuthError::MagicAuth(format!("HTTP {status}: {body}")));
+        }
+
+        let token_data: TokenData = response.json().await.map_err(OAuthError::http)?;
+
+        // Fetch user info with the new access token.
         let user = self.get_user(&token_data.access_token).await?;
 
         Ok(TokenResponse {
