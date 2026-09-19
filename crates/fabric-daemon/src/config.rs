@@ -251,6 +251,15 @@ impl DaemonConfig {
         if let Ok(secret) = std::env::var("WORKOS_CLIENT_SECRET") {
             self.auth.workos_client_secret = secret;
         }
+        // The client id and redirect URI are not secrets, but they are
+        // deployment-specific: a desktop build passes them to the daemon it
+        // spawns so login works without a config file on disk.
+        if let Ok(client_id) = std::env::var("WORKOS_CLIENT_ID") {
+            self.auth.workos_client_id = client_id;
+        }
+        if let Ok(redirect_uri) = std::env::var("WORKOS_REDIRECT_URI") {
+            self.auth.workos_redirect_uri = redirect_uri;
+        }
         if let Ok(secret) = std::env::var("INFISICAL_CLIENT_SECRET") {
             self.auth.infisical_client_secret = secret;
         }

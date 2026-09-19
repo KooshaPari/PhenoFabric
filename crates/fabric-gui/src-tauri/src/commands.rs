@@ -97,18 +97,36 @@ pub async fn start_auth(state: State<'_, AppState>) -> Result<AuthStartResponse,
     match daemon::fetch_auth_start(&addr).await {
         Ok(resp) => Ok(resp),
         Err(_) => {
-            // Fallback: construct a basic auth URL
-            // In production, the client_id comes from daemon config
+            // Fallback: build the authorize URL from this build's WorkOS
+            // settings. `response_type=code` is required - WorkOS rejects the
+            // request outright without it and lands on a generic error page.
             Ok(AuthStartResponse {
                 url: format!(
-                    "https://api.workos.com/user_management/authorize?client_id={}&redirect_uri={}&provider=authkit",
-                    "client_01K4KYZR40RK7R9X3PPB5SEJ66",
-                    "http://localhost:9400/auth/callback",
+                    "https://api.workos.com/user_management/authorize?client_id={}&redirect_uri={}&response_type=code&provider=authkit",
+                    query_encode(daemon::WORKOS_CLIENT_ID),
+                    query_encode(daemon::WORKOS_REDIRECT_URI),
                 ),
                 state: uuid::Uuid::new_v4().to_string(),
             })
         }
     }
+}
+
+/// Percent-encode a value for use in a query string (RFC 3986 unreserved set).
+///
+/// The client id and redirect URI are the only interpolated values, and the
+/// redirect URI contains `:` and `/`, which must be encoded for the query to
+/// survive URL parsing.
+fn query_encode(value: &str) -> String {
+    value
+        .bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (b as char).to_string()
+            }
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
 }
 
 /// Complete WorkOS AuthKit login — exchange code for tokens.
@@ -183,4 +201,24 @@ pub async fn get_daemon_status(state: State<'_, AppState>) -> Result<DaemonStatu
 #[tauri::command]
 pub fn start_auth_listener(app: tauri::AppHandle) -> Result<u16, String> {
     crate::auth_callback::start_listener(app)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn query_encode_encodes_reserved_characters() {
+        // The redirect URI's `:` and `/` must be encoded or the query string
+        // will not survive URL parsing.
+        assert_eq!(
+            query_encode("http://localhost:5173/auth/callback"),
+            "http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback"
+        );
+    }
+
+    #[test]
+    fn query_encode_leaves_unreserved_characters_alone() {
+        assert_eq!(query_encode("client_01K4-A.b~c"), "client_01K4-A.b~c");
+    }
 }

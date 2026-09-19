@@ -24,6 +24,22 @@ const HEALTH_CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 const TCP_TIMEOUT: Duration = Duration::from_secs(3);
 const MAX_LOG_LINES: usize = 500;
 
+/// WorkOS AuthKit client id for this desktop build.
+///
+/// A client id is a public identifier, not a credential. The daemon needs it to
+/// exchange an authorization code, and the frontend uses the same value to
+/// build the authorize URL. It is passed to the spawned daemon through the
+/// environment so login works with no config file on disk.
+pub const WORKOS_CLIENT_ID: &str = "client_01K4KYZR40RK7R9X3PPB5SEJ66";
+
+/// Redirect URI the daemon advertises when it builds an authorize URL itself.
+///
+/// The GUI's real login flow listens on an ephemeral port and sends that URI
+/// from the frontend, so this value only affects the daemon-side `auth_start`
+/// path. It is the dashboard default and is registered, so the URL is accepted
+/// instead of failing redirect-URI validation.
+pub const WORKOS_REDIRECT_URI: &str = "http://localhost:5173/auth/callback";
+
 // ---------------------------------------------------------------------------
 // Daemon configuration
 // ---------------------------------------------------------------------------
@@ -218,6 +234,11 @@ impl DaemonManager {
         let exe_path = self.resolve_daemon_path()?;
         let mut cmd = Command::new(&exe_path);
         cmd.arg("start");
+        // Pass the deployment-specific WorkOS settings to the daemon. Without
+        // these the daemon has no client id and every auth message comes back
+        // as workos_not_configured, so login can never complete.
+        cmd.env("WORKOS_CLIENT_ID", WORKOS_CLIENT_ID);
+        cmd.env("WORKOS_REDIRECT_URI", WORKOS_REDIRECT_URI);
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
