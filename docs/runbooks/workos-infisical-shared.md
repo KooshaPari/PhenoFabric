@@ -76,10 +76,58 @@ WorkOS dashboard page and cannot be retrieved via API.
 | Read/write any Infisical secret | `infisical secrets get/set --path=/shared/workos` |
 | Inject into any process | `infisical run --projectId=... --path=/shared/workos -- <cmd>` |
 
-### Programmatic via WorkOS Platform API (no CLI required)
+### NOT programmatic (probed 2026-09-20)
 
-AuthKit for Platforms exposes full programmatic provisioning. New project =
-4 API calls + 1 OAuth token exchange:
+Direct probes against the WorkOS public API using the project's staging
+`sk_test_…` key returned **404** for every plausible path:
+
+| Probed endpoint | Result |
+|---|---|
+| `GET /authkit/clients/{id}/client_secret` | 404 |
+| `POST /clients/{id}/rotate_client_secret` | 404 |
+| `GET /user_management/clients/{id}` | 404 |
+| `GET /environments/{id}` | 404 |
+| `GET /user_management/environments/{id}` | 404 |
+| `workos api ls` (full endpoint enumeration) | no client-secret lifecycle path exists |
+
+**Verdict**: WorkOS does not expose the `client_secret` of an existing client
+through any programmatic endpoint. The `client_secret` is a confidential
+value shown to the dashboard operator exactly once at creation time, and the
+public API has no rotate endpoint under any route family.
+
+### Paths forward
+
+Two viable paths to populate `WORKOS_CLIENT_SECRET`:
+
+**A. One-time dashboard click (fastest, ≤60s)**
+Visit `https://dashboard.workos.com/signin/clients/client_01K4KYZR40RK7R9X3PPB5SEJ66/secrets`
+(or the "Show secret" link on the client's settings page). Copy the value,
+seed Infisical:
+
+```bash
+infisical secrets set WORKOS_CLIENT_SECRET=<value> \
+  --projectId=8efe392e-56a6-4c3c-89f9-8141183dd7e8 \
+  --env=dev --path=/shared/workos
+# repeat for staging, prod
+```
+
+This is the documented one-time human step. **Recommended for now.**
+
+**B. Full automation via AuthKit for Platforms** (only if the human click is unacceptable)
+Requires **`PLATFORM_CLIENT_ID`** + **`PLATFORM_CLIENT_SECRET`** issued by
+WorkOS for the AuthKit for Platforms product. These are distinct from any
+environment-scoped key; they authorize creation of new AuthKit instances.
+They are not present anywhere on this machine.
+
+If `PLATFORM_CLIENT_ID` + `PLATFORM_CLIENT_SECRET` are obtained, the
+5-step flow below creates a brand new AuthKit project with fresh
+`client_id` + `client_secret` + `sk_…` API key. The existing
+`client_01K4KYZR40RK7R9X3PPB5SEJ66` stays where it is.
+
+### WorkOS Platform API: full programmatic provisioning
+
+**Prerequisite**: `PLATFORM_CLIENT_ID` + `PLATFORM_CLIENT_SECRET` (issued by
+WorkOS for the AuthKit for Platforms product).
 
 ```bash
 # 1. Exchange platform credentials for an access token
@@ -113,17 +161,6 @@ curl -s -X POST "https://api.workos.com/user_management/redirect_uris" \
 
 Note: this creates a NEW AuthKit instance. It does NOT retrieve or rotate
 the `client_secret` of an EXISTING instance.
-
-### NOT programmatic (one-time dashboard click)
-
-| Action | Why |
-|---|---|
-| Reveal an existing project's `client_secret` | WorkOS only returns it at creation time on the dashboard. There is no `GET` endpoint for it. |
-| Rotate an existing project's `client_secret` | `POST /authkit/clients/{id}/rotate_client_secret` returns 404 - the endpoint does not exist in the current WorkOS public API. |
-
-Both are solved in 10 seconds by clicking "Show secret" / "Rotate secret"
-on `https://dashboard.workos.com/signin/clients/<client_id>/secrets`. The
-automation floor is one human click per AuthKit instance per lifetime.
 
 ## Fabric-specific wiring (next step)
 
