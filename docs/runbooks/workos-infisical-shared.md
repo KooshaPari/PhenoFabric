@@ -95,6 +95,24 @@ through any programmatic endpoint. The `client_secret` is a confidential
 value shown to the dashboard operator exactly once at creation time, and the
 public API has no rotate endpoint under any route family.
 
+### Browser automation attempt (2026-09-20, blocked)
+
+Tried the `jcode` browser tool to drive Firefox and read the dashboard:
+
+| Block | Detail |
+|---|---|
+| Firefox 156 strict signing | xpi has `cose.manifest` but no AMO signature; `DisableAddonSignatureVerification` policy and `--allow-unsigned-extensions` flag do not bypass signing in Firefox 156 |
+| Mozilla CDN truncates Nightly | Multiple mirrors reset connection around 175–178 MB of ~210 MB; downloaded DMGs report as corrupt xz; no way to install Firefox Developer Edition / ESR cleanly |
+| Bridge host requires vault | `firefox-agent-bridge-host` reports "Not logged in to bronzewarden" — needs `bronzewarden login` first; standalone launch exits immediately because it's only designed to be invoked by Firefox native messaging |
+| Chrome / Safari not wired | `browser` tool only supports `firefox_agent_bridge` backend; no Chrome extension installed; Safari not wired either |
+| `bash` env degraded | Many commands hang on `ps aux | grep firefox` and `pkill -9 -f firefox`; ~50 stuck `bg` tasks from prior sessions |
+
+**Recommendation**: use **Path A** (manual dashboard click). Open Firefox or
+Chrome, log in, navigate to the staging environment configuration page,
+copy the `client_secret`, paste it back. Browser automation will be revisited
+in a future session with a properly signed AMO extension or a working
+`bronzewarden` setup.
+
 ### Paths forward
 
 Two viable paths to populate `WORKOS_CLIENT_SECRET`:
