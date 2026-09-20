@@ -100,9 +100,16 @@ public API has no rotate endpoint under any route family.
 Two viable paths to populate `WORKOS_CLIENT_SECRET`:
 
 **A. One-time dashboard click (fastest, ≤60s)**
-Visit `https://dashboard.workos.com/signin/clients/client_01K4KYZR40RK7R9X3PPB5SEJ66/secrets`
-(or the "Show secret" link on the client's settings page). Copy the value,
-seed Infisical:
+Open the staging environment's configuration page (URL confirmed 2026-09-20
+via 28-path probe — every path under `/environments/{env_id}/...` returns
+307/login, while `/signin/clients/...` returns 404):
+
+```
+https://dashboard.workos.com/environments/environment_01K4KYZQJ88MK4CPCD3HHQ09R2/configuration/secrets
+```
+
+After login the page shows the `client_secret` for
+`client_01K4KYZR40RK7R9X3PPB5SEJ66`. Copy the value, seed Infisical:
 
 ```bash
 infisical secrets set WORKOS_CLIENT_SECRET=<value> \
