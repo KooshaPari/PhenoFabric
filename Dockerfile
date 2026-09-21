@@ -6,7 +6,7 @@
 # ──────────────────────────────────────────────────────────────────────
 
 # ── Stage 1: Builder ─────────────────────────────────────────────────
-FROM rust:1.81-slim AS builder
+FROM rust:1.97-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
