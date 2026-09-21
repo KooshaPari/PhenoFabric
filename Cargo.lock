@@ -1462,7 +1462,7 @@ dependencies = [
  "ed25519-dalek",
  "jsonschema",
  "proptest",
- "rand 0.8.8",
+ "rand 0.9.5",
  "schemars 0.8.22",
  "serde",
  "serde_json",
