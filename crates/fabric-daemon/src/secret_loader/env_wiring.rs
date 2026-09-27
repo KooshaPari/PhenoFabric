@@ -1,8 +1,9 @@
 //! Startup wiring test: a secret loaded by the loader must flow into
 //! `AuthMiddlewareConfig`, i.e. the daemon's existing auth
-//! validation/consumption path. Env merging itself is owned and tested by
-//! `DaemonConfig::load_env_secrets` in `config.rs` (sole env-merge
-//! authority); this file only covers the loader-to-consumer wiring.
+//! validation/consumption path. Env merging into config is owned and tested
+//! by `DaemonConfig::load_env_secrets` in `config.rs`; the loader re-reads
+//! only `WORKOS_CLIENT_SECRET` (source attribution) and `INFISICAL_ENV`.
+//! This file only covers the loader-to-consumer wiring.
 
 use super::tests::{auth_with_creds, reader};
 use super::*;

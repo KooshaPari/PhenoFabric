@@ -227,12 +227,15 @@ secret, and project ID are available. Configure the non-secret identifiers in
 erases a config-file value.
 
 The lookup uses the verified Infisical v4 read-by-name contract through the
-daemon's existing `InfisicalClient` authentication/token cache. A missing
-credential, missing secret, authentication failure, or transport failure does
-not crash the loader. Startup logs may name the secret, folder, environment,
-and error category only; response bodies, access tokens, and secret values are
-never included. Existing WorkOS configuration validation remains the final
-authority when authentication is enabled.
+daemon's existing `InfisicalClient` authentication/token cache. Unmet
+prerequisites (a missing WorkOS or Infisical identifier) skip the fetch
+silently — no fetch is attempted, so no failure warning is emitted for that
+deployment state. When a fetch is attempted and fails — missing secret,
+authentication failure, or transport failure — the loader does not crash;
+startup logs name the secret, folder, environment, and error category only;
+response bodies, access tokens, and secret values are never included.
+Existing WorkOS configuration validation remains the final authority when
+authentication is enabled.
 
 To verify the path without revealing the value, use a disposable daemon config
 with authentication enabled, omit `WORKOS_CLIENT_SECRET`, and confirm startup

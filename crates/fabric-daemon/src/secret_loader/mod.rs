@@ -13,9 +13,12 @@
 //!    and that fetch runs only when authentication is enabled, a WorkOS
 //!    client ID is configured, and the Infisical client ID, client secret,
 //!    and project ID are all nonempty — prerequisites read **only** from
-//!    `AuthConfig` (already env-merged by step 1); the loader never
-//!    re-reads credential env vars itself. `INFISICAL_ENV` selects the
-//!    Infisical environment and defaults to `dev` in the fetch path only.
+//!    `AuthConfig` (already env-merged by step 1). The loader re-reads
+//!    exactly two env vars from the process: `WORKOS_CLIENT_SECRET`, only
+//!    to attribute `Source::Environment` (same nonempty-wins rule as step
+//!    1 — the two must stay in lockstep), and `INFISICAL_ENV` for the
+//!    fetch path; it never re-reads the Infisical service-account
+//!    credentials. `INFISICAL_ENV` defaults to `dev` in the fetch path only.
 //!    The fetch goes through
 //!    [`fetch_via_infisical`], a thin blocking adapter over
 //!    [`InfisicalClient::get_secret_by_name`] — the official
@@ -189,9 +192,11 @@ pub fn load_workos_client_secret(
     read_env: &dyn Fn(&str) -> Option<String>,
     fetch: SecretFetch<'_>,
 ) -> LoadOutcome {
-    // 1. A nonempty process-env value wins and skips the remote fetch.
+    // 1. A nonempty, non-whitespace-only process-env value wins and skips
+    //    the remote fetch; a whitespace-only value cannot authenticate, so
+    //    it falls through instead of blocking the config/Infisical steps.
     if let Some(value) = read_env(ENV_WORKOS_CLIENT_SECRET) {
-        if !value.is_empty() {
+        if !value.trim().is_empty() {
             auth.workos_client_secret = value;
             return LoadOutcome {
                 source: Source::Environment,

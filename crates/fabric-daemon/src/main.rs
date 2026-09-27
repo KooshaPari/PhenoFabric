@@ -113,7 +113,10 @@ fn cmd_start(
     config = config.with_overrides(listen, db_path, log_level);
 
     // Load environment secrets (e.g., WORKOS_CLIENT_SECRET).
-    // Sole env-merge authority: only nonempty env values override config.
+    // Env-merge authority for deployment secrets: only nonempty env values
+    // override config. The loader below re-reads WORKOS_CLIENT_SECRET once
+    // solely to attribute its source (same nonempty-wins rule); keep both
+    // rules in lockstep if either changes.
     config.load_env_secrets();
 
     // Resolve WORKOS_CLIENT_SECRET: env-first, then a nonfatal Infisical

@@ -325,3 +325,46 @@ fn fetched_empty_or_whitespace_value_is_rejected() {
         assert_eq!(warning.category, "empty_response");
     }
 }
+
+#[test]
+fn whitespace_only_env_secret_does_not_block_infisical_fallback() {
+    // A whitespace-only WORKOS_CLIENT_SECRET cannot authenticate; it must not
+    // count as configured and must not skip the Infisical fetch
+    // (CodeAnt Major, 2026-09-27).
+    let mut auth = auth_with_creds();
+    let read = reader(&[(ENV_WORKOS_CLIENT_SECRET, " \t ")]);
+    let calls: RefCell<RecordedCalls> = RefCell::new(Vec::new());
+    let mut fetch = |name: &str, folder: &str, env: &str| {
+        record(&calls, name, folder, env);
+        Ok::<_, FetchFailure>("from-infisical".to_string())
+    };
+
+    let outcome = load_workos_client_secret(&mut auth, &read, &mut fetch);
+
+    assert_eq!(auth.workos_client_secret, "from-infisical");
+    assert_eq!(outcome.source, Source::Infisical);
+    assert!(outcome.warning.is_none());
+    assert_eq!(calls.borrow().len(), 1, "fetch must still run");
+}
+
+#[test]
+fn whitespace_only_env_secret_preserves_config_value() {
+    // With a config-file value present, whitespace-only env must be ignored
+    // so the configured secret and Source::Config survive
+    // (CodeAnt Major, 2026-09-27).
+    let mut auth = auth_with_creds();
+    auth.workos_client_secret = "from-config".into();
+    let read = reader(&[(ENV_WORKOS_CLIENT_SECRET, "\n")]);
+    let calls: RefCell<RecordedCalls> = RefCell::new(Vec::new());
+    let mut fetch = |name: &str, folder: &str, env: &str| {
+        record(&calls, name, folder, env);
+        Ok::<_, FetchFailure>("from-infisical".to_string())
+    };
+
+    let outcome = load_workos_client_secret(&mut auth, &read, &mut fetch);
+
+    assert_eq!(auth.workos_client_secret, "from-config");
+    assert_eq!(outcome.source, Source::Config);
+    assert!(outcome.warning.is_none());
+    assert!(calls.borrow().is_empty(), "fetch must be skipped");
+}
