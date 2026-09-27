@@ -263,15 +263,19 @@ requires valid service-account credentials and the seeded shared secret.
   Infisical CLI v0.43.114 `--domain` default
   (`https://app.infisical.com/api`, observed 2026-09-24), also the CLI
   login config's `LoggedInUserDomain` (observed 2026-09-27).
-- **Host ambiguity resolved (observed 2026-09-27):** `app.infisical.com`
-  and `us.infisical.com` resolve to the SAME AWS load balancer
+- **Host ambiguity resolved (observed twice, 2026-09-27):** `app` and `us`
+  resolve to the SAME AWS load balancer
   (`infisical-core-platform-...us-east-1.elb.amazonaws.com`, identical
-  address pairs) and answer unauthenticated probes identically. Docs
-  samples use the `us` host, CLI/default use `app`; they are aliases of one
-  backend, not two deployments. The former daemon default
-  `https://secrets.infisical.com` is undocumented anywhere in the official
-  docs (self-host docs use `https://<your-instance>/api`) and was replaced
-  2026-09-27.
+  address pairs), present the SAME TLS certificate (identical SHA-256
+  fingerprint, SAN `*.infisical.com`), and answer probes identically on
+  both rounds (exact daemon GET → 401 `Token missing` with `req-us-*`
+  request ids; login → 422 with identical `clientId`/`clientSecret` field
+  paths). Docs samples use the `us` host, CLI/default use `app`; every
+  externally visible signal says one shared backend — an ALB target-group
+  split by hostname is the one thing not observable from outside. The
+  former daemon default `https://secrets.infisical.com` is undocumented
+  anywhere in the official docs (self-host docs use
+  `https://<your-instance>/api`) and was replaced 2026-09-27.
 - **Live route probes (unauthenticated, 2026-09-27):** the daemon's exact
   `GET /api/v4/secrets/WORKOS_CLIENT_SECRET?projectId=...&environment=dev&secretPath=%2Fshared%2Fworkos&type=shared&viewSecretValue=true`
   returns 401 `Token missing` on both `app` and `us` (route exists with
