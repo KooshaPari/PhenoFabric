@@ -56,7 +56,8 @@ fn fake_infisical_server() -> (String, Arc<Mutex<Vec<String>>>) {
                 .and_then(|l| l.split(':').nth(1))
                 .and_then(|v| v.trim().parse::<usize>().ok())
                 .unwrap_or(0);
-            let mut body_remaining = content_length.saturating_sub(data.len() - head_end);
+            let mut body_bytes = data[head_end..].to_vec();
+            let mut body_remaining = content_length.saturating_sub(body_bytes.len());
             let mut aborted = false;
             while body_remaining > 0 {
                 let Ok(n) = stream.read(&mut chunk) else {
@@ -67,19 +68,27 @@ fn fake_infisical_server() -> (String, Arc<Mutex<Vec<String>>>) {
                     aborted = true;
                     break;
                 }
+                body_bytes.extend_from_slice(&chunk[..n]);
                 body_remaining = body_remaining.saturating_sub(n);
             }
             if aborted {
                 continue;
             }
+            body_bytes.truncate(content_length);
+            let body_text = String::from_utf8_lossy(&body_bytes).to_string();
 
-            let request_line = head.lines().next().unwrap_or_default().to_string();
+            let request_line = format!(
+                "{} BODY {body_text}",
+                head.lines().next().unwrap_or_default()
+            );
             let is_login = request_line.starts_with("POST");
             let is_secret_get = request_line.starts_with("GET ");
             recorded.lock().unwrap().push(request_line);
 
             let body = if is_login {
-                r#"{"access_token":"fake-token","expires_in":300,"token_type":"Bearer"}"#
+                // Official login contract (docs observed 2026-09-27):
+                // accessToken / expiresIn / accessTokenMaxTTL / tokenType.
+                r#"{"accessToken":"fake-token","expiresIn":300,"accessTokenMaxTTL":600,"tokenType":"Bearer"}"#
             } else {
                 r#"{"secret":{"secretKey":"WORKOS_CLIENT_SECRET","secretValue":"from-fake-server"}}"#
             };
@@ -137,6 +146,54 @@ fn production_fetch_uses_official_v4_named_secret_route() {
     assert!(get.contains("viewSecretValue=true"), "{get}");
 }
 
+/// Live Infisical rejects `client_id`/`client_secret` with 422
+/// `path:["clientId"] Required` (observed 2026-09-27), and the official docs
+/// (observed 2026-09-27,
+/// https://infisical.com/docs/api-reference/endpoints/universal-auth/login)
+/// require `clientId`/`clientSecret`. The login request must carry the
+/// documented camelCase keys so production never reproduces that 422.
+#[test]
+fn production_login_sends_documented_camelcase_fields() {
+    let (base_url, requests) = fake_infisical_server();
+    let config = InfisicalConfig {
+        client_id: "sa-id".into(),
+        client_secret: "sa-secret".into(),
+        project_id: "test-project".into(),
+        base_url,
+    };
+
+    let value = fetch_via_infisical(
+        config,
+        WORKOS_CLIENT_SECRET_KEY,
+        WORKOS_INFISICAL_FOLDER,
+        "dev",
+    )
+    .expect("fake server must serve the secret");
+    assert_eq!(value, "from-fake-server");
+
+    let recorded = requests.lock().unwrap();
+    let login = recorded
+        .iter()
+        .find(|r| r.starts_with("POST /api/v1/auth/universal-auth/login"))
+        .expect("login request must be recorded");
+    assert!(
+        login.contains(r#""clientId""#),
+        "documented clientId missing: {login}"
+    );
+    assert!(
+        login.contains(r#""clientSecret""#),
+        "documented clientSecret missing: {login}"
+    );
+    assert!(
+        !login.contains("client_id"),
+        "legacy snake_case key: {login}"
+    );
+    assert!(
+        !login.contains("client_secret"),
+        "legacy snake_case key: {login}"
+    );
+}
+
 /// Fake that answers a valid universal-auth login but a non-success v4 read
 /// carrying a unique body marker. The marker must never surface in the error
 /// returned by `get_secret_by_name` (status/category-only diagnostics).
@@ -181,9 +238,10 @@ fn failing_infisical_server() -> String {
 
             let is_login = head.lines().next().unwrap_or_default().starts_with("POST");
             let (status, body) = if is_login {
+                // Same documented camelCase login response as the main fake.
                 (
                     "200 OK",
-                    r#"{"access_token":"fake-token","expires_in":300,"token_type":"Bearer"}"#,
+                    r#"{"accessToken":"fake-token","expiresIn":300,"accessTokenMaxTTL":600,"tokenType":"Bearer"}"#,
                 )
             } else {
                 (

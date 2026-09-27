@@ -102,14 +102,20 @@ pub struct SecretValue {
 }
 
 /// Response from the Infisical token endpoint.
+///
+/// Field names follow the official login contract (docs observed
+/// 2026-09-27, https://infisical.com/docs/api-reference/endpoints/universal-auth/login):
+/// `accessToken` / `expiresIn` / `tokenType`.
 #[derive(Debug, Deserialize)]
 struct TokenResponse {
+    #[serde(rename = "accessToken")]
     access_token: String,
+    #[serde(rename = "expiresIn")]
     expires_in: u64,
-    // Infisical returns `token_type`; map it explicitly. Never read (the
+    // Infisical returns `tokenType`; map it explicitly. Never read (the
     // leading underscore marks it ignorable), but it MUST deserialize or the
     // login response fails to parse and every fetch reports `Unavailable`.
-    #[serde(rename = "token_type")]
+    #[serde(rename = "tokenType")]
     _token_type: String,
 }
 
@@ -185,13 +191,18 @@ impl InfisicalClient {
 
     /// Authenticate and obtain an access token using client credentials.
     ///
+    /// Request/response field names follow the official contract (docs
+    /// observed 2026-09-27). Live Infisical enforces the request shape:
+    /// sending `client_id`/`client_secret` returns 422
+    /// `path:["clientId"] Required` (observed 2026-09-27).
+    ///
     /// The token is cached internally for subsequent requests.
     pub async fn authenticate(&mut self) -> Result<String, SecretsError> {
         let url = format!("{}/api/v1/auth/universal-auth/login", self.config.base_url);
 
         let mut body = HashMap::new();
-        body.insert("client_id", &self.config.client_id);
-        body.insert("client_secret", &self.config.client_secret);
+        body.insert("clientId", &self.config.client_id);
+        body.insert("clientSecret", &self.config.client_secret);
 
         let response = self
             .http
@@ -469,5 +480,20 @@ mod tests {
         let json = r#"{"key":"K","value":"V","environment":"dev"}"#;
         let sv: SecretValue = serde_json::from_str(json).unwrap();
         assert!(sv.path.is_none());
+    }
+
+    /// Official docs (observed 2026-09-27,
+    /// https://infisical.com/docs/api-reference/endpoints/universal-auth/login)
+    /// return `accessToken`/`expiresIn`/`tokenType`; the snake_case fixture
+    /// shape no longer describes the live contract.
+    #[test]
+    fn token_response_matches_documented_camelcase_shape() {
+        let docs_json =
+            r#"{"accessToken":"tok","expiresIn":300,"accessTokenMaxTTL":600,"tokenType":"Bearer"}"#;
+        let parsed: TokenResponse =
+            serde_json::from_str(docs_json).expect("documented shape must parse");
+        assert_eq!(parsed.access_token, "tok");
+        assert_eq!(parsed.expires_in, 300);
+        assert_eq!(parsed._token_type, "Bearer");
     }
 }

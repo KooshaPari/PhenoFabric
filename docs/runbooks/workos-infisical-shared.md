@@ -245,20 +245,40 @@ requires valid service-account credentials and the seeded shared secret.
 - **Official read contract:** `GET /api/v4/secrets/{secretName}` with query
   `projectId` (required), `environment`, `secretPath` (default `/`),
   `type` (default `shared`), and `viewSecretValue` (default true); Bearer
-  service-account authentication. Docs observed 2026-09-24:
-  https://infisical.com/docs/api-reference/endpoints/secrets/read
+  service-account authentication; response
+  `{ "secret": { "secretKey", "secretValue", ... } }`. Docs re-observed
+  2026-09-27: https://infisical.com/docs/api-reference/endpoints/secrets/read
+  (matches the daemon's parser and query keys).
+- **Official login contract:** `POST /api/v1/auth/universal-auth/login`
+  body `clientId` (required), `clientSecret` (required), optional
+  `organizationSlug`; response `accessToken`, `expiresIn`,
+  `accessTokenMaxTTL`, `tokenType`. Docs observed 2026-09-27:
+  https://infisical.com/docs/api-reference/endpoints/universal-auth/login
+  Live enforcement observed 2026-09-27: sending `client_id`/
+  `client_secret` returns 422 `path:["clientId"] Required`. The daemon was
+  corrected to the camelCase request and response contract in the same
+  change set; the authenticated response shape is docs-based only (no live
+  authenticated login observed yet — UNKNOWN).
 - **Default base URL:** `https://app.infisical.com` — the installed
   Infisical CLI v0.43.114 `--domain` default
-  (`https://app.infisical.com/api`, "Required for non-US Cloud users",
-  observed 2026-09-24) matches the general API reference.
-- **Host ambiguity (UNKNOWN beyond the CLI default):** the v4 endpoint
-  source states `https://us.infisical.com` while the general API reference
-  and CLI state `app.infisical.com`; no live request was made, so the two
-  official statements remain unreconciled. The former daemon default
-  `https://secrets.infisical.com` is not documented anywhere in the
-  official docs and is not a documented self-hosted placeholder
-  (self-host docs use `https://<your-instance>/api`); it was replaced
+  (`https://app.infisical.com/api`, observed 2026-09-24), also the CLI
+  login config's `LoggedInUserDomain` (observed 2026-09-27).
+- **Host ambiguity resolved (observed 2026-09-27):** `app.infisical.com`
+  and `us.infisical.com` resolve to the SAME AWS load balancer
+  (`infisical-core-platform-...us-east-1.elb.amazonaws.com`, identical
+  address pairs) and answer unauthenticated probes identically. Docs
+  samples use the `us` host, CLI/default use `app`; they are aliases of one
+  backend, not two deployments. The former daemon default
+  `https://secrets.infisical.com` is undocumented anywhere in the official
+  docs (self-host docs use `https://<your-instance>/api`) and was replaced
   2026-09-27.
+- **Live route probes (unauthenticated, 2026-09-27):** the daemon's exact
+  `GET /api/v4/secrets/WORKOS_CLIENT_SECRET?projectId=...&environment=dev&secretPath=%2Fshared%2Fworkos&type=shared&viewSecretValue=true`
+  returns 401 `Token missing` on both `app` and `us` (route exists with
+  the documented shape); `POST /api/v1/auth/universal-auth/login` validates
+  the body on both hosts (422 carrying field paths). Legacy
+  `/api/v1/secrets/raw` returns 404 on both hosts — absent from live cloud
+  and unused by the daemon (zero call sites).
 - **Override (non-secret):** set `INFISICAL_BASE_URL` to your region or
   self-hosted origin, e.g. `https://eu.infisical.com`. A trailing `/api`
   is accepted and stripped; the client appends `/api/v1/...` and
@@ -283,6 +303,29 @@ persists it or echoes it back. To rotate a compromised value, update it in
 Infisical; the daemon refills it on next start. Non-secret identifiers
 (`workos_client_id`, `infisical_client_id`, `infisical_project_id`) remain
 serializable as usual.
+
+### Authenticated end-to-end status (externally blocked, precise cause)
+
+A real authenticated fetch through the daemon path was **not** executed.
+Evidence for the block (all observed 2026-09-27):
+
+- No `INFISICAL_*` environment variables exist in the shell.
+- `config/settings.toml` `[auth]` carries no `infisical_client_id` and no
+  `infisical_project_id` keys; `infisical_client_secret` appears only in a
+  comment pointing at env `INFISICAL_CLIENT_SECRET`, which is unset.
+- The local Infisical CLI login session expired (`No valid login session
+  found, triggering login flow`); re-login is an interactive operator
+  action and was not triggered.
+- Local `~/.infisical/secrets-backup/` snapshots of the shared plane
+  (project `8efe392e-...`, envs dev/staging/prod, path `/shared/workos`,
+  files dated 2026-09-24) exist but are encrypted
+  (`CipherText`/`Nonce`/`AuthTag`) and cannot be read without the backup
+  password.
+
+Closing this loop requires either `infisical login` (operator) or service
+account credentials placed in `[auth]`. Everything short of authentication
+was verified live: route contract, host identity, request-shape validation,
+and error redaction.
 
 ## Multi-project pattern
 
