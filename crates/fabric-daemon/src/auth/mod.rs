@@ -5,6 +5,7 @@
 
 pub mod middleware;
 pub mod oauth;
+mod secret_read;
 pub mod secrets;
 
 #[allow(unused_imports)]

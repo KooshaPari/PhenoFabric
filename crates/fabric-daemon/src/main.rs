@@ -8,6 +8,7 @@ mod config;
 mod coordinator;
 mod health;
 mod logging;
+mod secret_loader;
 mod wire;
 
 use clap::{Parser, Subcommand};
@@ -112,10 +113,52 @@ fn cmd_start(
     config = config.with_overrides(listen, db_path, log_level);
 
     // Load environment secrets (e.g., WORKOS_CLIENT_SECRET).
+    // Sole env-merge authority: only nonempty env values override config.
     config.load_env_secrets();
+
+    // Resolve WORKOS_CLIENT_SECRET: env-first, then a nonfatal Infisical
+    // fallback against the org-wide shared-secret plane (/shared/workos).
+    // Prerequisites come from the merged config; only WORKOS_CLIENT_SECRET,
+    // INFISICAL_ENV, and the non-secret INFISICAL_BASE_URL override are read
+    // from the process env here. Runs before
+    // logging init and coordinator creation; the outcome is emitted after
+    // logging init below (tracing is a no-op before init) and logs
+    // category/source only — never a value, body, or token.
+    let infisical_config = auth::InfisicalConfig {
+        client_id: config.auth.infisical_client_id.clone(),
+        client_secret: config.auth.infisical_client_secret.clone(),
+        project_id: config.auth.infisical_project_id.clone(),
+        base_url: secret_loader::resolve_infisical_base_url(&|name| std::env::var(name).ok()),
+    };
+    let secret_outcome = secret_loader::load_workos_client_secret(
+        &mut config.auth,
+        &|name| std::env::var(name).ok(),
+        &mut |secret, folder, environment| {
+            secret_loader::fetch_via_infisical(
+                infisical_config.clone(),
+                secret,
+                folder,
+                environment,
+            )
+        },
+    );
 
     // Initialize logging.
     logging::init_logging(&config.logging);
+
+    if let Some(warning) = &secret_outcome.warning {
+        tracing::warn!(
+            secret = warning.secret,
+            folder = warning.folder,
+            environment = %warning.environment,
+            category = warning.category,
+            "workos client secret infisical fallback failed"
+        );
+    }
+    info!(
+        source = secret_outcome.source.as_str(),
+        "workos client secret load completed"
+    );
 
     info!("fabric-daemon starting");
 

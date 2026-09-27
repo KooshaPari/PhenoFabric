@@ -119,3 +119,91 @@ impl Coordinator {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{AuthConfig, DatabaseConfig};
+
+    fn coord_with_secrets(dir: &std::path::Path) -> Coordinator {
+        Coordinator::new(DaemonConfig {
+            database: DatabaseConfig {
+                path: dir.join("test.db"),
+                ..Default::default()
+            },
+            auth: AuthConfig {
+                enabled: true,
+                workos_client_id: "client_abc".into(),
+                workos_client_secret: "WORKOS-SECRET-NEVER-LEAKED".into(),
+                infisical_client_secret: "INFISICAL-SECRET-NEVER-LEAKED".into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn config_snapshot_omits_secret_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let coord = coord_with_secrets(dir.path());
+        let snapshot = coord.config_snapshot();
+
+        assert!(
+            !snapshot.contains("workos_client_secret"),
+            "field leaked: {snapshot}"
+        );
+        assert!(
+            !snapshot.contains("infisical_client_secret"),
+            "field leaked: {snapshot}"
+        );
+        assert!(
+            !snapshot.contains("WORKOS-SECRET-NEVER-LEAKED"),
+            "value leaked: {snapshot}"
+        );
+        assert!(
+            !snapshot.contains("INFISICAL-SECRET-NEVER-LEAKED"),
+            "value leaked: {snapshot}"
+        );
+        // Non-secret auth config still present in the snapshot.
+        assert!(
+            snapshot.contains("client_abc"),
+            "client id missing: {snapshot}"
+        );
+    }
+
+    #[test]
+    fn override_persist_omits_secret_fields() {
+        // cmd_start flow: set_config_path + apply_config_overrides -> cfg.save.
+        let dir = tempfile::tempdir().unwrap();
+        let cfg_path = dir.path().join("daemon.toml");
+        let coord = coord_with_secrets(dir.path());
+        coord.set_config_path(cfg_path.clone());
+
+        coord
+            .apply_config_overrides(&serde_json::json!({"server": {"listen": "0.0.0.0:9999"}}))
+            .unwrap();
+
+        let content = std::fs::read_to_string(&cfg_path).unwrap();
+        assert!(
+            !content.contains("workos_client_secret"),
+            "field persisted: {content}"
+        );
+        assert!(
+            !content.contains("infisical_client_secret"),
+            "field persisted: {content}"
+        );
+        assert!(
+            !content.contains("WORKOS-SECRET-NEVER-LEAKED"),
+            "value persisted: {content}"
+        );
+        assert!(
+            !content.contains("INFISICAL-SECRET-NEVER-LEAKED"),
+            "value persisted: {content}"
+        );
+        assert!(
+            content.contains("0.0.0.0:9999"),
+            "override not persisted: {content}"
+        );
+    }
+}

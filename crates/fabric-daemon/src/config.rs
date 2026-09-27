@@ -152,12 +152,19 @@ pub struct AuthConfig {
     /// WorkOS OAuth client ID.
     pub workos_client_id: String,
     /// WorkOS OAuth client secret. Loaded from env var `WORKOS_CLIENT_SECRET`.
+    /// Runtime-only: never serialized to saved TOML or config-snapshot IPC.
+    /// Refilled each start by env/Infisical fallback; the struct-level
+    /// `#[serde(default)]` fills the omitted field with empty on load, and a
+    /// payload that carries the value is still deserialized.
+    #[serde(skip_serializing)]
     pub workos_client_secret: String,
     /// WorkOS OAuth redirect URI.
     pub workos_redirect_uri: String,
     /// Infisical service account client ID.
     pub infisical_client_id: String,
     /// Infisical service account client secret. Loaded from env var `INFISICAL_CLIENT_SECRET`.
+    /// Runtime-only: never serialized to saved TOML or config-snapshot IPC.
+    #[serde(skip_serializing)]
     pub infisical_client_secret: String,
     /// Infisical project ID.
     pub infisical_project_id: String,
@@ -246,24 +253,44 @@ impl Default for FederationConfig {
     }
 }
 
+/// Env-merge rule for [`DaemonConfig::load_env_secrets`]: a present,
+/// nonempty environment value overrides the target; `None` and empty
+/// values never erase an existing config-file value.
+fn merge_env(target: &mut String, value: Option<String>) {
+    if let Some(value) = value {
+        if !value.is_empty() {
+            *target = value;
+        }
+    }
+}
+
 impl DaemonConfig {
     /// Load environment variables into sensitive config fields.
+    ///
+    /// This is the sole env-merge authority for the daemon: only a present,
+    /// nonempty environment value overrides the config-file/default value
+    /// (empty env values never erase config). Runs before the
+    /// `secret_loader` Infisical fallback in `cmd_start`.
     pub fn load_env_secrets(&mut self) {
-        if let Ok(secret) = std::env::var("WORKOS_CLIENT_SECRET") {
-            self.auth.workos_client_secret = secret;
-        }
+        merge_env(
+            &mut self.auth.workos_client_secret,
+            std::env::var("WORKOS_CLIENT_SECRET").ok(),
+        );
         // The client id and redirect URI are not secrets, but they are
         // deployment-specific: a desktop build passes them to the daemon it
         // spawns so login works without a config file on disk.
-        if let Ok(client_id) = std::env::var("WORKOS_CLIENT_ID") {
-            self.auth.workos_client_id = client_id;
-        }
-        if let Ok(redirect_uri) = std::env::var("WORKOS_REDIRECT_URI") {
-            self.auth.workos_redirect_uri = redirect_uri;
-        }
-        if let Ok(secret) = std::env::var("INFISICAL_CLIENT_SECRET") {
-            self.auth.infisical_client_secret = secret;
-        }
+        merge_env(
+            &mut self.auth.workos_client_id,
+            std::env::var("WORKOS_CLIENT_ID").ok(),
+        );
+        merge_env(
+            &mut self.auth.workos_redirect_uri,
+            std::env::var("WORKOS_REDIRECT_URI").ok(),
+        );
+        merge_env(
+            &mut self.auth.infisical_client_secret,
+            std::env::var("INFISICAL_CLIENT_SECRET").ok(),
+        );
     }
 
     /// Save the configuration to a TOML file.
@@ -389,5 +416,79 @@ format = "json"
         let config = DaemonConfig::default();
         config.save(&path).unwrap();
         assert!(path.exists());
+    }
+
+    #[test]
+    fn env_merge_overrides_only_with_nonempty_values() {
+        // load_env_secrets is the sole env-merge authority; this pins its
+        // rule: only a present, nonempty env value overrides config, and
+        // empty/absent values never erase an existing config value.
+        let mut target = "config-value".to_string();
+        merge_env(&mut target, None);
+        assert_eq!(target, "config-value");
+        merge_env(&mut target, Some(String::new()));
+        assert_eq!(target, "config-value");
+        merge_env(&mut target, Some("env-value".into()));
+        assert_eq!(target, "env-value");
+    }
+
+    #[test]
+    fn save_omits_secret_fields_from_toml() {
+        // Fetched/env secrets are runtime-only: they must never reach disk.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("daemon.toml");
+
+        let config = DaemonConfig {
+            auth: AuthConfig {
+                enabled: true,
+                workos_client_id: "client_abc".into(),
+                workos_client_secret: "WORKOS-SECRET-NEVER-ON-DISK".into(),
+                infisical_client_secret: "INFISICAL-SECRET-NEVER-ON-DISK".into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        config.save(&path).unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        assert!(
+            !content.contains("workos_client_secret"),
+            "field leaked: {content}"
+        );
+        assert!(
+            !content.contains("infisical_client_secret"),
+            "field leaked: {content}"
+        );
+        assert!(
+            !content.contains("WORKOS-SECRET-NEVER-ON-DISK"),
+            "value leaked: {content}"
+        );
+        assert!(
+            !content.contains("INFISICAL-SECRET-NEVER-ON-DISK"),
+            "value leaked: {content}"
+        );
+
+        // Non-secret fields persist and the file stays loadable: the omitted
+        // secrets come back empty via the struct-level `#[serde(default)]`.
+        let loaded = DaemonConfig::from_file(&path).unwrap();
+        assert!(loaded.auth.enabled);
+        assert_eq!(loaded.auth.workos_client_id, "client_abc");
+        assert_eq!(loaded.auth.workos_client_secret, "");
+        assert_eq!(loaded.auth.infisical_client_secret, "");
+    }
+
+    #[test]
+    fn secret_fields_remain_deserializable_when_present() {
+        // `skip_serializing` must not become `skip`: a config or IPC payload
+        // that carries the secret is still read at load time.
+        let toml_str = r#"
+[auth]
+workos_client_secret = "present-workos"
+infisical_client_secret = "present-infisical"
+"#;
+        let config: DaemonConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.auth.workos_client_secret, "present-workos");
+        assert_eq!(config.auth.infisical_client_secret, "present-infisical");
     }
 }

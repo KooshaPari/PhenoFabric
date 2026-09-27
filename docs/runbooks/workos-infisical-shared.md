@@ -34,7 +34,7 @@ org links the same `.infisical.json` and reads the same path. No project
 copies a secret; no project owns the rotation. Rotation happens once in
 Infisical and every project picks it up on next process start.
 
-A future project bootstraps in two commands:
+A future project can still bootstrap through the CLI:
 
 ```bash
 infisical login                                     # once per machine
@@ -42,10 +42,10 @@ infisical run --projectId=8efe392e-...-8141183dd7e8 \
               --env=dev --path=/shared/workos -- <your-binary>
 ```
 
-The `infisical run` invocation injects `WORKOS_CLIENT_ID`,
-`WORKOS_REDIRECT_URI`, `WORKOS_AUTHKIT_DOMAIN`, `WORKOS_API_KEY`,
-`WORKOS_CLIENT_SECRET` into the spawned process. The binary reads them via
-its existing `std::env::var("WORKOS_CLIENT_SECRET")` call - no code change.
+The `infisical run` invocation injects the matching variables into the spawned
+process. It remains useful for other binaries, but Fabric does not require this
+wrapper: `fabric-daemon` now loads `WORKOS_CLIENT_SECRET` directly during
+startup.
 
 ## One-time setup (already complete for Phenotype)
 
@@ -95,7 +95,24 @@ through any programmatic endpoint. The `client_secret` is a confidential
 value shown to the dashboard operator exactly once at creation time, and the
 public API has no rotate endpoint under any route family.
 
-### Browser automation attempt (2026-09-20, blocked)
+### Browser automation evidence
+
+The WorkOS dashboard read remains unverified. The official Infisical API
+contract was verified on 2026-09-24 in an isolated browser using DOM text only:
+
+| Field | Verified contract |
+|---|---|
+| Method and path | `GET /api/v4/secrets/{secretName}` |
+| Authentication | `Authorization: Bearer <token>` |
+| Required query | `projectId` |
+| Optional query | `environment`, `secretPath` (default `/`), `type` (`shared` default), `viewSecretValue` (`true` default) |
+| Success fields | `secret.secretKey`, `secret.secretValue` |
+
+The WorkOS `client_secret` itself was not captured. Its programmatic
+availability and rotation endpoints remain UNKNOWN unless a future live
+contract proves otherwise.
+
+### Earlier WorkOS browser attempt (2026-09-20, blocked)
 
 Tried the `jcode` browser tool to drive Firefox and read the dashboard:
 
@@ -107,11 +124,10 @@ Tried the `jcode` browser tool to drive Firefox and read the dashboard:
 | Chrome / Safari not wired | `browser` tool only supports `firefox_agent_bridge` backend; no Chrome extension installed; Safari not wired either |
 | `bash` env degraded | Many commands hang on `ps aux | grep firefox` and `pkill -9 -f firefox`; ~50 stuck `bg` tasks from prior sessions |
 
-**Recommendation**: use **Path A** (manual dashboard click). Open Firefox or
-Chrome, log in, navigate to the staging environment configuration page,
-copy the `client_secret`, paste it back. Browser automation will be revisited
-in a future session with a properly signed AMO extension or a working
-`bronzewarden` setup.
+**Recommendation**: use **Path A** (manual dashboard click). Open the WorkOS
+dashboard, log in, navigate to the staging environment configuration page,
+copy the `client_secret`, and seed Infisical without printing the value into
+logs or terminal history.
 
 ### Paths forward
 
@@ -187,25 +203,86 @@ curl -s -X POST "https://api.workos.com/user_management/redirect_uris" \
 Note: this creates a NEW AuthKit instance. It does NOT retrieve or rotate
 the `client_secret` of an EXISTING instance.
 
-## Fabric-specific wiring (next step)
+## Fabric daemon fallback
 
-After `WORKOS_CLIENT_SECRET` is dropped into `/shared/workos`, the daemon's
-existing `config::load_env_secrets` should fall back to Infisical when the
-env var is absent, instead of failing:
+After `WORKOS_CLIENT_SECRET` is seeded in `/shared/workos`, start the daemon
+normally:
 
-```rust
-fn workos_client_secret() -> String {
-    std::env::var("WORKOS_CLIENT_SECRET")
-        .ok()
-        .or_else(|| infisical_fetch("/shared/workos", "WORKOS_CLIENT_SECRET"))
-        .unwrap_or_default()
-}
+```bash
+cargo run -p fabric-daemon -- start --config config/settings.toml
 ```
 
-The `InfisicalClient` already exists at
-`crates/fabric-daemon/src/auth/secrets.rs`. Adding the fallback is a 20-line
-change. After that, `.env` becomes optional for everything except local
-development convenience.
+The daemon resolves the secret in this order:
+
+1. A nonempty `WORKOS_CLIENT_SECRET` environment value.
+2. A nonempty config-file value.
+3. Infisical secret `WORKOS_CLIENT_SECRET` at path `/shared/workos` in
+   `INFISICAL_ENV` (default `dev`).
+
+The remote lookup is attempted only when authentication is enabled, a WorkOS
+client ID is configured, and the Infisical service-account client ID, client
+secret, and project ID are available. Configure the non-secret identifiers in
+`config/settings.toml`; provide the service-account secret through
+`INFISICAL_CLIENT_SECRET` or the auth config. An empty environment value never
+erases a config-file value.
+
+The lookup uses the verified Infisical v4 read-by-name contract through the
+daemon's existing `InfisicalClient` authentication/token cache. A missing
+credential, missing secret, authentication failure, or transport failure does
+not crash the loader. Startup logs may name the secret, folder, environment,
+and error category only; response bodies, access tokens, and secret values are
+never included. Existing WorkOS configuration validation remains the final
+authority when authentication is enabled.
+
+To verify the path without revealing the value, use a disposable daemon config
+with authentication enabled, omit `WORKOS_CLIENT_SECRET`, and confirm startup
+reports that the auth middleware is initialized. Do not print the config or
+resolved secret. Acceptance against the live Infisical tenant additionally
+requires valid service-account credentials and the seeded shared secret.
+
+### Infisical endpoint (base URL and read contract)
+
+- **Official read contract:** `GET /api/v4/secrets/{secretName}` with query
+  `projectId` (required), `environment`, `secretPath` (default `/`),
+  `type` (default `shared`), and `viewSecretValue` (default true); Bearer
+  service-account authentication. Docs observed 2026-09-24:
+  https://infisical.com/docs/api-reference/endpoints/secrets/read
+- **Default base URL:** `https://app.infisical.com` — the installed
+  Infisical CLI v0.43.114 `--domain` default
+  (`https://app.infisical.com/api`, "Required for non-US Cloud users",
+  observed 2026-09-24) matches the general API reference.
+- **Host ambiguity (UNKNOWN beyond the CLI default):** the v4 endpoint
+  source states `https://us.infisical.com` while the general API reference
+  and CLI state `app.infisical.com`; no live request was made, so the two
+  official statements remain unreconciled. The former daemon default
+  `https://secrets.infisical.com` is not documented anywhere in the
+  official docs and is not a documented self-hosted placeholder
+  (self-host docs use `https://<your-instance>/api`); it was replaced
+  2026-09-27.
+- **Override (non-secret):** set `INFISICAL_BASE_URL` to your region or
+  self-hosted origin, e.g. `https://eu.infisical.com`. A trailing `/api`
+  is accepted and stripped; the client appends `/api/v1/...` and
+  `/api/v4/...` itself. An empty or whitespace-only value is ignored. The
+  override is read at startup only and is never written to TOML or returned
+  over config IPC.
+
+### Runtime-only credentials (not persisted, not returned over config IPC)
+
+The resolved `WORKOS_CLIENT_SECRET` and the `INFISICAL_CLIENT_SECRET`
+service-account secret are **runtime-only**. They are held in memory for the
+auth middleware and the Infisical fallback and are:
+
+- **never written** to the saved TOML config — `save` / `apply_config_overrides`
+  omit both fields via `#[serde(skip_serializing)]`; and
+- **never returned** over config IPC — `config_snapshot` and the
+  `save_config` response omit both fields.
+
+A config file or IPC payload that *does* carry either value is still
+deserialized at load time (so a manual entry keeps working), but nothing
+persists it or echoes it back. To rotate a compromised value, update it in
+Infisical; the daemon refills it on next start. Non-secret identifiers
+(`workos_client_id`, `infisical_client_id`, `infisical_project_id`) remain
+serializable as usual.
 
 ## Multi-project pattern
 
