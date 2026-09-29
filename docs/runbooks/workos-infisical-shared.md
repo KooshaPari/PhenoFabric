@@ -234,6 +234,14 @@ deployment state. When a fetch is attempted and fails — missing secret,
 authentication failure, or transport failure — the loader does not crash;
 startup logs name the secret, folder, environment, and error category only;
 response bodies, access tokens, and secret values are never included.
+The possible categories are `unavailable` (transport), `auth` (Infisical
+rejected the service-account token — a 401/403 on the read or a failed
+login), `not_found` (no such secret at that folder/environment), `operation`
+(any other non-success status), `serialization` (unparseable response), and
+`empty_response` (success with an empty value). A rejected token is reported
+as `auth` rather than a generic operation failure so the two are
+distinguishable in the log; it is not retried, because the cached token is not
+re-issued.
 Existing WorkOS configuration validation remains the final authority when
 authentication is enabled.
 
@@ -292,6 +300,14 @@ requires valid service-account credentials and the seeded shared secret.
   `/api/v4/...` itself. An empty or whitespace-only value is ignored. The
   override is read at startup only and is never written to TOML or returned
   over config IPC.
+- **Override validation (2026-09-29):** the value is credential-bearing —
+  the universal-auth login POST sends the service-account client secret to
+  whatever origin it resolves to. Only a clean `http`/`https` origin with no
+  path, query, or fragment is accepted (an explicit port is fine). Anything
+  else — `eu.infisical.com` without a scheme, `ftp://…`, `…/api/v1`,
+  `…?a=1` — is rejected, the documented US Cloud default is used instead, and
+  a `tracing::warn!` naming only the variable is logged. Hostnames are not
+  validated offline, so a valid-but-wrong private host is still accepted.
 
 ### Runtime-only credentials (not persisted, not returned over config IPC)
 

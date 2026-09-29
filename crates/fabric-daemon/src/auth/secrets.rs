@@ -43,9 +43,6 @@ pub enum SecretsError {
 
     #[error("serialization error: {0}")]
     Serialization(String),
-
-    #[error("token expired, please re-authenticate")]
-    TokenExpired,
 }
 
 impl SecretsError {

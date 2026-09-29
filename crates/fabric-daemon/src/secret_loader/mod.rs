@@ -72,8 +72,6 @@ pub enum FetchFailure {
     Operation,
     /// The Infisical response could not be parsed.
     Serialization,
-    /// The cached access token expired and could not be refreshed.
-    TokenExpired,
     /// The API responded successfully but with an empty secret value.
     EmptyResponse,
 }
@@ -87,7 +85,6 @@ impl FetchFailure {
             Self::NotFound => "not_found",
             Self::Operation => "operation",
             Self::Serialization => "serialization",
-            Self::TokenExpired => "token_expired",
             Self::EmptyResponse => "empty_response",
         }
     }
@@ -101,7 +98,6 @@ impl From<&SecretsError> for FetchFailure {
             SecretsError::NotFound(_) => Self::NotFound,
             SecretsError::OperationFailed(_) => Self::Operation,
             SecretsError::Serialization(_) => Self::Serialization,
-            SecretsError::TokenExpired => Self::TokenExpired,
         }
     }
 }
@@ -280,30 +276,78 @@ mod tests;
 mod fetch_adapter;
 
 #[cfg(test)]
+mod contract_hardening;
+
+#[cfg(test)]
 mod env_wiring;
 
-/// Normalize a configured Infisical base URL: trim whitespace and trailing
-/// slashes, and accept the Infisical CLI's domain form with a trailing
-/// `/api` (the client appends `/api/v1/...` and `/api/v4/...` itself).
-/// Returns `None` when nothing usable remains.
+/// Normalize a configured Infisical base URL to a bare origin.
+///
+/// Accepts, per the Infisical CLI `--domain` contract (observed 2026-09-24):
+/// `https://<host>`, the same with a trailing slash, and the CLI's domain
+/// form with a trailing `/api` — the client appends `/api/v1/...` and
+/// `/api/v4/...` itself.
+///
+/// The value is credential-bearing: the universal-auth login POST sends the
+/// service-account client secret to whatever origin resolves here. Anything
+/// that is not a clean http/https origin is therefore rejected (`None`) so
+/// [`resolve_infisical_base_url`] falls back to the documented default and
+/// warns, instead of failing later inside reqwest as an opaque transport
+/// error or silently pointing the credential at a mistyped host.
+///
+/// Hostnames are not validated offline (a valid-but-wrong private host is a
+/// legitimate deployment); only the origin *shape* is enforced.
 pub fn normalize_infisical_base_url(raw: &str) -> Option<String> {
     let trimmed = raw.trim().trim_end_matches('/');
     let without_api = trimmed.strip_suffix("/api").unwrap_or(trimmed);
     let normalized = without_api.trim_end_matches('/');
     if normalized.is_empty() {
-        None
-    } else {
-        Some(normalized.to_string())
+        return None;
     }
+
+    let url = reqwest::Url::parse(normalized).ok()?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return None;
+    }
+    // A port is part of a legitimate origin; any path, query, or fragment is
+    // not (the client supplies the full API path itself).
+    if url.path() != "/" || url.query().is_some() || url.fragment().is_some() {
+        return None;
+    }
+    if !url.has_host() {
+        return None;
+    }
+
+    Some(match url.port() {
+        Some(port) => format!("{}://{}:{port}", url.scheme(), url.host_str()?),
+        None => format!("{}://{}", url.scheme(), url.host_str()?),
+    })
 }
 
 /// Resolve the Infisical API base URL from an injected env reader, falling
 /// back to the documented US Cloud default (`InfisicalConfig::default`).
 /// Non-secret: read at startup only, never persisted or echoed over IPC.
+///
+/// A nonempty but malformed override is rejected and the default is used
+/// instead, with a `tracing::warn!` (var name only, never the value) so the
+/// misconfiguration is visible rather than silently ignored. Absent or
+/// whitespace-only values are the normal unset case and stay silent.
 pub fn resolve_infisical_base_url(read_env: &dyn Fn(&str) -> Option<String>) -> String {
-    read_env(ENV_INFISICAL_BASE_URL)
-        .and_then(|value| normalize_infisical_base_url(&value))
-        .unwrap_or_else(|| crate::auth::InfisicalConfig::default().base_url)
+    let default = crate::auth::InfisicalConfig::default().base_url;
+    let Some(raw) = read_env(ENV_INFISICAL_BASE_URL).filter(|v| !v.trim().is_empty()) else {
+        return default;
+    };
+    match normalize_infisical_base_url(&raw) {
+        Some(url) => url,
+        None => {
+            tracing::warn!(
+                variable = ENV_INFISICAL_BASE_URL,
+                "infisical base url override rejected; expected https://<host> \
+                 (optionally with the CLI trailing /api); using documented default"
+            );
+            default
+        }
+    }
 }
 
 /// Production fetch adapter: one blocking Infisical read via the existing
