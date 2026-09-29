@@ -12,8 +12,19 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
-/// Default Infisical API base URL.
-const DEFAULT_INFISICAL_BASE_URL: &str = "https://secrets.infisical.com";
+/// Default Infisical API base URL (US Cloud), without the `/api` prefix
+/// that the client appends to every route.
+///
+/// Evidence (observed 2026-09-24): the installed Infisical CLI v0.43.114
+/// ships `--domain` default `https://app.infisical.com/api` ("Required for
+/// non-US Cloud users"), and the general API reference uses the same host.
+/// The v4 endpoint source separately states `https://us.infisical.com`, so
+/// the two official statements conflict — recorded as an ambiguity in
+/// `docs/runbooks/workos-infisical-shared.md`. The former default
+/// `https://secrets.infisical.com` is neither documented nor a documented
+/// self-hosted placeholder. Override per deployment with
+/// `INFISICAL_BASE_URL`.
+const DEFAULT_INFISICAL_BASE_URL: &str = "https://app.infisical.com";
 
 /// Errors that can occur during secrets operations.
 #[derive(Debug, Error)]
@@ -38,7 +49,7 @@ pub enum SecretsError {
 }
 
 impl SecretsError {
-    fn http(err: reqwest::Error) -> Self {
+    pub(super) fn http(err: reqwest::Error) -> Self {
         Self::Http(err.to_string())
     }
 
@@ -56,7 +67,7 @@ pub struct InfisicalConfig {
     pub client_secret: String,
     /// Infisical project ID.
     pub project_id: String,
-    /// Infisical API base URL. Defaults to `https://secrets.infisical.com`.
+    /// Infisical API base URL. Defaults to `https://app.infisical.com`.
     #[serde(default = "default_base_url")]
     pub base_url: String,
 }
@@ -91,10 +102,20 @@ pub struct SecretValue {
 }
 
 /// Response from the Infisical token endpoint.
+///
+/// Field names follow the official login contract (docs observed
+/// 2026-09-27, https://infisical.com/docs/api-reference/endpoints/universal-auth/login):
+/// `accessToken` / `expiresIn` / `tokenType`.
 #[derive(Debug, Deserialize)]
 struct TokenResponse {
+    #[serde(rename = "accessToken")]
     access_token: String,
+    #[serde(rename = "expiresIn")]
     expires_in: u64,
+    // Infisical returns `tokenType`; map it explicitly. Never read (the
+    // leading underscore marks it ignorable), but it MUST deserialize or the
+    // login response fails to parse and every fetch reports `Unavailable`.
+    #[serde(rename = "tokenType")]
     _token_type: String,
 }
 
@@ -131,8 +152,8 @@ struct SecretTag {
 /// methods for reading and writing secrets.
 #[derive(Debug, Clone)]
 pub struct InfisicalClient {
-    config: InfisicalConfig,
-    http: Client,
+    pub(super) config: InfisicalConfig,
+    pub(super) http: Client,
     /// Cached access token, if available.
     token: Option<CachedToken>,
 }
@@ -170,13 +191,18 @@ impl InfisicalClient {
 
     /// Authenticate and obtain an access token using client credentials.
     ///
+    /// Request/response field names follow the official contract (docs
+    /// observed 2026-09-27). Live Infisical enforces the request shape:
+    /// sending `client_id`/`client_secret` returns 422
+    /// `path:["clientId"] Required` (observed 2026-09-27).
+    ///
     /// The token is cached internally for subsequent requests.
     pub async fn authenticate(&mut self) -> Result<String, SecretsError> {
         let url = format!("{}/api/v1/auth/universal-auth/login", self.config.base_url);
 
         let mut body = HashMap::new();
-        body.insert("client_id", &self.config.client_id);
-        body.insert("client_secret", &self.config.client_secret);
+        body.insert("clientId", &self.config.client_id);
+        body.insert("clientSecret", &self.config.client_secret);
 
         let response = self
             .http
@@ -206,7 +232,7 @@ impl InfisicalClient {
     }
 
     /// Get a valid access token, refreshing if necessary.
-    async fn ensure_token(&mut self) -> Result<String, SecretsError> {
+    pub(super) async fn ensure_token(&mut self) -> Result<String, SecretsError> {
         if let Some(ref cached) = self.token {
             if std::time::Instant::now() < cached.expires_at {
                 return Ok(cached.access_token.clone());
@@ -215,7 +241,10 @@ impl InfisicalClient {
         self.authenticate().await
     }
 
-    /// Fetch a single secret by key path and environment.
+    /// Fetch a single secret by key path and environment (legacy v1 raw
+    /// read, retained for compatibility). Folder-scoped named-secret reads
+    /// use [`Self::get_secret_by_name`] (official v4) instead; the v1
+    /// folder semantics are UNKNOWN pending evidence.
     ///
     /// # Arguments
     /// * `path` - The secret path (e.g., "/database/password")
@@ -257,28 +286,7 @@ impl InfisicalClient {
 
         let secret_data: serde_json::Value = response.json().await.map_err(SecretsError::http)?;
 
-        let secret = secret_data
-            .get("secret")
-            .ok_or_else(|| SecretsError::OperationFailed("missing 'secret' in response".into()))?;
-
-        let key = secret
-            .get("secretKey")
-            .and_then(|v| v.as_str())
-            .unwrap_or(path)
-            .to_string();
-
-        let value = secret
-            .get("secretValue")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-
-        Ok(SecretValue {
-            key,
-            value,
-            environment: env.to_string(),
-            path: Some(path.to_string()),
-        })
+        parse_secret_payload(&secret_data, path, env, Some(path.to_string()))
     }
 
     /// Fetch all secrets for a given environment.
@@ -400,6 +408,38 @@ impl InfisicalClient {
     }
 }
 
+/// Parse the `{ "secret": { "secretKey", "secretValue" } }` payload shared
+/// by the raw-secret read responses (v1 and v4 alike).
+pub(super) fn parse_secret_payload(
+    secret_data: &serde_json::Value,
+    fallback_key: &str,
+    environment: &str,
+    path: Option<String>,
+) -> Result<SecretValue, SecretsError> {
+    let secret = secret_data
+        .get("secret")
+        .ok_or_else(|| SecretsError::OperationFailed("missing 'secret' in response".into()))?;
+
+    let key = secret
+        .get("secretKey")
+        .and_then(|v| v.as_str())
+        .unwrap_or(fallback_key)
+        .to_string();
+
+    let value = secret
+        .get("secretValue")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    Ok(SecretValue {
+        key,
+        value,
+        environment: environment.to_string(),
+        path,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -411,6 +451,12 @@ mod tests {
         assert!(config.client_secret.is_empty());
         assert!(config.project_id.is_empty());
         assert_eq!(config.base_url, DEFAULT_INFISICAL_BASE_URL);
+    }
+
+    #[test]
+    fn default_config_uses_cli_documented_us_cloud_api_host() {
+        let config = InfisicalConfig::default();
+        assert_eq!(config.base_url, "https://app.infisical.com");
     }
 
     #[test]
@@ -434,5 +480,20 @@ mod tests {
         let json = r#"{"key":"K","value":"V","environment":"dev"}"#;
         let sv: SecretValue = serde_json::from_str(json).unwrap();
         assert!(sv.path.is_none());
+    }
+
+    /// Official docs (observed 2026-09-27,
+    /// https://infisical.com/docs/api-reference/endpoints/universal-auth/login)
+    /// return `accessToken`/`expiresIn`/`tokenType`; the snake_case fixture
+    /// shape no longer describes the live contract.
+    #[test]
+    fn token_response_matches_documented_camelcase_shape() {
+        let docs_json =
+            r#"{"accessToken":"tok","expiresIn":300,"accessTokenMaxTTL":600,"tokenType":"Bearer"}"#;
+        let parsed: TokenResponse =
+            serde_json::from_str(docs_json).expect("documented shape must parse");
+        assert_eq!(parsed.access_token, "tok");
+        assert_eq!(parsed.expires_in, 300);
+        assert_eq!(parsed._token_type, "Bearer");
     }
 }

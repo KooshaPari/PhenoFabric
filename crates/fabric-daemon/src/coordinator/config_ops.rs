@@ -68,9 +68,20 @@ impl Coordinator {
     }
 
     /// Update configuration and optionally persist to disk.
-    pub fn update_config(&self, new_config: DaemonConfig) {
+    ///
+    /// A replacement whose runtime-only secret fields are empty (a
+    /// `config_snapshot` round-trip drops them via `skip_serializing`, so
+    /// they deserialize as empty) keeps the values this session already
+    /// loaded; an explicitly supplied nonempty secret still wins.
+    pub fn update_config(&self, mut new_config: DaemonConfig) {
         {
             let mut cfg = self.config.lock().unwrap_or_else(|e| e.into_inner());
+            if new_config.auth.workos_client_secret.is_empty() {
+                new_config.auth.workos_client_secret = cfg.auth.workos_client_secret.clone();
+            }
+            if new_config.auth.infisical_client_secret.is_empty() {
+                new_config.auth.infisical_client_secret = cfg.auth.infisical_client_secret.clone();
+            }
             *cfg = new_config;
         }
         self.persist_config();
@@ -117,5 +128,137 @@ impl Coordinator {
                 info!(path = %path.display(), "config persisted to disk");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{AuthConfig, DatabaseConfig};
+
+    fn coord_with_secrets(dir: &std::path::Path) -> Coordinator {
+        Coordinator::new(DaemonConfig {
+            database: DatabaseConfig {
+                path: dir.join("test.db"),
+                ..Default::default()
+            },
+            auth: AuthConfig {
+                enabled: true,
+                workos_client_id: "client_abc".into(),
+                workos_client_secret: "WORKOS-SECRET-NEVER-LEAKED".into(),
+                infisical_client_secret: "INFISICAL-SECRET-NEVER-LEAKED".into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn config_snapshot_omits_secret_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let coord = coord_with_secrets(dir.path());
+        let snapshot = coord.config_snapshot();
+
+        assert!(
+            !snapshot.contains("workos_client_secret"),
+            "field leaked: {snapshot}"
+        );
+        assert!(
+            !snapshot.contains("infisical_client_secret"),
+            "field leaked: {snapshot}"
+        );
+        assert!(
+            !snapshot.contains("WORKOS-SECRET-NEVER-LEAKED"),
+            "value leaked: {snapshot}"
+        );
+        assert!(
+            !snapshot.contains("INFISICAL-SECRET-NEVER-LEAKED"),
+            "value leaked: {snapshot}"
+        );
+        // Non-secret auth config still present in the snapshot.
+        assert!(
+            snapshot.contains("client_abc"),
+            "client id missing: {snapshot}"
+        );
+    }
+
+    #[test]
+    fn override_persist_omits_secret_fields() {
+        // cmd_start flow: set_config_path + apply_config_overrides -> cfg.save.
+        let dir = tempfile::tempdir().unwrap();
+        let cfg_path = dir.path().join("daemon.toml");
+        let coord = coord_with_secrets(dir.path());
+        coord.set_config_path(cfg_path.clone());
+
+        coord
+            .apply_config_overrides(&serde_json::json!({"server": {"listen": "0.0.0.0:9999"}}))
+            .unwrap();
+
+        let content = std::fs::read_to_string(&cfg_path).unwrap();
+        assert!(
+            !content.contains("workos_client_secret"),
+            "field persisted: {content}"
+        );
+        assert!(
+            !content.contains("infisical_client_secret"),
+            "field persisted: {content}"
+        );
+        assert!(
+            !content.contains("WORKOS-SECRET-NEVER-LEAKED"),
+            "value persisted: {content}"
+        );
+        assert!(
+            !content.contains("INFISICAL-SECRET-NEVER-LEAKED"),
+            "value persisted: {content}"
+        );
+        assert!(
+            content.contains("0.0.0.0:9999"),
+            "override not persisted: {content}"
+        );
+    }
+
+    #[test]
+    fn update_config_preserves_runtime_secrets_when_snapshot_omits_them() {
+        // handle_save_config path (wire/handlers.rs): the client round-trips a
+        // config_snapshot, whose skip_serializing fields deserialize as empty.
+        // That full replacement must not wipe the runtime secrets this session
+        // is running with (CodeRabbit actionable, 2026-09-27).
+        let dir = tempfile::tempdir().unwrap();
+        let cfg_path = dir.path().join("daemon.toml");
+        let coord = coord_with_secrets(dir.path());
+        coord.set_config_path(cfg_path.clone());
+
+        let snapshot = coord.config_snapshot();
+        let replacement: DaemonConfig =
+            serde_json::from_str(&snapshot).expect("snapshot must deserialize as a full config");
+        assert!(
+            replacement.auth.workos_client_secret.is_empty(),
+            "snapshot must omit the secret fields"
+        );
+
+        coord.update_config(replacement);
+
+        let cfg = coord.config.lock().unwrap();
+        assert_eq!(
+            cfg.auth.workos_client_secret, "WORKOS-SECRET-NEVER-LEAKED",
+            "save_config replacement wiped the runtime WorkOS secret"
+        );
+        assert_eq!(
+            cfg.auth.infisical_client_secret, "INFISICAL-SECRET-NEVER-LEAKED",
+            "save_config replacement wiped the runtime Infisical secret"
+        );
+        drop(cfg);
+
+        // Persistence stays runtime-only: the rewritten file still omits both.
+        let content = std::fs::read_to_string(&cfg_path).unwrap();
+        assert!(
+            !content.contains("WORKOS-SECRET-NEVER-LEAKED"),
+            "value persisted: {content}"
+        );
+        assert!(
+            !content.contains("INFISICAL-SECRET-NEVER-LEAKED"),
+            "value persisted: {content}"
+        );
     }
 }
