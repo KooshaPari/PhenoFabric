@@ -54,8 +54,14 @@ impl InfisicalClient {
         // it as an authentication failure rather than an opaque operation
         // error so the startup warning is actionable. The body is still never
         // read, so no third-party payload can reach logs.
+        //
+        // The cached token is evicted here: leaving a token the server just
+        // refused in place would make `ensure_token` replay it for the rest of
+        // its TTL, so every later read in this process would fail identically
+        // instead of re-authenticating once (Kilo finding, 2026-09-29).
         let status = response.status();
         if status.as_u16() == 401 || status.as_u16() == 403 {
+            self.token = None;
             return Err(SecretsError::Auth(format!("HTTP {status}")));
         }
 

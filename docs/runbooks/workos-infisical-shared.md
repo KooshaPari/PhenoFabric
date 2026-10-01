@@ -240,8 +240,12 @@ login), `not_found` (no such secret at that folder/environment), `operation`
 (any other non-success status), `serialization` (unparseable response), and
 `empty_response` (success with an empty value). A rejected token is reported
 as `auth` rather than a generic operation failure so the two are
-distinguishable in the log; it is not retried, because the cached token is not
-re-issued.
+distinguishable in the log. The rejected token is **evicted from the cache**,
+so a later read re-authenticates once instead of replaying a token the server
+already refused; the read itself is not retried inline, because the request was
+authorized. `serialization` covers a 2xx response whose body does not match the
+expected contract (for example a login body missing `accessToken`), which is
+why it is a distinct category from the transport-level `unavailable`.
 Existing WorkOS configuration validation remains the final authority when
 authentication is enabled.
 
@@ -300,14 +304,24 @@ requires valid service-account credentials and the seeded shared secret.
   `/api/v4/...` itself. An empty or whitespace-only value is ignored. The
   override is read at startup only and is never written to TOML or returned
   over config IPC.
-- **Override validation (2026-09-29):** the value is credential-bearing —
-  the universal-auth login POST sends the service-account client secret to
-  whatever origin it resolves to. Only a clean `http`/`https` origin with no
-  path, query, or fragment is accepted (an explicit port is fine). Anything
-  else — `eu.infisical.com` without a scheme, `ftp://…`, `…/api/v1`,
-  `…?a=1` — is rejected, the documented US Cloud default is used instead, and
-  a `tracing::warn!` naming only the variable is logged. Hostnames are not
-  validated offline, so a valid-but-wrong private host is still accepted.
+- **Override validation (2026-09-29, fail closed):** the value is
+  credential-bearing — the universal-auth login POST sends the service-account
+  client secret to whatever origin it resolves to. Only a clean `http`/`https`
+  origin with no path, query, or fragment is accepted (an explicit port is fine,
+  and IPv6 literals keep their brackets). Embedded userinfo is **rejected**,
+  not stripped: `https://real.host@evil.example` parses to host `evil.example`,
+  so accepting it would be the exact mistyped-host credential leak this check
+  exists to prevent.
+  Anything else — `eu.infisical.com` without a scheme, `ftp://…`, `…/api/v1`,
+  `…?a=1`, `user:pass@host` — is **rejected and the Infisical fallback is
+  skipped entirely**; no request leaves the host. It does **not** fall back to
+  the documented US Cloud default, because that default would receive the
+  service-account client secret of a self-hosted deployment purely because of a
+  typo. The rejection is reported after logging initialization as
+  `category=unparseable|scheme|userinfo|missing_host|path`, naming only the
+  variable. An absent or whitespace-only value remains the normal unset case and
+  uses the documented default. Hostnames are not validated offline, so a
+  valid-but-wrong private host is still accepted.
 
 ### Runtime-only credentials (not persisted, not returned over config IPC)
 

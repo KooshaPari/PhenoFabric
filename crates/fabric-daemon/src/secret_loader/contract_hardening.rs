@@ -200,14 +200,26 @@ fn v4_read_404_still_maps_to_not_found() {
 /// fail later inside reqwest as an opaque transport error.
 #[test]
 fn base_url_without_scheme_is_rejected_to_default() {
-    assert_eq!(normalize_infisical_base_url("eu.infisical.com"), None);
-    assert_eq!(normalize_infisical_base_url("app.infisical.com/api"), None);
-    assert_eq!(normalize_infisical_base_url("//app.infisical.com"), None);
+    assert_eq!(
+        normalize_infisical_base_url("eu.infisical.com"),
+        Err(BaseUrlRejection::Unparseable)
+    );
+    assert_eq!(
+        normalize_infisical_base_url("app.infisical.com/api"),
+        Err(BaseUrlRejection::Unparseable)
+    );
+    assert_eq!(
+        normalize_infisical_base_url("//app.infisical.com"),
+        Err(BaseUrlRejection::Unparseable)
+    );
     assert_eq!(
         normalize_infisical_base_url("ftp://app.infisical.com"),
-        None
+        Err(BaseUrlRejection::Scheme)
     );
-    assert_eq!(normalize_infisical_base_url("not a url at all"), None);
+    assert_eq!(
+        normalize_infisical_base_url("not a url at all"),
+        Err(BaseUrlRejection::Unparseable)
+    );
 }
 
 /// A path beyond the documented origin form is rejected too: the client
@@ -217,15 +229,15 @@ fn base_url_without_scheme_is_rejected_to_default() {
 fn base_url_with_unexpected_path_is_rejected_to_default() {
     assert_eq!(
         normalize_infisical_base_url("https://eu.infisical.com/api/v1"),
-        None
+        Err(BaseUrlRejection::Path)
     );
     assert_eq!(
         normalize_infisical_base_url("https://eu.infisical.com/api/v4/secrets"),
-        None
+        Err(BaseUrlRejection::Path)
     );
     assert_eq!(
         normalize_infisical_base_url("https://eu.infisical.com?a=1"),
-        None
+        Err(BaseUrlRejection::Path)
     );
 }
 
@@ -234,48 +246,51 @@ fn base_url_with_unexpected_path_is_rejected_to_default() {
 #[test]
 fn base_url_documented_forms_still_accepted() {
     let expected = "https://eu.infisical.com";
-    assert_eq!(
-        normalize_infisical_base_url(expected),
-        Some(expected.into())
-    );
+    assert_eq!(normalize_infisical_base_url(expected), Ok(expected.into()));
     assert_eq!(
         normalize_infisical_base_url("https://eu.infisical.com/"),
-        Some(expected.into())
+        Ok(expected.into())
     );
     assert_eq!(
         normalize_infisical_base_url("https://eu.infisical.com/api"),
-        Some(expected.into())
+        Ok(expected.into())
     );
     assert_eq!(
         normalize_infisical_base_url("https://eu.infisical.com/api/"),
-        Some(expected.into())
+        Ok(expected.into())
     );
     assert_eq!(
         normalize_infisical_base_url("  https://eu.infisical.com/api  "),
-        Some(expected.into())
+        Ok(expected.into())
     );
     assert_eq!(
         normalize_infisical_base_url("http://127.0.0.1:8080"),
-        Some("http://127.0.0.1:8080".into())
+        Ok("http://127.0.0.1:8080".into())
     );
 }
 
-/// A rejected override falls back to the documented default and never
-/// propagates the malformed value into the client's credential POST.
+/// A rejected override fails closed (never defaults to the public host) and a
+/// blank override still resolves to the documented default.
 #[test]
-fn resolve_falls_back_to_default_for_malformed_override() {
+fn resolve_fails_closed_for_malformed_override() {
     let default_url = crate::auth::InfisicalConfig::default().base_url;
     for bad in [
         "eu.infisical.com",
         "https://eu.infisical.com/api/v1",
-        "   ",
         "ftp://eu.infisical.com",
     ] {
         let read = reader(&[(ENV_INFISICAL_BASE_URL, bad)]);
+        assert!(
+            resolve_infisical_base_url(&read).is_err(),
+            "malformed override must fail closed: {bad}"
+        );
+    }
+    for blank in ["", "   "] {
+        let read = reader(&[(ENV_INFISICAL_BASE_URL, blank)]);
         assert_eq!(
-            resolve_infisical_base_url(&read),
-            default_url,
-            "malformed override must fall back: {bad}"
+            resolve_infisical_base_url(&read).as_deref().ok(),
+            Some(default_url.as_str()),
+            "blank override must use the documented default: {blank:?}"
         );
     }
 }
@@ -289,6 +304,6 @@ fn resolve_falls_back_to_default_for_malformed_override() {
 fn private_or_custom_origins_remain_accepted() {
     assert_eq!(
         normalize_infisical_base_url("https://infisical.internal.example"),
-        Some("https://infisical.internal.example".into())
+        Ok("https://infisical.internal.example".into())
     );
 }
