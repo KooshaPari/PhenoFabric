@@ -25,17 +25,22 @@ use std::sync::Arc;
 
 /// Status-only fake: answers universal-auth login with a token, then serves
 /// the v4 read with `read_status` for the first `bad_reads` GETs and a valid
-/// secret afterwards. Records GET count for retry assertions.
+/// secret afterwards. Records GET and login counts, so F6 can assert that a
+/// later fetch genuinely re-authenticated rather than replaying a cached token.
 ///
 /// F8: unlike the #20 fake, a malformed request head is answered with `400`
 /// instead of a silent close, and the accept loop is bounded by an expected
 /// request count rather than a fixed 6, so a regression fails as a status
 /// mismatch instead of a 30s client timeout.
-fn flaky_auth_server(read_status: &'static str, bad_reads: usize) -> (String, Arc<AtomicUsize>) {
+type FakeCounters = (Arc<AtomicUsize>, Arc<AtomicUsize>);
+
+fn flaky_auth_server(read_status: &'static str, bad_reads: usize) -> (String, FakeCounters) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
     let gets: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
+    let logins: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
     let recorded = Arc::clone(&gets);
+    let recorded_logins = Arc::clone(&logins);
     // Each attempt costs a login + a read. `bad_reads` failures plus one
     // recovery, and the recovery re-authenticates (F6), so budget two
     // connections per attempt: a too-small budget shows up as a transport
@@ -87,6 +92,7 @@ fn flaky_auth_server(read_status: &'static str, bad_reads: usize) -> (String, Ar
 
             let is_login = head.lines().next().unwrap_or_default().starts_with("POST");
             let (status, body): (String, String) = if is_login {
+                recorded_logins.fetch_add(1, Ordering::SeqCst);
                 (
                     "200 OK".to_string(),
                     r#"{"accessToken":"fake-token","expiresIn":300,"accessTokenMaxTTL":600,"tokenType":"Bearer"}"#
@@ -116,7 +122,7 @@ fn flaky_auth_server(read_status: &'static str, bad_reads: usize) -> (String, Ar
         }
     });
 
-    (format!("http://{addr}"), gets)
+    (format!("http://{addr}"), (gets, logins))
 }
 
 fn client_for(base_url: String) -> InfisicalClient {
@@ -307,7 +313,7 @@ fn ipv6_base_url_keeps_brackets() {
     );
     // A bracketed IPv6 host must round-trip through the real client, or the
     // rebuilt origin is unparseable where it is actually used.
-    let (base_url, _gets) = flaky_auth_server("200 OK", 0);
+    let (base_url, _counters) = flaky_auth_server("200 OK", 0);
     let parsed = reqwest::Url::parse(&base_url).expect("fake base url parses");
     let port = parsed.port().unwrap();
     let rebuilt = format!("http://[::1]:{port}");
@@ -344,7 +350,7 @@ fn host_literally_named_api_is_not_mangled() {
 /// instead of replaying a token the server already refused.
 #[test]
 fn rejected_token_is_evicted_so_a_later_fetch_reauthenticates() {
-    let (base_url, gets) = flaky_auth_server("401 Unauthorized", 1);
+    let (base_url, (gets, logins)) = flaky_auth_server("401 Unauthorized", 1);
     let mut client = client_for(base_url);
 
     let err = block_on_read(&mut client).expect_err("first read must fail");
@@ -358,13 +364,21 @@ fn rejected_token_is_evicted_so_a_later_fetch_reauthenticates() {
         "the second read must be a fresh authenticated attempt, not a replay \
          of the rejected token"
     );
+    // A GET count alone cannot tell a re-auth from a cached-token replay: both
+    // produce two reads. The login count is what distinguishes them.
+    assert_eq!(
+        logins.load(Ordering::SeqCst),
+        2,
+        "each read must authenticate again; a single login means the second \
+         read replayed the token the server had already refused"
+    );
 }
 
 /// F6 companion: a 403 (valid token, secret not permitted) must also evict, so
 /// a later permission change is not masked by a poisoned cache.
 #[test]
 fn forbidden_token_is_evicted_so_a_later_fetch_reauthenticates() {
-    let (base_url, gets) = flaky_auth_server("403 Forbidden", 1);
+    let (base_url, (gets, logins)) = flaky_auth_server("403 Forbidden", 1);
     let mut client = client_for(base_url);
 
     let err = block_on_read(&mut client).expect_err("first read must fail");
@@ -373,6 +387,12 @@ fn forbidden_token_is_evicted_so_a_later_fetch_reauthenticates() {
     let second = block_on_read(&mut client).expect("second read must recover");
     assert_eq!(second.value, "from-fake-server");
     assert_eq!(gets.load(Ordering::SeqCst), 2);
+    assert_eq!(
+        logins.load(Ordering::SeqCst),
+        2,
+        "a 403 must evict too, so the next read re-authenticates instead of \
+         replaying a token the server refuses on permissions"
+    );
 }
 
 // ---------------------------------------------------------------- F7: reachable categories
