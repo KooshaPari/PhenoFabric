@@ -35,7 +35,7 @@ fn fallback_populated_secret_reaches_auth_middleware_config() {
 fn base_url_env_override_accepts_cli_domain_form() {
     let read = reader(&[(ENV_INFISICAL_BASE_URL, "https://eu.infisical.com/api/")]);
     assert_eq!(
-        resolve_infisical_base_url(&read),
+        resolve_infisical_base_url(&read).unwrap_or_default(),
         "https://eu.infisical.com"
     );
 }
@@ -45,6 +45,12 @@ fn base_url_env_override_empty_or_absent_falls_back_to_us_cloud_default() {
     let absent = reader(&[]);
     let empty = reader(&[(ENV_INFISICAL_BASE_URL, "   ")]);
     let default_url = crate::auth::InfisicalConfig::default().base_url;
-    assert_eq!(resolve_infisical_base_url(&absent), default_url);
-    assert_eq!(resolve_infisical_base_url(&empty), default_url);
+    assert_eq!(
+        resolve_infisical_base_url(&absent).as_deref().ok(),
+        Some(default_url.as_str())
+    );
+    assert_eq!(
+        resolve_infisical_base_url(&empty).as_deref().ok(),
+        Some(default_url.as_str())
+    );
 }
