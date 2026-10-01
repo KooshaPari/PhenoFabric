@@ -47,7 +47,7 @@ ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 rand_core = "0.6"
 thiserror = "2.0"
 schemars = { version = "0.8", features = ["derive", "chrono"] }
-jsonschema = "0.27"
+jsonschema = "0.56"
 fabric-capability = { path = "crates/fabric-capability" }
 fabric-graph = { path = "crates/fabric-graph" }
 tokio = { version = "1", features = ["full"] }
