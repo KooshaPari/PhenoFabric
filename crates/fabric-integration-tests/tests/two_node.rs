@@ -196,12 +196,24 @@ fn two_node_frame_streaming() {
         frame_count, result.frames_acknowledged,
     );
 
-    // On loopback, average RTT should be well under 10 ms (10,000 us).
-    assert!(
-        result.avg_rtt_us < 10_000,
-        "avg RTT {} us exceeds 10 ms on loopback",
-        result.avg_rtt_us,
-    );
+    // Latency is deliberately NOT asserted here.
+    //
+    // `avg_rtt_us` is wall-clock time around a blocking `read_line` that
+    // waits for the server's rejection response (see
+    // `harness/frame_streamer.rs`), not a true round-trip: the harness
+    // acknowledges locally and the code itself notes a real RTT needs the
+    // wire server to echo frames. That makes it a measurement of host load,
+    // not of this code's correctness.
+    //
+    // Measured on an idle machine over 15 runs: min 107 us, median 383 us,
+    // p90 797 us, max 5478 us. The previous `< 10_000` bound sat barely
+    // above that idle maximum, so any concurrent load failed the test for
+    // reasons unrelated to the code under test. Observed flaking was 2/8 on
+    // the pre-change base commit 4796706, with none of the auth work present.
+    //
+    // The properties that ARE worth guarding are asserted above: every frame
+    // sent, every frame acknowledged, and non-zero elapsed time. Those are
+    // deterministic and they are what this test is actually for.
 
     // Session elapsed time should be non-zero (at least some wall time).
     assert!(result.elapsed > Duration::ZERO, "elapsed should be > 0");
