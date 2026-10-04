@@ -409,6 +409,54 @@ pub fn resolve_infisical_base_url(read_env: &dyn Fn(&str) -> Option<String>) -> 
     normalize_infisical_base_url(&raw)
 }
 
+/// Fetcher seam for [`resolve_startup_workos_secret`]: receives the fully built
+/// [`InfisicalConfig`] (carrying the resolved base URL) plus the secret key
+/// name, folder, and environment. Production wires [`fetch_via_infisical`];
+/// tests inject a closure that records whether a request was attempted.
+pub type StartupFetch<'a> =
+    &'a mut dyn FnMut(InfisicalConfig, &str, &str, &str) -> Result<String, FetchFailure>;
+
+/// The real startup secret-resolution seam used by `cmd_start`.
+///
+/// This is the production wiring, not a test reimplementation: `cmd_start`
+/// calls exactly this function with `std::env` and [`fetch_via_infisical`].
+/// The credential-bearing Infisical base URL is resolved first; when the
+/// override is rejected the outcome is fail-closed and `fetch` is **never
+/// invoked**, so no socket is attempted and the service-account client secret
+/// cannot be pointed at the public cloud by a typo.
+///
+/// Returns the load outcome plus, when applicable, the redaction-safe
+/// rejection reason. `fetch` is injected so a test can observe whether an
+/// Infisical request was attempted without touching the network.
+pub fn resolve_startup_workos_secret(
+    auth: &mut AuthConfig,
+    read_env: &dyn Fn(&str) -> Option<String>,
+    fetch: StartupFetch<'_>,
+) -> (LoadOutcome, Option<BaseUrlRejection>) {
+    match resolve_infisical_base_url(read_env) {
+        Ok(base_url) => {
+            let infisical_config = InfisicalConfig {
+                client_id: auth.infisical_client_id.clone(),
+                client_secret: auth.infisical_client_secret.clone(),
+                project_id: auth.infisical_project_id.clone(),
+                base_url,
+            };
+            let outcome =
+                load_workos_client_secret(auth, read_env, &mut |secret, folder, environment| {
+                    fetch(infisical_config.clone(), secret, folder, environment)
+                });
+            (outcome, None)
+        }
+        Err(rejection) => (
+            LoadOutcome {
+                source: Source::Unset,
+                warning: Some(base_url_rejection_warning(rejection)),
+            },
+            Some(rejection),
+        ),
+    }
+}
+
 /// Build the warning surfaced after logging init when a base-URL override was
 /// rejected and the Infisical fallback was skipped.
 ///
