@@ -308,19 +308,25 @@ requires valid service-account credentials and the seeded shared secret.
   credential-bearing — the universal-auth login POST sends the service-account
   client secret to whatever origin it resolves to. Only a clean `http`/`https`
   origin with no path, query, or fragment is accepted (an explicit port is fine,
-  and IPv6 literals keep their brackets). Embedded userinfo is **rejected**,
-  not stripped: `https://real.host@evil.example` parses to host `evil.example`,
-  so accepting it would be the exact mistyped-host credential leak this check
-  exists to prevent.
-  Anything else — `eu.infisical.com` without a scheme, `ftp://…`, `…/api/v1`,
-  `…?a=1`, `user:pass@host` — is **rejected and the Infisical fallback is
-  skipped entirely**; no request leaves the host. It does **not** fall back to
-  the documented US Cloud default, because that default would receive the
-  service-account client secret of a self-hosted deployment purely because of a
-  typo. The rejection is reported after logging initialization as
-  `category=unparseable|scheme|userinfo|missing_host|path`, naming only the
-  variable. An absent or whitespace-only value remains the normal unset case and
-  uses the documented default. Hostnames are not validated offline, so a
+  and IPv6 literals keep their brackets). Plain `http` is accepted only for a
+  loopback host (`localhost`, `127.0.0.0/8`, `::1`); a non-loopback `http`
+  origin is refused so the client secret never crosses the network in cleartext
+  (2026-10-04). Embedded userinfo is **rejected**, not stripped:
+  `https://real.host@evil.example` parses to host `evil.example`, so accepting it
+  would be the exact mistyped-host credential leak this check exists to prevent.
+  Anything else — `eu.infisical.com` without a scheme, `ftp://…`,
+  `http://<non-loopback>`, `…/api/v1`, `…?a=1`, `user:pass@host` — is **rejected
+  and the Infisical fallback is skipped entirely**; no request leaves the host. It
+  does **not** fall back to the documented US Cloud default, because that default
+  would receive the service-account client secret of a self-hosted deployment
+  purely because of a typo. The rejection is reported after logging
+  initialization as
+  `category=unparseable|scheme|insecure_transport|userinfo|missing_host|path`,
+  naming only the variable. A rejected override does **not** erase an already
+  configured `WORKOS_CLIENT_SECRET`: the env/config source is reported as-is and
+  the fallback warning is emitted only when no secret was preconfigured
+  (2026-10-04). An absent or whitespace-only value remains the normal unset case
+  and uses the documented default. Hostnames are not validated offline, so a
   valid-but-wrong private host is still accepted.
 
 ### Runtime-only credentials (not persisted, not returned over config IPC)
