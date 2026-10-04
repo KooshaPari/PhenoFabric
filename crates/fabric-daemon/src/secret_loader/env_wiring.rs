@@ -74,9 +74,10 @@ fn startup_seam_rejected_base_url_attempts_no_fetch() {
         &mut auth,
         &read,
         &mut |config, secret, folder, environment| {
-            attempts
-                .borrow_mut()
-                .push(format!("{}:{secret}@{folder}:{environment}", config.base_url));
+            attempts.borrow_mut().push(format!(
+                "{}:{secret}@{folder}:{environment}",
+                config.base_url
+            ));
             Ok("SHOULD-NOT-BE-FETCHED".to_string())
         },
     );
@@ -113,9 +114,10 @@ fn startup_seam_valid_base_url_attempts_fetch_at_configured_origin() {
         &mut auth,
         &read,
         &mut |config, secret, folder, environment| {
-            attempts
-                .borrow_mut()
-                .push(format!("{}:{secret}@{folder}:{environment}", config.base_url));
+            attempts.borrow_mut().push(format!(
+                "{}:{secret}@{folder}:{environment}",
+                config.base_url
+            ));
             Ok("from-eu".to_string())
         },
     );
