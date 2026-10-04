@@ -146,7 +146,7 @@ fn block_on_read(client: &mut InfisicalClient) -> Result<SecretValue, SecretsErr
     ))
 }
 
-fn auth_ready() -> crate::config::AuthConfig {
+pub(super) fn auth_ready() -> crate::config::AuthConfig {
     crate::config::AuthConfig {
         enabled: true,
         workos_client_id: "client_abc".into(),
@@ -208,28 +208,25 @@ fn absent_or_blank_base_url_still_uses_documented_default() {
 }
 
 /// F1 (the live leak): with a rejected base URL the loader must attempt no
-/// Infisical request at all. Before the fix this recorded an actual fetch
-/// against the public default.
+/// Infisical request at all. This calls the real startup seam rather than a
+/// copy of its branch, so a regression in `resolve_startup_workos_secret` fails
+/// here (review finding E, 2026-10-04). Before the fix this recorded an actual
+/// fetch against the public default.
 #[test]
 fn rejected_base_url_suppresses_the_infisical_fetch_entirely() {
     let calls: RefCell<Vec<String>> = RefCell::new(Vec::new());
     let mut auth = auth_ready();
     let read = reader(&[(ENV_INFISICAL_BASE_URL, "not a url")]);
-    let base = resolve_infisical_base_url(&read);
 
-    let outcome = match base {
-        Ok(_base_url) => {
-            load_workos_client_secret(&mut auth, &reader(&[]), &mut |name, folder, env| {
-                calls.borrow_mut().push(format!("{name}@{folder}:{env}"));
-                Ok("from-fake".to_string())
-            })
-        }
-        Err(rejection) => LoadOutcome {
-            source: Source::Unset,
-            warning: Some(base_url_rejection_warning(rejection)),
-        },
-    };
+    let (outcome, rejection) =
+        resolve_startup_workos_secret(&mut auth, &read, &mut |base, name, folder, env| {
+            calls
+                .borrow_mut()
+                .push(format!("{base}{name}@{folder}:{env}"));
+            Ok("from-fake".to_string())
+        });
 
+    assert_eq!(rejection, Some(BaseUrlRejection::Unparseable));
     assert!(
         calls.borrow().is_empty(),
         "no Infisical request may be attempted when the base URL is rejected, got {:?}",

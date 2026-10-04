@@ -132,38 +132,28 @@ fn cmd_start(
     // entirely and no request leaves the host. Substituting the documented
     // default here would POST the service-account client secret to the public
     // Infisical cloud because of a typo (review finding, 2026-09-29).
-    let base_url = secret_loader::resolve_infisical_base_url(&|name| std::env::var(name).ok());
-    let (infisical_config, base_url_rejection) = match base_url {
-        Ok(base_url) => (
-            Some(auth::InfisicalConfig {
-                client_id: config.auth.infisical_client_id.clone(),
-                client_secret: config.auth.infisical_client_secret.clone(),
-                project_id: config.auth.infisical_project_id.clone(),
-                base_url,
-            }),
-            None,
-        ),
-        Err(rejection) => (None, Some(rejection)),
-    };
-    let secret_outcome = match infisical_config {
-        Some(infisical_config) => secret_loader::load_workos_client_secret(
-            &mut config.auth,
-            &|name| std::env::var(name).ok(),
-            &mut |secret, folder, environment| {
-                secret_loader::fetch_via_infisical(
-                    infisical_config.clone(),
-                    secret,
-                    folder,
-                    environment,
-                )
-            },
-        ),
-        // Fail closed: leave the secret unset and report below, after init.
-        None => secret_loader::LoadOutcome {
-            source: secret_loader::Source::Unset,
-            warning: base_url_rejection.map(secret_loader::base_url_rejection_warning),
+    let infisical_creds = (
+        config.auth.infisical_client_id.clone(),
+        config.auth.infisical_client_secret.clone(),
+        config.auth.infisical_project_id.clone(),
+    );
+    let (secret_outcome, base_url_rejection) = secret_loader::resolve_startup_workos_secret(
+        &mut config.auth,
+        &|name| std::env::var(name).ok(),
+        &mut |base_url, secret, folder, environment| {
+            secret_loader::fetch_via_infisical(
+                auth::InfisicalConfig {
+                    client_id: infisical_creds.0.clone(),
+                    client_secret: infisical_creds.1.clone(),
+                    project_id: infisical_creds.2.clone(),
+                    base_url: base_url.to_string(),
+                },
+                secret,
+                folder,
+                environment,
+            )
         },
-    };
+    );
 
     // Initialize logging.
     logging::init_logging(&config.logging);

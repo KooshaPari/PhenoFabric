@@ -41,6 +41,10 @@ use crate::config::AuthConfig;
 
 use std::fmt;
 
+mod startup;
+
+pub use startup::resolve_startup_workos_secret;
+
 /// Secret key fetched from the shared WorkOS folder.
 pub const WORKOS_CLIENT_SECRET_KEY: &str = "WORKOS_CLIENT_SECRET";
 /// Infisical folder holding the shared WorkOS credential set.
@@ -168,6 +172,25 @@ pub struct LoadOutcome {
 /// Arguments: secret key name, folder path, environment slug.
 type SecretFetch<'a> = &'a mut dyn FnMut(&str, &str, &str) -> Result<String, FetchFailure>;
 
+/// Resolve only the local (non-network) sources: a nonempty, non-whitespace
+/// process-env value wins (`Source::Environment`), then a nonempty config
+/// value (`Source::Config`). `None` when neither is present.
+fn resolve_preconfigured(
+    auth: &mut AuthConfig,
+    read_env: &dyn Fn(&str) -> Option<String>,
+) -> Option<Source> {
+    if let Some(value) = read_env(ENV_WORKOS_CLIENT_SECRET) {
+        if !value.trim().is_empty() {
+            auth.workos_client_secret = value;
+            return Some(Source::Environment);
+        }
+    }
+    if !auth.workos_client_secret.is_empty() {
+        return Some(Source::Config);
+    }
+    None
+}
+
 /// Load the WorkOS client secret env-first, falling back to Infisical.
 ///
 /// Resolution order: nonempty process env, then config-file value, then
@@ -188,24 +211,13 @@ pub fn load_workos_client_secret(
     read_env: &dyn Fn(&str) -> Option<String>,
     fetch: SecretFetch<'_>,
 ) -> LoadOutcome {
-    // 1. A nonempty, non-whitespace-only process-env value wins and skips
-    //    the remote fetch; a whitespace-only value cannot authenticate, so
-    //    it falls through instead of blocking the config/Infisical steps.
-    if let Some(value) = read_env(ENV_WORKOS_CLIENT_SECRET) {
-        if !value.trim().is_empty() {
-            auth.workos_client_secret = value;
-            return LoadOutcome {
-                source: Source::Environment,
-                warning: None,
-            };
-        }
-    }
-
-    // 2. A config-file value (surviving the step-1 merge) is preserved;
-    //    the fetch only fills a missing secret.
-    if !auth.workos_client_secret.is_empty() {
+    // 1-2. A nonempty, non-whitespace-only process-env value wins and skips the
+    //    remote fetch; otherwise a config-file value (surviving the step-1
+    //    merge) is preserved. A whitespace-only env value cannot authenticate,
+    //    so it falls through. The fetch only fills a missing secret.
+    if let Some(source) = resolve_preconfigured(auth, read_env) {
         return LoadOutcome {
-            source: Source::Config,
+            source,
             warning: None,
         };
     }
@@ -284,6 +296,9 @@ mod review_response;
 #[cfg(test)]
 mod env_wiring;
 
+#[cfg(test)]
+mod startup_seam;
+
 /// Redacted reason a `INFISICAL_BASE_URL` override was rejected.
 ///
 /// Carries no payload by construction: it holds a static category only, never
@@ -295,6 +310,9 @@ pub enum BaseUrlRejection {
     Unparseable,
     /// The scheme is neither `http` nor `https`.
     Scheme,
+    /// Plain `http` to a non-loopback host: the service-account client secret
+    /// would cross the network in cleartext.
+    InsecureTransport,
     /// The value carries embedded userinfo (`user:pass@host`).
     UserInfo,
     /// The value is missing a host.
@@ -310,6 +328,7 @@ impl BaseUrlRejection {
         match self {
             Self::Unparseable => "unparseable",
             Self::Scheme => "scheme",
+            Self::InsecureTransport => "insecure_transport",
             Self::UserInfo => "userinfo",
             Self::MissingHost => "missing_host",
             Self::Path => "path",
@@ -366,6 +385,13 @@ pub fn normalize_infisical_base_url(raw: &str) -> ResolvedBaseUrl {
         return Err(BaseUrlRejection::MissingHost);
     }
 
+    // Plain `http` would put the service-account client secret on the wire in
+    // cleartext, so it is accepted only for a loopback host, where local
+    // testing is useful and the traffic never leaves the machine.
+    if url.scheme() == "http" && !is_loopback_host(url.host_str()) {
+        return Err(BaseUrlRejection::InsecureTransport);
+    }
+
     // A port is part of a legitimate origin; any path, query, or fragment is
     // not (the client supplies the full API path itself). The CLI's trailing
     // `/api` (and `/api/`) is the one documented exception.
@@ -389,6 +415,18 @@ pub fn normalize_infisical_base_url(raw: &str) -> ResolvedBaseUrl {
     };
 
     Ok(format!("{}://{host}", url.scheme()))
+}
+
+/// True for `localhost`, `127.0.0.0/8`, and `::1`: the only hosts for which
+/// plaintext `http` is an acceptable destination.
+fn is_loopback_host(host: Option<&str>) -> bool {
+    host.is_some_and(|h| {
+        h.eq_ignore_ascii_case("localhost")
+            || h.trim_start_matches('[')
+                .trim_end_matches(']')
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|ip| ip.is_loopback())
+    })
 }
 
 /// Resolve the Infisical API base URL from an injected env reader, falling

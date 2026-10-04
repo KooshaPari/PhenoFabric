@@ -163,9 +163,10 @@ fn rejected_token_surfaces_auth_category_to_startup_warning() {
     );
 }
 
-/// No retry on 401: the cached token is not re-issued, so exactly one read
-/// request must reach the API (retrying would double the credential exposure
-/// for no gain).
+/// No in-read retry on 401: after the fix the rejected token is evicted for the
+/// *next* call (see the eviction tests in `review_response`), but this read
+/// does not re-authenticate and replay, so exactly one read request must reach
+/// the API (an in-read retry would double the credential exposure for no gain).
 #[test]
 fn v4_read_401_does_not_silently_retry() {
     let (base_url, gets) = unauthorized_then_ok_server("401 Unauthorized");
@@ -267,6 +268,43 @@ fn base_url_documented_forms_still_accepted() {
         normalize_infisical_base_url("http://127.0.0.1:8080"),
         Ok("http://127.0.0.1:8080".into())
     );
+}
+
+/// Finding B: plain `http` to a non-loopback host would put the service-account
+/// client secret on the wire in cleartext, so that origin shape is refused.
+#[test]
+fn plaintext_http_to_non_loopback_host_is_rejected() {
+    for bad in [
+        "http://eu.infisical.com",
+        "http://infisical.internal.example/api",
+        "http://10.0.0.5:8080",
+        "http://192.168.1.10",
+        "http://[2001:db8::1]:8080",
+    ] {
+        assert_eq!(
+            normalize_infisical_base_url(bad),
+            Err(BaseUrlRejection::InsecureTransport),
+            "cleartext http to a non-loopback host must be refused: {bad}"
+        );
+    }
+}
+
+/// Finding B (boundary): loopback `http` stays accepted, because local testing
+/// is useful and that traffic never leaves the host.
+#[test]
+fn plaintext_http_to_loopback_host_is_accepted() {
+    for (raw, expected) in [
+        ("http://127.0.0.1:8080", "http://127.0.0.1:8080"),
+        ("http://localhost:9000", "http://localhost:9000"),
+        ("http://[::1]:9000", "http://[::1]:9000"),
+        ("http://127.0.0.1/api", "http://127.0.0.1"),
+    ] {
+        assert_eq!(
+            normalize_infisical_base_url(raw),
+            Ok(expected.to_string()),
+            "loopback http must stay usable: {raw}"
+        );
+    }
 }
 
 /// A rejected override fails closed (never defaults to the public host) and a
