@@ -213,10 +213,10 @@ impl InfisicalClient {
             .await
             .map_err(SecretsError::http)?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let resp_body = response.text().await.unwrap_or_default();
-            return Err(SecretsError::Auth(format!("HTTP {status}: {resp_body}")));
+        let status = response.status();
+        if !status.is_success() {
+            // Status/category only: never read or propagate the response body.
+            return Err(SecretsError::Auth(format!("HTTP {status}")));
         }
 
         // A body that does not match the login contract is a *serialization*
@@ -247,6 +247,26 @@ impl InfisicalClient {
             }
         }
         self.authenticate().await
+    }
+
+    /// Reject a status returned for a request that carried the cached token.
+    ///
+    /// A 401/403 means Infisical refused the bearer token (expired/revoked, or
+    /// it lacks access). Any request below is built from `ensure_token`, so the
+    /// cached token it was refused would otherwise be replayed for the rest of
+    /// its TTL, making every later call fail identically instead of
+    /// re-authenticating once. Evicting here mirrors the official v4 read in
+    /// `auth/secret_read.rs`. Only the status is reported: the response body is
+    /// never read, so no third-party payload can reach a log or error message.
+    fn reject_token_on_forbidden(
+        &mut self,
+        status: reqwest::StatusCode,
+    ) -> Result<(), SecretsError> {
+        if status.as_u16() == 401 || status.as_u16() == 403 {
+            self.token = None;
+            return Err(SecretsError::Auth(format!("HTTP {status}")));
+        }
+        Ok(())
     }
 
     /// Fetch a single secret by key path and environment (legacy v1 raw
@@ -284,12 +304,10 @@ impl InfisicalClient {
             )));
         }
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(SecretsError::OperationFailed(format!(
-                "HTTP {status}: {body}"
-            )));
+        let status = response.status();
+        self.reject_token_on_forbidden(status)?;
+        if !status.is_success() {
+            return Err(SecretsError::OperationFailed(format!("HTTP {status}")));
         }
 
         let secret_data: serde_json::Value = response.json().await.map_err(SecretsError::http)?;
@@ -318,12 +336,10 @@ impl InfisicalClient {
             .await
             .map_err(SecretsError::http)?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(SecretsError::OperationFailed(format!(
-                "HTTP {status}: {body}"
-            )));
+        let status = response.status();
+        self.reject_token_on_forbidden(status)?;
+        if !status.is_success() {
+            return Err(SecretsError::OperationFailed(format!("HTTP {status}")));
         }
 
         let data: SecretsListResponse = response.json().await.map_err(SecretsError::http)?;
@@ -371,12 +387,10 @@ impl InfisicalClient {
             .await
             .map_err(SecretsError::http)?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let resp_body = response.text().await.unwrap_or_default();
-            return Err(SecretsError::OperationFailed(format!(
-                "HTTP {status}: {resp_body}"
-            )));
+        let status = response.status();
+        self.reject_token_on_forbidden(status)?;
+        if !status.is_success() {
+            return Err(SecretsError::OperationFailed(format!("HTTP {status}")));
         }
 
         Ok(())
@@ -404,12 +418,10 @@ impl InfisicalClient {
             .await
             .map_err(SecretsError::http)?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(SecretsError::OperationFailed(format!(
-                "HTTP {status}: {body}"
-            )));
+        let status = response.status();
+        self.reject_token_on_forbidden(status)?;
+        if !status.is_success() {
+            return Err(SecretsError::OperationFailed(format!("HTTP {status}")));
         }
 
         Ok(())
