@@ -41,6 +41,10 @@ use crate::config::AuthConfig;
 
 use std::fmt;
 
+mod startup;
+
+pub use startup::resolve_startup_workos_secret;
+
 /// Secret key fetched from the shared WorkOS folder.
 pub const WORKOS_CLIENT_SECRET_KEY: &str = "WORKOS_CLIENT_SECRET";
 /// Infisical folder holding the shared WorkOS credential set.
@@ -72,8 +76,6 @@ pub enum FetchFailure {
     Operation,
     /// The Infisical response could not be parsed.
     Serialization,
-    /// The cached access token expired and could not be refreshed.
-    TokenExpired,
     /// The API responded successfully but with an empty secret value.
     EmptyResponse,
 }
@@ -87,7 +89,6 @@ impl FetchFailure {
             Self::NotFound => "not_found",
             Self::Operation => "operation",
             Self::Serialization => "serialization",
-            Self::TokenExpired => "token_expired",
             Self::EmptyResponse => "empty_response",
         }
     }
@@ -101,7 +102,6 @@ impl From<&SecretsError> for FetchFailure {
             SecretsError::NotFound(_) => Self::NotFound,
             SecretsError::OperationFailed(_) => Self::Operation,
             SecretsError::Serialization(_) => Self::Serialization,
-            SecretsError::TokenExpired => Self::TokenExpired,
         }
     }
 }
@@ -172,6 +172,25 @@ pub struct LoadOutcome {
 /// Arguments: secret key name, folder path, environment slug.
 type SecretFetch<'a> = &'a mut dyn FnMut(&str, &str, &str) -> Result<String, FetchFailure>;
 
+/// Resolve only the local (non-network) sources: a nonempty, non-whitespace
+/// process-env value wins (`Source::Environment`), then a nonempty config
+/// value (`Source::Config`). `None` when neither is present.
+fn resolve_preconfigured(
+    auth: &mut AuthConfig,
+    read_env: &dyn Fn(&str) -> Option<String>,
+) -> Option<Source> {
+    if let Some(value) = read_env(ENV_WORKOS_CLIENT_SECRET) {
+        if !value.trim().is_empty() {
+            auth.workos_client_secret = value;
+            return Some(Source::Environment);
+        }
+    }
+    if !auth.workos_client_secret.is_empty() {
+        return Some(Source::Config);
+    }
+    None
+}
+
 /// Load the WorkOS client secret env-first, falling back to Infisical.
 ///
 /// Resolution order: nonempty process env, then config-file value, then
@@ -192,24 +211,13 @@ pub fn load_workos_client_secret(
     read_env: &dyn Fn(&str) -> Option<String>,
     fetch: SecretFetch<'_>,
 ) -> LoadOutcome {
-    // 1. A nonempty, non-whitespace-only process-env value wins and skips
-    //    the remote fetch; a whitespace-only value cannot authenticate, so
-    //    it falls through instead of blocking the config/Infisical steps.
-    if let Some(value) = read_env(ENV_WORKOS_CLIENT_SECRET) {
-        if !value.trim().is_empty() {
-            auth.workos_client_secret = value;
-            return LoadOutcome {
-                source: Source::Environment,
-                warning: None,
-            };
-        }
-    }
-
-    // 2. A config-file value (surviving the step-1 merge) is preserved;
-    //    the fetch only fills a missing secret.
-    if !auth.workos_client_secret.is_empty() {
+    // 1-2. A nonempty, non-whitespace-only process-env value wins and skips the
+    //    remote fetch; otherwise a config-file value (surviving the step-1
+    //    merge) is preserved. A whitespace-only env value cannot authenticate,
+    //    so it falls through. The fetch only fills a missing secret.
+    if let Some(source) = resolve_preconfigured(auth, read_env) {
         return LoadOutcome {
-            source: Source::Config,
+            source,
             warning: None,
         };
     }
@@ -280,30 +288,173 @@ mod tests;
 mod fetch_adapter;
 
 #[cfg(test)]
+mod contract_hardening;
+
+#[cfg(test)]
+mod review_response;
+
+#[cfg(test)]
 mod env_wiring;
 
-/// Normalize a configured Infisical base URL: trim whitespace and trailing
-/// slashes, and accept the Infisical CLI's domain form with a trailing
-/// `/api` (the client appends `/api/v1/...` and `/api/v4/...` itself).
-/// Returns `None` when nothing usable remains.
-pub fn normalize_infisical_base_url(raw: &str) -> Option<String> {
-    let trimmed = raw.trim().trim_end_matches('/');
-    let without_api = trimmed.strip_suffix("/api").unwrap_or(trimmed);
-    let normalized = without_api.trim_end_matches('/');
-    if normalized.is_empty() {
-        None
-    } else {
-        Some(normalized.to_string())
+#[cfg(test)]
+mod startup_seam;
+
+/// Redacted reason a `INFISICAL_BASE_URL` override was rejected.
+///
+/// Carries no payload by construction: it holds a static category only, never
+/// the offending value, so a mistyped host or embedded credential can never
+/// reach a log line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BaseUrlRejection {
+    /// The value is not a parseable absolute URL.
+    Unparseable,
+    /// The scheme is neither `http` nor `https`.
+    Scheme,
+    /// Plain `http` to a non-loopback host: the service-account client secret
+    /// would cross the network in cleartext.
+    InsecureTransport,
+    /// The value carries embedded userinfo (`user:pass@host`).
+    UserInfo,
+    /// The value is missing a host.
+    MissingHost,
+    /// The value carries a path, query, or fragment beyond the documented
+    /// origin forms.
+    Path,
+}
+
+impl BaseUrlRejection {
+    /// Stable, log-safe category label.
+    pub const fn category(self) -> &'static str {
+        match self {
+            Self::Unparseable => "unparseable",
+            Self::Scheme => "scheme",
+            Self::InsecureTransport => "insecure_transport",
+            Self::UserInfo => "userinfo",
+            Self::MissingHost => "missing_host",
+            Self::Path => "path",
+        }
     }
+}
+
+/// A resolved, safe-to-contact Infisical origin, or a redaction-safe rejection.
+///
+/// `Err` means **no host may be contacted**: the caller must skip the Infisical
+/// fetch entirely rather than substituting a default, because the universal-auth
+/// login POSTs the service-account client secret to whatever origin resolves
+/// here (Kilo finding, 2026-09-29).
+pub type ResolvedBaseUrl = Result<String, BaseUrlRejection>;
+
+/// Normalize a configured Infisical base URL to a bare origin.
+///
+/// Accepts, per the Infisical CLI `--domain` contract (observed 2026-09-24):
+/// `https://<host>`, the same with a trailing slash, and the CLI's domain
+/// form with a trailing `/api` — the client appends `/api/v1/...` and
+/// `/api/v4/...` itself.
+///
+/// The value is credential-bearing: the universal-auth login POST sends the
+/// service-account client secret to whatever origin resolves here. Anything
+/// that is not a clean http/https origin is therefore rejected, so the caller
+/// fails closed instead of failing later inside reqwest as an opaque transport
+/// error, silently pointing the credential at a mistyped host, or retargeting
+/// it at the public cloud via a default fallback.
+///
+/// Hostnames are not validated offline (a valid-but-wrong private host is a
+/// legitimate deployment); only the origin *shape* is enforced.
+pub fn normalize_infisical_base_url(raw: &str) -> ResolvedBaseUrl {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(BaseUrlRejection::Unparseable);
+    }
+
+    // Parse first, then strip the CLI's trailing `/api` from the *parsed path*
+    // only. Stripping the raw text would mangle a host literally named `api`
+    // (`https://api` -> `https:`, which then fails to parse).
+    let mut url = reqwest::Url::parse(trimmed).map_err(|_| BaseUrlRejection::Unparseable)?;
+
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(BaseUrlRejection::Scheme);
+    }
+    // Embedded userinfo is credential-bearing and visually confusable:
+    // `https://real.host@evil.example` parses to host `evil.example`, so
+    // accepting it is exactly the mistyped-host credential leak this check
+    // exists to prevent. Reject rather than silently strip.
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(BaseUrlRejection::UserInfo);
+    }
+    if !url.has_host() {
+        return Err(BaseUrlRejection::MissingHost);
+    }
+
+    // Plain `http` would put the service-account client secret on the wire in
+    // cleartext, so it is accepted only for a loopback host, where local
+    // testing is useful and the traffic never leaves the machine.
+    if url.scheme() == "http" && !is_loopback_host(url.host_str()) {
+        return Err(BaseUrlRejection::InsecureTransport);
+    }
+
+    // A port is part of a legitimate origin; any path, query, or fragment is
+    // not (the client supplies the full API path itself). The CLI's trailing
+    // `/api` (and `/api/`) is the one documented exception.
+    match url.path() {
+        "/" | "" => {}
+        "/api" | "/api/" => url.set_path(""),
+        _ => return Err(BaseUrlRejection::Path),
+    }
+    if url.query().is_some() || url.fragment().is_some() {
+        return Err(BaseUrlRejection::Path);
+    }
+
+    // Rebuild from the parsed components. `host_str()` drops the brackets from
+    // an IPv6 literal (`[::1]` -> `::1`), which would produce an unparseable
+    // origin; `host()` serializes the host the way the URL itself does, so
+    // IPv6 literals keep their brackets.
+    let host = url.host().ok_or(BaseUrlRejection::MissingHost)?;
+    let host = match url.port() {
+        Some(port) => format!("{host}:{port}"),
+        None => host.to_string(),
+    };
+
+    Ok(format!("{}://{host}", url.scheme()))
+}
+
+/// True for `localhost`, `127.0.0.0/8`, and `::1`: the only hosts for which
+/// plaintext `http` is an acceptable destination.
+fn is_loopback_host(host: Option<&str>) -> bool {
+    host.is_some_and(|h| {
+        h.eq_ignore_ascii_case("localhost")
+            || h.trim_start_matches('[')
+                .trim_end_matches(']')
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|ip| ip.is_loopback())
+    })
 }
 
 /// Resolve the Infisical API base URL from an injected env reader, falling
 /// back to the documented US Cloud default (`InfisicalConfig::default`).
 /// Non-secret: read at startup only, never persisted or echoed over IPC.
-pub fn resolve_infisical_base_url(read_env: &dyn Fn(&str) -> Option<String>) -> String {
-    read_env(ENV_INFISICAL_BASE_URL)
-        .and_then(|value| normalize_infisical_base_url(&value))
-        .unwrap_or_else(|| crate::auth::InfisicalConfig::default().base_url)
+///
+/// An absent or whitespace-only value is the normal unset case and resolves to
+/// the documented default. A nonempty but malformed override is **rejected and
+/// reported**, never defaulted: the value carries the service-account client
+/// secret to whatever host resolves, so substituting a default here would send
+/// an operator's credential to the public Infisical cloud because of a typo
+/// (Kilo finding, 2026-09-29). `Err` instructs the caller to skip the fetch.
+pub fn resolve_infisical_base_url(read_env: &dyn Fn(&str) -> Option<String>) -> ResolvedBaseUrl {
+    let default = crate::auth::InfisicalConfig::default().base_url;
+    let Some(raw) = read_env(ENV_INFISICAL_BASE_URL).filter(|v| !v.trim().is_empty()) else {
+        return Ok(default);
+    };
+    normalize_infisical_base_url(&raw)
+}
+
+/// Build the warning surfaced after logging init when a base-URL override was
+/// rejected and the Infisical fallback was skipped.
+///
+/// Emitted by the caller rather than inside the resolver because resolution
+/// runs before `logging::init_logging`, where a `tracing::warn!` is a silent
+/// no-op (Kilo finding, 2026-09-29).
+pub fn base_url_rejection_warning(rejection: BaseUrlRejection) -> FallbackWarning {
+    fallback_warning(DEFAULT_INFISICAL_ENV, rejection.category())
 }
 
 /// Production fetch adapter: one blocking Infisical read via the existing

@@ -49,10 +49,25 @@ impl InfisicalClient {
             )));
         }
 
-        if !response.status().is_success() {
+        // 401/403 means Infisical rejected the service-account bearer token
+        // (expired/revoked, or the token lacks access to this secret). Report
+        // it as an authentication failure rather than an opaque operation
+        // error so the startup warning is actionable. The body is still never
+        // read, so no third-party payload can reach logs.
+        //
+        // The cached token is evicted here: leaving a token the server just
+        // refused in place would make `ensure_token` replay it for the rest of
+        // its TTL, so every later read in this process would fail identically
+        // instead of re-authenticating once (Kilo finding, 2026-09-29).
+        let status = response.status();
+        if status.as_u16() == 401 || status.as_u16() == 403 {
+            self.token = None;
+            return Err(SecretsError::Auth(format!("HTTP {status}")));
+        }
+
+        if !status.is_success() {
             // Status/category only: never read or propagate the response body,
             // so a third-party payload can never surface in logs or warnings.
-            let status = response.status();
             return Err(SecretsError::OperationFailed(format!("HTTP {status}")));
         }
 

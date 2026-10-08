@@ -127,18 +127,27 @@ fn cmd_start(
     // logging init and coordinator creation; the outcome is emitted after
     // logging init below (tracing is a no-op before init) and logs
     // category/source only — never a value, body, or token.
-    let infisical_config = auth::InfisicalConfig {
-        client_id: config.auth.infisical_client_id.clone(),
-        client_secret: config.auth.infisical_client_secret.clone(),
-        project_id: config.auth.infisical_project_id.clone(),
-        base_url: secret_loader::resolve_infisical_base_url(&|name| std::env::var(name).ok()),
-    };
-    let secret_outcome = secret_loader::load_workos_client_secret(
+    //
+    // A rejected INFISICAL_BASE_URL fails CLOSED: the fallback is skipped
+    // entirely and no request leaves the host. Substituting the documented
+    // default here would POST the service-account client secret to the public
+    // Infisical cloud because of a typo (review finding, 2026-09-29).
+    let infisical_creds = (
+        config.auth.infisical_client_id.clone(),
+        config.auth.infisical_client_secret.clone(),
+        config.auth.infisical_project_id.clone(),
+    );
+    let (secret_outcome, base_url_rejection) = secret_loader::resolve_startup_workos_secret(
         &mut config.auth,
         &|name| std::env::var(name).ok(),
-        &mut |secret, folder, environment| {
+        &mut |base_url, secret, folder, environment| {
             secret_loader::fetch_via_infisical(
-                infisical_config.clone(),
+                auth::InfisicalConfig {
+                    client_id: infisical_creds.0.clone(),
+                    client_secret: infisical_creds.1.clone(),
+                    project_id: infisical_creds.2.clone(),
+                    base_url: base_url.to_string(),
+                },
                 secret,
                 folder,
                 environment,
@@ -149,6 +158,15 @@ fn cmd_start(
     // Initialize logging.
     logging::init_logging(&config.logging);
 
+    if let Some(rejection) = base_url_rejection {
+        // Redaction-safe: category only, never the rejected value.
+        tracing::warn!(
+            variable = secret_loader::ENV_INFISICAL_BASE_URL,
+            category = rejection.category(),
+            "infisical base url override rejected; infisical fallback skipped \
+             (expected https://<host>, optionally with a trailing /api)"
+        );
+    }
     if let Some(warning) = &secret_outcome.warning {
         tracing::warn!(
             secret = warning.secret,
