@@ -18,17 +18,19 @@ fn default_config_uses_cli_documented_us_cloud_api_host() {
 
 #[test]
 fn secret_value_serialization_roundtrip() {
+    // EXAMPLE_KEY / EXAMPLE_VALUE are obvious placeholders so generic-password
+    // detectors do not flag this fixture. The roundtrip is what matters here.
     let sv = SecretValue {
-        key: "DB_PASSWORD".into(),
-        value: "s3cret".into(),
+        key: "EXAMPLE_KEY".into(),
+        value: "EXAMPLE_VALUE".into(),
         environment: "prod".into(),
         path: Some("/database".into()),
     };
 
     let json = serde_json::to_string(&sv).unwrap();
     let deserialized: SecretValue = serde_json::from_str(&json).unwrap();
-    assert_eq!(deserialized.key, "DB_PASSWORD");
-    assert_eq!(deserialized.value, "s3cret");
+    assert_eq!(deserialized.key, "EXAMPLE_KEY");
+    assert_eq!(deserialized.value, "EXAMPLE_VALUE");
     assert_eq!(deserialized.environment, "prod");
 }
 
@@ -141,7 +143,7 @@ fn flaky_v1_server(op_status: &'static str) -> (String, Arc<AtomicUsize>, Arc<At
                 } else {
                     (
                         "200 OK".to_string(),
-                        r#"{"secret":{"secretKey":"DB_PASSWORD","secretValue":"from-fake-server"}}"#
+                        r#"{"secret":{"secretKey":"EXAMPLE_KEY","secretValue":"from-fake-server"}}"#
                             .to_string(),
                     )
                 }
@@ -258,7 +260,10 @@ fn v1_write_401_evicts_token_and_next_call_reauthenticates() {
     let (base_url, ops, logins) = flaky_v1_server("401 Unauthorized");
     let mut client = v1_client_for(base_url);
 
-    let err = block_on(client.set_secret("DB_PASSWORD", "s3cret", "dev"))
+    // Placeholder names chosen so generic-password detectors don't flag the fixture:
+    // this test exercises an Infisical v1 client, it does not exercise any real
+    // database, password, or credential system.
+    let err = block_on(client.set_secret("EXAMPLE_KEY", "EXAMPLE_VALUE", "dev"))
         .expect_err("401 must be an error");
     assert!(
         matches!(err, SecretsError::Auth(_)),
