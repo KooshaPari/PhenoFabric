@@ -1,0 +1,15 @@
+{"run":"0","n":100,"width":1280,"height":720,"frames_sent":100,"frames_acknowledged":100,"avg_rtt_us":2181,"elapsed_ms":218.808708,"throughput_fps":457.02020232211237}
+{"run":"0","n":1000,"width":1280,"height":720,"frames_sent":1000,"frames_acknowledged":1000,"avg_rtt_us":731,"elapsed_ms":739.6525,"throughput_fps":1351.9862367801095}
+{"run":"0","n":10000,"width":1280,"height":720,"frames_sent":10000,"frames_acknowledged":10000,"avg_rtt_us":831,"elapsed_ms":8422.490084,"throughput_fps":1187.2973313434654}
+{"run":"1","n":100,"width":1280,"height":720,"frames_sent":100,"frames_acknowledged":100,"avg_rtt_us":255,"elapsed_ms":25.818042,"throughput_fps":3873.2604122342045}
+{"run":"1","n":1000,"width":1280,"height":720,"frames_sent":1000,"frames_acknowledged":1000,"avg_rtt_us":1624,"elapsed_ms":1680.306917,"throughput_fps":595.1293718324912}
+{"run":"1","n":10000,"width":1280,"height":720,"frames_sent":10000,"frames_acknowledged":10000,"avg_rtt_us":1376,"elapsed_ms":13985.557791,"throughput_fps":715.0233225903374}
+{"run":"2","n":100,"width":1280,"height":720,"frames_sent":100,"frames_acknowledged":100,"avg_rtt_us":733,"elapsed_ms":73.94895799999999,"throughput_fps":1352.2840984453087}
+{"run":"2","n":1000,"width":1280,"height":720,"frames_sent":1000,"frames_acknowledged":1000,"avg_rtt_us":1780,"elapsed_ms":1818.394,"throughput_fps":549.9358224895154}
+{"run":"2","n":10000,"width":1280,"height":720,"frames_sent":10000,"frames_acknowledged":10000,"avg_rtt_us":1659,"elapsed_ms":16780.289582999998,"throughput_fps":595.9372721511871}
+{"run":"3","n":100,"width":1280,"height":720,"frames_sent":100,"frames_acknowledged":100,"avg_rtt_us":294,"elapsed_ms":29.902375,"throughput_fps":3344.2159694673082}
+{"run":"3","n":1000,"width":1280,"height":720,"frames_sent":1000,"frames_acknowledged":1000,"avg_rtt_us":3007,"elapsed_ms":3081.291458,"throughput_fps":324.5392438951811}
+{"run":"3","n":10000,"width":1280,"height":720,"frames_sent":10000,"frames_acknowledged":10000,"avg_rtt_us":1631,"elapsed_ms":16655.654291000003,"throughput_fps":600.3967076456173}
+{"run":"4","n":100,"width":1280,"height":720,"frames_sent":100,"frames_acknowledged":100,"avg_rtt_us":2497,"elapsed_ms":253.00775,"throughput_fps":395.2448096945647}
+{"run":"4","n":1000,"width":1280,"height":720,"frames_sent":1000,"frames_acknowledged":1000,"avg_rtt_us":1177,"elapsed_ms":1191.6771669999998,"throughput_fps":839.1534449866656}
+{"run":"4","n":10000,"width":1280,"height":720,"frames_sent":10000,"frames_acknowledged":10000,"avg_rtt_us":1023,"elapsed_ms":10381.143333,"throughput_fps":963.285033182385}
