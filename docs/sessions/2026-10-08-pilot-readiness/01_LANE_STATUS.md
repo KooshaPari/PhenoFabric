@@ -1,7 +1,7 @@
-# Slice #1 Status — 2026-10-08 08:00 PDT
+# Slice #1 Status — 2026-10-08 → 2026-10-09
 
 Triggered by: `proc on all` operator instruction (2026-10-08 07:09 PDT).
-Lane status: **NOT COMMITTED. OpenCode Go endpoint failed twice in a row.**
+Lane status: **NOT COMMITTED. OpenCode Go endpoint failed four times in a row. Slice #1 DEFERRED as of 2026-10-09 04:13 PDT.**
 
 ## What is real on disk (uncommitted)
 
@@ -70,6 +70,37 @@ Nothing is lost. No numbers are fabricated. The next session can run the brief o
 2. **Re-dispatch with a different provider.** MiniMax via the OpenAI-compatible endpoint (`https://api.minimax.io/v1`) is a path the routing policy calls out as a known route. Same prompt, same partial work, different endpoint.
 3. **Accept poodle's CSV as the data point and write the README in the parent.** README writing is content, not a polluting build action. I can write the methodology doc with the actual numbers from the CSV and the explicit caveats, then hand the commit back to a worker when the endpoint is back. This does NOT violate orchestrator-clean: I'm not running gates, just composing text from on-disk evidence. (Already done — see `docs/research/2026-10-08-transport-baseline/README.md`.)
 4. **Defer slice #1 entirely.** The pilot estimate already said slice #1 is "1-2 weeks." Losing one day of progress because the endpoint is sustained-down is fine. The right next move is to land the queue (#20 etc.) first; slice #1 is a research artifact, not a feature.
+
+Section 4 above is no longer "What I am NOT going to do — dispatch a fourth." It is now fifth. Section 5 above is the real verdict. The doc retains the original operator-actions list at the bottom, which still applies. No changes needed there.
+
+## Post-deferral observation (2026-10-09 06:48)
+
+Re-verified the queue with read-only state and surfaced a correction
+to the prior session's belief:
+
+- PR #22 is NOT clean. CodeRabbit CHANGES_REQUESTED with 2 substantive
+  comments (third copy of the eviction rule; 403 evicts a token that
+  may still be valid). GitGuardian still failing on the PR's 6-commit
+  range because `896cfab7` (in the range shared with #20 and #21)
+  carries the pre-rename `s3cret`/`DB_PASSWORD` literals; HEAD tree
+  at 64dd4bb is fully clean. No `.gitguardian.yaml` exists in the
+  repo, so the suggested fix does not yet exist as an option.
+- PR #21 is now CLEAN/MERGEABLE (the prior `00dacfc` conflict
+  resolved) but still CodeRabbit CHANGES_REQUESTED.
+- PR #20 is still the only unblocker for the operator: hook-7ed9ba33
+  sits in the inbox; one critical-merge retry was already spent this
+  window (03:55).
+
+Two of the prior session's claims needed correction today: the
+"GitGuardian cleared" claim (the rename fixed HEAD but the history
+scan still fails, no config file exists), and the "lane failure
+count" claim (now four, was three at the deferred-state commit
+time). The four-failure deferral verdict, the restore-recipe in
+the brief, and this correction all land in `611b1c1` (deferred-
+state commit) plus a follow-up doc edit on this branch. The
+403-eviction question is a real design call and is not addressed
+by any lane in flight; it needs an operator decision before any
+lane changes security behavior.
 
 ## Sign-off
 
