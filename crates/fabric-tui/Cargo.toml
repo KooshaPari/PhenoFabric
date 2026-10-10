@@ -15,7 +15,7 @@ fabric-checker = { path = "../fabric-checker" }
 fabric-persist = { path = "../fabric-persist" }
 fabric-capability = { path = "../fabric-capability" }
 ratatui = "0.29"
-crossterm = { version = "0.28", features = ["event-stream"] }
+crossterm = { version = "0.29", features = ["event-stream"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
