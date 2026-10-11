@@ -102,6 +102,22 @@ state commit) plus a follow-up doc edit on this branch. The
 by any lane in flight; it needs an operator decision before any
 lane changes security behavior.
 
+## Post-merge note (2026-10-10 08:30 / 2026-10-11 01:21)
+
+PR #20 ("fix(fabric-daemon): auth category for rejected token,
+validate Infisical base URL") is MERGED into main as a27f815.
+Local main fast-forwarded 2026-10-11 00:56 (orchestrator-clean
+operation, no source files touched). The fail-open
+credential-routing bug that motivated this entire session is
+closed on the protected branch.
+
+Slice #1 is unaffected: the test file is independent of the
+auth/secrets work. The P2 brief in `02_NEXT_LANE_BRIEF.md` was
+updated to reflect that the research branch is now at e4d8551
+(orchestrator's doc-correction commit) and that origin/main is
+now a27f815. The "Nothing committed" note still applies —
+poodle's slice #1 work is still on disk but not committed.
+
 ## Sign-off
 
 Slice #1 is in a recoverable state. No data is lost. The branch is named, the partial work is on disk, the failure pattern is documented (3 consecutive endpoint failures, sustained-down). Decision belongs to operator, not to me.

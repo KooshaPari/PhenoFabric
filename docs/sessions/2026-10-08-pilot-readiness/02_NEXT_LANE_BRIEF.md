@@ -7,7 +7,8 @@
 ## State you are inheriting
 
 - **Branch:** `research/transport-baseline-2026-10-08`
-- **HEAD:** `4796706` (unchanged from `origin/main`). NOTHING COMMITTED.
+- **HEAD:** `e4d8551` (orchestrator's doc-correction commit on top of `4796706`; pushed to `origin`). NOTHING COMMITTED from poodle's slice #1 work.
+- **Base reference for slice #1 work:** `origin/main` is now `a27f815` (PR #20 merged 2026-10-10). Slice #1 still works on this branch and does not need a rebase; the test file is independent of the security work.
 - **Working tree (untracked, all from poodle, all unverified):**
   - `crates/fabric-integration-tests/tests/transport_baseline.rs` (155 lines)
   - `docs/research/2026-10-08-transport-baseline/results.csv` (16 lines)
@@ -35,7 +36,7 @@ git status --short
 git log --oneline -1
 ```
 
-EXPECT: HEAD = `4796706`, untracked files = the 5 listed above.
+EXPECT: HEAD = `e4d8551`, untracked files = the 5 listed above.
 ACTUAL: confirm and proceed.
 
 If `git status` shows anything committed, STOP — poodle or duckling
