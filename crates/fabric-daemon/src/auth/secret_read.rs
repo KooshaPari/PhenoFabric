@@ -49,15 +49,10 @@ impl InfisicalClient {
             )));
         }
 
-        // 401/403 eviction: delegates to the shared helper in `secrets.rs`
-        // so the eviction logic lives in exactly one place (doc at
-        // `contract_hardening.rs:134` documents the design).
-        let status = response.status();
-        self.reject_token_on_forbidden(status)?;
-
-        if !status.is_success() {
+        if !response.status().is_success() {
             // Status/category only: never read or propagate the response body,
             // so a third-party payload can never surface in logs or warnings.
+            let status = response.status();
             return Err(SecretsError::OperationFailed(format!("HTTP {status}")));
         }
 
