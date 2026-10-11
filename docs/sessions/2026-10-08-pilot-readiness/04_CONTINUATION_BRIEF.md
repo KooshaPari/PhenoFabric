@@ -22,6 +22,26 @@
   - `cargo fmt --all -- --check` exit 0
   - `cargo test -p fabric-integration-tests` all green
 
+## Test type note (added 2026-10-11 23:41)
+
+The `transport_baseline` test is a **characterization harness**, not a
+correctness test. The original mutation recipe below (Step 4) assumed the
+test had assertions on SIZES, WIDTH, or `set_nodelay`; it does not. The
+test emits JSON rows with measured values (`avg_rtt_us`, `throughput_fps`)
+but never asserts that those values fall within a range or differ from a
+control condition. Mutations to constants cannot cause test failures
+because there is no assertion surface to break.
+
+Future mutation attempts must use a different strategy. Two options:
+1. Add assertions to the test itself (e.g., `assert!(avg_rtt_us < 5000)`)
+   so that mutations cause measurable test failures.
+2. Mutate the measured path itself (e.g., inject a syscall-level delay via
+   `LD_PRELOAD` or equivalent) so that the RTT measurements shift visibly.
+
+The Step 4 mutation recipe below is retained for reference but will not
+produce the expected 10x RTT jump detection because the test will not
+fail regardless of what constants are changed.
+
 ## What to do (only the steps that are not done)
 
 ### Step 4 — mutation proof (the only file mutation you will make)

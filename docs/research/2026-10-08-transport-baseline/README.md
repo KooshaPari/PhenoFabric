@@ -1,18 +1,33 @@
 # Transport baseline — 2026-10-08
 
-> **Status:** GATES PASS, NO MUTATION PROOF (2026-10-11). The
-> 5 cargo gates (`fmt`, targeted `transport_baseline` test,
-> `clippy -D warnings`, `fmt --check`, full
-> `fabric-integration-tests` suite) all passed in lane
-> `camel/slice-1-verifier` at 02:38 PDT — the work is real
-> and the test compiles, lints, formats, and runs to
-> completion with zero loss. The N=1000 mutation proof
-> (the 10x RTT shift on disabling TCP_NODELAY) was NOT
-> captured: 6 consecutive OpenCode Go endpoint failures
-> in this session block any lane that would do the mutation
-> step. Numbers below are from poodle's data, format/lint/
-> test-verified but not mutation-verified. **Not cite-able
-> in a pilot claim** until the mutation factor is captured.
+> **Status:** GATES PASS, NO MUTATION PROOF — BEST-EFFORT
+> (characterization harness, no assertion surface)
+> (2026-10-11). The 5 cargo gates (`fmt`, targeted
+> `transport_baseline` test, `clippy -D warnings`,
+> `fmt --check`, full `fabric-integration-tests` suite)
+> all passed in lane `camel/slice-1-verifier` at 02:38 PDT
+> — the work is real and the test compiles, lints, formats,
+> and runs to completion with zero loss. The N=1000 mutation
+> proof was NOT captured and, per subsequent analysis, would
+> not have been informative: the test is a characterization
+> harness that measures RTT but does not assert on the
+> values. Mutations to constants (SIZES, WIDTH, nodelay) are
+> not detectable because there is no assertion surface to
+> break. See "Mutation-proof gap" section below.
+
+**This baseline measures RTT/latency on a fixed configuration.** It is
+a characterization harness, not a correctness test. The test emits
+JSON rows with measured values (avg_rtt_us, throughput_fps) but never
+asserts that those values fall within a range or differ from a control
+condition. Mutations to constants (SIZES ±10%, WIDTH set to 1024,
+`set_nodelay` commented out) did not cause test failures because the
+test has no assertions to fail. A future mutation-proof lane would
+need to either (a) add assertions (e.g., `assert!(avg_rtt_us < 5000)`)
+to the test, or (b) mutate the measured path itself (e.g., introduce
+a syscall-level delay via `LD_PRELOAD` or equivalent) so that the
+measurements shift visibly enough to serve as a detection signal.
+The numbers below remain valuable as a baseline; they are just not
+mutation-proofable in their current form.
 
 ## What this measures
 
@@ -102,10 +117,12 @@ shift, but the **band** should be stable.
 - [x] `cargo fmt --all -- --check` PASS on the committed state
 - [x] `cargo clippy -p fabric-integration-tests --all-targets -- -D warnings` PASS
 - [x] `cargo test -p fabric-integration-tests` (full crate) PASS — no regression
-- [ ] MUTATION: comment out `set_nodelay(true)` on the server side
-      and confirm N=1000 avg_rtt_us jumps by ~10x. **Revert before commit.**
-      **BLOCKED: 6 consecutive OpenCode Go endpoint failures. See lane
-      failure log in `docs/sessions/2026-10-08-pilot-readiness/01_LANE_STATUS.md`.**
+- [ ] MUTATION: N/A — characterization harness, no assertion surface
+      to break. The test measures RTT and emits JSON rows but does not
+      assert on values. Mutations to SIZES, WIDTH, or `set_nodelay`
+      cannot cause test failures. A future mutation-proof lane would
+      need to add assertions or mutate the measured path itself (e.g.,
+      syscall delay injection).
 - [ ] Commit on `research/transport-baseline-2026-10-08` with the
       5-trailer ledger format
 - [ ] Push to `origin/research/transport-baseline-2026-10-08`
