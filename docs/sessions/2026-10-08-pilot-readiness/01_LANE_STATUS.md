@@ -38,7 +38,15 @@ N=100 has 10x variance (cold first run). Caveat that needs to land in the README
 | duckling (P1b)| `opencode-go:mimo-v2.6-flash`    | failed | Same endpoint, same error. Different model. |
 | sunflower (P2) | `opencode-go:mimo-v2.6-flash`   | failed | Same endpoint, same model as duckling, 7s runtime, wrote nothing. |
 | fox (P2-retry) | `opencode-go:mimo-v2.6-flash`    | failed | Same endpoint. Mid-step-4 of 10 when it died; left file in MUTATED state (SIZES=[1000], nodelay commented out). Orchestrator restored both lines to poodle's original via the restore recipe. |
-| **camel (slice-1-verifier, 2026-10-11)** | `opencode-go:mimo-v2.6-flash` | **partial** | Past step 3 (all 5 gates PASS at 02:38 checkpoint). Died before step 4 commit; no final report. Working tree clean, file in unmutated state, no commit, no push. Continuation brief in `04_CONTINUATION_BRIEF.md` skips the gates (re-using the prior lane's checkpoint) and goes straight to mutation proof + commit + push. |
+| camel (slice-1-verifier, 2026-10-11 02:25) | `opencode-go:mimo-v2.6-flash` | **partial** | Past step 3 (all 5 gates PASS at 02:38 checkpoint). Died before step 4 commit; no final report. Working tree clean, file in unmutated state, no commit, no push. Continuation brief in `04_CONTINUATION_BRIEF.md` skips the gates (re-using the prior lane's checkpoint) and goes straight to mutation proof + commit + push. |
+| **octopus (slice-1-finalize, 2026-10-11 04:34)** | `opencode-go:mimo-v2.6-flash` | **failed** | 6th OpenCode Go flake. Died ~7m into the work, before any file mutation. Stream error: `OpenAI-compatible stream error endpoint: .../chat/completions model: mimo-v2.6-flash`. Working tree clean, no commit, no push. **Definitive:** OpenCode Go is structurally unreliable for 10-step lanes on this work. |
+
+Six endpoint failures in a row (one partial-success at the
+gates step) is conclusive evidence the OpenCode Go path will
+not complete slice #1 from this session. The structural
+decision is now the operator's: switch providers, or accept
+the 5/5-gates-pass result as the floor of evidence without
+mutation proof.
 
 Four consecutive failures on the same `https://opencode.ai/zen/go/v1/chat/completions` endpoint, across two models, over ~21 hours with multiple recovery windows (including a ~3h gap between sunflower and fox where the spawn handshake succeeded). **The endpoint is unusable from this session. Definitive.**
 
@@ -152,6 +160,28 @@ runs the continuation brief in
 
 Parent (04:33) probed OpenCode Go: HTTP 200 in 1.7s. The
 provider is back. Disk back to 24G free. Continuing.
+
+## Second dispatch + 6th flake (2026-10-11 04:34–04:44)
+
+Lane `slice-1-finalize` (octopus, session_octopus_...) was
+dispatched at 04:34 with the continuation brief. Died at
+~7m into the work, before any file mutation, with the same
+stream error. **Six consecutive OpenCode Go endpoint
+failures** in this session (poodle, duckling, sunflower,
+fox, camel-partial, octopus). The provider is not a viable
+path for this work from this session.
+
+**Structural decision needed from the operator:** either
+switch providers (e.g. MiniMax via `https://api.minimax.io/v1`)
+to run the mutation proof, OR accept the 5/5-gates-pass
+result without mutation proof as the floor of slice #1
+evidence. The parent will NOT dispatch a 7th lane to
+OpenCode Go.
+
+The gates-pass result is durable in the lane-failure log
+and in camel's checkpoint DM; the orchestrator will also
+flip the methodology README to "GATES PASS, NO MUTATION
+PROOF" so a future lane or operator knows the exact state.
 
 ## Sign-off
 

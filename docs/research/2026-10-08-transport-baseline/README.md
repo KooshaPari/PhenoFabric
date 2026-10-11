@@ -1,13 +1,18 @@
 # Transport baseline — 2026-10-08
 
-> **Status:** UNVERIFIED. Numbers below were captured by an autonomous
-> lane (poodle) and observed in `raw_baseline_lines.jsonl`. The
-> mutation proof, full `cargo test -p fabric-integration-tests`,
-> `cargo fmt`, and `cargo clippy -D warnings` were NOT independently
-> re-run by the orchestrator. Lane duckling (which was supposed to
-> finish) died at the OpenCode Go endpoint before doing any work.
-> Do not cite these numbers in a pilot claim until the verification
-> section at the bottom is checked off.
+> **Status:** GATES PASS, NO MUTATION PROOF (2026-10-11). The
+> 5 cargo gates (`fmt`, targeted `transport_baseline` test,
+> `clippy -D warnings`, `fmt --check`, full
+> `fabric-integration-tests` suite) all passed in lane
+> `camel/slice-1-verifier` at 02:38 PDT — the work is real
+> and the test compiles, lints, formats, and runs to
+> completion with zero loss. The N=1000 mutation proof
+> (the 10x RTT shift on disabling TCP_NODELAY) was NOT
+> captured: 6 consecutive OpenCode Go endpoint failures
+> in this session block any lane that would do the mutation
+> step. Numbers below are from poodle's data, format/lint/
+> test-verified but not mutation-verified. **Not cite-able
+> in a pilot claim** until the mutation factor is captured.
 
 ## What this measures
 
@@ -94,11 +99,13 @@ shift, but the **band** should be stable.
 
 ## What still needs to happen
 
-- [ ] `cargo fmt --all -- --check` PASS on the committed state
-- [ ] `cargo clippy -p fabric-integration-tests --all-targets -- -D warnings` PASS
-- [ ] `cargo test -p fabric-integration-tests` (full crate) PASS — no regression
+- [x] `cargo fmt --all -- --check` PASS on the committed state
+- [x] `cargo clippy -p fabric-integration-tests --all-targets -- -D warnings` PASS
+- [x] `cargo test -p fabric-integration-tests` (full crate) PASS — no regression
 - [ ] MUTATION: comment out `set_nodelay(true)` on the server side
       and confirm N=1000 avg_rtt_us jumps by ~10x. **Revert before commit.**
+      **BLOCKED: 6 consecutive OpenCode Go endpoint failures. See lane
+      failure log in `docs/sessions/2026-10-08-pilot-readiness/01_LANE_STATUS.md`.**
 - [ ] Commit on `research/transport-baseline-2026-10-08` with the
       5-trailer ledger format
 - [ ] Push to `origin/research/transport-baseline-2026-10-08`
