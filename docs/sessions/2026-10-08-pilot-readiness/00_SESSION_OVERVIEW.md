@@ -125,3 +125,16 @@ See `01_LANE_STATUS.md` for the lane-failure log, and
 This doc is signed-off when either:
 - Slice #1 has shipped with reproducible numbers, OR
 - Operator chooses to defer pilot work in favor of finishing the queue.
+
+## 10. Addendum — best long-term path (2026-10-11 01:48)
+
+See `03_PR22_UNBLOCK_BRIEF.md` for the lane-ready analysis that
+resolves the 403 design call (the merged main at
+`contract_hardening.rs:134` already documents "401 and 403 both
+indicate the token cannot reach the secret, both evict" — so
+PR #22's behavior is correct as-is and the right fix is a doc
+comment + the pub(super) refactor, not a behavior change), the
+mechanical refactor plan for the third copy of
+`reject_token_on_forbidden`, and the rebase plan for PRs #21
+and #22 onto a27f815. The brief is one-turn runnable on any
+working provider.
