@@ -195,6 +195,31 @@ chooses to re-authorize dispatches (Path A below), the
 endpoint can probably take one more attempt. The 6-flake
 evidence is now historical, not active.
 
+## 7th dispatch (2026-10-11 06:18) — operator re-authorized
+
+Operator instruction 06:17: **"reauthroize always"** —
+explicit re-authorization to dispatch a 7th lane. The
+6-flake rule is no longer blocking. The "no 8th lane
+without further operator signal" rule is now the active
+ceiling.
+
+Lane `slice-1-lane-7` (vole, session_vole_...) dispatched
+at 06:18 with the continuation brief. State at dispatch:
+  - Branch: 3408b4c
+  - Working tree: clean
+  - File: unmutated, 0 MUTATION markers
+  - Disk: 181G free
+  - Provider: HTTP 200 in 1.85s on pre-dispatch probe
+
+If this lane also fails, slice #1 stays at "GATES PASS,
+NO MUTATION PROOF" and the operator gets a third
+decision: re-try once more, or accept the gates result
+as the floor.
+
+If this lane succeeds, slice #1 closes with a VERIFIED
+status, the mutation factor captured, README flipped,
+commit + push landed.
+
 ## Sign-off
 
 Slice #1 is in a recoverable state. No data is lost. The
