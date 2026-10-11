@@ -183,6 +183,24 @@ and in camel's checkpoint DM; the orchestrator will also
 flip the methodology README to "GATES PASS, NO MUTATION
 PROOF" so a future lane or operator knows the exact state.
 
+## Provider re-probe (2026-10-11 06:10)
+
+OpenCode Go returned HTTP 200 in 1.97s on an independent
+probe (session `probe2-...`). The endpoint is currently
+functional, not dead. The 6-flake pattern during a single
+multi-step lane window is still a real reliability signal,
+so the "no 7th lane" rule stands. But the rule is about
+the *pattern*, not the current state: if the operator
+chooses to re-authorize dispatches (Path A below), the
+endpoint can probably take one more attempt. The 6-flake
+evidence is now historical, not active.
+
 ## Sign-off
 
-Slice #1 is in a recoverable state. No data is lost. The branch is named, the partial work is on disk, the failure pattern is documented (3 consecutive endpoint failures, sustained-down). Decision belongs to operator, not to me.
+Slice #1 is in a recoverable state. No data is lost. The
+branch is named, the partial work is on disk, the failure
+pattern is documented (6 consecutive endpoint failures,
+sustained-down). Decision belongs to operator, not to me.
+**As of 06:10, the OpenCode Go endpoint is functional
+again; the 6-flake rule is preserved as historical
+evidence, not an active block.**
