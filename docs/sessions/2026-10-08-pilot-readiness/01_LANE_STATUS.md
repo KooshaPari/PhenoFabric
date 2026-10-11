@@ -113,10 +113,24 @@ closed on the protected branch.
 
 Slice #1 is unaffected: the test file is independent of the
 auth/secrets work. The P2 brief in `02_NEXT_LANE_BRIEF.md` was
-updated to reflect that the research branch is now at e4d8551
-(orchestrator's doc-correction commit) and that origin/main is
-now a27f815. The "Nothing committed" note still applies —
-poodle's slice #1 work is still on disk but not committed.
+updated to reflect that the research branch is now at 8dc1ac6
+(post-merge doc updates) and that origin/main is a27f815.
+CORRECTION TO PRIOR TEXT: slice #1 artifacts ARE committed at
+78abd22 (the orchestrator's "Nothing committed" line in
+section 4 was a stale write — the file, CSV, JSONL, and
+README are all in the tree at HEAD). The remaining work is
+verification: cargo gates, mutation proof, README flip to
+VERIFIED. No source files need to be written by the next
+lane.
+
+## Provider recovery (2026-10-11 02:24)
+
+OpenCode Go endpoint recovered. Two consecutive probes
+returned HTTP 200 with valid chat completions on
+`mimo-v2.6-flash`. This was the missing gate for slice #1
+lane work. The P2 brief was corrected to reflect the
+committed (not untracked) state, and a lane dispatch is
+authorized in the next message.
 
 ## Sign-off
 

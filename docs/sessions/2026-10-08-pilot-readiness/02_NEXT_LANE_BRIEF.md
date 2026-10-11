@@ -7,15 +7,16 @@
 ## State you are inheriting
 
 - **Branch:** `research/transport-baseline-2026-10-08`
-- **HEAD:** `e4d8551` (orchestrator's doc-correction commit on top of `4796706`; pushed to `origin`). NOTHING COMMITTED from poodle's slice #1 work.
-- **Base reference for slice #1 work:** `origin/main` is now `a27f815` (PR #20 merged 2026-10-10). Slice #1 still works on this branch and does not need a rebase; the test file is independent of the security work.
-- **Working tree (untracked, all from poodle, all unverified):**
-  - `crates/fabric-integration-tests/tests/transport_baseline.rs` (155 lines)
-  - `docs/research/2026-10-08-transport-baseline/results.csv` (16 lines)
-  - `docs/research/2026-10-08-transport-baseline/raw_baseline_lines.jsonl` (15 rows)
-  - `docs/research/2026-10-08-transport-baseline/README.md` (just written, honest)
-  - `docs/sessions/2026-10-08-pilot-readiness/` (3 session docs)
-- **What you are NOT inheriting:** an existing commit, a passing mutation proof, an orchestrator-verified gate pass. The README is the orchestrator's only contribution; everything else is poodle's.
+- **HEAD:** `8dc1ac6` (post-merge doc updates; pushed to `origin`).
+- **Base reference for slice #1 work:** `origin/main` is `a27f815` (PR #20 merged 2026-10-10). Slice #1 still works on this branch and does not need a rebase; the test file is independent of the security work.
+- **Working tree:** CLEAN. All slice #1 artifacts are COMMITTED at 78abd22 (preceded by 4796706, the parent of the branch which is the pre-merge main). The committed state is:
+
+  - `crates/fabric-integration-tests/tests/transport_baseline.rs` (155 lines, UNMUTATED)
+  - `docs/research/2026-10-08-transport-baseline/results.csv` (16 lines, poodle's data)
+  - `docs/research/2026-10-08-transport-baseline/raw_baseline_lines.jsonl` (15 rows, poodle's data)
+  - `docs/research/2026-10-08-transport-baseline/README.md` (the methodology doc)
+
+- **What you are NOT inheriting:** a passing mutation proof, an orchestrator-verified gate pass, a fresh data run. The numbers in the CSV are real but were captured by poodle and not re-verified since. The methodology README has a checklist of what still needs to happen.
 
 ## Goal (verbatim)
 
@@ -36,12 +37,13 @@ git status --short
 git log --oneline -1
 ```
 
-EXPECT: HEAD = `e4d8551`, untracked files = the 5 listed above.
+EXPECT: `git status` empty (clean working tree), HEAD = `8dc1ac6`.
 ACTUAL: confirm and proceed.
 
-If `git status` shows anything committed, STOP — poodle or duckling
-got further than the report says. Read the commit before doing
-anything.
+If `git status` shows ANY uncommitted changes, STOP and read
+`docs/sessions/2026-10-08-pilot-readiness/01_LANE_STATUS.md`
+post-merge note — the orchestrator's doc updates may not be
+fully synced.
 
 ### 2. Re-read the README so you know what the numbers mean
 
