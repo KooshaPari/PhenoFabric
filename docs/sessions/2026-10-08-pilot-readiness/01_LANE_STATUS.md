@@ -211,14 +211,33 @@ at 06:18 with the continuation brief. State at dispatch:
   - Disk: 181G free
   - Provider: HTTP 200 in 1.85s on pre-dispatch probe
 
-If this lane also fails, slice #1 stays at "GATES PASS,
-NO MUTATION PROOF" and the operator gets a third
-decision: re-try once more, or accept the gates result
-as the floor.
+## 7th lane outcome (2026-10-11 20:16) — 7TH FLAKE
 
-If this lane succeeds, slice #1 closes with a VERIFIED
-status, the mutation factor captured, README flipped,
-commit + push landed.
+Lane vole was no longer in the agent list at 20:16,
+14h after dispatch. Repo state at 20:17:
+  - Branch: still fc399c8 (no lane commit)
+  - Remote: still fc399c8 (no lane push)
+  - Working tree: clean
+  - File: unmutated, 0 MUTATION markers
+  - README: still "Status: GATES PASS, NO MUTATION PROOF"
+  - OpenCode Go probe: empty response (same flakiness as
+    the 6th flake)
+
+**Seven consecutive OpenCode Go endpoint failures** in
+this session (poodle, duckling, sunflower, fox, camel-partial,
+octopus, vole). The provider is structurally unreliable
+for 10-step lane work from this session. The 6-flake
+verdict from 04:44 is now a 7-flake verdict.
+
+Slice #1 stays at "GATES PASS, NO MUTATION PROOF." The
+operator now has a real choice: switch providers (the
+continuation brief in `04_CONTINUATION_BRIEF.md` is
+ready to run on any working provider), or accept the
+gates-pass result as the floor of slice #1 evidence.
+
+**Parent will not dispatch an 8th lane to OpenCode Go
+without further operator signal** — the rule becomes
+permanent for this session, not "temporarily relaxed."
 
 ## Sign-off
 
