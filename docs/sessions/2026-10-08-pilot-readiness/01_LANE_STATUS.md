@@ -38,6 +38,7 @@ N=100 has 10x variance (cold first run). Caveat that needs to land in the README
 | duckling (P1b)| `opencode-go:mimo-v2.6-flash`    | failed | Same endpoint, same error. Different model. |
 | sunflower (P2) | `opencode-go:mimo-v2.6-flash`   | failed | Same endpoint, same model as duckling, 7s runtime, wrote nothing. |
 | fox (P2-retry) | `opencode-go:mimo-v2.6-flash`    | failed | Same endpoint. Mid-step-4 of 10 when it died; left file in MUTATED state (SIZES=[1000], nodelay commented out). Orchestrator restored both lines to poodle's original via the restore recipe. |
+| **camel (slice-1-verifier, 2026-10-11)** | `opencode-go:mimo-v2.6-flash` | **partial** | Past step 3 (all 5 gates PASS at 02:38 checkpoint). Died before step 4 commit; no final report. Working tree clean, file in unmutated state, no commit, no push. Continuation brief in `04_CONTINUATION_BRIEF.md` skips the gates (re-using the prior lane's checkpoint) and goes straight to mutation proof + commit + push. |
 
 Four consecutive failures on the same `https://opencode.ai/zen/go/v1/chat/completions` endpoint, across two models, over ~21 hours with multiple recovery windows (including a ~3h gap between sunflower and fox where the spawn handshake succeeded). **The endpoint is unusable from this session. Definitive.**
 
@@ -131,6 +132,26 @@ returned HTTP 200 with valid chat completions on
 lane work. The P2 brief was corrected to reflect the
 committed (not untracked) state, and a lane dispatch is
 authorized in the next message.
+
+## Lane dispatch + partial success (2026-10-11 02:25–04:32)
+
+Lane `slice-1-verifier` (camel, session_camel_...) was
+dispatched at 02:25. Reported at 02:38 (9m in) that all 5
+gates passed; started step 4 (mutation proof). Died before
+reaching the commit step — no final report, no commit, no
+push. Working tree clean, file in unmutated state.
+
+This is a different failure mode than the prior four lanes:
+the lane got further than any of them (past the gates, the
+highest-cost part of the work) and died at the same kind of
+intermittent endpoint flake. The gates result is real and
+trustworthy; it just needs to be re-confirmed by the next
+lane (or skipped, citing the checkpoint, if the next lane
+runs the continuation brief in
+`04_CONTINUATION_BRIEF.md`).
+
+Parent (04:33) probed OpenCode Go: HTTP 200 in 1.7s. The
+provider is back. Disk back to 24G free. Continuing.
 
 ## Sign-off
 
