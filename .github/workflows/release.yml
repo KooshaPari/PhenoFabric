@@ -465,3 +465,60 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # ── Post-publish verification ────────────────────────────────────────
+  verify:
+    name: Post-publish verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [github-release, publish-crates, docker]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Download GH release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          mkdir -p release-assets
+          gh release download "$TAG" --dir release-assets --pattern "*"
+          echo "::group::Downloaded assets"
+          find release-assets -type f | sort
+          echo "::endgroup::"
+
+      - name: Verify all 5 CLI archives present
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          missing=0
+          for platform in linux-x86_64 linux-aarch64 macos-x86_64 macos-aarch64 windows-x86_64; do
+            if [ "$platform" = "windows-x86_64" ]; then
+              ext="zip"
+            else
+              ext="tar.gz"
+            fi
+            expected="phenotype-fabric-${TAG}-${platform}.${ext}"
+            if [ ! -f "release-assets/${expected}" ]; then
+              echo "::error::Missing CLI asset: ${expected}"
+              missing=1
+            else
+              echo "OK ${expected}"
+            fi
+          done
+          if [ "$missing" = "1" ]; then
+            echo "::error::One or more CLI assets missing from GH release"
+            exit 1
+          fi
+
+      - name: Verify Docker image is pullable
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}"
+          echo "Pulling $IMAGE"
+          docker pull --quiet "$IMAGE" || { echo "::error::Docker image not found: $IMAGE"; exit 1; }
+          echo "OK Docker image present: $IMAGE"
