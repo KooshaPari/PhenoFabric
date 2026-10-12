@@ -16,7 +16,7 @@ the eviction helper, (3) rebase PRs #21 and #22 onto a27f815,
 ## 403 design call — RESOLVED from existing code
 
 The merged main at a27f815 contains
-`crates/fabric-daemon/src/secret_loader/contract_hardening.rs:134-145`
+`crates/fabric-daemon/src/auth/secret_read.rs:52 (comment) and :63 (check)`
 which documents the design explicitly:
 
 > "403 is the same failure mode (token valid, secret not permitted)
@@ -29,11 +29,11 @@ the design PR #22 follows.
 CodeRabbit's finding on `secret_read.rs:64-66` ("403 evicts a token
 that is probably still valid") is therefore a misread of the
 existing design — it runs against the line the repo just
-documented at contract_hardening.rs:134.
+documented at secret_read.rs:52 (comment) and :63 (check).
 
 **Decision: do not change PR #22's 401+403 eviction. Add a one-line
 doc comment at the v1 read sites in secrets.rs (~lines 280, 320,
-380, 407) referencing contract_hardening.rs:134 so a future
+380, 407) referencing secret_read.rs:52 (comment) and :63 (check) so a future
 reviewer reading the v1 reads in isolation has the same context
 the v4 tests now have.** This is the minimum-cost resolution.
 
@@ -121,7 +121,7 @@ Steps (≤10 minutes each):
    `reject_token_on_forbidden` in `secrets.rs` to `pub(super)`,
    import it into `secret_read.rs`, delete the inline copy.
    Add the four one-line doc comments at the v1 read sites
-   referencing `contract_hardening.rs:134`.
+   referencing `secret_read.rs:52 (comment) and :63 (check)`.
 5. Mutation proof: in `secrets.rs`, change the helper to
    `return Ok(())` instead of clearing the token. Run
    `cargo test -p fabric-daemon --lib v1_read_401 v4_read_401`.
