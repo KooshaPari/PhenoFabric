@@ -2,6 +2,11 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "publish" to confirm (workflow will require environment approval regardless)'
+        required: true
+        default: ''
   push:
     tags: ["v*"]
 
@@ -319,6 +324,112 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  # ── cargo-deny gate (must pass before publish-crates or docker) ────
+  deny:
+    name: cargo-deny advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+
+      - name: Check advisories
+        run: cargo deny check advisories
+
+  # ── Build identity (stable SHA over Cargo.lock, matrix-free) ──────
+  identity:
+    name: Build identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compute build identity
+        id: identity
+        run: |
+          IDENTITY=$(sha256sum Cargo.lock | cut -d' ' -f1 | cut -c1-12)
+          echo "identity=${IDENTITY}" >> "$GITHUB_OUTPUT"
+          echo "Build identity: ${IDENTITY}"
+    outputs:
+      identity: ${{ steps.identity.outputs.identity }}
+
+  # ── Build Docker image once (matrix-free), push from artifact ────────
+  # Closes the docker half of gap 1 (exact-byte-promotion). The image is
+  # built in this job and saved as a tar artifact; the downstream `docker`
+  # job only loads and pushes. This guarantees the published image bytes
+  # are the ones built here, not a fresh rebuild in a different runner.
+  docker-build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [deny, identity]
+    outputs:
+      identity: ${{ needs.identity.outputs.identity }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract version from tag
+        id: version
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify lockfile matches build identity
+        run: |
+          ACTUAL=$(sha256sum Cargo.lock | cut -d' ' -f1 | cut -c1-12)
+          EXPECTED="${{ needs.identity.outputs.identity }}"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::Lockfile SHA mismatch: actual=$ACTUAL expected=$EXPECTED"
+            exit 1
+          fi
+          echo "Lockfile SHA matches build identity: $ACTUAL"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tag for build identity
+        id: tags
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          IDENTITY_TAG="build-${{ needs.identity.outputs.identity }}"
+          echo "primary=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "identity=${IDENTITY_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image (load to local, do not push)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save image to tar
+        run: |
+          docker save \
+            -o phenotype-fabric-image.tar \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}
+          ls -la phenotype-fabric-image.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-image
+          path: phenotype-fabric-image.tar
+          retention-days: 1
+          if-no-files-found: error
+
   # ── Create GitHub Release ───────────────────────────────────────────
   github-release:
     name: Create GitHub Release
@@ -363,8 +474,17 @@ jobs:
           | Linux x64 | `phenotype-fabric-gui-linux-x64.deb` |
           | Linux x64 | `phenotype-fabric-gui-linux-x64.AppImage` |
           | Windows x64 | `phenotype-fabric-gui-windows-x64.msi` |
+
+          ## Build Identity
+
+          This release was built from a commit with the following Cargo.lock SHA-256 prefix (first 12 chars):
+
+          `BUILD_IDENTITY_PLACEHOLDER`
+
+          The Docker image is also tagged with this identity as `build-BUILD_IDENTITY_PLACEHOLDER` for cross-reference.
           BODY_EOF
           sed -i "s/TAG/${TAG}/g" release_body.md
+          sed -i "s/BUILD_IDENTITY_PLACEHOLDER/${{ needs.identity.outputs.identity }}/g" release_body.md
           cat release_body.md
 
       - name: Create release
@@ -379,12 +499,30 @@ jobs:
     name: Publish crates
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [deny, identity]
+    environment: production
     steps:
       - uses: actions/checkout@v7
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Record build identity
+        env:
+          BUILD_IDENTITY: ${{ needs.identity.outputs.identity }}
+        run: |
+          echo "Publishing crates for build identity: ${BUILD_IDENTITY}"
+          echo "Build identity: ${BUILD_IDENTITY}" >> "${GITHUB_ENV}"
+
+      - name: Verify lockfile matches build identity
+        run: |
+          ACTUAL=$(sha256sum Cargo.lock | cut -d' ' -f1 | cut -c1-12)
+          EXPECTED="${{ needs.identity.outputs.identity }}"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::Lockfile SHA mismatch: actual=$ACTUAL expected=$EXPECTED"
+            exit 1
+          fi
+          echo "Lockfile SHA matches build identity: $ACTUAL"
 
       - name: Publish fabric-graph
         run: cargo publish -p fabric-graph --allow-dirty
@@ -406,18 +544,25 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
-  # ── Docker image ────────────────────────────────────────────────────
+  # ── Docker image (load from artifact built by docker-build, then push) ──
   docker:
-    name: Build & push Docker image
+    name: Push Docker image
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: build
+    timeout-minutes: 15
+    needs: [docker-build]
+    environment: production
     steps:
       - uses: actions/checkout@v7
 
       - name: Extract version from tag
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Download pre-built image artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: docker-image
+          path: .
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -429,6 +574,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Load pre-built image from tar
+        run: |
+          docker load -i phenotype-fabric-image.tar
+          docker images
+          ls -la phenotype-fabric-image.tar
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v6
@@ -438,13 +589,76 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
+            type=raw,value=build-${{ needs.docker-build.outputs.identity }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Retag image with build identity tag
+        run: |
+          PRIMARY="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
+          docker tag "$PRIMARY" "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ needs.docker-build.outputs.identity }}"
+          echo "Tagged image with all metadata tags"
+
+      - name: Push image with all tags
+        run: |
+          docker push --all-tags "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+  # ── Post-publish verification ────────────────────────────────────────
+  verify:
+    name: Post-publish verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [github-release, publish-crates, docker]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Download GH release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          mkdir -p release-assets
+          gh release download "$TAG" --dir release-assets --pattern "*"
+          echo "::group::Downloaded assets"
+          find release-assets -type f | sort
+          echo "::endgroup::"
+
+      - name: Verify all 5 CLI archives present
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          missing=0
+          for platform in linux-x86_64 linux-aarch64 macos-x86_64 macos-aarch64 windows-x86_64; do
+            if [ "$platform" = "windows-x86_64" ]; then
+              ext="zip"
+            else
+              ext="tar.gz"
+            fi
+            expected="phenotype-fabric-${TAG}-${platform}.${ext}"
+            if [ ! -f "release-assets/${expected}" ]; then
+              echo "::error::Missing CLI asset: ${expected}"
+              missing=1
+            else
+              echo "OK ${expected}"
+            fi
+          done
+          if [ "$missing" = "1" ]; then
+            echo "::error::One or more CLI assets missing from GH release"
+            exit 1
+          fi
+
+      - name: Verify Docker image is pullable
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          IDENTITY_TAG="build-${{ needs.identity.outputs.identity }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}"
+          IDENTITY_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IDENTITY_TAG}"
+          echo "Pulling $IMAGE"
+          docker pull --quiet "$IMAGE" || { echo "::error::Docker image not found: $IMAGE"; exit 1; }
+          echo "OK Docker image present: $IMAGE"
+          echo "Pulling $IDENTITY_IMAGE"
+          docker pull --quiet "$IDENTITY_IMAGE" || { echo "::error::Build-identity image not found: $IDENTITY_IMAGE"; exit 1; }
+          echo "OK Build-identity image present: $IDENTITY_IMAGE"
