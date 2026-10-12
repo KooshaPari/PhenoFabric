@@ -336,6 +336,23 @@ jobs:
       - name: Check advisories
         run: cargo deny check advisories
 
+  # ── Build identity (stable SHA over Cargo.lock, matrix-free) ──────
+  identity:
+    name: Build identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compute build identity
+        id: identity
+        run: |
+          IDENTITY=$(sha256sum Cargo.lock | cut -d' ' -f1 | cut -c1-12)
+          echo "identity=${IDENTITY}" >> "$GITHUB_OUTPUT"
+          echo "Build identity: ${IDENTITY}"
+    outputs:
+      identity: ${{ steps.identity.outputs.identity }}
+
   # ── Create GitHub Release ───────────────────────────────────────────
   github-release:
     name: Create GitHub Release
@@ -380,8 +397,17 @@ jobs:
           | Linux x64 | `phenotype-fabric-gui-linux-x64.deb` |
           | Linux x64 | `phenotype-fabric-gui-linux-x64.AppImage` |
           | Windows x64 | `phenotype-fabric-gui-windows-x64.msi` |
+
+          ## Build Identity
+
+          This release was built from a commit with the following Cargo.lock SHA-256 prefix (first 12 chars):
+
+          `BUILD_IDENTITY_PLACEHOLDER`
+
+          The Docker image is also tagged with this identity as `build-BUILD_IDENTITY_PLACEHOLDER` for cross-reference.
           BODY_EOF
           sed -i "s/TAG/${TAG}/g" release_body.md
+          sed -i "s/BUILD_IDENTITY_PLACEHOLDER/${{ needs.identity.outputs.identity }}/g" release_body.md
           cat release_body.md
 
       - name: Create release
@@ -455,6 +481,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
+            type=raw,value=build-${{ needs.identity.outputs.identity }}
 
       - name: Build and push
         uses: docker/build-push-action@v7
@@ -518,7 +545,12 @@ jobs:
       - name: Verify Docker image is pullable
         run: |
           TAG="${{ steps.version.outputs.tag }}"
+          IDENTITY_TAG="build-${{ needs.identity.outputs.identity }}"
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}"
+          IDENTITY_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IDENTITY_TAG}"
           echo "Pulling $IMAGE"
           docker pull --quiet "$IMAGE" || { echo "::error::Docker image not found: $IMAGE"; exit 1; }
           echo "OK Docker image present: $IMAGE"
+          echo "Pulling $IDENTITY_IMAGE"
+          docker pull --quiet "$IDENTITY_IMAGE" || { echo "::error::Build-identity image not found: $IDENTITY_IMAGE"; exit 1; }
+          echo "OK Build-identity image present: $IDENTITY_IMAGE"
