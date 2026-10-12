@@ -2,6 +2,11 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "publish" to confirm (workflow will require environment approval regardless)'
+        required: true
+        default: ''
   push:
     tags: ["v*"]
 
@@ -423,6 +428,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, deny]
+    environment: production
     steps:
       - uses: actions/checkout@v7
 
@@ -455,6 +461,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [build, deny]
+    environment: production
     steps:
       - uses: actions/checkout@v7
 
