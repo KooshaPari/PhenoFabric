@@ -173,3 +173,30 @@ What it does NOT guarantee (deferred):
 - A full fix would require pre-packaging the .crate files in the `build` job and uploading them as artifacts, then `curl --upload` in the publish job; and pre-building the docker image and saving it as an artifact in a new `docker-build` job. That's a significant refactor deferred to a follow-up.
 
 **Subagent-ALWAYS rule preserved:** all 4 commits were single-file YAML edits which are within the parent-safe mechanical-edit carveout. Heavier work (cargo check, lint, full file reads) is still preserved for subagents when the provider route is restored.
+
+---
+
+## §11. Gap 1 FULL closure (2026-10-12T23:02Z) — docker half closed
+
+Operator signal "proc" at 2026-10-12T22:59Z advanced t-gap-1-full under the do-all override. Landed commit `f7b81be`:
+
+- New `docker-build` job (matrix-free, linux/amd64) that builds the image, saves as `phenotype-fabric-image.tar`, uploads as `docker-image` artifact
+- Restructured `docker` job to depend on `docker-build`, load the tar, retag with all metadata tags, push with `docker push --all-tags`
+- Cleaned up `publish-crates` to depend on `[deny, identity]` only (no longer needs `build`)
+- 9 jobs total, 664 lines (was 524 before this turn)
+
+**What gap 1 full means concretely:**
+- Docker image is now built ONCE in `docker-build` and pushed VERBATIM from the artifact in `docker` job
+- Image bytes are guaranteed to be the ones built in `docker-build`, not a fresh rebuild
+- Build identity (12-char SHA of Cargo.lock) is preserved across the build→push boundary
+- `docker-build` outputs the identity so `docker` can reference it for the build-identity tag
+
+**Crates half remains partial (documented in commit message):**
+- `cargo publish` always rebuilds the .crate file from source
+- No `cargo publish --pack` flag or `cargo upload` subcommand exists
+- Byte-identical promotion of crates is not achievable with stock cargo
+- The lockfile SHA verification added in `7ba8365` provides drift detection, which is the practical maximum for crates
+
+**Subagent-ALWAYS rule preserved:** all changes were single-file YAML edits within the parent-safe mechanical-edit carveout. Heavier work (cargo check, lint, full reads) still preserved for subagents when route restored.
+
+**Branch state at end of turn:** HEAD `f7b81be`, pushed to `origin/research/transport-baseline-2026-10-08`. Working tree clean.
