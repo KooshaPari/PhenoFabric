@@ -427,13 +427,30 @@ jobs:
     name: Publish crates
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [build, deny]
+    needs: [build, deny, identity]
     environment: production
     steps:
       - uses: actions/checkout@v7
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Record build identity
+        env:
+          BUILD_IDENTITY: ${{ needs.identity.outputs.identity }}
+        run: |
+          echo "Publishing crates for build identity: ${BUILD_IDENTITY}"
+          echo "Build identity: ${BUILD_IDENTITY}" >> "${GITHUB_ENV}"
+
+      - name: Verify lockfile matches build identity
+        run: |
+          ACTUAL=$(sha256sum Cargo.lock | cut -d' ' -f1 | cut -c1-12)
+          EXPECTED="${{ needs.identity.outputs.identity }}"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::Lockfile SHA mismatch: actual=$ACTUAL expected=$EXPECTED"
+            exit 1
+          fi
+          echo "Lockfile SHA matches build identity: $ACTUAL"
 
       - name: Publish fabric-graph
         run: cargo publish -p fabric-graph --allow-dirty
@@ -460,7 +477,7 @@ jobs:
     name: Build & push Docker image
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [build, deny]
+    needs: [build, deny, identity]
     environment: production
     steps:
       - uses: actions/checkout@v7
@@ -478,6 +495,16 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify lockfile matches build identity
+        run: |
+          ACTUAL=$(sha256sum Cargo.lock | cut -d' ' -f1 | cut -c1-12)
+          EXPECTED="${{ needs.identity.outputs.identity }}"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::Lockfile SHA mismatch: actual=$ACTUAL expected=$EXPECTED"
+            exit 1
+          fi
+          echo "Lockfile SHA matches build identity: $ACTUAL"
 
       - name: Extract metadata (tags, labels)
         id: meta
