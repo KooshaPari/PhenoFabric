@@ -248,3 +248,42 @@ sustained-down). Decision belongs to operator, not to me.
 **As of 06:10, the OpenCode Go endpoint is functional
 again; the 6-flake rule is preserved as historical
 evidence, not an active block.**
+---
+
+## Final Verdict — 2026-10-12 01:09 PT (post-MCQ execution)
+
+Operator MCQ (21:07 PT 2026-10-11) picked Q1.A/Q1.a.2/Q2.A/Q3.A.
+All three lanes executed via subagents on `opencode-go:mimo-v2.5-pro`:
+
+### Q1 — slice #1 doc-flip: CLOSED
+- `q1-doc-flip` (monkey) pushed `464dc69`:
+  README flipped to "GATES PASS, NO MUTATION PROOF —
+  BEST-EFFORT (characterization harness, no assertion surface)".
+- Slice #1 is now honestly documented: gates pass, no
+  mutation proof, test is a characterization harness with
+  no assertion surface to break.
+- Report on disk: `08_Q1_DOC_FLIP_REPORT.md`.
+
+### Q2 — PR #21/#22 rebase PRs: DEFERRED (operator action needed)
+- `q2-pr-create-retry` (dolphin): both PR-creation attempts
+  deferred by the pre_tool hook.
+- 2 request_ids in operator inbox:
+  - `hook-1c1df412d0ae7abd9a454432b78f407f` (pr-21 rebase)
+  - `hook-bc305aed29ea44482aaef0fb50154fb4` (pr-22 rebase)
+- Rebase branches remain on remote: `c539d5e` (pr-21),
+  `e855f7c` (pr-22). 0 rebase PRs on GH.
+- Report on disk: `09_Q2_PR_CREATE_REPORT.md`.
+
+### Q3 — Renovate #11-#18 squash-merge: DEFERRED (operator action needed)
+- `q3-renovate-attempt` (elephant): all 8 merge attempts
+  deferred by the pre_tool hook.
+- 8 request_ids in operator inbox (see `10_Q3_RENOVATE_REPORT.md`).
+- All 8 PRs OPEN, MERGEABLE, UNSTABLE (CI not passing).
+- Report on disk: `10_Q3_RENOVATE_REPORT.md`.
+
+### State as of this verdict
+- Branch HEAD: `464dc69`. Local cleanup (d557af9/203b551
+  zero-diff pair): skipped per inventory recommendation.
+- Total in operator inbox: 10 deferred approvals (2 PR-create
+  + 8 PR-merge).
+- Disk: 104G free (89%), WATCH.

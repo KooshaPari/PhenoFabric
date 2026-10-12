@@ -1,0 +1,3 @@
+# Operator Decisions Record — 2026-10-11 21:09 PT
+
+Q1.A [dispatch on next fallback] + Q1.a.2 [`opencode-go:mimo-v2.5-pro`] | Q2.A [unhook PR #21/#22 merge gate, dispatch rebase lane] | Q3.A [unhook Renovate gate, squash-merge #11–#18] | Merge-gate probe: INCONCLUSIVE (no hook config on disk; prior attempt blocked by pre_tool hook request_id=hook-538d2362a5467290976e0c05924f7340; 8 PRs MERGEABLE, hook-gated, merge_attempts: 0)
