@@ -44,3 +44,11 @@ A component conforms to an adapter contract when it:
 7. passes the declared compatibility, benchmark, fault and security gates.
 
 A product release conforms only when the complete reference scenarios pass; individually conforming adapters do not prove the integrated product.
+
+---
+
+## 2026-10-12 proposed transaction extension
+
+INT-P009..012 adds one **global logical, recursively nested immutable transaction history**, not per-actor ledgers. Both Human and SoftwareAgent derive from Actor. See [canonical intent](../intent/000-source-prompts.md), [proposed PF-FR-089..094](../FUNCTIONAL_REQUIREMENTS.md), [spec 027](../specs/027-global-nested-ledger/spec.md), [ADR 0036](adr/0036-global-nested-transaction-ledger.md) and [traceability](../verification/requirements-traceability-matrix.md).
+
+Until acceptance evidence exists, these proposed shall-contracts are release-gated research requirements. They do not supersede accepted ADR 0007 (no universal physical database) or elevate SQLite experiment success into native enforcement.
