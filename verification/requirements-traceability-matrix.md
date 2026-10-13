@@ -72,3 +72,18 @@ Every functional requirement has a specification owner, verification test family
 | PF-FR-086 | P0 | The system shall emit stable events and evidence references for AgilePlus, thegent, Tracera, SessionLedger, AGSLAG, ShareCLI, NVMS, and ledgers without assuming shared storage. | 008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations | PF-ST-SECOPS-066 | PF-AT-RECOVERY-066 | security, audit, OOB and local-first evidence | Specified |
 | PF-FR-087 | P0 | All focus, route, privilege, migration, and placement decisions shall be auditable. | 008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations | PF-ST-SECOPS-067 | PF-AT-RECOVERY-067 | security, audit, OOB and local-first evidence | Specified |
 | PF-FR-088 | P0 | The system shall continue local operation during loss of cloud/coordination services where policy permits. | 008-agent-ephemeral-realms; 009-security-identity-evidence; 010-ecosystem-integration; 011-observability-verification; 012-packaging-operations | PF-ST-SECOPS-068 | PF-AT-RECOVERY-068 | security, audit, OOB and local-first evidence | Specified |
+
+---
+
+## Proposed PF-FR-089..094 — transaction ledger contract, 2026-10-12
+
+| Requirement | Priority | Statement | Owning spec | Verification ID | Acceptance ID | Evidence | State |
+|---|---|---|---|---|---|---|---|
+| PF-FR-089 | P0 | One logical global recursively nested immutable transaction history | 027-global-nested-ledger | PF-ST-TXN-01 | PF-AT-TXN-06 | SQLite local nested-scope tests only; distributed pending | Proposed |
+| PF-FR-090 | P0 | Actor common parent for Human and SoftwareAgent, authority independently checked | 027-global-nested-ledger | PF-ST-TXN-02 | PF-AT-TXN-01 | Enum and metadata only, AuthN pending | Proposed |
+| PF-FR-091 | P0 | Delegation/sharing may not multiply authority or physical allocation | 027-global-nested-ledger | PF-ST-TXN-03 | PF-AT-TXN-02, PF-AT-TXN-03 | Pure ShareCLI predicate and Fabric finite SQL reservation | Proposed |
+| PF-FR-092 | P0 | Effect identity and unknown retry, cancellation, fencing | 027-global-nested-ledger | PF-ST-TXN-04 | PF-AT-TXN-04, PF-AT-TXN-05 | ADR and model checks; native target pending | Proposed |
+| PF-FR-093 | P0 | Explicit standalone ShareCLI root adoption | 027-global-nested-ledger | PF-ST-TXN-05 | PF-AT-TXN-08 | No native protocol implemented | Proposed |
+| PF-FR-094 | P0 | Local state/event/outbox atomic commit, true physical reclamation | 027-global-nested-ledger | PF-ST-TXN-06 | PF-AT-TXN-07 | Candidate Fabric migration V4/in-crate tests; native reclaim pending | Proposed |
+
+**Trace chain:** INT-P009..012 → spec 027 / ADR 0036 → PF-FR-089..094 → relevant code paths → independent acceptance gates. **No product rows marked Verified.** Evidence must identify tested checkout and implementation/fixture class.
