@@ -37,3 +37,15 @@
 - The user did not require hidden or permission-bypassing capture/input on macOS or Wayland.
 - The user did not authorize agents to seize focus.
 - The user did not ask for a universal enterprise database.
+
+---
+
+## Global ledger research — unresolved questions (2026-10-12)
+
+- **Known user requirement:** one globally logical nested/tree-like ledger; not per-agent ledgers; humans/agents share Actor; two product targets.
+- **Design proposal, not specified by the user:** multiple physical authority domains with explicit adoption, reference-based cross-branch shared producer semantics, SQLite local outbox baseline.
+- **Open:** Does the global root represent an entire fleet, ecosystem identity namespace or larger hierarchy? Formal root identity, authority minting, and offline adoption remain undecided.
+- **Open:** Are all non-consequential telemetry and ephemeral computation events in immutable authoritative history, or available through separate bounded projections? Do not assume all bytes require permanent retention.
+- **Open:** What is the user-approved irreversible effect/override classification? What proof does a human physical intervention require?
+- **Open:** Which shared grant/actor identity contract survives across disconnected hosts and which consent rules cannot be delegated?
+- **Rejected inference:** same parent class does not grant an agent a human's permissions; global logical history does not imply a monolithic physical database or automatic rollback.

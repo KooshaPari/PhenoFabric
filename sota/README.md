@@ -31,3 +31,9 @@
 - Vendor marketing is never accepted as an SLO.
 - Emerging projects with unresolved identity/source are included only as watchlist entries and are not implementation dependencies.
 - Each adapter must pass the project benchmark and fault corpus before becoming an automatic route candidate.
+
+---
+
+## Transactional actor/coordinator research — 2026-10-12
+
+The [global nested ledger SOTA supplement](../docs/sota/global-nested-ledger.md) surveys candidate transactional SQL, workflow, append-only history, invariant-confluence and fencing approaches. **Coverage is explicitly non-exhaustive** and adoption/performance claims require the [spec 027](../specs/027-global-nested-ledger/spec.md) native fault and baseline comparisons.

@@ -28,3 +28,13 @@ The backlog is ordered by information value and adoption value, not by architect
 - Learned placement policies.
 - CXL/RDMA/GPUDirect-specific backends beyond available hardware.
 - Process checkpoint and VM live migration adapters.
+
+---
+
+## Proposed PF-WP-TXN-027 (2026-10-12)
+
+Source INT-P009..012, [spec 027](../specs/027-global-nested-ledger/spec.md), and [proposed FR-089..094](../FUNCTIONAL_REQUIREMENTS.md). Candidate local SQLite scopes/events/outbox exist; no permission-enforcing native integration.
+
+**Now:** exact-branch CI, source-provenance and requirements/spec link validation. **Next:** authenticated grants, effect-target fencing, independently verified physical reclaim and native two-consumer/share/cancel/restart fixture. **Later (research-gated):** partition-safe offline rights, global logical adoption and performance comparison vs straightforward SQL/outbox/queue baselines.
+
+No supersession of prior PF-WP IDs; task IDs TXN27-01..10 are listed in [spec tasks](../specs/027-global-nested-ledger/tasks.md).

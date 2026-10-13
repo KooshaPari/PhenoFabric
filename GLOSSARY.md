@@ -32,3 +32,21 @@
 | **Transport compiler** | Optimizer that maps abstract links onto concrete shared-memory, device, network, codec, or hardware paths. |
 | **Quality profile** | Workload-aware preferences for latency, frame rate, chroma, HDR, color accuracy, audio quality, and bandwidth. |
 | **SOTA** | State of the art, including current products, protocols, research systems, and relevant primitives. |
+
+---
+
+## Proposed transaction ontology terms — 2026-10-12
+
+| Term | Definition |
+|---|---|
+| **Actor** | The common participant superclass for Human and SoftwareAgent, independent of its scoped permissions/role. |
+| **Transaction scope** | Canonical nested owner of one commitment or bounded set of operations; persistent roots are not eternally open SQL transactions. |
+| **Global logical ledger** | One recursively nested immutable history across participating actors and work; physical per-domain stores/projections remain distinct. |
+| **Consumer subscription** | Independent requester's acceptance, deadline and cancellation interest in shared producer output. |
+| **Logical effect identity** | Stable key and exact operation/payload binding across attempt/retry; not the process PID or workflow-run ID. |
+| **Reservation** | Finite physical resource occupancy accounted once; nested envelope subdivisions do not create capacity. |
+| **Fencing epoch** | Monotonic authority generation that target effect recipients must enforce to reject stale execution. |
+| **Unknown effect outcome** | Side effect may have occurred despite missing response; cannot be retried blindly. |
+| **Reclamation receipt** | Trusted evidence of actual resource release, distinct from lease expiry or cancellation. |
+
+These terms extend, not conflate, existing Principal/Realm/Session/Seat meanings. [Domain model](DOMAIN_MODEL.md).

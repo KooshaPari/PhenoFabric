@@ -62,3 +62,9 @@ flowchart LR
 - Pixel-proxy work cannot bypass semantic-protocol research.
 - Adaptive scheduling cannot precede a measured explicit TaskSpec baseline.
 - A UI demo cannot mark a transport complete without mixed-load and fault evidence.
+
+## Proposed TXN27 execution lane (2026-10-12)
+
+INT-P009..012 → spec 027 / ADR 0036 → local SQLite authority candidate → exact-branch CI → authenticated effect broker → ShareCLI two-consumer native tests → Fabric cross-host fencing/adoption → crash and partition verification → independent acceptance.
+
+Only the first candidate documentation and SQLite stages are committed. The remaining gates are pending; no existing PF-WP program tasks are superseded.

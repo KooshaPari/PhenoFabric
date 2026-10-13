@@ -1539,3 +1539,15 @@ R3 progress ─█████████████████████�
 ```
 
 279 Rust + 77 Go = 356 tests, all green.
+
+---
+
+## 2026-10-12 — Global nested transaction contract documentation synchronization
+
+**User source:** INT-P009..012 from direct current conversation; required one global nested ledger, shared Actor superclass, ShareCLI+Fabric ownership. No invented historic corpus binding.
+
+**Candidate commits and artifacts:** Fabric ADR 0036; SQLite V4 transaction/reservation/event/outbox module and tests; spec 027 with meta/spec/plan/tasks; functional PF-FR-089..094; root intent map and source; HLD/LLD/ALD/PRD, architecture/domain/NFR/glossary; SOTA/genesis; verified/proposed traceability JSON and Markdown; program plan/work DAG/STATUS; ShareCLI ADR 0009 + proposed FR-013; PhenoRegistry SSOT/boundaries/intent and session packet.
+
+**Evidence class:** file writes on feature branch, structural validation pending CI, native effect enforcement/physical reclamation/cross-host consensus not demonstrated.
+
+**Next gates:** exact-branch fmt/build/test and doc links; reconciliation of generated manifest if repo CI requires; native grant/effect broker, producer cancellation/restart and partition handling. No acceptance or release claim made.

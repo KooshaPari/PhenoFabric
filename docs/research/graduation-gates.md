@@ -19,3 +19,9 @@ A research mechanism becomes an automatic product route only when all gates pass
 - `preview`: explicit opt-in and telemetry required.
 - `narrowed`: useful only for named workloads/topologies.
 - `rejected`: evidence retained; not re-opened without a changed assumption.
+
+---
+
+## Additional global ledger graduation gate (spec 027)
+
+Before claiming production operation: native test of two independent Actor kinds and scoped grants sharing one producer; cancellation race; resource accounting through restart; lost-response retry; stale-epoch publication at the target; required-child acceptance conflict; explicit standalone adoption; network partition finite rights; no untrusted receipt-as-reclaim. All results must cite exact source checkout, authority/effect adapter, negative controls and measurement provenance. A passing pure unit fixture does not graduate the protocol.

@@ -1,0 +1,47 @@
+{
+  "spec": "027-global-nested-ledger",
+  "title": "Global nested immutable transaction contract with Actor neutrality",
+  "version": "0.1.0",
+  "status": "Proposed",
+  "wp": "PF-WP-TXN-027",
+  "phase": "Research / local experiment",
+  "depends_on": [
+    "009-security-identity-evidence",
+    "010-ecosystem-integration",
+    "080-persistent-state"
+  ],
+  "release_gate": "Native authorized two-consumer cross-host test + crash/partition/fencing checks",
+  "date": "2026-10-12",
+  "owner": "PhenoFabric runtime coordinator and ShareCLI local governor",
+  "acceptance_signals": [
+    "Signed/verified Actor grant rather than Actor kind determines permission",
+    "Nested authority and finite capacity cannot multiply across children",
+    "One shared producer preserves independent subscriptions",
+    "Stale epoch publication is rejected at effect target",
+    "Unknown external effect is never blindly replayed",
+    "Atomic admission/projection/event/outbox recovery under crash",
+    "One global logical nested history with explicit standalone-root adoption"
+  ],
+  "links": {
+    "spec": "spec.md",
+    "plan": "plan.md",
+    "tasks": "tasks.md",
+    "adr": [
+      "0036-global-nested-transaction-ledger"
+    ],
+    "requirements": [
+      "PF-FR-089",
+      "PF-FR-090",
+      "PF-FR-091",
+      "PF-FR-092",
+      "PF-FR-093",
+      "PF-FR-094"
+    ],
+    "intent": [
+      "INT-P009",
+      "INT-P010",
+      "INT-P011",
+      "INT-P012"
+    ]
+  }
+}

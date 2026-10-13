@@ -215,6 +215,88 @@ impl Migration for V3MetadataColumns {
 }
 
 // ---------------------------------------------------------------------------
+// V4 - global nested transaction scope, capacity and immutable event slice
+// ---------------------------------------------------------------------------
+
+struct V4NestedTransactionLedger;
+
+impl Migration for V4NestedTransactionLedger {
+    fn version(&self) -> i32 {
+        4
+    }
+    fn name(&self) -> &str {
+        "nested_transaction_ledger"
+    }
+    fn up(&self) -> &str {
+        "
+        CREATE TABLE ledger_scopes (
+            id TEXT PRIMARY KEY,
+            parent_id TEXT REFERENCES ledger_scopes(id),
+            state TEXT NOT NULL DEFAULT 'open' CHECK(state IN ('open', 'sealed')),
+            CHECK(parent_id IS NULL OR parent_id <> id)
+        );
+        -- A single root in this authority domain; cross-host roots must be
+        -- explicitly adopted, not silently concatenated.
+        CREATE UNIQUE INDEX idx_ledger_one_root
+          ON ledger_scopes((1)) WHERE parent_id IS NULL;
+        CREATE INDEX idx_ledger_scope_parent ON ledger_scopes(parent_id);
+
+        CREATE TABLE ledger_domains (
+            id TEXT PRIMARY KEY,
+            scope_id TEXT NOT NULL REFERENCES ledger_scopes(id),
+            capacity INTEGER NOT NULL CHECK(capacity >= 0),
+            reserved INTEGER NOT NULL DEFAULT 0
+              CHECK(reserved >= 0 AND reserved <= capacity)
+        );
+        CREATE TABLE ledger_reservations (
+            id TEXT PRIMARY KEY,
+            scope_id TEXT NOT NULL REFERENCES ledger_scopes(id),
+            domain_id TEXT NOT NULL REFERENCES ledger_domains(id),
+            units INTEGER NOT NULL CHECK(units > 0),
+            state TEXT NOT NULL CHECK(state IN ('active', 'reclaimed')),
+            receipt_ref TEXT
+        );
+        CREATE INDEX idx_ledger_reservations_domain
+          ON ledger_reservations(domain_id, state);
+
+        CREATE TABLE ledger_events (
+            seq INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id TEXT NOT NULL UNIQUE,
+            scope_id TEXT NOT NULL REFERENCES ledger_scopes(id),
+            actor_id TEXT NOT NULL,
+            actor_kind TEXT NOT NULL CHECK(actor_kind IN ('human', 'software_agent')),
+            kind TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX idx_ledger_events_scope ON ledger_events(scope_id, seq);
+        CREATE TRIGGER ledger_events_no_update BEFORE UPDATE ON ledger_events
+          BEGIN SELECT RAISE(ABORT, 'ledger event is immutable'); END;
+        CREATE TRIGGER ledger_events_no_delete BEFORE DELETE ON ledger_events
+          BEGIN SELECT RAISE(ABORT, 'ledger event is immutable'); END;
+
+        -- Publisher may mark delivery after commit; its events are never
+        -- published before the associated authoritative transaction commits.
+        CREATE TABLE ledger_outbox (
+            event_id TEXT PRIMARY KEY REFERENCES ledger_events(event_id),
+            published_at TEXT
+        );
+        "
+    }
+    fn down(&self) -> &str {
+        "
+        DROP TABLE IF EXISTS ledger_outbox;
+        DROP TRIGGER IF EXISTS ledger_events_no_delete;
+        DROP TRIGGER IF EXISTS ledger_events_no_update;
+        DROP TABLE IF EXISTS ledger_events;
+        DROP TABLE IF EXISTS ledger_reservations;
+        DROP TABLE IF EXISTS ledger_domains;
+        DROP TABLE IF EXISTS ledger_scopes;
+        "
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
 
@@ -223,6 +305,7 @@ fn all_migrations() -> Vec<Box<dyn Migration>> {
         Box::new(V1InitialSchema),
         Box::new(V2QueryIndexes),
         Box::new(V3MetadataColumns),
+        Box::new(V4NestedTransactionLedger),
     ]
 }
 

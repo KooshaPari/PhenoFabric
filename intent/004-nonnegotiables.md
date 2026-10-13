@@ -18,3 +18,13 @@
 16. **Safe fallback and OOB access for bench machines.**
 17. **Ecosystem boundaries remain explicit.**
 18. **Claims require evidence under concurrent load.**
+
+---
+
+## Additional user requirements — 2026-10-12 (scope-specific)
+
+- **One logical global immutable nested ledger;** no independent per-agent authoritative journals.
+- **Human and SoftwareAgent are subclasses of the same Actor parent class;** effective grants remain explicit and scoped.
+- **Scope is ShareCLI + PhenoFabric;** PhenoRegistry is the ecosystem index, not a new runtime ledger product.
+
+The additional transaction/invariance mechanics in [ADR 0036](../docs/adr/0036-global-nested-transaction-ledger.md) are proposed interpretation and require native proof; this does not retrospectively mark earlier design alternatives accepted.

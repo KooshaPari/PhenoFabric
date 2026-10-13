@@ -25,3 +25,16 @@ verbatim prompt
 ```
 
 The repository currently specifies the chain through verification design. Runtime evidence links become populated during implementation and are emitted for Tracera/SessionLedger rather than fabricated in advance.
+
+---
+
+## INT-P009..012 — ledger model extension (2026-10-12)
+
+| Source | Meaning | Requirements | Spec | Decision | Verification/state |
+|---|---|---|---|---|---|
+| INT-P009 | Immutable consequence record for bounded autonomous system-level actors | PF-FR-089, PF-FR-092 | [027](specs/027-global-nested-ledger/spec.md) | [ADR 0036](docs/adr/0036-global-nested-transaction-ledger.md) | SQLite local unit model, distributed/native pending |
+| INT-P010 | Single global nested/tree-like history | PF-FR-089, PF-FR-091 | 027 | ADR 0036 | Scope ancestry constrained locally; cross-host pending |
+| INT-P011 | Human/SoftwareAgent shared Actor superclass | PF-FR-090 | 027 | ADR 0036 | Actor-kind records; authenticated grant runtime pending |
+| INT-P012 | ShareCLI and Fabric own integration; Registry indexes | PF-FR-093, PF-FR-094 | 027 | ADR 0015, 0016, 0036; ShareCLI ADR 0009 | Counterpart branch; native joined adoption pending |
+
+These are directly transcribed current-conversation prompt IDs, not inferred from old INT-P001..008. The present implementation is a bounded code slice only.

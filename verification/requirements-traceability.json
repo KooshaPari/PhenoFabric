@@ -678,5 +678,65 @@
     "acceptance": "PF-AT-RECOVERY-068",
     "evidence": "security, audit, OOB and local-first evidence",
     "state": "Specified"
+  },
+  {
+    "fr": "PF-FR-089",
+    "priority": "P0",
+    "requirement": "One globally logical recursively nested immutable transaction history",
+    "spec": "027-global-nested-ledger",
+    "verification": "PF-ST-TXN-01",
+    "acceptance": "PF-AT-TXN-06",
+    "evidence": "Local SQLite scope model only; cross-host pending",
+    "state": "Proposed"
+  },
+  {
+    "fr": "PF-FR-090",
+    "priority": "P0",
+    "requirement": "Common Actor parent for Human and SoftwareAgent, with explicit grants",
+    "spec": "027-global-nested-ledger",
+    "verification": "PF-ST-TXN-02",
+    "acceptance": "PF-AT-TXN-01",
+    "evidence": "Actor-kind metadata only; live authorization pending",
+    "state": "Proposed"
+  },
+  {
+    "fr": "PF-FR-091",
+    "priority": "P0",
+    "requirement": "Child delegation and shared work must not multiply authority or physical reservations",
+    "spec": "027-global-nested-ledger",
+    "verification": "PF-ST-TXN-03",
+    "acceptance": "PF-AT-TXN-02",
+    "evidence": "Pure ShareCLI guards and local SQL capacity tests only",
+    "state": "Proposed"
+  },
+  {
+    "fr": "PF-FR-092",
+    "priority": "P0",
+    "requirement": "Effect identity, unknown retries, cancellation and recipient-side fencing preserved",
+    "spec": "027-global-nested-ledger",
+    "verification": "PF-ST-TXN-04",
+    "acceptance": "PF-AT-TXN-04",
+    "evidence": "Proposed contract; native broker pending",
+    "state": "Proposed"
+  },
+  {
+    "fr": "PF-FR-093",
+    "priority": "P0",
+    "requirement": "Explicit standalone ShareCLI scope adoption without conflicting authority",
+    "spec": "027-global-nested-ledger",
+    "verification": "PF-ST-TXN-05",
+    "acceptance": "PF-AT-TXN-08",
+    "evidence": "Proposed; cross-host tests not run",
+    "state": "Proposed"
+  },
+  {
+    "fr": "PF-FR-094",
+    "priority": "P0",
+    "requirement": "Local authority state, immutable event and outbox committed atomically",
+    "spec": "027-global-nested-ledger",
+    "verification": "PF-ST-TXN-06",
+    "acceptance": "PF-AT-TXN-07",
+    "evidence": "Candidate Fabric V4 SQL unit tests; CI pending",
+    "state": "Proposed"
   }
 ]

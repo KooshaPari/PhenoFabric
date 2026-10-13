@@ -135,3 +135,23 @@ This project owns execution/data/I/O/resource projections. It references but doe
 8. A resource descriptor states measured or negotiated capabilities, not marketing labels.
 9. Agents may request routes and resources only through granted capabilities.
 10. UI convenience never erases security, clock, data-residency, or real-time semantics.
+
+---
+
+## Transaction actor and nested scope overlay (proposed 2026-10-12)
+
+The existing `Principal` remains the authentication/authorization identity abstraction. For work transactions, define an **Actor** parent that can be Human or SoftwareAgent. Map each Actor to its authenticated Principal(s) and specific grants; a PrincipalKind alone is not an authority decision. An Actor is not a Realm, Session or Device.
+
+```text
+Global logical ledger
+└── Authority scope
+    ├── Persistent nested work scope (one owning parent)
+    │   ├── ActorRef -> Human | SoftwareAgent
+    │   ├── ConsumerSubscriptionRefs -> may cross branches
+    │   ├── Producer/WorkItem/AttemptRefs -> shared without duplication
+    │   ├── ReservationRefs -> finite physical resource domains
+    │   └── Immutable events -> requests, authorizations, effects, observations, acceptance
+    └── Other scopes (same shared capacity/fencing constraints)
+```
+
+The root is a logical containment structure, not one perpetually open SQL transaction. Related projections (intent, work, data, evidence, resource) remain graph-shaped and linked by immutable IDs. This refines, but does not collapse, domain authority under Fabric; see ADR 0007 and ADR 0036. A physical SQL event table and a user's complete operational life history are **not** the same thing.

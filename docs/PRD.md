@@ -327,3 +327,15 @@ The product is staged so each release has independent value:
 5. **R4 — Compute/data placement:** object residency, process/task placement, prefetch, build/test/inference demonstrations.
 6. **R5 — Adaptive granularity:** selective interposition, execution regions, fusion/fission, predictive placement.
 7. **R6 — Mature ecosystem product:** signed packaging, stable APIs, compatibility certification, evidence loop.
+
+---
+
+## Proposed E13 — Globally nested actor-neutral transactional participation (2026-10-12)
+
+**User source:** [INT-P009..012 verbatim](../intent/000-source-prompts.md). Human and SoftwareAgent are the same Actor superclass; the ledger is **one logical global immutable nested tree**, never independent per-agent histories. This research concerns both ShareCLI and PhenoFabric.
+
+**User journeys:** (a) a human and a software agent independently request eligible overlapping work and receive separate outcome/access contracts from one physically shared producer, (b) one consumer cancels without dropping the other's valid work, (c) a worker migrates or restarts without creating fresh effect permissions or double-counting capacity, (d) a lost external effect response is reconciled before retry.
+
+**Acceptance goals:** do not broaden authority across delegated children; preserve input and effect contracts through optimization; fence stale target writers; account actual physical resource usage; maintain evidence and unknown state honestly; safely adopt standalone ShareCLI participation. This does not reclassify all existing product graph authorities into Fabric.
+
+**Implementation truth:** [spec 027](../specs/027-global-nested-ledger/spec.md) and [ADR 0036](adr/0036-global-nested-transaction-ledger.md) are proposed; a bounded SQLite authority-domain prototype exists, not an end-to-end global ledger. Product approval requires native actor/grant/effect and fault tests.

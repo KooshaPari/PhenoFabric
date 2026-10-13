@@ -28,3 +28,11 @@ Deliver a packaged all-in-one interactive fabric in useful slices while separate
 ## Planning rule
 
 The research layer may improve the product but cannot hold local seat/workspace, MacBook display, agent-surface or explicit-placement value hostage. Conversely, early UI demos cannot be used to claim the compute mesh exists.
+
+---
+
+## Global nested ledger incremental delivery — 2026-10-12
+
+**Proposal:** [spec 027](specs/027-global-nested-ledger/plan.md) and [ADR 0036](docs/adr/0036-global-nested-transaction-ledger.md). Stage 1: capture exact user prompts and proposed requirements; stage 2: local SQLite authority-domain experiment with unit tests; stage 3: verify CI/migrations; stage 4: integrate authenticated grants, target epoch fencing, trusted physical reclaim; stage 5: native ShareCLI two-consumer cancellation, restart and unknown-effect tests; stage 6: partition/offline rights/adoption, benchmarking and independent evidence.
+
+Stages 1–2 have candidate commits; later stages remain unverified/pending. Do not use a worldwide lock, permanently open root transaction, or relocate existing ecosystem owner data into Fabric.

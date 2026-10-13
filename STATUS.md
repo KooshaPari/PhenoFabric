@@ -38,3 +38,19 @@
 - [x] User-facing and technical differentiation are separated.
 - [x] Current claims are tagged by source confidence.
 - [x] File hashes and validation report are generated with the archive.
+
+---
+
+## Proposed global ledger extension — status 2026-10-12
+
+| Capability | Evidence class | Status |
+|---|---|---|
+| User intent provenance INT-P009..012 | Verbatim current conversation | Captured |
+| Nested local scope / actor-kind record / finite capacity / SQL event-outbox | `fabric-persist` migration V4 and in-crate tests | Candidate implementation; branch CI pending |
+| Human/agent authenticated effective grant and delegation verification | ADR/FR only | Not implemented |
+| ShareCLI standalone root adoption to Fabric | ADR/FR only | Not implemented |
+| Cross-host target publication fencing for this ledger | ADR/FR only | Not independently demonstrated |
+| Verified physical reclaim receipt | SQL caller-supplied reference only | Not independently demonstrated |
+| Two-consumer native scenario and crash/partition evidence | Verification plan only | Not run |
+
+**Source:** [intent](intent/000-source-prompts.md), [spec 027](specs/027-global-nested-ledger/spec.md), [verification](verification/requirements-traceability-matrix.md). Earlier status/measurement pins are historical and must not be assumed valid for the new branch.

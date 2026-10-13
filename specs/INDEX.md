@@ -100,3 +100,13 @@ flowchart TD
     style R000 fill:#1a3a1a,stroke:#4caf50,color:#fff
     style R010 fill:#1a3a1a,stroke:#4caf50,color:#fff
 ```
+
+---
+
+## Proposed extension — global nested transaction contract
+
+| No. | Feature ID | Title | Scope | State |
+|---:|---|---|---|---|
+| 027 | [027-global-nested-ledger](027-global-nested-ledger/spec.md) | Global nested immutable transaction contract | Actor superclass, recursive scope/commitment history, ShareCLI adoption and Fabric authority-domain invariants | **Proposed; not native accepted** |
+
+Includes AgilePlus-style [meta.json](027-global-nested-ledger/meta.json), [spec](027-global-nested-ledger/spec.md), [plan](027-global-nested-ledger/plan.md) and [tasks](027-global-nested-ledger/tasks.md). Existing specs 001–026, 070–090 remain authoritative for their own domains.
