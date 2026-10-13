@@ -286,3 +286,37 @@ Underlying items like specs adrs following AgilePlus format wbs/pert/dag, sota f
 
 And far more throughout I haven't mentioned 
 ~~~
+
+---
+
+## INT-P009 — Everything as an immutable transactional ledger (2026-10-12)
+
+~~~text
+Let's discuss.
+
+Everything as an Immutable transactional ledger.
+
+1 example of the problem. System level agents that need autonomy while also having fuzzy lines between good and harmful action/step
+~~~
+
+## INT-P010 — Global nested scope correction (2026-10-12)
+
+~~~text
+The ledger is not individual but global and nested / tree like
+~~~
+
+## INT-P011 — Shared human and agent actor parent (2026-10-12)
+
+~~~text
+Humans and agents should be part of the same parent class.
+~~~
+
+## INT-P012 — Explicit project ownership (2026-10-12)
+
+~~~text
+This research is for ShareCLI and phenofabric.
+~~~
+
+## Source qualification
+
+The four blocks above are user messages from the current conversation and are added separately from the earlier 2026-08-28 corpus. The parent class, global/tree properties and two target projects are user requirements. A single physical database, universal write authority and exact consensus implementation are not asserted by those quotations. See [synthesis](001-intent-synthesis.md), [proposed requirements](../FUNCTIONAL_REQUIREMENTS.md), [decision ADR 0036](../docs/adr/0036-global-nested-transaction-ledger.md).
