@@ -19,6 +19,7 @@ mod recovery;
 mod routes;
 pub mod schema;
 mod topology;
+pub mod transaction_ledger;
 
 pub use error::PersistError;
 pub use recovery::RecoveredState;
