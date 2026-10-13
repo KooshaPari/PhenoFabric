@@ -348,3 +348,13 @@ In order, for a new contributor:
    you're touching
 10. The matching `verification/` test plan + `verification/requirements-traceability.json`
     before claiming a feature is "done"
+
+---
+
+## Proposed global nested transactional history — design supplement (2026-10-12)
+
+A single logical nested ledger is the **coordination semantics**, not another product database. The recursive scope/commitment hierarchy embeds WorkItems and references shared producers, resources, object versions, authority grants and evidence across branches. Human and SoftwareAgent are Actor subclasses; roles and effective permissions remain explicit.
+
+ShareCLI owns local admission and shares one physical producer among compatible consumers; Fabric owns distributed placement, object residency and authority epochs. Each domain commits its authoritative event/projection/outbox locally and publishes versioned references to the shared logical history. Offline/partitioned authority cannot duplicate nonpartitioned rights. Target-side effect mediation is mandatory for an enforcement claim.
+
+[Spec 027](specs/027-global-nested-ledger/spec.md) · [ADR 0036](docs/adr/0036-global-nested-transaction-ledger.md) · [intent source](intent/000-source-prompts.md). **Status:** proposed cross-product contract with a bounded SQLite prototype, not an operational global engine.
