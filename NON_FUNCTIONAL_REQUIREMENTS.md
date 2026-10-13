@@ -93,3 +93,18 @@ These are target contracts. A target is not a claim until the associated benchma
 | PF-NFR-082 | The compiler prefers existing hardware codec/copy engines only when their contention cost is lower than alternatives. |
 | PF-NFR-083 | Background bulk transfers are paced to residual capacity. |
 | PF-NFR-084 | Fine-grained distribution is automatically disabled/fused when observed overhead exceeds its benefit. |
+
+---
+
+## Proposed nested transaction NFRs — 2026-10-12
+
+| ID | Nonfunctional constraint | State / proof gate |
+|---|---|---|
+| PF-NFR-TXN-01 | No global mutex or full-ledger synchronous write on real-time audio/video/input data paths | Proposed; profile p95/p99 native control/data separation |
+| PF-NFR-TXN-02 | Competing hard reservations require checked fixed-unit arithmetic and serializable/atomic domain admission | Proposed; race and crash fault tests |
+| PF-NFR-TXN-03 | Access control applies to event metadata and referenced sensitive payloads; append-only history must not disclose credentials or personal data | Proposed; threat-model/ACL tests |
+| PF-NFR-TXN-04 | Offline continuation consumes only explicitly delegated finite rights; revocation guarantees must state partition limits | Proposed; partition/lease test |
+| PF-NFR-TXN-05 | Neither stale execution nor lease expiry is treated as proof of physical reclamation | Proposed; native adapter receipt and task-tree tests |
+| PF-NFR-TXN-06 | Preserve causal provenance and schema evolution without rewriting historical event records | Proposed; migration/replay tests |
+
+Prior existing latency/quality targets remain unchanged; this adds constraints, not measured performance claims. Source INT-P009..012 and [spec 027](specs/027-global-nested-ledger/spec.md).
