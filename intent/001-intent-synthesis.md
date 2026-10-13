@@ -111,3 +111,13 @@ The minimum coherent product is not fine-grained distributed execution. It is:
 9. evidence and benchmark harness.
 
 This delivers immediate value and creates the measurement substrate needed for harder research.
+
+---
+
+## 2026-10-12 extension — one global nested transaction model
+
+**Source:** [INT-P009..INT-P012 verbatim](000-source-prompts.md). The user's correction is that the ledger is globally logical and recursively nested/tree-like, **not individual per agent**. Humans and software agents share one `Actor` parent abstraction; type alone does not determine authority. This research applies to ShareCLI (local work sharing/admission) and PhenoFabric (distributed placement, residency, authority epochs), while PhenoRegistry indexes ecosystem ownership.
+
+**Derived design (proposed):** work/action scopes have one owning parent; shared producers, resources, and evidence form typed cross-tree references. Nested delegations cannot multiply rights or capacity. A workflow's intent and each consumer obligation survive split, sharing, migration, cancellation and retry. External effects are observed and classified independently of immutable historical claims. A global *semantic* history does not supersede ADR 0007's product-local physical stores.
+
+**Not inferred:** one universally readable event payload store, exactly-once arbitrary external effects, universal OS rollback or native enforcement already deployed. See [ADR 0036](../docs/adr/0036-global-nested-transaction-ledger.md).
