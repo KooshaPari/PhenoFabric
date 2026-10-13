@@ -39,13 +39,15 @@ Format follows the existing ecosystem ADR convention: status/date/deciders/super
 | [0033 — Fabric Daemon Architecture](0033-fabric-daemon-architecture.md) | `fabric-daemon` crate: TOML config with CLI overrides, `Mutex<CoordinatorState>` for topology/lease/plan management, TCP wire server per spec 025 (heartbeat/health_check/probe_request), JSON health endpoint, clap CLI with start/health/status subcommands, ctrlc graceful shutdown with dirty-state SQLite flush. 15 tests. | Proposed |
 | [0034 — SQLite-Backed Persistent State](0034-sqlite-backed-persistent-state.md) | `fabric-persist` crate: topology/leases/routes/recovery/schema modules. SQLite with WAL mode, version-tracked schema migrations, `recover_state()` single entry point for daemon startup, soft-delete for expired leases/plans (audit trail preserved). Supersedes ADR-0026 JSONL for primary store. 21 tests. | Proposed |
 
+| [0036 — Global Nested Transaction History](0036-global-nested-transaction-ledger.md) | Actor-neutral one-logical-tree scope/effect semantics; bounded SQLite authority-domain implementation; preserves standalone ShareCLI and ADR 0007 no universal DB. | Proposed |
+
 ## Decision themes
 
 - Product and ecosystem boundaries: 0001, 0015, 0016, 0020.
 - Unified graph and route compilation: 0002–0004, 0006, 0009, 0022, 0030, 0032.
 - Compute/data granularity: 0005, 0011, 0021.
 - Real-time media and quality: 0008, 0013, 0014.
-- Safety and authority: 0007, 0012, 0017–0019.
+- Safety and authority: 0007, 0012, 0017–0019, 0036.
 - Capability inventory and integration: 0023, 0024, 0027, 0028, 0031.
 - Workspace persistence: 0026, 0034.
 - Daemon and service architecture: 0033.
