@@ -164,3 +164,13 @@ The coordinator stores metadata and intent. Payloads move peer to peer or throug
 3. **WAN mesh:** direct peer connections plus blind relays.
 4. **Agent fleet:** transient realms and task workers, human surface publication.
 5. **Enterprise/studio:** policy service, certificates, managed updates, inventory and evidence export.
+
+---
+
+## Global nested transactional control overlay — proposed
+
+In the high-level control path, Actor (Human or SoftwareAgent) submits a scoped proposal. The relevant product authority validates a current grant; the ShareCLI local governor handles local admission/coalescing and Fabric handles topology/placement/epoch. The effect adapter must enforce its target grant/fence. The local coordinator appends an immutable decision event and matching outbox notice atomically with any authoritative reservation update.
+
+**No universal central database:** the one logical global tree spans participating authority domains through stable IDs, ancestry, causal references and explicit adoption/rights transfers. Domain-local transactions coordinate competing resources; independent reads need not acquire one global lock. Unknown effects cannot be “completed” merely because an executor was disconnected.
+
+**Built now:** Fabric `fabric-persist` SQLite local demonstration; **missing:** distributed adoption, authenticated grant chain, actual native effect broker, trusted reclaim and cross-host replay tests. See spec 027 and ADR 0036.
