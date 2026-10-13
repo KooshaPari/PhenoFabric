@@ -36,3 +36,16 @@ publish = ["terminal", "logs"]
 ```
 
 ShareCLI submits a declarative workload; Fabric chooses execution and object paths; thegent may have authorized the work; Tracera and SessionLedger receive evidence/history references.
+
+---
+
+## Transactional integration proposal — 2026-10-12
+
+- ShareCLI local work coordinator owns real admission, coalescing and pressure logic. Its standalone local scope must remain independently meaningful.
+- Fabric integrates external placement/object epochs into the **same logical global nested history**, not a second agent-local ledger, without importing ShareCLI's authority.
+- Both Human and SoftwareAgent use Actor; role/grant/scope determines effective permission.
+- Candidate work plan and placement quote are not authoritative lease or successful OS actuation. Prepare/commit a resource reservation, dispatch at effect broker, observe real target result, then accept and publish with current epoch.
+- Producer sharing preserves each consumer's cancellation, freshness and output rights; parent budget is not duplicated by child agents.
+- Standalone root adoption across hosts must be an explicit authority transition; disconnected rights and unknown outcomes require bounded reconciliation.
+
+See [Fabric ADR 0036](../adr/0036-global-nested-transaction-ledger.md), [ShareCLI ADR 0009](https://github.com/KooshaPari/ShareCLI/blob/feat/global-nested-ledger-20261012/docs/adr/0009-global-nested-ledger-local-admission.md), and [spec 027](../../specs/027-global-nested-ledger/spec.md). No production cross-host execution is asserted.
