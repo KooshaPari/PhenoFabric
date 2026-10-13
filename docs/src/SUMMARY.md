@@ -62,6 +62,7 @@
 - [ADR-0033 — Fabric Daemon Architecture](./adr/0033-fabric-daemon-architecture.md)
 - [ADR-0034 — SQLite-Backed Persistent State](./adr/0034-sqlite-backed-persistent-state.md)
 - [ADR-0035 — GUI Suite Architecture](./adr/0035-gui-suite-architecture.md)
+- [Global Nested Transaction Contract — proposed](./global-nested-ledger.md)
 
 # Research
 
