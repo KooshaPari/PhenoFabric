@@ -77,3 +77,19 @@ prompts:
   - sota/
   - research/
   - intent/
+- id: INT-P009
+  requirements: [PF-FR-089, PF-FR-092]
+  specs: ['027']
+  adrs: ['0036']
+- id: INT-P010
+  requirements: [PF-FR-089, PF-FR-091]
+  specs: ['027']
+  adrs: ['0036']
+- id: INT-P011
+  requirements: [PF-FR-090, PF-FR-091]
+  specs: ['027']
+  adrs: ['0036']
+- id: INT-P012
+  requirements: [PF-FR-093, PF-FR-094]
+  specs: ['027']
+  adrs: ['0015', '0016', '0036']
