@@ -33,3 +33,16 @@
 | INT-P008 | AgilePlus spec/ADR/WBS/PERT/DAG format | specs/, adr/, work/ |
 | INT-P008 | SOTA and differentiators | sota/ |
 | INT-P008 | exact prompts plus LLM synthesis | intent/ |
+
+---
+
+## New direct intent mapping — 2026-10-12
+
+| Intent source | Verbatim user correction / meaning | Proposed formalization |
+|---|---|---|
+| INT-P009 | Everything as an immutable transactional ledger; autonomy despite ambiguous good/harmful actions | PF-FR-089, PF-FR-092; ADR 0036; spec 027 |
+| INT-P010 | Ledger is global and nested/tree-like, not individual | PF-FR-089, PF-FR-091; scope ancestry and shared producer references |
+| INT-P011 | Humans and agents belong to one parent class | PF-FR-090, PF-FR-091; Actor abstraction with explicit delegation |
+| INT-P012 | Research belongs to ShareCLI and PhenoFabric | PF-FR-093, PF-FR-094; ADRs 0015/0016/0036; ShareCLI ADR 0009 |
+
+**Evidence:** new prompt text is in [000-source-prompts.md](000-source-prompts.md) and has not been silently inferred from earlier user hardware or desktop requests.
