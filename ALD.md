@@ -70,3 +70,11 @@ The runtime observes actual stage cost, deadline misses, quality, resource press
 3. A higher-level identity is not replaced by a lower-level address or PID.
 4. A lower-level failure has an explicit rollback/fallback at the next stable abstraction.
 5. No abstraction claims physics disappeared; it only hides management complexity.
+
+---
+
+## A8 — Global nested transaction context (proposed 2026-10-12)
+
+Across A0 intent through A7 evidence, consequential operations reference a **single global logical recursively nested commitment history**. Actor is the parent abstraction of Human and SoftwareAgent and maps to effective grants separately from device/realm/session. Work nesting is canonical, but cross-branch dependencies, shared producers and physical resource conflicts form graph projections. Parent commitments/budgets must survive plan transformation without multiplying.
+
+This is a *cross-layer invariant overlay*, not a new stack replacing the A0–A7 abstraction ladder, a single global database or high-rate RT payload path. Local admission coordination remains ShareCLI's boundary; PhenoFabric manages distributed placement/epochs. See [spec 027](specs/027-global-nested-ledger/spec.md), [ADR 0036](docs/adr/0036-global-nested-transaction-ledger.md).
