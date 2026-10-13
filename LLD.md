@@ -216,3 +216,13 @@ The public API supports:
 - export diagnostic/evidence bundles.
 
 See `architecture/api.md` and `architecture/schemas/`.
+
+---
+
+## Proposed transaction ledger low-level extension — 2026-10-12
+
+**Existing candidate files:** `crates/fabric-persist/src/transaction_ledger.rs`, `migrations.rs` V4, `error.rs`, and `lib.rs`. SQLite tables: `ledger_scopes`, `ledger_domains`, `ledger_reservations`, `ledger_events` (UPDATE/DELETE trigger denial), and `ledger_outbox`. A scope's parent is a foreign key; one local root is indexed unique. Physical hard admission updates the bounded capacity projection before committing a reservation record/event/outbox in the same transaction.
+
+**API preconditions NOT enforced in this experimental module:** authenticated actor/grant, exact scope ancestry grant, trusted reclaim receipt provenance, native target publication fencing, complete parent acceptance, cross-host adoption/consensus. Event immutability triggers do not make SQLite tamper-proof against a DB owner.
+
+**Design extension:** append-only event and consumed-reference history vs mutable projections, under short SQL commits with outbox replay/idempotency. Do not release physical capacity when only a lease expired, nor assume a `Result::Err` from an external API proves no effect occurred. Native fault scenarios are prescribed by [spec 027](specs/027-global-nested-ledger/spec.md).
