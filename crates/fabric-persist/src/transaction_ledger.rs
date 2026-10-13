@@ -48,7 +48,11 @@ impl Persist {
         actor: &LedgerActor<'_>,
         event_id: &str,
     ) -> Result<(), PersistError> {
-        for (value, name) in [(id, "scope id"), (actor.id, "actor id"), (event_id, "event id")] {
+        for (value, name) in [
+            (id, "scope id"),
+            (actor.id, "actor id"),
+            (event_id, "event id"),
+        ] {
             required(value, name)?;
         }
         self.with_conn(|conn| {
@@ -62,7 +66,9 @@ impl Persist {
                     )
                     .optional()?;
                 if open != Some(true) {
-                    return Err(PersistError::Invariant("parent does not exist or is sealed".into()));
+                    return Err(PersistError::Invariant(
+                        "parent does not exist or is sealed".into(),
+                    ));
                 }
             }
             tx.execute(
@@ -91,8 +97,10 @@ impl Persist {
         event_id: &str,
     ) -> Result<(), PersistError> {
         for (value, name) in [
-            (domain_id, "domain id"), (scope_id, "scope id"),
-            (actor.id, "actor id"), (event_id, "event id"),
+            (domain_id, "domain id"),
+            (scope_id, "scope id"),
+            (actor.id, "actor id"),
+            (event_id, "event id"),
         ] {
             required(value, name)?;
         }
@@ -109,7 +117,13 @@ impl Persist {
             tx.execute(
                 "INSERT INTO ledger_events(event_id, scope_id, actor_id, actor_kind, kind, payload)
                  VALUES(?1, ?2, ?3, ?4, 'capacity_defined', ?5)",
-                params![event_id, scope_id, actor.id, actor.kind.as_str(), units.to_string()],
+                params![
+                    event_id,
+                    scope_id,
+                    actor.id,
+                    actor.kind.as_str(),
+                    units.to_string()
+                ],
             )?;
             tx.execute("INSERT INTO ledger_outbox(event_id) VALUES(?1)", [event_id])?;
             tx.commit()?;
@@ -130,21 +144,28 @@ impl Persist {
         event_id: &str,
     ) -> Result<bool, PersistError> {
         for (value, name) in [
-            (reservation_id, "reservation id"), (domain_id, "domain id"),
-            (scope_id, "scope id"), (actor.id, "actor id"), (event_id, "event id"),
+            (reservation_id, "reservation id"),
+            (domain_id, "domain id"),
+            (scope_id, "scope id"),
+            (actor.id, "actor id"),
+            (event_id, "event id"),
         ] {
             required(value, name)?;
         }
         if units <= 0 {
-            return Err(PersistError::Invariant("reservation units must be positive".into()));
+            return Err(PersistError::Invariant(
+                "reservation units must be positive".into(),
+            ));
         }
         self.with_conn(|conn| {
             let tx = conn.unchecked_transaction()?;
-            let open = tx.query_row(
-                "SELECT state = 'open' FROM ledger_scopes WHERE id = ?1",
-                [scope_id],
-                |row| row.get::<_, bool>(0),
-            ).optional()?;
+            let open = tx
+                .query_row(
+                    "SELECT state = 'open' FROM ledger_scopes WHERE id = ?1",
+                    [scope_id],
+                    |row| row.get::<_, bool>(0),
+                )
+                .optional()?;
             if open != Some(true) {
                 return Err(PersistError::Invariant("scope is missing or sealed".into()));
             }
@@ -164,7 +185,13 @@ impl Persist {
             tx.execute(
                 "INSERT INTO ledger_events(event_id, scope_id, actor_id, actor_kind, kind, payload)
                  VALUES(?1, ?2, ?3, ?4, 'reserved', ?5)",
-                params![event_id, scope_id, actor.id, actor.kind.as_str(), reservation_id],
+                params![
+                    event_id,
+                    scope_id,
+                    actor.id,
+                    actor.kind.as_str(),
+                    reservation_id
+                ],
             )?;
             tx.execute("INSERT INTO ledger_outbox(event_id) VALUES(?1)", [event_id])?;
             tx.commit()?;
@@ -183,19 +210,23 @@ impl Persist {
         event_id: &str,
     ) -> Result<bool, PersistError> {
         for (value, name) in [
-            (reservation_id, "reservation id"), (verified_receipt_ref, "reclamation receipt"),
-            (actor.id, "actor id"), (event_id, "event id"),
+            (reservation_id, "reservation id"),
+            (verified_receipt_ref, "reclamation receipt"),
+            (actor.id, "actor id"),
+            (event_id, "event id"),
         ] {
             required(value, name)?;
         }
         self.with_conn(|conn| {
             let tx = conn.unchecked_transaction()?;
-            let record: Option<(String, String, i64)> = tx.query_row(
-                "SELECT scope_id, domain_id, units FROM ledger_reservations
+            let record: Option<(String, String, i64)> = tx
+                .query_row(
+                    "SELECT scope_id, domain_id, units FROM ledger_reservations
                  WHERE id = ?1 AND state = 'active'",
-                [reservation_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            ).optional()?;
+                    [reservation_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
             let Some((scope_id, domain_id, units)) = record else {
                 return Ok(false);
             };
@@ -210,12 +241,20 @@ impl Persist {
                 params![units, domain_id],
             )?;
             if updated != 1 {
-                return Err(PersistError::Invariant("capacity projection inconsistent".into()));
+                return Err(PersistError::Invariant(
+                    "capacity projection inconsistent".into(),
+                ));
             }
             tx.execute(
                 "INSERT INTO ledger_events(event_id, scope_id, actor_id, actor_kind, kind, payload)
                  VALUES(?1, ?2, ?3, ?4, 'reclaimed', ?5)",
-                params![event_id, scope_id, actor.id, actor.kind.as_str(), verified_receipt_ref],
+                params![
+                    event_id,
+                    scope_id,
+                    actor.id,
+                    actor.kind.as_str(),
+                    verified_receipt_ref
+                ],
             )?;
             tx.execute("INSERT INTO ledger_outbox(event_id) VALUES(?1)", [event_id])?;
             tx.commit()?;
@@ -231,11 +270,13 @@ impl Persist {
 
     pub fn ledger_reserved(&self, domain_id: &str) -> Result<Option<i64>, PersistError> {
         self.with_conn(|conn| {
-            Ok(conn.query_row(
-                "SELECT reserved FROM ledger_domains WHERE id = ?1",
-                [domain_id],
-                |row| row.get(0),
-            ).optional()?)
+            Ok(conn
+                .query_row(
+                    "SELECT reserved FROM ledger_domains WHERE id = ?1",
+                    [domain_id],
+                    |row| row.get(0),
+                )
+                .optional()?)
         })
     }
 }
@@ -247,17 +288,37 @@ mod tests {
     #[test]
     fn nested_actor_neutral_reservation_is_atomic_and_conserved() {
         let store = Persist::open_memory().unwrap();
-        let human = LedgerActor { id: "h", kind: LedgerActorKind::Human };
-        let agent = LedgerActor { id: "a", kind: LedgerActorKind::SoftwareAgent };
-        store.ledger_create_scope("root", None, &human, "e1").unwrap();
-        store.ledger_create_scope("work", Some("root"), &agent, "e2").unwrap();
-        store.ledger_define_capacity("cpu", "root", 4, &human, "e3").unwrap();
-        assert!(store.ledger_reserve("r1", "cpu", "work", 3, &agent, "e4").unwrap());
-        assert!(!store.ledger_reserve("r2", "cpu", "work", 3, &human, "e5").unwrap());
+        let human = LedgerActor {
+            id: "h",
+            kind: LedgerActorKind::Human,
+        };
+        let agent = LedgerActor {
+            id: "a",
+            kind: LedgerActorKind::SoftwareAgent,
+        };
+        store
+            .ledger_create_scope("root", None, &human, "e1")
+            .unwrap();
+        store
+            .ledger_create_scope("work", Some("root"), &agent, "e2")
+            .unwrap();
+        store
+            .ledger_define_capacity("cpu", "root", 4, &human, "e3")
+            .unwrap();
+        assert!(store
+            .ledger_reserve("r1", "cpu", "work", 3, &agent, "e4")
+            .unwrap());
+        assert!(!store
+            .ledger_reserve("r2", "cpu", "work", 3, &human, "e5")
+            .unwrap());
         assert_eq!(store.ledger_reserved("cpu").unwrap(), Some(3));
         assert_eq!(store.ledger_event_count().unwrap(), 4);
-        assert!(store.ledger_reclaim("r1", "verified/stop-1", &agent, "e6").unwrap());
-        assert!(!store.ledger_reclaim("r1", "verified/stop-1", &agent, "e7").unwrap());
+        assert!(store
+            .ledger_reclaim("r1", "verified/stop-1", &agent, "e6")
+            .unwrap());
+        assert!(!store
+            .ledger_reclaim("r1", "verified/stop-1", &agent, "e7")
+            .unwrap());
         assert_eq!(store.ledger_reserved("cpu").unwrap(), Some(0));
         assert_eq!(store.ledger_event_count().unwrap(), 5);
     }
@@ -265,10 +326,19 @@ mod tests {
     #[test]
     fn failed_event_insert_rolls_back_capacity_change() {
         let store = Persist::open_memory().unwrap();
-        let actor = LedgerActor { id: "h", kind: LedgerActorKind::Human };
-        store.ledger_create_scope("root", None, &actor, "event-1").unwrap();
-        store.ledger_define_capacity("slots", "root", 1, &actor, "event-2").unwrap();
-        assert!(store.ledger_reserve("r1", "slots", "root", 1, &actor, "event-1").is_err());
+        let actor = LedgerActor {
+            id: "h",
+            kind: LedgerActorKind::Human,
+        };
+        store
+            .ledger_create_scope("root", None, &actor, "event-1")
+            .unwrap();
+        store
+            .ledger_define_capacity("slots", "root", 1, &actor, "event-2")
+            .unwrap();
+        assert!(store
+            .ledger_reserve("r1", "slots", "root", 1, &actor, "event-1")
+            .is_err());
         assert_eq!(store.ledger_reserved("slots").unwrap(), Some(0));
         assert_eq!(store.ledger_event_count().unwrap(), 2);
     }
@@ -276,11 +346,22 @@ mod tests {
     #[test]
     fn no_second_root_and_no_empty_receipt() {
         let store = Persist::open_memory().unwrap();
-        let actor = LedgerActor { id: "a", kind: LedgerActorKind::SoftwareAgent };
-        store.ledger_create_scope("root", None, &actor, "e1").unwrap();
-        assert!(store.ledger_create_scope("rogue", None, &actor, "e2").is_err());
-        store.ledger_define_capacity("cpu", "root", 1, &actor, "e3").unwrap();
-        assert!(store.ledger_reserve("r1", "cpu", "root", 1, &actor, "e4").unwrap());
+        let actor = LedgerActor {
+            id: "a",
+            kind: LedgerActorKind::SoftwareAgent,
+        };
+        store
+            .ledger_create_scope("root", None, &actor, "e1")
+            .unwrap();
+        assert!(store
+            .ledger_create_scope("rogue", None, &actor, "e2")
+            .is_err());
+        store
+            .ledger_define_capacity("cpu", "root", 1, &actor, "e3")
+            .unwrap();
+        assert!(store
+            .ledger_reserve("r1", "cpu", "root", 1, &actor, "e4")
+            .unwrap());
         assert!(store.ledger_reclaim("r1", "", &actor, "e5").is_err());
         assert_eq!(store.ledger_reserved("cpu").unwrap(), Some(1));
     }
@@ -288,11 +369,15 @@ mod tests {
     #[test]
     fn event_history_is_append_only_even_for_local_sql_caller() {
         let store = Persist::open_memory().unwrap();
-        let actor = LedgerActor { id: "a", kind: LedgerActorKind::Human };
-        store.ledger_create_scope("root", None, &actor, "e1").unwrap();
-        let result = store.with_conn(|conn| {
-            Ok(conn.execute("UPDATE ledger_events SET kind = 'tampered'", [])?)
-        });
+        let actor = LedgerActor {
+            id: "a",
+            kind: LedgerActorKind::Human,
+        };
+        store
+            .ledger_create_scope("root", None, &actor, "e1")
+            .unwrap();
+        let result = store
+            .with_conn(|conn| Ok(conn.execute("UPDATE ledger_events SET kind = 'tampered'", [])?));
         assert!(result.is_err());
         assert_eq!(store.ledger_event_count().unwrap(), 1);
     }
