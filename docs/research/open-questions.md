@@ -41,3 +41,16 @@
 - Is Phenotype Fabric the correct public name and repo boundary, or should it become the deeper NVMS successor?
 - What minimum packaged slice has standalone adoption value outside the AGSLAG ecosystem?
 - Which components can be distributed without requiring users to run a central server?
+
+---
+
+## 2026-10-12 global nested transactional architecture
+
+- How will the logical global root be assigned when a standalone ShareCLI scope joins Fabric, without reconciling conflicts by decree?
+- Which actor/principal identifiers and grants are authenticated and revocable across disconnected hosts?
+- Which transactions require coordination, and which commute safely under invariant-confluence assumptions?
+- How can immutable provenance support privacy, restricted metadata, superseded claims and bounded retention?
+- How is verified external-effect and physical-reclamation evidence obtained without treating a self-reported receipt as proof?
+- Which simple SQL/outbox/effect-broker architecture meets the fault model before a custom distributed engine is justified?
+
+See [spec 027](../../specs/027-global-nested-ledger/spec.md) and [SOTA](../sota/global-nested-ledger.md).
