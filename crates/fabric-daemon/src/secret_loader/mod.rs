@@ -41,10 +41,6 @@ use crate::config::AuthConfig;
 
 use std::fmt;
 
-mod startup;
-
-pub use startup::resolve_startup_workos_secret;
-
 /// Secret key fetched from the shared WorkOS folder.
 pub const WORKOS_CLIENT_SECRET_KEY: &str = "WORKOS_CLIENT_SECRET";
 /// Infisical folder holding the shared WorkOS credential set.
@@ -485,13 +481,30 @@ pub fn resolve_startup_workos_secret(
                 });
             (outcome, None)
         }
-        Err(rejection) => (
-            LoadOutcome {
-                source: Source::Unset,
-                warning: Some(base_url_rejection_warning(rejection)),
-            },
-            Some(rejection),
-        ),
+        Err(rejection) => {
+            // Skip the fetch (review finding, 2026-09-29: never POST a service
+            // account client secret to a host selected by a typo), but still
+            // honour any preconfigured secret in env or config. The warning is
+            // surfaced only when nothing was preconfigured (review finding,
+            // 2026-10-04), so an operator with `WORKOS_CLIENT_SECRET` already
+            // in the environment or config is not penalised for the typo.
+            // The rejection is always returned so the caller can log a
+            // redaction-safe category before logging init.
+            let outcome =
+                load_workos_client_secret(auth, read_env, &mut |_secret, _folder, _environment| {
+                    Err(FetchFailure::Unavailable)
+                });
+            match outcome.source {
+                Source::Unset => (
+                    LoadOutcome {
+                        source: Source::Unset,
+                        warning: Some(base_url_rejection_warning(rejection)),
+                    },
+                    Some(rejection),
+                ),
+                _ => (outcome, Some(rejection)),
+            }
+        }
     }
 }
 

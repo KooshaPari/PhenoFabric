@@ -219,10 +219,10 @@ fn rejected_base_url_suppresses_the_infisical_fetch_entirely() {
     let read = reader(&[(ENV_INFISICAL_BASE_URL, "not a url")]);
 
     let (outcome, rejection) =
-        resolve_startup_workos_secret(&mut auth, &read, &mut |base, name, folder, env| {
+        resolve_startup_workos_secret(&mut auth, &read, &mut |config, name, folder, env| {
             calls
                 .borrow_mut()
-                .push(format!("{base}{name}@{folder}:{env}"));
+                .push(format!("{}{name}@{folder}:{env}", config.base_url));
             Ok("from-fake".to_string())
         });
 

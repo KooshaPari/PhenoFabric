@@ -132,26 +132,11 @@ fn cmd_start(
     // entirely and no request leaves the host. Substituting the documented
     // default here would POST the service-account client secret to the public
     // Infisical cloud because of a typo (review finding, 2026-09-29).
-    let infisical_creds = (
-        config.auth.infisical_client_id.clone(),
-        config.auth.infisical_client_secret.clone(),
-        config.auth.infisical_project_id.clone(),
-    );
     let (secret_outcome, base_url_rejection) = secret_loader::resolve_startup_workos_secret(
         &mut config.auth,
         &|name| std::env::var(name).ok(),
-        &mut |base_url, secret, folder, environment| {
-            secret_loader::fetch_via_infisical(
-                auth::InfisicalConfig {
-                    client_id: infisical_creds.0.clone(),
-                    client_secret: infisical_creds.1.clone(),
-                    project_id: infisical_creds.2.clone(),
-                    base_url: base_url.to_string(),
-                },
-                secret,
-                folder,
-                environment,
-            )
+        &mut |infisical_config, secret, folder, environment| {
+            secret_loader::fetch_via_infisical(infisical_config, secret, folder, environment)
         },
     );
 

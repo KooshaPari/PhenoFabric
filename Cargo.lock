@@ -1585,9 +1585,9 @@ dependencies = [
  "blake3",
  "chrono",
  "ed25519-dalek 3.0.0",
+ "getrandom 0.4.3",
  "jsonschema",
  "proptest",
- "rand 0.9.5",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -2353,6 +2353,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "r-efi 6.0.0",
+ "rand_core 0.10.1",
 ]
 
 [[package]]

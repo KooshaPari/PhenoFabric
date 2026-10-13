@@ -2,7 +2,7 @@
 
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use ed25519_dalek::{Signature as DalekSig, Signer, SigningKey as DalekSigningKey, Verifier};
-use rand::rngs::OsRng;
+use getrandom::{rand_core::UnwrapErr, SysRng};
 use serde::{Deserialize, Serialize};
 
 use crate::descriptor::{CapabilityDescriptor, Signature};
@@ -55,7 +55,7 @@ impl<'de> Deserialize<'de> for VerificationKey {
 impl SigningKey {
     /// Generates a new random signing key.
     pub fn generate() -> Self {
-        let inner = DalekSigningKey::generate(&mut OsRng);
+        let inner = DalekSigningKey::generate(&mut UnwrapErr(SysRng));
         let key_id = B64.encode(inner.to_bytes());
         Self { inner, key_id }
     }
