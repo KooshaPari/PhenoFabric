@@ -114,3 +114,20 @@ Requirement IDs are stable trace keys. Each requirement maps to one or more sour
 | PF-FR-086 | The system shall emit stable events and evidence references for AgilePlus, thegent, Tracera, SessionLedger, AGSLAG, ShareCLI, NVMS, and ledgers without assuming shared storage. | P0 |
 | PF-FR-087 | All focus, route, privilege, migration, and placement decisions shall be auditable. | P0 |
 | PF-FR-088 | The system shall continue local operation during loss of cloud/coordination services where policy permits. | P0 |
+
+---
+
+## Proposed global nested transaction requirements — 2026-10-12
+
+These IDs extend the existing list without renumbering PF-FR-001..088. They are **proposed**, not production acceptance.
+
+| ID | Statement | Priority | State |
+|---|---|---|---|
+| PF-FR-089 | The distributed execution model shall preserve one globally logical recursively nested immutable transaction history with one canonical parent per commitment and typed cross-branch references. | P0 | Proposed |
+| PF-FR-090 | Human and SoftwareAgent shall conform to one Actor abstraction with independent identity, grant, role, execution and verification attribution. | P0 | Proposed |
+| PF-FR-091 | Child delegation and shared producer transformations shall not multiply parent authority, hard resource commitments or a consumer's entitlements. | P0 | Proposed |
+| PF-FR-092 | External effects, cancellation, migration and retries shall retain original logical-effect identity, uncertainty and target-enforced fencing/recovery requirements. | P0 | Proposed |
+| PF-FR-093 | ShareCLI standalone authority-domain history shall join distributed Fabric only by explicit recorded identity/rights adoption that cannot validate conflicting allocations retroactively. | P0 | Proposed |
+| PF-FR-094 | Scoped admission, physical reserve/reclaim projection, immutable event and notification outbox shall commit atomically within each relevant local authority domain; cross-domain convergence remains an explicit protocol. | P0 | Proposed |
+
+**Trace:** INT-P009..012 → [spec 027](specs/027-global-nested-ledger/spec.md) / [ADR 0036](docs/adr/0036-global-nested-transaction-ledger.md) → [verification matrix](verification/requirements-traceability-matrix.md). SQLite migration V4 demonstrates only a *local* subset of PF-FR-089/090/094; tests pending CI. No native target policy enforcement or cross-host conformance is claimed.
