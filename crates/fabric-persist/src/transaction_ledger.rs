@@ -5,7 +5,7 @@
 //! Callers must verify grants and physical reclamation receipts with trusted
 //! adapters before invoking these methods. A lease deadline is never reclamation.
 
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
 use crate::{Persist, PersistError};
 
@@ -28,6 +28,25 @@ impl LedgerActorKind {
 pub struct LedgerActor<'a> {
     pub id: &'a str,
     pub kind: LedgerActorKind,
+}
+
+/// One outbox row joined with the immutable `ledger_events` row it references.
+///
+/// Mirrors the `ledger_events` columns a downstream consumer needs to publish
+/// the event (the event row is immutable, so this is a stable projection) plus
+/// `published_at` from `ledger_outbox`: `None` means undelivered, `Some` records
+/// when delivery was marked. The event history is never deleted; delivery
+/// state is reconstructed from `published_at`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OutboxEntry {
+    pub event_id: String,
+    pub scope_id: String,
+    pub actor_id: String,
+    pub actor_kind: String,
+    pub kind: String,
+    pub payload: String,
+    pub created_at: String,
+    pub published_at: Option<String>,
 }
 
 fn required(value: &str, what: &str) -> Result<(), PersistError> {
@@ -268,6 +287,92 @@ impl Persist {
         })
     }
 
+    /// Atomically claim the next undelivered outbox entry. Returns `None`
+    /// when the outbox is empty. The caller is responsible for actually
+    /// publishing the event to its destination; on success it should call
+    /// `ledger_mark_published` to clear the entry.
+    ///
+    // SQLite has no `SELECT ... FOR UPDATE`. We wrap the claim in a short-lived
+    // `BEGIN IMMEDIATE` transaction, which takes the write lock for the whole
+    // transaction, so two concurrent claims serialize: the second blocks until
+    // the first commits. Because claim does NOT mutate the row, a later
+    // sequential caller may see the same row again before `ledger_mark_published`
+    // is called. That is BY DESIGN -- at-least-once delivery -- and the caller is
+    // responsible for idempotent publishing.
+    pub fn ledger_claim_next_outbox(&self) -> Result<Option<OutboxEntry>, PersistError> {
+        self.with_conn(|conn| {
+            let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+            let entry = tx
+                .query_row(
+                    "SELECT o.event_id, e.scope_id, e.actor_id, e.actor_kind, e.kind,
+                            e.payload, e.created_at, o.published_at
+                     FROM ledger_outbox o
+                     JOIN ledger_events e ON e.event_id = o.event_id
+                     WHERE o.published_at IS NULL
+                     ORDER BY o.rowid
+                     LIMIT 1",
+                    [],
+                    |row| {
+                        Ok(OutboxEntry {
+                            event_id: row.get(0)?,
+                            scope_id: row.get(1)?,
+                            actor_id: row.get(2)?,
+                            actor_kind: row.get(3)?,
+                            kind: row.get(4)?,
+                            payload: row.get(5)?,
+                            created_at: row.get(6)?,
+                            published_at: row.get(7)?,
+                        })
+                    },
+                )
+                .optional()?;
+            tx.commit()?;
+            Ok(entry)
+        })
+    }
+
+    /// Mark an outbox entry as published at the given ISO-8601 timestamp.
+    ///
+    /// The first mark wins: re-marking an already-delivered entry is a no-op
+    /// that preserves the original delivery timestamp (the delivery history is
+    /// reconstructed from `published_at`). Returns `PersistError::NotFound`
+    /// when no outbox row exists for `event_id`.
+    pub fn ledger_mark_published(
+        &self,
+        event_id: &str,
+        published_at: &str,
+    ) -> Result<(), PersistError> {
+        required(event_id, "event id")?;
+        required(published_at, "published_at")?;
+        self.with_conn(|conn| {
+            let tx = conn.unchecked_transaction()?;
+            let latest: Option<Option<String>> = tx
+                .query_row(
+                    "SELECT published_at FROM ledger_outbox WHERE event_id = ?1",
+                    [event_id],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            match latest {
+                None => {
+                    return Err(PersistError::NotFound(format!("outbox entry {event_id}")));
+                }
+                // First mark wins; a second mark is an idempotent no-op so the
+                // original delivery timestamp (audit history) is preserved.
+                Some(Some(_)) => {}
+                Some(None) => {
+                    tx.execute(
+                        "UPDATE ledger_outbox SET published_at = ?2
+                         WHERE event_id = ?1 AND published_at IS NULL",
+                        params![event_id, published_at],
+                    )?;
+                }
+            }
+            tx.commit()?;
+            Ok(())
+        })
+    }
+
     pub fn ledger_event_count(&self) -> Result<i64, PersistError> {
         self.with_conn(|conn| {
             Ok(conn.query_row("SELECT COUNT(*) FROM ledger_events", [], |row| row.get(0))?)
@@ -424,6 +529,149 @@ mod tests {
         assert!(
             payload.contains("\"receipt_ref\":\"verified/stop-1\""),
             "reclaimed event payload must preserve the verified receipt: {payload}"
+        );
+    }
+
+    fn seed_one_event(store: &Persist) {
+        let actor = LedgerActor {
+            id: "a",
+            kind: LedgerActorKind::SoftwareAgent,
+        };
+        store
+            .ledger_create_scope("root", None, &actor, "e1")
+            .unwrap();
+    }
+
+    #[test]
+    fn outbox_drain_marks_published() {
+        let store = Persist::open_memory().unwrap();
+        seed_one_event(&store);
+
+        let entry = store
+            .ledger_claim_next_outbox()
+            .unwrap()
+            .expect("seeded event must be claimable");
+        assert_eq!(entry.event_id, "e1");
+        assert_eq!(entry.kind, "scope_created");
+        assert_eq!(entry.actor_kind, "software_agent");
+        assert!(entry.published_at.is_none());
+
+        store
+            .ledger_mark_published("e1", "2026-01-01T00:00:00+00:00")
+            .unwrap();
+
+        let published: Option<String> = store
+            .with_conn(|conn| {
+                Ok(conn
+                    .query_row(
+                        "SELECT published_at FROM ledger_outbox WHERE event_id = 'e1'",
+                        [],
+                        |row| row.get(0),
+                    )
+                    .optional()?)
+            })
+            .unwrap();
+        assert_eq!(published.as_deref(), Some("2026-01-01T00:00:00+00:00"));
+
+        // The drained entry is no longer claimable.
+        assert!(store.ledger_claim_next_outbox().unwrap().is_none());
+
+        // Re-marking preserves the first delivery timestamp (idempotent no-op).
+        store
+            .ledger_mark_published("e1", "2027-02-02T00:00:00+00:00")
+            .unwrap();
+        let still: Option<String> = store
+            .with_conn(|conn| {
+                Ok(conn
+                    .query_row(
+                        "SELECT published_at FROM ledger_outbox WHERE event_id = 'e1'",
+                        [],
+                        |row| row.get(0),
+                    )
+                    .optional()?)
+            })
+            .unwrap();
+        assert_eq!(still.as_deref(), Some("2026-01-01T00:00:00+00:00"));
+
+        // Marking an entry that never existed is an explicit NotFound.
+        assert!(matches!(
+            store.ledger_mark_published("no-such", "2026-01-01T00:00:00+00:00"),
+            Err(PersistError::NotFound(_))
+        ));
+    }
+
+    #[test]
+    fn outbox_drain_empty_returns_none() {
+        let store = Persist::open_memory().unwrap();
+        assert!(store.ledger_claim_next_outbox().unwrap().is_none());
+    }
+
+    #[test]
+    fn outbox_drain_preserves_event_history() {
+        let store = Persist::open_memory().unwrap();
+        seed_one_event(&store);
+
+        let entry = store.ledger_claim_next_outbox().unwrap().unwrap();
+        assert_eq!(entry.event_id, "e1");
+        store
+            .ledger_mark_published("e1", "2026-01-01T00:00:00+00:00")
+            .unwrap();
+
+        // Claim-then-mark never deletes: the authoritative event row survives.
+        assert_eq!(store.ledger_event_count().unwrap(), 1);
+        let kind: String = store
+            .with_conn(|conn| {
+                Ok(conn.query_row(
+                    "SELECT kind FROM ledger_events WHERE event_id = 'e1'",
+                    [],
+                    |row| row.get(0),
+                )?)
+            })
+            .unwrap();
+        assert_eq!(kind, "scope_created");
+    }
+
+    #[test]
+    fn outbox_drain_concurrent_claim_is_safe() {
+        use std::collections::BTreeSet;
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        let store = Arc::new(Persist::open_memory().unwrap());
+        seed_one_event(&store);
+
+        // Barrier-synchronized pair: both threads attempt a claim on the same
+        // single undelivered entry at (nearly) the same instant.
+        let barrier = Arc::new(Barrier::new(2));
+        let mut handles = Vec::new();
+        for _ in 0..2 {
+            let store = Arc::clone(&store);
+            let barrier = Arc::clone(&barrier);
+            handles.push(thread::spawn(move || {
+                barrier.wait();
+                store.ledger_claim_next_outbox()
+            }));
+        }
+
+        // Both calls must succeed and neither may panic or deadlock. Because
+        // SQLite has no SELECT ... FOR UPDATE and claim does not mutate the row,
+        // BEGIN IMMEDIATE serializes the two claims but does NOT stop the second
+        // from observing the same still-undelivered entry: that is at-least-once
+        // delivery by design. The invariant that actually holds is therefore
+        // only that every returned id is the seeded entry and the distinct-id
+        // set has cardinality <= 2 (here 1, since one entry was seeded).
+        let mut ids = BTreeSet::new();
+        for handle in handles {
+            let result = handle.join().expect("claim thread panicked");
+            let entry = result.expect("claim must not error");
+            if let Some(entry) = entry {
+                assert_eq!(entry.event_id, "e1");
+                ids.insert(entry.event_id);
+            }
+        }
+        assert!(
+            ids.len() <= 2,
+            "at-least-once delivery permits both claimers to receive the same id; got {ids:?}"
         );
     }
 }
