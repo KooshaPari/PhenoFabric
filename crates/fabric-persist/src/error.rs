@@ -3,6 +3,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum PersistError {
     #[error("database error: {0}")]
     Database(#[from] rusqlite::Error),

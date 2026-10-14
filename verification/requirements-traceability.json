@@ -705,7 +705,7 @@
     "requirement": "Child delegation and shared work must not multiply authority or physical reservations",
     "spec": "027-global-nested-ledger",
     "verification": "PF-ST-TXN-03",
-    "acceptance": "PF-AT-TXN-02",
+    "acceptance": "PF-AT-TXN-02, PF-AT-TXN-03",
     "evidence": "Pure ShareCLI guards and local SQL capacity tests only",
     "state": "Proposed"
   },
@@ -715,7 +715,7 @@
     "requirement": "Effect identity, unknown retries, cancellation and recipient-side fencing preserved",
     "spec": "027-global-nested-ledger",
     "verification": "PF-ST-TXN-04",
-    "acceptance": "PF-AT-TXN-04",
+    "acceptance": "PF-AT-TXN-04, PF-AT-TXN-05",
     "evidence": "Proposed contract; native broker pending",
     "state": "Proposed"
   },
