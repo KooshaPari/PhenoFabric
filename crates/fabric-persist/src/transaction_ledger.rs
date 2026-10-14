@@ -253,7 +253,13 @@ impl Persist {
                     scope_id,
                     actor.id,
                     actor.kind.as_str(),
-                    verified_receipt_ref
+                    // payload is JSON so outbox consumers can identify which
+                    // reservation was released; receipt_ref alone is ambiguous
+                    // when two reservations share a reclamation receipt.
+                    format!(
+                        "{{\"reservation_id\":\"{}\",\"receipt_ref\":\"{}\"}}",
+                        reservation_id, verified_receipt_ref
+                    )
                 ],
             )?;
             tx.execute("INSERT INTO ledger_outbox(event_id) VALUES(?1)", [event_id])?;
@@ -380,5 +386,44 @@ mod tests {
             .with_conn(|conn| Ok(conn.execute("UPDATE ledger_events SET kind = 'tampered'", [])?));
         assert!(result.is_err());
         assert_eq!(store.ledger_event_count().unwrap(), 1);
+    }
+
+    #[test]
+    fn reclaimed_event_payload_identifies_reservation() {
+        let store = Persist::open_memory().unwrap();
+        let actor = LedgerActor {
+            id: "a",
+            kind: LedgerActorKind::SoftwareAgent,
+        };
+        store
+            .ledger_create_scope("root", None, &actor, "e1")
+            .unwrap();
+        store
+            .ledger_define_capacity("cpu", "root", 1, &actor, "e2")
+            .unwrap();
+        assert!(store
+            .ledger_reserve("r1", "cpu", "root", 1, &actor, "e3")
+            .unwrap());
+        assert!(store
+            .ledger_reclaim("r1", "verified/stop-1", &actor, "e4")
+            .unwrap());
+        let payload: String = store
+            .with_conn(|conn| {
+                Ok(conn.query_row(
+                    "SELECT payload FROM ledger_events
+                     WHERE event_id = 'e4' AND kind = 'reclaimed'",
+                    [],
+                    |row| row.get(0),
+                )?)
+            })
+            .unwrap();
+        assert!(
+            payload.contains("\"reservation_id\":\"r1\""),
+            "reclaimed event payload must identify the released reservation: {payload}"
+        );
+        assert!(
+            payload.contains("\"receipt_ref\":\"verified/stop-1\""),
+            "reclaimed event payload must preserve the verified receipt: {payload}"
+        );
     }
 }
