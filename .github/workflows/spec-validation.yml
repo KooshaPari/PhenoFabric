@@ -34,6 +34,7 @@ on:
       - "cmd/wire/go.mod"
       - "cmd/wire/testdata/**/*.json"
       - "program/scripts/**"
+      - ".github/workflows/spec-validation.yml"
       - "MANIFEST.sha256"
 
 jobs:
@@ -69,32 +70,43 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: "1.21"
+          # cmd/capprobe/go.mod declares `go 1.22` (the highest of the three
+          # cmd/<name>/go.mod files). Pin to 1.22 here so the module can be
+          # loaded without needing GOTOOLCHAIN=auto to fetch a newer toolchain
+          # at run time.
+          go-version: "1.22"
           cache: false
 
       - name: Go vet (capprobe)
-        run: go vet ./cmd/capprobe/...
+        working-directory: cmd/capprobe
+        run: go vet ./...
 
       - name: Go test (capprobe)
-        run: go test -count=1 ./cmd/capprobe/...
+        working-directory: cmd/capprobe
+        run: go test -count=1 ./...
 
       - name: Go vet (checker)
-        run: go vet ./cmd/checker/...
+        working-directory: cmd/checker
+        run: go vet ./...
 
       - name: Go test (checker)
-        run: go test -count=1 ./cmd/checker/...
+        working-directory: cmd/checker
+        run: go test -count=1 ./...
 
       - name: Go vet (wire)
-        run: go vet ./cmd/wire/...
+        working-directory: cmd/wire
+        run: go vet ./...
 
       - name: Go test (wire)
-        run: go test -count=1 ./cmd/wire/...
+        working-directory: cmd/wire
+        run: go test -count=1 ./...
 
       - name: Run fabric checker against acceptance fixture
+        working-directory: cmd/checker
         run: |
-          go build -o /tmp/fabric-checker ./cmd/checker
+          go build -o /tmp/fabric-checker .
           # Admit fixture
-          go run ./cmd/checker cmd/checker/testdata/admit/descriptor.json cmd/checker/testdata/admit/manifest.yaml || true
+          go run . testdata/admit/descriptor.json testdata/admit/manifest.yaml || true
 
   rust-check:
     name: Rust test (workspace)
@@ -114,6 +126,35 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install Linux GUI dependencies
+        # fabric-persist and the GUI/surface crates pull in glib-sys, atk-sys,
+        # cairo-sys and similar -sys crates whose build scripts need the
+        # matching system headers and pkg-config files. Without these, the
+        # `cargo test --workspace` build fails inside
+        # target/debug/build/<crate>-<hash>/build-script-build with
+        # "Package glib-2.0 was not found in the pkg-config search path."
+        # This list mirrors the install step in .github/workflows/ci.yml
+        # (clippy job) exactly so both workflows stay consistent.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libglib2.0-dev \
+            libatk1.0-dev \
+            libatk-bridge2.0-dev \
+            libdbus-1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libgdk-pixbuf-2.0-dev \
+            libpango1.0-dev \
+            libcairo2-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev
 
       - name: Cargo test (workspace)
         run: cargo test --workspace --no-fail-fast
