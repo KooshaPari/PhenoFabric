@@ -64,7 +64,7 @@ This ADR must be reviewed when:
 
 ## References
 
-- [`../PRD.md`](../PRD.md)
+- [`../PRD.md`](../../PRD.md)
 - [`../HLD.md`](../../../HLD.md)
 - [`../LLD.md`](../../../LLD.md)
 - [`../intent/000-source-prompts.md`](../../../intent/000-source-prompts.md)

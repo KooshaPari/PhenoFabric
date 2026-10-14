@@ -26,7 +26,7 @@
 
 # Architecture Decision Records
 
-- [ADR Index](./adr/index.md)
+- [ADR Index](./adr/INDEX.md)
 - [ADR-0001 — Fabric Product Boundary](./adr/0001-fabric-product-boundary.md)
 - [ADR-0002 — One Shell, Modular Runtime](./adr/0002-one-shell-modular-runtime.md)
 - [ADR-0003 — Typed Node-Port-Link Graph](./adr/0003-universal-typed-graph.md)
