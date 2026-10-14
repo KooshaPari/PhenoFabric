@@ -403,7 +403,7 @@ This is a one-line PhantomData addition that prevents an entire class of bugs wi
 
 - [Pony reference capabilities](https://www.ponylang.io/reference-capabilities/)
 - [Pony tutorial: Reference capabilities](https://tutorial.ponylang.io/capabilities/reference-capabilities.html)
-- [Fabric PF-FR-002: Locality tier invariants](../specs/)
-- [Fabric PF-WP-015: Surface plane spec](../specs/)
-- [Fabric PF-WP-021: Failover and re-planning](../specs/)
+- [Fabric PF-FR-002: Locality tier invariants](../../../specs/)
+- [Fabric PF-WP-015: Surface plane spec](../../../specs/)
+- [Fabric PF-WP-021: Failover and re-planning](../../../specs/)
 - [Rustonomicon: PhantomData](https://doc.rust-lang.org/nomicon/phantom-data.html)

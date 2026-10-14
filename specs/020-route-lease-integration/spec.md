@@ -3,7 +3,7 @@
 **Status:** draft
 **WP:** PF-WP-022
 **Release gate:** R1
-**Depends on:** [specs/019-surface-plane](../019-surface-plane/spec.md), [adr/0030-route-failover-model.md](../../adr/0030-route-failover-model.md)
+**Depends on:** [specs/019-surface-plane](../019-surface-plane/spec.md), [adr/0030-route-failover-model.md](../../docs/adr/0030-route-failover-model.md)
 **Enables:** specs/017 (workspace persistence)
 
 ## 1. Background

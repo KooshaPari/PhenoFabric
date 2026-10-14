@@ -12,10 +12,10 @@
 
 1. [README](README.md) — scope, principles, ecosystem boundary and map.
 2. [Exact human prompts](intent/000-source-prompts.md) → [intent synthesis](intent/001-intent-synthesis.md).
-3. [PRD](PRD.md) → [normative specification](SPECIFICATION.md) → [functional](FUNCTIONAL_REQUIREMENTS.md) and [non-functional](NON_FUNCTIONAL_REQUIREMENTS.md) requirements.
+3. [PRD](docs/PRD.md) → [normative specification](docs/SPECIFICATION.md) → [functional](FUNCTIONAL_REQUIREMENTS.md) and [non-functional](NON_FUNCTIONAL_REQUIREMENTS.md) requirements.
 4. [HLD](HLD.md) → [ALD](ALD.md) → [LLD](LLD.md) → detailed [architecture](architecture/README.md).
-5. [AgilePlus-shaped specs](specs/INDEX.md) and [ADRs](adr/INDEX.md).
-6. [WBS/PERT/DAG](work/README.md), [roadmap](ROADMAP.md) and [research set](research/README.md).
+5. [AgilePlus-shaped specs](specs/INDEX.md) and [ADRs](docs/adr/INDEX.md).
+6. [WBS/PERT/DAG](work/README.md), [roadmap](ROADMAP.md) and [research set](docs/research/README.md).
 7. [2026 SOTA/competitive corpus](sota/README.md).
 8. [Verification](verification/README.md), [operations](operations/README.md), [risks](risks/README.md) and [examples](examples/README.md).
 9. [Traceability](TRACEABILITY.md), [validation](VALIDATION_REPORT.md) and [manifest](MANIFEST.sha256).
@@ -47,11 +47,11 @@
 - [`MANIFEST.sha256`](MANIFEST.sha256) — SHA-256 manifest — generated during packaging
 - [`NON_FUNCTIONAL_REQUIREMENTS.md`](NON_FUNCTIONAL_REQUIREMENTS.md) — Non-Functional Requirements — 6,310 bytes
 - [`PLAN.md`](PLAN.md) — Program Plan — 2,241 bytes
-- [`PRD.md`](PRD.md) — Phenotype Fabric — Product Requirements Document — 14,891 bytes
+- [`PRD.md`](docs/PRD.md) — Phenotype Fabric — Product Requirements Document — 14,891 bytes
 - [`README.md`](README.md) — Phenotype Fabric — 8,332 bytes
 - [`ROADMAP.md`](ROADMAP.md) — Product and Research Roadmap — 2,120 bytes
 - [`SECURITY.md`](SECURITY.md) — Security Policy and Design Entry Point — 857 bytes
-- [`SPECIFICATION.md`](SPECIFICATION.md) — Normative System Specification — 2,739 bytes
+- [`SPECIFICATION.md`](docs/SPECIFICATION.md) — Normative System Specification — 2,739 bytes
 - [`STATUS.md`](STATUS.md) — Document and Project Status — 2,820 bytes
 - [`SYSTEM_REQUIREMENTS.md`](SYSTEM_REQUIREMENTS.md) — System and Platform Requirements — 3,350 bytes
 - [`TRACEABILITY.md`](TRACEABILITY.md) — End-to-End Intent Traceability — 2,641 bytes
@@ -123,28 +123,28 @@
 
 ## Architecture Decision Records
 
-- [`adr/0001-fabric-product-boundary.md`](adr/0001-fabric-product-boundary.md) — ADR 0001 — Define Phenotype Fabric as the execution/data/I-O substrate — 2,909 bytes
-- [`adr/0002-one-shell-modular-runtime.md`](adr/0002-one-shell-modular-runtime.md) — ADR 0002 — One packaged product shell over modular adapters — 2,832 bytes
-- [`adr/0003-universal-typed-graph.md`](adr/0003-universal-typed-graph.md) — ADR 0003 — Use a PipeWire/JACK-inspired typed node-port-link graph — 2,835 bytes
-- [`adr/0004-locality-first-route-selection.md`](adr/0004-locality-first-route-selection.md) — ADR 0004 — Search locality tiers before remote transports — 2,799 bytes
-- [`adr/0005-atomic-capability-adaptive-regions.md`](adr/0005-atomic-capability-adaptive-regions.md) — ADR 0005 — Permit atomic placement but execute fused regions by default — 2,904 bytes
-- [`adr/0006-multi-projection-shared-identity.md`](adr/0006-multi-projection-shared-identity.md) — ADR 0006 — Keep compute, data, I/O, resource, and product graphs as projections — 2,757 bytes
-- [`adr/0007-no-universal-database.md`](adr/0007-no-universal-database.md) — ADR 0007 — Do not introduce a universal database or ontology — 2,748 bytes
-- [`adr/0008-protected-realtime-islands.md`](adr/0008-protected-realtime-islands.md) — ADR 0008 — Protect local real-time islands before distributing critical loops — 2,799 bytes
-- [`adr/0009-shared-memory-before-codecs.md`](adr/0009-shared-memory-before-codecs.md) — ADR 0009 — Prefer shared memory and device DMA before compression — 2,803 bytes
-- [`adr/0010-semantic-before-pixel.md`](adr/0010-semantic-before-pixel.md) — ADR 0010 — Prefer semantic application remoting before pixel proxies — 2,792 bytes
-- [`adr/0011-mobility-hierarchy.md`](adr/0011-mobility-hierarchy.md) — ADR 0011 — Use a mobility hierarchy instead of one process-migration claim — 2,785 bytes
-- [`adr/0012-exclusive-route-leases.md`](adr/0012-exclusive-route-leases.md) — ADR 0012 — Use leases and fencing tokens for exclusive focus and routes — 2,753 bytes
-- [`adr/0013-independent-media-clocks.md`](adr/0013-independent-media-clocks.md) — ADR 0013 — Treat input, audio, video, and device clocks independently — 2,872 bytes
-- [`adr/0014-color-hdr-first-class.md`](adr/0014-color-hdr-first-class.md) — ADR 0014 — Make color and HDR intent authoritative graph metadata — 2,836 bytes
-- [`adr/0015-sharecli-boundary.md`](adr/0015-sharecli-boundary.md) — ADR 0015 — Keep ShareCLI standalone and integrate it as a privileged runtime client — 2,848 bytes
-- [`adr/0016-ecosystem-authority.md`](adr/0016-ecosystem-authority.md) — ADR 0016 — Preserve AGSLAG, AgilePlus, thegent, Tracera, and ledger authority — 2,833 bytes
-- [`adr/0017-agent-non-stealing.md`](adr/0017-agent-non-stealing.md) — ADR 0017 — Agents may publish and request attention but not steal focus — 2,752 bytes
-- [`adr/0018-oob-independent-recovery.md`](adr/0018-oob-independent-recovery.md) — ADR 0018 — Maintain an independent out-of-band recovery plane — 2,673 bytes
-- [`adr/0019-mutual-pairing-privileged-isolation.md`](adr/0019-mutual-pairing-privileged-isolation.md) — ADR 0019 — Use mutual identity and narrow privileged helpers — 2,734 bytes
-- [`adr/0020-provisional-name.md`](adr/0020-provisional-name.md) — ADR 0020 — Use Phenotype Fabric as a working name only — 2,685 bytes
-- [`adr/0021-object-authority-immutability.md`](adr/0021-object-authority-immutability.md) — ADR 0021 — Prefer immutable objects and explicit mutable authority — 2,726 bytes
-- [`adr/0022-control-data-plane-separation.md`](adr/0022-control-data-plane-separation.md) — ADR 0022 — Keep coordinator off payload and RT hot paths — 2,742 bytes
+- [`adr/0001-fabric-product-boundary.md`](docs/adr/0001-fabric-product-boundary.md) — ADR 0001 — Define Phenotype Fabric as the execution/data/I-O substrate — 2,909 bytes
+- [`adr/0002-one-shell-modular-runtime.md`](docs/adr/0002-one-shell-modular-runtime.md) — ADR 0002 — One packaged product shell over modular adapters — 2,832 bytes
+- [`adr/0003-universal-typed-graph.md`](docs/adr/0003-universal-typed-graph.md) — ADR 0003 — Use a PipeWire/JACK-inspired typed node-port-link graph — 2,835 bytes
+- [`adr/0004-locality-first-route-selection.md`](docs/adr/0004-locality-first-route-selection.md) — ADR 0004 — Search locality tiers before remote transports — 2,799 bytes
+- [`adr/0005-atomic-capability-adaptive-regions.md`](docs/adr/0005-atomic-capability-adaptive-regions.md) — ADR 0005 — Permit atomic placement but execute fused regions by default — 2,904 bytes
+- [`adr/0006-multi-projection-shared-identity.md`](docs/adr/0006-multi-projection-shared-identity.md) — ADR 0006 — Keep compute, data, I/O, resource, and product graphs as projections — 2,757 bytes
+- [`adr/0007-no-universal-database.md`](docs/adr/0007-no-universal-database.md) — ADR 0007 — Do not introduce a universal database or ontology — 2,748 bytes
+- [`adr/0008-protected-realtime-islands.md`](docs/adr/0008-protected-realtime-islands.md) — ADR 0008 — Protect local real-time islands before distributing critical loops — 2,799 bytes
+- [`adr/0009-shared-memory-before-codecs.md`](docs/adr/0009-shared-memory-before-codecs.md) — ADR 0009 — Prefer shared memory and device DMA before compression — 2,803 bytes
+- [`adr/0010-semantic-before-pixel.md`](docs/adr/0010-semantic-before-pixel.md) — ADR 0010 — Prefer semantic application remoting before pixel proxies — 2,792 bytes
+- [`adr/0011-mobility-hierarchy.md`](docs/adr/0011-mobility-hierarchy.md) — ADR 0011 — Use a mobility hierarchy instead of one process-migration claim — 2,785 bytes
+- [`adr/0012-exclusive-route-leases.md`](docs/adr/0012-exclusive-route-leases.md) — ADR 0012 — Use leases and fencing tokens for exclusive focus and routes — 2,753 bytes
+- [`adr/0013-independent-media-clocks.md`](docs/adr/0013-independent-media-clocks.md) — ADR 0013 — Treat input, audio, video, and device clocks independently — 2,872 bytes
+- [`adr/0014-color-hdr-first-class.md`](docs/adr/0014-color-hdr-first-class.md) — ADR 0014 — Make color and HDR intent authoritative graph metadata — 2,836 bytes
+- [`adr/0015-sharecli-boundary.md`](docs/adr/0015-sharecli-boundary.md) — ADR 0015 — Keep ShareCLI standalone and integrate it as a privileged runtime client — 2,848 bytes
+- [`adr/0016-ecosystem-authority.md`](docs/adr/0016-ecosystem-authority.md) — ADR 0016 — Preserve AGSLAG, AgilePlus, thegent, Tracera, and ledger authority — 2,833 bytes
+- [`adr/0017-agent-non-stealing.md`](docs/adr/0017-agent-non-stealing.md) — ADR 0017 — Agents may publish and request attention but not steal focus — 2,752 bytes
+- [`adr/0018-oob-independent-recovery.md`](docs/adr/0018-oob-independent-recovery.md) — ADR 0018 — Maintain an independent out-of-band recovery plane — 2,673 bytes
+- [`adr/0019-mutual-pairing-privileged-isolation.md`](docs/adr/0019-mutual-pairing-privileged-isolation.md) — ADR 0019 — Use mutual identity and narrow privileged helpers — 2,734 bytes
+- [`adr/0020-provisional-name.md`](docs/adr/0020-provisional-name.md) — ADR 0020 — Use Phenotype Fabric as a working name only — 2,685 bytes
+- [`adr/0021-object-authority-immutability.md`](docs/adr/0021-object-authority-immutability.md) — ADR 0021 — Prefer immutable objects and explicit mutable authority — 2,726 bytes
+- [`adr/0022-control-data-plane-separation.md`](docs/adr/0022-control-data-plane-separation.md) — ADR 0022 — Keep coordinator off payload and RT hot paths — 2,742 bytes
 
 ## Detailed architecture and schemas
 
@@ -213,16 +213,16 @@
 
 ## Research and falsification
 
-- [`research/README.md`](research/README.md) — Research Set — 531 bytes
-- [`research/experiments.json`](research/experiments.json) — experiments.json — 7,242 bytes
-- [`research/experiments.md`](research/experiments.md) — Experiment Catalog — 5,766 bytes
-- [`research/graduation-gates.md`](research/graduation-gates.md) — Research Graduation Gates — 1,216 bytes
-- [`research/hypotheses.json`](research/hypotheses.json) — hypotheses.json — 9,425 bytes
-- [`research/hypotheses.md`](research/hypotheses.md) — Research Hypotheses and Falsification Register — 7,657 bytes
-- [`research/literature-map.md`](research/literature-map.md) — Literature and Prior-Art Map — 1,952 bytes
-- [`research/open-questions.md`](research/open-questions.md) — Open Questions — 2,567 bytes
-- [`research/research-program.md`](research/research-program.md) — Research Program — 1,593 bytes
-- [`research/source-register.md`](research/source-register.md) — Source Register — 5,930 bytes
+- [`research/README.md`](docs/research/README.md) — Research Set — 531 bytes
+- [`research/experiments.json`](docs/research/experiments.json) — experiments.json — 7,242 bytes
+- [`research/experiments.md`](docs/research/experiments.md) — Experiment Catalog — 5,766 bytes
+- [`research/graduation-gates.md`](docs/research/graduation-gates.md) — Research Graduation Gates — 1,216 bytes
+- [`research/hypotheses.json`](docs/research/hypotheses.json) — hypotheses.json — 9,425 bytes
+- [`research/hypotheses.md`](docs/research/hypotheses.md) — Research Hypotheses and Falsification Register — 7,657 bytes
+- [`research/literature-map.md`](docs/research/literature-map.md) — Literature and Prior-Art Map — 1,952 bytes
+- [`research/open-questions.md`](docs/research/open-questions.md) — Open Questions — 2,567 bytes
+- [`research/research-program.md`](docs/research/research-program.md) — Research Program — 1,593 bytes
+- [`research/source-register.md`](docs/research/source-register.md) — Source Register — 5,930 bytes
 
 ## Verification and evidence
 
@@ -243,18 +243,18 @@
 
 ## Phenotype ecosystem integration
 
-- [`ecosystem/README.md`](ecosystem/README.md) — Phenotype Ecosystem Integration — 555 bytes
-- [`ecosystem/agileplus.md`](ecosystem/agileplus.md) — AgilePlus Integration — 1,110 bytes
-- [`ecosystem/agslag.md`](ecosystem/agslag.md) — AGSLAG Integration — 992 bytes
-- [`ecosystem/boundaries.md`](ecosystem/boundaries.md) — Ecosystem Authority and Product Boundaries — 3,066 bytes
-- [`ecosystem/event-contracts.json`](ecosystem/event-contracts.json) — event-contracts.json — 2,856 bytes
-- [`ecosystem/event-contracts.md`](ecosystem/event-contracts.md) — Cross-Product Event Contracts — 2,589 bytes
-- [`ecosystem/integration-matrix.md`](ecosystem/integration-matrix.md) — Integration Matrix — 1,327 bytes
-- [`ecosystem/ledgers.md`](ecosystem/ledgers.md) — Ledger Integrations — 1,248 bytes
-- [`ecosystem/nvms-labs-compute.md`](ecosystem/nvms-labs-compute.md) — NVMS and labs-compute Relationship — 1,322 bytes
-- [`ecosystem/sharecli.md`](ecosystem/sharecli.md) — ShareCLI Integration — 1,771 bytes
-- [`ecosystem/thegent.md`](ecosystem/thegent.md) — thegent Integration — 1,006 bytes
-- [`ecosystem/tracera.md`](ecosystem/tracera.md) — Tracera Integration — 1,303 bytes
+- [`ecosystem/README.md`](docs/ecosystem/README.md) — Phenotype Ecosystem Integration — 555 bytes
+- [`ecosystem/agileplus.md`](docs/ecosystem/agileplus.md) — AgilePlus Integration — 1,110 bytes
+- [`ecosystem/agslag.md`](docs/ecosystem/agslag.md) — AGSLAG Integration — 992 bytes
+- [`ecosystem/boundaries.md`](docs/ecosystem/boundaries.md) — Ecosystem Authority and Product Boundaries — 3,066 bytes
+- [`ecosystem/event-contracts.json`](docs/ecosystem/event-contracts.json) — event-contracts.json — 2,856 bytes
+- [`ecosystem/event-contracts.md`](docs/ecosystem/event-contracts.md) — Cross-Product Event Contracts — 2,589 bytes
+- [`ecosystem/integration-matrix.md`](docs/ecosystem/integration-matrix.md) — Integration Matrix — 1,327 bytes
+- [`ecosystem/ledgers.md`](docs/ecosystem/ledgers.md) — Ledger Integrations — 1,248 bytes
+- [`ecosystem/nvms-labs-compute.md`](docs/ecosystem/nvms-labs-compute.md) — NVMS and labs-compute Relationship — 1,322 bytes
+- [`ecosystem/sharecli.md`](docs/ecosystem/sharecli.md) — ShareCLI Integration — 1,771 bytes
+- [`ecosystem/thegent.md`](docs/ecosystem/thegent.md) — thegent Integration — 1,006 bytes
+- [`ecosystem/tracera.md`](docs/ecosystem/tracera.md) — Tracera Integration — 1,303 bytes
 
 ## Reference scenarios and configuration
 

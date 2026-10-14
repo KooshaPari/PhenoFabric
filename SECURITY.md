@@ -39,6 +39,6 @@ The system can observe screens/audio/input, inject control, create realms, move 
 - Security architecture: [`architecture/security.md`](architecture/security.md)
 - Security verification: [`verification/security-test-plan.md`](verification/security-test-plan.md)
 - Incident response: [`operations/incident-response.md`](operations/incident-response.md)
-- Pairing/privilege ADR: [`adr/0019-mutual-pairing-privileged-isolation.md`](adr/0019-mutual-pairing-privileged-isolation.md)
+- Pairing/privilege ADR: [`adr/0019-mutual-pairing-privileged-isolation.md`](docs/adr/0019-mutual-pairing-privileged-isolation.md)
 
 Security issues must not be placed in public logs/evidence bundles.

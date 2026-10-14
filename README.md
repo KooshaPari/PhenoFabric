@@ -71,8 +71,8 @@ The first validation environment is deliberately hostile rather than idle:
 
 ## Documentation map
 
-- [`PRD.md`](PRD.md) — product requirements and user journeys.
-- [`SPECIFICATION.md`](SPECIFICATION.md) — normative system specification and conformance rules.
+- [`PRD.md`](docs/PRD.md) — product requirements and user journeys.
+- [`SPECIFICATION.md`](docs/SPECIFICATION.md) — normative system specification and conformance rules.
 - [`HLD.md`](HLD.md) — high-level system architecture.
 - [`ALD.md`](ALD.md) — architecture/abstraction lowering from intent to physical routes.
 - [`LLD.md`](LLD.md) — low-level component and hot-path design.
@@ -83,13 +83,13 @@ The first validation environment is deliberately hostile rather than idle:
 - [`NON_FUNCTIONAL_REQUIREMENTS.md`](NON_FUNCTIONAL_REQUIREMENTS.md) — performance, quality, reliability, and security requirements.
 - [`intent/`](intent/) — verbatim human prompts and formal intent synthesis.
 - [`specs/`](specs/) — AgilePlus-shaped feature specifications, plans, and task catalogs.
-- [`adr/`](adr/) — architecture decisions and rejected alternatives.
+- [`adr/`](docs/adr/) — architecture decisions and rejected alternatives.
 - [`architecture/`](architecture/) — component, protocol, platform, and graph details.
 - [`sota/`](sota/) — 2026 state-of-the-art and competitive analysis.
 - [`work/`](work/) — WBS, DAG, PERT, critical path, milestones, and research/build order.
-- [`research/`](research/) — hypotheses, experiments, source discipline, and open questions.
+- [`research/`](docs/research/) — hypotheses, experiments, source discipline, and open questions.
 - [`verification/`](verification/) — benchmark, fault, security, compatibility, and acceptance gates.
-- [`ecosystem/`](ecosystem/) — product boundaries and event-contract integration.
+- [`ecosystem/`](docs/ecosystem/) — product boundaries and event-contract integration.
 - [`examples/`](examples/) — concrete graph/workspace examples.
 - [`operations/`](operations/) — packaging, deployment, upgrades, SLOs, and recovery.
 - [`risks/`](risks/) — feasibility, threat, licensing, and vendor-dependency registers.

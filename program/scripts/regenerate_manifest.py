@@ -6,7 +6,7 @@ import hashlib
 import sys
 from pathlib import Path
 
-EXCLUDE_DIRS = {".git", ".archive", "node_modules", "__pycache__", "target"}
+EXCLUDE_DIRS = {".git", ".archive", "node_modules", "__pycache__", "target", "tmp_local"}
 EXCLUDE_FILES = {"MANIFEST.sha256"}
 
 

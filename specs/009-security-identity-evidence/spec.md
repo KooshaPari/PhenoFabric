@@ -107,7 +107,7 @@ The feature must improve the packaged experience while preserving the physical a
 
 ## Traces
 
-- Parent PRD: [`../../PRD.md`](../../PRD.md)
+- Parent PRD: [`../../docs/PRD.md`](../../docs/PRD.md)
 - HLD: [`../../HLD.md`](../../HLD.md)
 - LLD: [`../../LLD.md`](../../LLD.md)
 - Verification: [`../../verification/requirements-traceability-matrix.md`](../../verification/requirements-traceability-matrix.md)

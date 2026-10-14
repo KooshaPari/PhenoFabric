@@ -3,7 +3,7 @@
 **Status:** draft
 **WP:** PF-WP-016
 **Release gate:** R1
-**Depends on:** [adr/0023-capability-inventory-schema.md](../../adr/0023-capability-inventory-schema.md) (signature format), [adr/0028-testdata-verification-pattern.md](../../adr/0028-testdata-verification-pattern.md) (fixtures unchanged)
+**Depends on:** [adr/0023-capability-inventory-schema.md](../../docs/adr/0023-capability-inventory-schema.md) (signature format), [adr/0028-testdata-verification-pattern.md](../../docs/adr/0028-testdata-verification-pattern.md) (fixtures unchanged)
 **Enables:** PF-WP-017 (workspace persistence — wire revocation events into the workspace event log), PF-WP-022 R3 (multi-tenant fairness)
 
 ## 1. Background

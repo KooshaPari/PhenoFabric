@@ -66,7 +66,7 @@ This ADR must be reviewed when:
 ## References
 
 - [`../PRD.md`](../PRD.md)
-- [`../HLD.md`](../HLD.md)
-- [`../LLD.md`](../LLD.md)
-- [`../intent/000-source-prompts.md`](../intent/000-source-prompts.md)
-- [`../verification/acceptance-gates.md`](../verification/acceptance-gates.md)
+- [`../HLD.md`](../../../HLD.md)
+- [`../LLD.md`](../../../LLD.md)
+- [`../intent/000-source-prompts.md`](../../../intent/000-source-prompts.md)
+- [`../verification/acceptance-gates.md`](../../../verification/acceptance-gates.md)

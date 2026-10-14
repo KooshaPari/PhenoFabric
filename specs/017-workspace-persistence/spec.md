@@ -6,7 +6,7 @@
 **Author:** Fabric session 2026-09-01
 **Depends on:** PF-WP-020 (route compiler), PF-WP-021 (route failover)
 **Implements:** PF-FR-031, PF-FR-032, PF-FR-033
-**ADRs:** [0025](../../adr/0025-route-lease-semantic-model.md)
+**ADRs:** [0025](../../docs/adr/0025-route-lease-semantic-model.md)
 
 ## Intent
 
