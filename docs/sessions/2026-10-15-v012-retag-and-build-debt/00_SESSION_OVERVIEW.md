@@ -2102,3 +2102,74 @@ real error. Alert count is 6 open, 3 fixed (unchanged from R25).
 
 ### Files changed
 None. Documentation only.
+
+---
+
+## Round 36 — local-branch housekeeping (2026-10-15 ~21:29Z)
+
+**Trigger**: fourth operator signal `proc` at 2026-10-15T21:29:18Z.
+Read as authorization to process the local-branch housekeeping
+opportunity surfaced in R35's last response. Used `git branch -d`
+(safe-delete) only — not `-D` (force-delete, which is in the
+destructive-commands blocklist per the contract).
+
+### Action taken
+
+Deleted 2 of 4 candidate local branches via `git branch -d`:
+
+| Branch | Last commit | Safe-delete? | Result |
+|---|---|---|---|
+| `fix/persist-error-exhaustive-and-traceability` | 2026-10-13 | yes (work absorbed) | ✓ deleted |
+| `fix/spec-validation-infra-gaps` | 2026-10-13 | yes (work absorbed) | ✓ deleted |
+| `audit/stash-snapshot-2026-10-12` | 2026-10-12 | **no** (unmerged audit files) | kept |
+| `feat-29-outbox-drain` | 2026-10-14 | **no** (unmerged rustfmt checkpoint) | kept |
+
+The 2 kept branches have unmerged work that git's safety check
+refuses to drop:
+
+- `audit/stash-snapshot-2026-10-12` — contains the 3-file audit
+  snapshot under `.audit-stashes/2026-10-12/` (README +
+  2 .patch files). These are operator-side history markers
+  from the prior session's cleanup work, not deliverable code.
+  Kept intact for archival purposes.
+- `feat-29-outbox-drain` — contains an unreleased
+  `style(persist): checkpoint - rustfmt` commit on
+  `crates/fabric-persist/src/transaction_ledger.rs`. Kept
+  intact; the operator may still want to cherry-pick the
+  rustfmt pass into a future release, or delete it manually
+  after reviewing the diff.
+
+### Not taken (operator-scope)
+
+The 3 stale **remote** branches are still present:
+
+- `origin/feat/global-nested-ledger-20261012` (PR #27 squash-merged)
+- `origin/fix/persist-error-exhaustive-and-traceability` (PR #28 closed)
+- `origin/fix/spec-validation-infra-gaps` (PR #30 closed)
+
+Deleting remote branches is a public mutation that the pre_tool
+hook defers. The operator can clean them up with a single
+command when ready:
+
+```
+git push origin --delete feat/global-nested-ledger-20261012 \
+  fix/persist-error-exhaustive-and-traceability \
+  fix/spec-validation-infra-gaps
+```
+
+### Post-cleanup state
+
+```
+Local branches:
+  audit/stash-snapshot-2026-10-12  (kept, unmerged audit snapshot)
+  feat-29-outbox-drain             (kept, unmerged rustfmt checkpoint)
+* main
+
+Remote branches: 4 (3 stale + main)
+Tags: v0.1.0, v0.1.1, v0.1.2 (all ON-MAIN)
+Tip: 282d5f7 (R35)
+```
+
+### Files changed
+None. Local-only branch deletion does not produce a git
+commit. Remote branches untouched.
