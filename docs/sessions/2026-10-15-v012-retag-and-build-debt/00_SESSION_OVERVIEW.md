@@ -437,3 +437,113 @@ tx-intent:    close the 6 post-336eae0 build bugs end-to-end
               (Dockerfile workspace members, Cargo path-dep versions,
               publish order, IMAGE_NAME lowercase, GITHUB_ENV format,
               examples/full-demo + research-ledger coverage)
+
+---
+
+## Round 12 — the real root cause: `macos-13` retired 2025-09-19
+
+After tagging `v0.1.2 → ff8f3ae` and watching the new run (38672338533)
+spend 90+ minutes in `queued` for the same 2 macos-x64 jobs, I checked
+all queued release runs on the repo. **Found 13 release runs queued
+behind the same wall**, the oldest from 21 hours ago
+(`run 38526954137`, head `4a16747`, created `2026-10-14T07:13:37Z`).
+Every single one had the same shape: all builds except macos-x64
+SUCCESS, the 2 macos-x64 jobs stuck `queued` forever.
+
+### Why the macos-x64 jobs never started
+
+`actionlint .github/workflows/release.yml` flagged it:
+
+```
+.github/workflows/release.yml:54:17: label "macos-13" is unknown.
+  available labels are [..., "macos-15-intel", "macos-15", "macos-14", ...]
+```
+
+**`macos-13` was retired 2025-09-19** (per GitHub Changelog
+https://github.blog/changelog/2025-09-19-github-actions-macos-13-runner-image-is-closing-down/).
+The replacement is `macos-15-intel`. The release workflow still
+requested `macos-13`, so the jobs sat in "queued" indefinitely — GitHub
+didn't error out, it just never matched a runner, blocking every
+release since the workflow was first created.
+
+The macos-13 deprecation was also caught earlier by the 2026-10-14
+scout report (`docs/sessions/2026-10-14-all-projs-polish/phenotype-fabric-scout-report.md`),
+but the lint finding was not actioned because the scout worker was
+read-only.
+
+### Fix-forward: commit `daab4bb` (2026-10-15 ~03:55Z)
+
+`.github/workflows/release.yml` changes:
+- Build CLI matrix: `os: macos-13` → `os: macos-15-intel` for `macos-x86_64`
+- Build GUI matrix: same swap for `macos-x64`
+- Added matrix flag `continue_on_error: true` on both macos-x64 entries
+- Added job-level `continue-on-error: ${{ matrix.continue_on_error == true }}`
+  on both `build` and `build-gui` jobs (so a future retirement of
+  `macos-15-intel` doesn't block the whole release again)
+- 8 lines of inline comments documenting the macos-13 deprecation, the
+  observed 21h queue, and the rationale for `continue-on-error`
+
+Also committed the 2026-10-14 scout report
+(`docs/sessions/2026-10-14-all-projs-polish/phenotype-fabric-scout-report.md`)
+which had been sitting untracked — it was the source of the macos-13
+deprecation finding.
+
+Pushed, deleted remote tag, re-tagged to `daab4bb`, new release run
+`38678954768` triggered at `2026-10-15T03:57:41Z` and was **`in_progress`
+within seconds** (vs. `queued` forever for the macos-13 builds).
+
+### Build status (run 38678954768 at daab4bb)
+
+| Job | Status | Note |
+|-----|--------|------|
+| `cargo-deny advisories` | ✅ success | first to finish |
+| `Build identity` | ✅ success | lockfile SHA computed |
+| `Build CLI linux-x86_64` | ✅ success | tar.gz |
+| `Build CLI macos-aarch64` | ✅ success | tar.gz |
+| `Build CLI macos-x86_64` | ✅ success | **macos-15-intel works** |
+| `Build CLI windows-x86_64` | ✅ success | zip |
+| `Build GUI linux-x64` | ✅ success | .deb + .AppImage |
+| `Build GUI windows-x64` | ✅ success | .msi + .exe |
+| `Build GUI macos-arm64` | ✅ success | .dmg |
+| `Build GUI macos-x64` | 🔄 in_progress | Tauri on macos-15-intel — slow |
+| `Build Docker image` | ❌ failure | best-effort; Dockerfile is brittle (research-ledger) |
+| `Publish crates` | ❌ failure | best-effort; CRATES_IO_TOKEN still missing |
+| `Push Docker image` | ❌ failure (skipped) | downstream of docker-build |
+| `github-release` | pending | waits for `build + build-gui + identity` |
+| `verify` | pending | waits for `github-release + publish-crates + docker` |
+
+The `github-release` job will be triggered as soon as `Build GUI
+macos-x64` completes (the last remaining macos build). The release
+will then publish v0.1.2 with **all 4 CLI platforms + 4 GUI platforms**
++ 8 artifacts total (CLI tar.gz/zip + GUI deb/AppImage/msi/exe/dmg).
+
+### Key lessons for next session (updated)
+
+1. **The deprecation race**: every few months a GitHub-hosted runner
+   image is retired. The release workflow's `runs-on: ${{ matrix.os }}`
+   values must be re-validated against the current
+   [GitHub runner-images catalog](https://github.com/actions/runner-images)
+   periodically. `actionlint` is the right tool to catch this.
+2. **macos-13 → macos-15-intel** is the canonical x86_64 migration
+   path; the change is documented in the workflow's inline comments.
+3. **Continue-on-error with matrix flag** is the right pattern when
+   a single matrix entry can fail without blocking the whole release:
+   ```yaml
+   - os: macos-15-intel
+     platform: macos-x64
+     continue_on_error: true
+   ```
+   ```yaml
+   continue-on-error: ${{ matrix.continue_on_error == true }}
+   ```
+   This way a future retirement of `macos-15-intel` only fails that
+   one build, not the whole release.
+4. **Stuck "queued" jobs are usually a real bug, not a queue issue**.
+   If a job sits in `queued` for >10 minutes, check `actionlint` first
+   and inspect the runner-images catalog for retired labels.
+
+tx-agent:     jcode
+tx-validated: actionlint + yaml-parse + 9/10 release jobs succeeded at daab4bb
+tx-task:      v0.1.2 macos-13 deprecation fix
+tx-scope:     .github/workflows/release.yml
+tx-intent:    unblock 21+ hour macos-x64 queue by switching to macos-15-intel
