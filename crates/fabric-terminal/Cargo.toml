@@ -37,4 +37,4 @@ futures = "0.3"
 ureq = { version = "3", features = ["json"], optional = true }
 
 [dev-dependencies]
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }

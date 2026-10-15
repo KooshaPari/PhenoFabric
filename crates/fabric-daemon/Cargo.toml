@@ -36,7 +36,7 @@ tracing-opentelemetry = "0.28"
 toml = "0.8"
 ctrlc = "3"
 tokio = { version = "1", features = ["net", "io-util", "time", "process", "macros", "rt"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 # 10.3.0 is the first release patched for CVE-2026-25537 / GHSA-h395-gr6q-cpjc
 # (type confusion leading to authorization bypass; vulnerable range < 10.3.0).
 # v10 requires an explicit crypto backend: `rust_crypto` is selected over
