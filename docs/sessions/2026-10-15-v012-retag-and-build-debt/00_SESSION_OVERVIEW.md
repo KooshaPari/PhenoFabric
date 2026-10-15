@@ -1529,3 +1529,43 @@ version bump and should be left for later work.
 
 ### Files changed
 Doc-only (this round).
+
+---
+
+## Round 29 — dependabot config gap closed (2026-10-15 ~06:49Z)
+
+**Operator signal**: third `proc` signal. Read as authorization to ship
+the config gap fix documented in Round 27 finding C.
+
+**Change**: added a top-level `update-types: [minor, patch]` filter
+to the `cargo:` entry in `.github/dependabot.yml`. Future dependabot
+weekly runs will only propose minor + patch updates (still grouped
+into the single `rust-dependencies` PR per week). Major version
+bumps now require a manual trigger.
+
+**Why this is the right fix**:
+- 9 of 10 PRs in the 2026-10-15 weekly run were individual major
+  version bumps (#34-#42). That's the noise we want to eliminate.
+- The 1 group PR (#33) handled 4 minor/patch updates cleanly. That's
+  the pattern we want to keep.
+- Major version bumps are architectural decisions that often need
+  code changes for API breaks. Surfacing them as auto-PRs every week
+  is the wrong default.
+
+**Already-open PRs unaffected**:
+- #35 opentelemetry-otlp 0.33.1, #37 jsonwebtoken 11.1.0,
+  #38 ratatui 0.30.2 (all alert-resolving) still need operator merge.
+- The 2 failing PRs (#36 leptos_meta, #39 reqwest) still have their
+  CI failures; the config change doesn't fix code, just suppresses
+  future auto-PRs.
+- The 4 other clean PRs (#33, #34, #40, #41, #42) can still be merged.
+
+**CI verification**: YAML validated as well-formed. CI on `f8050e7`
+not yet triggered at the time of this round (push at 06:48:57Z; CI
+takes ~5m to complete). Next auto-poke will verify.
+
+**Reversibility**: trivial — delete the 4 added lines to restore
+the prior behavior.
+
+### Files changed
+- `.github/dependabot.yml` (+7 lines: 4-line comment + 3-line filter)
