@@ -1850,3 +1850,51 @@ deferral gate; the deferral note documents this path).
   Release workflow re-fired at 2531fb4 is queued and waiting on
   repo Actions queue depth (627 queued runs in the original
   observation; not re-verified this round).
+
+---
+
+## Round 33 — CI verification on `698952a` and `b5f271c` (2026-10-15 ~07:34Z)
+
+**Trigger**: second `go` operator signal at 2026-10-15T07:27:06Z. The
+auto-poke loop fired after 5+ minutes idle; checked the active CI
+runs and let them drain.
+
+**Verified CI state on `698952a` (R32 doc tip, doc-only commit)**:
+| Workflow | Result | Details |
+|---|---|---|
+| CI | ✓ success (7/7) | Check, Clippy, Format, Integration tests, Unit tests, Release build, E2E smoke tests |
+| E2E | ✓ success (2/2) | E2E smoke tests, E2E daemon binary |
+| Dependency Audit | not triggered (path-filtered; doc-only commit) | — |
+| Spec Validation | not triggered (path-filtered; `docs/sessions/` is not in the spec-validation paths) | — |
+| SonarCloud | **failure** (pre-existing; R28 CORRECTION) | 3.6% Duplication on New Code, C Reliability, C Security Rating |
+
+**Verified CI state on `b5f271c` (R30 squash-merge tip)**:
+| Workflow | Result | Details |
+|---|---|---|
+| Dependency Audit | ✓ success (1m59s) | run 38697946861 |
+| Dependabot (7 scheduled) | 6/7 success, 1/7 failure (pre-R31) | the 1 failure was the glib,opentelemetry_sdk security-update that R31 silences |
+| Dependabot (1 glib,opentelemetry_sdk) | failure | run 38697959978; the R31 fix targets exactly this run; next scheduled trigger will be skipped |
+| CI + E2E | cancelled (superseded by the doc-only R31/R32 pushes) | normal — no code changes, so the previous green is authoritative |
+
+**Dependency-audit green after R30's 8 dependabot PRs**: the
+`cargo deny` job (advisories, bans, licenses, sources) passes on
+the updated Cargo.lock. This validates that the 8 squash-merge
+commits did not introduce any new license violations, banned
+crates, or known advisories.
+
+**Alert count (post-R30, post-alert-DB-refresh)** from
+`gh api dependabot/alerts`:
+- 5 `[fixed]` (rustls, jsonwebtoken x2 — `Cargo.toml` and `Cargo.lock`,
+  protobuf, lru)
+- 4 `[open]` (glib x2 — `src-tauri/Cargo.lock` and root `Cargo.lock`;
+  opentelemetry_sdk x2 — `fabric-daemon/Cargo.toml` and root
+  `Cargo.lock`)
+
+The 4 `[open]` ones are the workspace-member advisories. R31's
+`security-updates-only: true` will silence the recurring failure
+on Monday; the alerts themselves remain visible in the Security
+tab and are operator-scope to actually patch (as documented in R26
+and R32.3).
+
+### Files changed
+None (verification only).
