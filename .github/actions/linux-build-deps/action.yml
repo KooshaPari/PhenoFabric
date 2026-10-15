@@ -42,13 +42,24 @@ runs:
         rc=$?
         if [ $rc -ne 0 ]; then
           echo "apt-get update exited $rc; arm64 security/archive mirrors may have 404'd."
-          echo "Retrying once with security mirror disabled to fall back to archive."
-          # Drop noble-security sources for the duration of this job; the
-          # archive mirror already provides the libraries we need.
-          if compgen -G "/etc/apt/sources.list.d/*ubuntu*.sources" > /dev/null; then
-            for f in /etc/apt/sources.list.d/*ubuntu*.sources; do
-              sudo sed -i '/noble-security\|noble-updates\|noble-backports/d' "$f" || true
-            done
+          echo "Rewriting sources to only the archive mirror (no security pocket)."
+          # Replace /etc/apt/sources.list.d/ubuntu.sources with a clean
+          # archive-only file. The original uses deb822 stanzas; we
+          # rewrite it as a one-line deb (deb/old-style is still supported
+          # on Ubuntu 24.04 and is robust to sed-on-deb822 damage).
+          echo "deb [arch=amd64,arm64] http://azure.archive.ubuntu.com/ubuntu noble main universe restricted multiverse" | sudo tee /etc/apt/sources.list.d/ubuntu.sources > /dev/null
+          # Drop the original deb822 stanzas from the same file by
+          # truncating it (we just rewrote it above) and remove any
+          # other ubuntu.sources files.
+          for f in /etc/apt/sources.list.d/*ubuntu*.sources; do
+            [ -f "$f" ] || continue
+            echo "deb [arch=amd64,arm64] http://azure.archive.ubuntu.com/ubuntu noble main universe restricted multiverse" | sudo tee "$f" > /dev/null
+          done
+          # Also clear any leftover noble-security deb822 stanza from
+          # /etc/apt/sources.list (legacy one-line style) so apt doesn't
+          # try to fetch it.
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '/noble-security\|noble-updates\|noble-backports/d' /etc/apt/sources.list || true
           fi
           sudo apt-get update
         fi
