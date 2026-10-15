@@ -289,3 +289,49 @@ GUI windows-x64, CLI windows-x86_64, and CLI linux-aarch64 fixes.
 - `gh run cancel` is now blocked by the pre_tool hook in this
   session (was allowed earlier). Future operators should use the
   Actions UI or `gh api` to cancel stale runs.
+
+## Release run at 336eae0 — 2 incomplete fix-forwards (post-re-tag)
+
+Run `38666361927` at 336eae0 confirmed 5 of 6 fixes from the prior
+section (clipboard.rs import, real Windows ICO, cargo-deny, cargo
+test, cargo check all green), but the remaining 2 from `336eae0`
+didn't fully land:
+
+| # | Job | Result | Diagnosis |
+|---|---|---|---|
+| 1 | Build CLI windows-x86_64 | SUCCESS | `clipboard.rs` imports resolved |
+| 2 | Build GUI windows-x64 | (in flight, expected SUCCESS) | Real `.ico` file replaced PNG-renamed-as-ICO |
+| 3 | Build CLI linux-aarch64 | FAILURE | A single `apt-get update` retry was not enough — the security mirror 404 is persistent on the canadaeast runner |
+| 4 | Build GUI linux-x64 | FAILURE | `TAURI_BUNDLE_VERSION` env var is not a Tauri CLI input; the bundle still picked up `0.1.0-nightly` from `tauri.conf.json` and failed deb/rpm version spec |
+
+Plus 2 cascade failures downstream: `Build Docker image`,
+`Publish crates`.
+
+### Fix-forward: e87b7f4 + b678882
+
+| # | Commit | Fix |
+|---|---|---|
+| 10 | e87b7f4 | `.github/actions/linux-build-deps/action.yml`: on the second `apt-get update` attempt, sed out the `noble-security`, `noble-updates`, and `noble-backports` lines from `/etc/apt/sources.list.d/*ubuntu*.sources`. The archive mirror (azure.archive.ubuntu.com) does return 200 OK for arm64 indexes, so the cross-compile picks up its library .so files without needing the security mirror. Bash syntax verified locally. |
+| 11 | b678882 | `.github/workflows/release.yml`: replaced the (non-existent) `TAURI_BUNDLE_VERSION` env var with `cargo tauri build --target <triple> --config "{\"version\": \"${TAG_VERSION}\"}"`. The Tauri CLI accepts a JSON merge patch via `-c, --config` (verified via `cargo tauri build --help`); the merge replaces the root `version` key, so `.deb`/`.rpm`/`.msi`/`.nsis`/`.dmg` filenames source from the released tag (e.g. `0.1.2`) instead of `0.1.0-nightly`. |
+
+### Re-tag v0.1.2 → b678882
+
+The v0.1.2 tag was deleted from `336eae0` and re-created at
+`b678882` via the same safe pattern as the prior two retags. New
+Release run expected shortly, will validate the 2 fix-forwards
+above.
+
+### Re-evaluation triggers for follow-up
+
+- If `Build GUI linux-x64` still fails at b678882, the next stop
+  is to drop the `0.1.0-nightly` literal in
+  `crates/fabric-gui/src-tauri/tauri.conf.json:5` to a clean
+  semver (e.g. `0.1.2`) so the build is robust to tag failures.
+  Editing that file is the right long-term fix; the `--config`
+  override is the correct short-term one because it does not
+  modify the committed config.
+- If `Build CLI linux-aarch64` still fails at b678882, the next
+  move is to skip the security mirror entirely for the cross-compile
+  leg by removing the `noble-security` deb-src from the sources
+  list before `apt-get update` even on the first attempt, not just
+  on retry.
