@@ -531,13 +531,18 @@ jobs:
           fi
           echo "Lockfile SHA matches build identity: $ACTUAL"
 
-      - name: Publish fabric-graph
-        run: cargo publish -p fabric-graph --allow-dirty
+      # Publish order must respect the workspace dependency graph.
+      # fabric-capability is a leaf (no internal deps), so publish it first.
+      # Then fabric-graph, then the consumers (fabric-workspace, fabric-persist).
+      # This avoids "no matching package found" errors when cargo validates
+      # the path-dep version requirements at publish time.
+      - name: Publish fabric-capability
+        run: cargo publish -p fabric-capability --allow-dirty
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
-      - name: Publish fabric-capability
-        run: cargo publish -p fabric-capability --allow-dirty
+      - name: Publish fabric-graph
+        run: cargo publish -p fabric-graph --allow-dirty
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 

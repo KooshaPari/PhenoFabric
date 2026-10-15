@@ -48,8 +48,8 @@ rand_core = "0.9"
 thiserror = "2.0"
 schemars = { version = "0.8", features = ["derive", "chrono"] }
 jsonschema = "0.27"
-fabric-capability = { path = "crates/fabric-capability" }
-fabric-graph = { path = "crates/fabric-graph" }
+fabric-capability = { path = "crates/fabric-capability", version = "0.1.0" }
+fabric-graph = { path = "crates/fabric-graph", version = "0.1.0" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
