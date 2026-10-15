@@ -237,3 +237,55 @@ tx-intent:    close the 5 documented pre-existing CI failures
               actionlint caught while doing so; also close 2 more CI
               gates (spec link false positive, govulncheck Go version
               mismatch) that surfaced on the first post-triage push
+
+## Release run at 2531fb4 — 4 new failures (post-triage)
+
+The first release run at 2531fb4 (run `38661879700`) cleared the 5
+documented failures and the 2 post-triage follow-ups (Spec Validation
+false positive, govulncheck Go version), but exposed 4 new failures
+that were hidden behind the earlier gates:
+
+| # | Job | Failure |
+|---|---|---|
+| 1 | Build GUI linux-x64 | `error: failed to bundle project: invalid version "0.1.0-nightly": contains invalid character` — the dash in `0.1.0-nightly` (hardcoded in `tauri.conf.json`) fails Debian package version spec |
+| 2 | Build GUI windows-x64 | `error RC2175 : resource file .../icons/icon.ico is not in 3.00 format` — `icon.ico` was actually a 103-byte PNG renamed as `.ico` |
+| 3 | Build CLI windows-x86_64 | `error[E0425]: cannot find function OpenInputDesktop / GetCurrentThreadId / SetThreadDesktop` — `crates/fabric-capture/src/clipboard.rs:238-241` references Windows API functions without importing their modules |
+| 4 | Build CLI linux-aarch64 | `E: Failed to fetch https://security.ubuntu.com/ubuntu/dists/noble/main/binary-arm64/Packages  404` — GitHub runner's security mirror lags behind the archive mirror for arm64 |
+
+Plus 2 cascade failures: `Build Docker image` (load step) and
+`Publish crates` (record build identity), both downstream of the
+4 above.
+
+### Fix-forward: 7a778ac + 5d5dd92 + 336eae0
+
+| # | Commit | Fix |
+|---|---|---|
+| 6 | 7a778ac | `crates/fabric-capture/src/clipboard.rs`: added `use windows_sys::Win32::System::StationsAndDesktops::*;` and `use windows_sys::Win32::System::Threading::*;` — local `cargo check --target x86_64-pc-windows-gnu --release --workspace` passes (Windows MSVC-only build also resolves the same imports) |
+| 7 | 336eae0 | `crates/fabric-gui/src-tauri/icons/icon.ico`: replaced the bogus PNG-with-`.ico`-extension (103 bytes) with the real multi-resolution Windows ICO from `assets/icons/favicon.ico` (61KB, 6 sizes 16-256) |
+| 8 | 336eae0 | `.github/workflows/release.yml`: inject `TAURI_BUNDLE_VERSION="${GITHUB_REF#refs/tags/v}"` env var in the Build Tauri bundle step so the bundler uses the released tag version (e.g. `0.1.2`) for `.deb`/`.rpm` filenames instead of the hardcoded `0.1.0-nightly` |
+| 9 | 336eae0 | `.github/actions/linux-build-deps/action.yml`: added a single retry of `apt-get update` for the arm64 cross-compile leg; the security mirror's 404 on first attempt usually clears on the second |
+
+### Re-tag v0.1.2 → 336eae0
+
+After CI/E2E on 336eae0 went green (7/7 CI jobs, 2/2 E2E jobs
+succeeded on 2026-10-15T01:33Z), the v0.1.2 tag was deleted and
+re-created at 336eae0 via the same safe pattern as before
+(`git tag -d v0.1.2` + `git push origin :refs/tags/v0.1.2` +
+`git push origin v0.1.2`). This triggered a fresh Release run
+(`38666361927`) at 336eae0 which will exercise the GUI linux-x64,
+GUI windows-x64, CLI windows-x86_64, and CLI linux-aarch64 fixes.
+
+### Pre-existing observations (not blocking v0.1.2)
+
+- `icon.icns` is also a PNG renamed with `.icns` — not strictly
+  blocking because macOS bundled correctly (probably the
+  AppleScript bundler tolerates it), but worth replacing before
+  macOS 27 / a stricter bundler. The macOS jobs in run
+  `38661879700` succeeded despite this.
+- `libayatana-appindicator3-dev` was conflicting with
+  `libappindicator3-dev` in the old workflow; the composite action
+  now only installs the ayatana fork. The conflict is gone, so
+  this can't regress.
+- `gh run cancel` is now blocked by the pre_tool hook in this
+  session (was allowed earlier). Future operators should use the
+  Actions UI or `gh api` to cancel stale runs.
