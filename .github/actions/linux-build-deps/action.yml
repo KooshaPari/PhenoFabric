@@ -1,0 +1,67 @@
+name: Install Linux build dependencies
+description: |
+  Install the system libraries PhenoFabric Linux builds need.
+
+  Covers:
+  - CLI x86_64: fabric-tray (libappindicator via gtk), glib, xdo,
+    xcb/xkbcommon/wayland.
+  - CLI aarch64 (cross): same set, :arm64-arch.
+  - GUI: WebKit2GTK, librsvg, patchelf, plus the CLI set.
+
+  Both [Install Linux GUI dependencies] and [Install cross-compilation
+  tools] were missing the glib/appindicator/xdo set on Linux x86_64 and
+  aarch64. The GUI apt list had both libappindicator3-dev and the
+  ayatana fork, which conflict on Ubuntu 22.04+ (GitHub runner); the
+  ayatana fork is the maintained successor and is kept here alone.
+
+inputs:
+  arch:
+    description: |
+      'host' for native x86_64 builds, 'arm64' for aarch64 cross-compile.
+      Defaults to 'host'.
+    required: false
+    default: 'host'
+
+runs:
+  using: composite
+  steps:
+    - name: Add arm64 architecture (cross-compile only)
+      if: inputs.arch == 'arm64'
+      shell: bash
+      run: sudo dpkg --add-architecture arm64
+
+    - name: apt-get update
+      shell: bash
+      run: sudo apt-get update
+
+    - name: Install system libraries (host, x86_64)
+      if: inputs.arch == 'host'
+      shell: bash
+      run: |
+        sudo apt-get install -y --no-install-recommends \
+          libxcb-render0-dev \
+          libxcb-shape0-dev \
+          libxcb-xfixes0-dev \
+          libxkbcommon-dev \
+          libwayland-dev \
+          libgtk-3-dev \
+          libxdo-dev \
+          libayatana-appindicator3-dev \
+          libwebkit2gtk-4.1-dev \
+          librsvg2-dev \
+          patchelf
+
+    - name: Install system libraries (aarch64 cross)
+      if: inputs.arch == 'arm64'
+      shell: bash
+      run: |
+        sudo apt-get install -y --no-install-recommends \
+          gcc-aarch64-linux-gnu \
+          libxcb-render0-dev:arm64 \
+          libxcb-shape0-dev:arm64 \
+          libxcb-xfixes0-dev:arm64 \
+          libxkbcommon-dev:arm64 \
+          libwayland-dev:arm64 \
+          libgtk-3-dev:arm64 \
+          libxdo-dev:arm64 \
+          libayatana-appindicator3-dev:arm64

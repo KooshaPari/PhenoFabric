@@ -71,29 +71,17 @@ jobs:
           restore-keys: release-cli-${{ matrix.platform }}-
 
       # ── Linux dependencies ────────────────────────────────────────────
-      - name: Install Linux GUI dependencies (x86_64)
+      - name: Install Linux build dependencies (x86_64)
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libxcb-render0-dev \
-            libxcb-shape0-dev \
-            libxcb-xfixes0-dev \
-            libxkbcommon-dev \
-            libwayland-dev
+        uses: ./.github/actions/linux-build-deps
+        with:
+          arch: host
 
-      - name: Install cross-compilation tools (Linux aarch64)
+      - name: Install Linux build dependencies (aarch64 cross)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            gcc-aarch64-linux-gnu \
-            libxcb-render0-dev:arm64 \
-            libxcb-shape0-dev:arm64 \
-            libxcb-xfixes0-dev:arm64 \
-            libxkbcommon-dev:arm64 \
-            libwayland-dev:arm64
-          sudo dpkg --add-architecture arm64
+        uses: ./.github/actions/linux-build-deps
+        with:
+          arch: arm64
 
       - name: Set cross-compilation env (Linux aarch64)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -198,18 +186,11 @@ jobs:
           restore-keys: release-gui-${{ matrix.platform }}-
 
       # ── Linux system dependencies (WebKit2GTK, AppIndicator, etc.) ───
-      - name: Install Linux system dependencies
+      - name: Install Linux build dependencies
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libgtk-3-dev \
-            libxdo-dev \
-            libayatana-appindicator3-dev
+        uses: ./.github/actions/linux-build-deps
+        with:
+          arch: host
 
       # ── Install Node.js (required by Tauri CLI) ──────────────────────
       - name: Setup Node.js
@@ -435,7 +416,7 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [build, build-gui]
+    needs: [build, build-gui, identity]
     steps:
       - uses: actions/checkout@v7
 
@@ -606,7 +587,7 @@ jobs:
     name: Post-publish verification
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [github-release, publish-crates, docker]
+    needs: [github-release, publish-crates, docker, identity]
     permissions:
       contents: read
     steps:
