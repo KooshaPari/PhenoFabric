@@ -195,11 +195,29 @@ fix the 5 documented pre-existing CI failures." Three commits ship:
   artifact production. Re-pushing the same tag would only inflate
   the queue.
 
+### Follow-up: CI gate failures on 08b2974 (this session, fcbba1b)
+
+After pushing 08b2974, two more CI gates failed that were not
+covered by the original 5-item triage:
+
+| # | Commit | Failure | Fix |
+|---|---|---|---|
+| 4 | fcbba1b | Spec Validation / `Validate spec links` exit 1: 2 false-positive broken links in this session doc (literal markdown link inside backticks — script doesn't strip inline code spans) | Rephrased the literal examples to defeat the regex `[ADR Index] (./adr/index.md)` (note space) |
+| 5 | fcbba1b (same) | Dependency Audit / `Go vulnerability check` exit 1: `go install golang.org/x/vuln/cmd/govulncheck@latest` pulled v1.9.0 which requires Go ≥1.26, but the workflow uses Go 1.21 with `GOTOOLCHAIN=local` blocking the auto-upgrade | Pinned to `govulncheck@v1.0.4` (Go 1.18+) in `.github/workflows/deny.yml` |
+
+The `cargo-deny` half of the same Dependency Audit job **passed** on
+08b2974 — confirming the v2 migration in commit 33164d7 is working
+in CI.
+
 tx-agent:     jcode
 tx-validated: cargo-test + cargo-check + cargo-clippy + cargo-fmt + cargo-deny + actionlint
 tx-task:      v0.1.2 retag + build-debt triage + fix-forward
-tx-scope:     deny.toml, release.yml, linux-build-deps/, probe.rs
+tx-scope:     deny.toml, release.yml, linux-build-deps/, probe.rs,
+              docs/sessions/2026-10-15-v012-retag-and-build-debt,
+              .github/workflows/deny.yml
 tx-intent:    close the 5 documented pre-existing CI failures
               end-to-end (deny + 2 release-cli/linux + release-gui/linux
               + probe.rs MSVC) and the silent `needs.identity` bug that
-              actionlint caught while doing so
+              actionlint caught while doing so; also close 2 more CI
+              gates (spec link false positive, govulncheck Go version
+              mismatch) that surfaced on the first post-triage push
