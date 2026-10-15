@@ -1191,3 +1191,94 @@ This stops dependabot from auto-opening the failing security-update PRs. **The G
 ```
 .github/dependabot.yml | 13 +++++++++++++  (Round 24)
 ```
+
+---
+
+## Round 26 — `fabric-frame-transport` publishability analysis (no code change, architectural)
+
+**Commit: `cc6efd7` (doc-only follow-up, +X lines)**
+
+### Question
+The pending `pending.3` todo is: "Decide whether fabric-frame-transport should be published — architectural (blocks fabric-daemon, fabric-surface-mojo, fabric-orchestrator)". The agent should not make this call. But the agent CAN do the homework so the operator has a clear cost/benefit picture.
+
+### Investigation
+
+**Workspace publishability census (17 crates total):**
+
+| Crate | publish | version | license | dep on `fabric-frame-transport`? |
+|---|---|---|---|---|
+| `fabric-capability-ffi` | true | 0.1.0 | MIT/Apache-2.0 | no |
+| `fabric-capability` | true | 0.1.0 | MIT/Apache-2.0 | no |
+| `fabric-capture` | true | 0.1.0 | — | no |
+| `fabric-checker` | true | 0.1.0 | Apache-2.0 | no |
+| `fabric-cli` | false | 0.1.0 | MIT/Apache-2.0 | no |
+| **`fabric-frame-transport`** | **false** | 0.1.0 | MIT/Apache-2.0 | (self) |
+| `fabric-gui` | false | 0.1.0 | MIT/Apache-2.0 | no |
+| `fabric-integration-tests` | false | 0.1.0 | MIT/Apache-2.0 | yes (path) |
+| `fabric-persist` | true | 0.1.0 | MIT/Apache-2.0 | no |
+| `fabric-terminal` | true | 0.1.0 | — | no |
+| `fabric-tray` | false | 0.1.0 | MIT/Apache-2.0 | no |
+| `fabric-tui` | false | 0.1.0 | MIT/Apache-2.0 | no |
+| `fabric-web` | false | 0.1.0 | MIT/Apache-2.0 | yes (path) |
+| `fabric-workspace` | true | 0.1.0 | MIT/Apache-2.0 | no |
+| `phenotype-manifest` | true | 0.2.0 | MIT/Apache-2.0 | no |
+| `phenotype-nvms-adapter` | true | 0.1.0 | MIT/Apache-2.0 | no |
+| **`fabric-daemon`** | **true (default)** | 0.1.0 (via `version.workspace = true`) | — | **yes (path) — BLOCKED** |
+| **`fabric-orchestrator`** | **true (default)** | 0.1.0 (via `version.workspace = true`) | — | **yes (path) — BLOCKED** |
+| **`fabric-surface-mojo`** | **true (default)** | 0.1.0 (via `version.workspace = true`) | — | **yes (path) — BLOCKED** |
+
+(3 publishable crates — `fabric-daemon`, `fabric-orchestrator`, `fabric-surface-mojo` — use `version.workspace = true`, which is why they didn't appear in the original glob query. The `cargo metadata` walk above is authoritative.)
+
+### The gate
+**`fabric-frame-transport` is the single blocker for publishing 3 other crates.** It is currently `publish = false`. Any of the 3 downstream crates would fail `cargo publish` today because they reference `fabric-frame-transport` via `path = "../fabric-frame-transport"`, and `path` deps don't survive across the crates.io boundary.
+
+### What `fabric-frame-transport` is missing (compared to the already-published `fabric-capability`)
+
+| Field | `fabric-frame-transport` (current) | `fabric-capability` (published) | Need to add? |
+|---|---|---|---|
+| `name` | `fabric-frame-transport` | `fabric-capability` | — |
+| `version` | 0.1.0 | 0.1.0 | — |
+| `description` | present | present | — |
+| `license` | `MIT OR Apache-2.0` | `MIT OR Apache-2.0` | — |
+| `publish` | `false` (`[]`) | `true` | **YES — flip to `true`** |
+| `repository` | `None` | `https://github.com/phenotype-dev/phenotype-fabric` | **YES — add** |
+| `readme` | `None` | `None` (also missing, but cargo published fine) | optional |
+| `keywords` | `[]` | `[fabric, capability, topology, hardware-probe]` | **YES — add** |
+| `categories` | `[]` | `[]` (also missing) | optional |
+| `authors` | `[]` | `[]` (also missing) | optional |
+| `homepage` | `None` | `None` | optional |
+| `documentation` | `None` | `None` | optional |
+
+**Concrete delta to make `fabric-frame-transport` publishable**: 3 lines in `Cargo.toml` (flip `publish`, add `repository`, add `keywords`). README/authors/categories are optional. The v0.1.2 release proved that `fabric-capability` shipped with no README, no authors, and no categories, so cargo tolerates them being missing.
+
+### Three options for the operator
+
+**Option A: keep `fabric-frame-transport` as `publish = false` (status quo)**
+- Cost: zero (already the state)
+- Consequence: `fabric-daemon`, `fabric-orchestrator`, `fabric-surface-mojo` cannot be published to crates.io. Their nominal `publish = true` is a misnomer; they only build inside the workspace.
+- This is the conservative path. Worth keeping if the operator's distribution story is "everything is internal, use git tags".
+
+**Option B: publish `fabric-frame-transport` to crates.io first, then the 3 downstream crates**
+- Cost (agent-actionable, deferred to operator approval):
+  1. Add 3 metadata lines to `fabric-frame-transport/Cargo.toml` (repository, keywords, publish=true)
+  2. Update `fabric-daemon`, `fabric-orchestrator`, `fabric-surface-mojo` to use `fabric-frame-transport = "0.1.0"` (with `[patch.crates-io]` in the workspace root for in-tree dev)
+  3. Run the existing `publish-crates` workflow to publish fabric-frame-transport first
+  4. Run it again to publish the 3 downstream crates
+- Benefit: full crates.io distribution; downstream consumers can `cargo add fabric-daemon` without git deps.
+- Risk: the 3 downstream crates haven't been published before, and their public API surface (especially `fabric-daemon`'s IPC schema) might not be stable. v0.1.0 + `publish = true` is a public API commitment.
+
+**Option C: vendored / git-tag dep, no crates.io publish**
+- Cost: change `path =` to `git = "https://github.com/.../PhenoFabric", tag = "v0.1.2"` in the 3 downstream crates, leave `publish = false` on `fabric-frame-transport`.
+- Benefit: works for in-house consumers who clone the repo, without the API commitment.
+- Doesn't actually publish the 3 downstream crates either (they still have a git dep, not a crates.io one). This is mostly a no-op over status quo.
+
+### Honest recommendation framing
+The agent does NOT recommend. The decision is operator-scope. But the data is:
+- Option A is the cheapest, but the 3 publishable downstream crates' nominal `publish = true` is misleading until something changes.
+- Option B is the highest-leverage but creates a public API commitment. Probably not the right move at v0.1.0 (semver-wise). A safer path is to land the 3-line metadata change AND set `publish = false` (a documented "we're ready to publish but not yet"), then revisit at v0.2.0 or v1.0.0.
+- Option C is mostly cosmetic.
+
+**None of these are agent-actionable without operator approval. Documenting so the operator has a concrete menu when this comes up again.**
+
+### Files changed
+None (research only).
