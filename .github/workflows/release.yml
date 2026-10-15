@@ -363,8 +363,12 @@ jobs:
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked
 
-      - name: Check advisories
-        run: cargo deny check advisories
+      - name: Check advisories, licenses, bans, sources
+        # Run all four cargo-deny checks that the deny.toml file is
+        # configured for. The previous invocation ran only `advisories`,
+        # which left the other three sections of deny.toml unexercised
+        # in CI.
+        run: cargo deny check
 
   # ── Build identity (stable SHA over Cargo.lock, matrix-free) ──────
   identity:
