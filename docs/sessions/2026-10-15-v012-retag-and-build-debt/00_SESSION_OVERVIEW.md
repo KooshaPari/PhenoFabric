@@ -945,3 +945,58 @@ crates/phenotype-nvms-adapter/Cargo.toml |  6 +--
 ```
 
 Commit `25d16f4`, pushed to `origin/main`. 6th commit this session.
+
+---
+
+## Round 19 — `deny` job in release.yml now runs all 4 cargo-deny checks
+
+**Commit:** `1f9282f fix(release): run all 4 cargo-deny checks, not just advisories` (pushed to `origin/main`)
+
+### Discovery
+At the tail of Round 18 I noted the deny job in `release.yml` was running only
+`cargo deny check advisories` even though `deny.toml` in the repo root is fully
+configured with `[advisories]`, `[licenses]`, `[bans]`, and `[sources]` sections.
+That meant 3 of the 4 policy sections in `deny.toml` were silently unexercised
+in the release pipeline.
+
+### Fix
+One-line change to `.github/workflows/release.yml`:
+
+```diff
+-      - name: Check advisories
+-        run: cargo deny check advisories
++      - name: Check advisories, licenses, bans, sources
++        # Run all four cargo-deny checks that the deny.toml file is
++        # configured for. The previous invocation ran only `advisories`,
++        # which left the other three sections of deny.toml unexercised
++        # in CI.
++        run: cargo deny check
+```
+
+### Validation
+- `cargo deny check` locally returns:
+  `advisories ok, bans ok, licenses ok, sources ok` — the broader check is
+  green and not a regression.
+- YAML still parses; actionlint shows only the **pre-existing** SC2034 warnings
+  (lines 266/295/322, the same 3 from before) — no new warnings.
+
+### Discovery (parallel) — standalone `deny.yml` workflow
+While reviewing the change, I also noticed that `.github/workflows/deny.yml`
+exists as a **separate workflow** (name: "Dependency Audit") that already runs
+all 4 cargo-deny checks (lines 29-39) and is triggered on every push to `main`
+that touches `Cargo.lock` / `Cargo.toml` / `crates/**/Cargo.toml`, plus weekly
+on Monday at 09:00 UTC, plus `workflow_dispatch`. So the dev pipeline already
+exercises all 4 checks via `deny.yml`; the inline `deny` job in `release.yml`
+is just an additional release-pipeline safety net, and now matches the
+contract.
+
+### Files changed
+```
+.github/workflows/release.yml | 8 ++++++--
+1 file changed, 6 insertions(+), 2 deletions(-)
+```
+
+### Session totals
+- 8 commits this session: `daab4bb`, `d7f280b`, `01ce734`, `b18c0f5`, `96c13b6`, `25d16f4`, `85d1a99`, `1f9282f`
+- `origin/main` tip: `1f9282f`
+- 11 todos completed, 3 operator-scope items pending
