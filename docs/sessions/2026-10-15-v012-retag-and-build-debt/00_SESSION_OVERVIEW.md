@@ -1430,3 +1430,102 @@ them entirely.
 
 ### Files changed
 None (research + doc update only). Doc-only commit will follow.
+
+---
+
+## Round 28 — R27 SonarCloud fabrication corrected; PR triage refined (2026-10-15 ~06:47Z)
+
+**Operator signal**: `proc` then `go` (auto-poke sequence). Interpreted
+as "proceed, do the useful autonomous thing".
+
+**Action taken**: agent tried to fix the 8 SonarCloud code smells noted
+in Round 27. The fix path is blocked:
+
+1. The 8 specific code-smell patterns I "remembered" from R27
+   (`String.fromCharCode`, `.replace(`-that-should-be-`.replaceAll(`,
+   `[[` in shell scripts, regex backtracking) don't actually exist
+   in this codebase — grep returned 0-1 hits per pattern, and the
+   one match (`scripts/install.ts:12` `release.tag_name.replace(/^v/, "")`)
+   is a regex replace, which is correct as-is.
+2. The repo has no SonarCloud workflow. `gh workflow list` shows
+   exactly 7 workflows: CI, Dependency Audit (deny), E2E, Release,
+   Spec Validation, Dependabot Updates, Dependency Graph. There is
+   no `sonarcloud.yml` or any SonarCloud integration file.
+3. The SonarCloud public API (`/api/issues/search`) returns 0 issues
+   for the likely project keys (`KooshaPari_phenotype-fabric`,
+   `phenotype-fabric`, etc.).
+4. The repo's GitHub Code Scanning API returns 404 — no SonarCloud
+   issues are exposed there either.
+
+**Conclusion**: the R27 "10/11 jobs pass; SonarCloud pre-existing
+failure" claim was a **fabrication on my part** — I confused a
+dashboard observation with a CI workflow failure. The actual CI state
+on `c7367f8` is materially better than I documented.
+
+### Actual CI state on `c7367f8` (verified 2026-10-15T06:46Z)
+
+| Workflow | State on c7367f8 | Detail |
+|---|---|---|
+| CI | ✅ **7/7 success** | Format, Clippy, Check, Integration tests, Unit tests, Release build, E2E smoke tests |
+| E2E | ✅ **success** | (run 38688619197) |
+| Dependency Audit (deny) | ✅ **success** | On `4e0814e` (parent of c7367f8, same code; run 38684918401) |
+| Spec Validation | not triggered | Push-to-main only runs on `specs/**`, `adr/**`, `architecture/**`, `cmd/capprobe/**`, `cmd/checker/**`, `cmd/wire/**`, `program/scripts/**`, `.github/workflows/spec-validation.yml`, `MANIFEST.sha256`. Docs-only commits (this entire session) correctly don't trigger it. |
+| Release | not triggered | Only runs on tag push |
+| Dependabot Updates | n/a | Weekly run |
+| Dependency Graph | n/a | Auto on push |
+
+**Net: 3-4 of 3-4 relevant workflows are GREEN on `c7367f8`.** No
+failing CI job exists on the tip.
+
+### Verified dependabot PR triage (10 open, all MERGEABLE)
+
+| PR | Title | pass / fail / skip | Notes |
+|---|---|---|---|
+| #33 | rust-dependencies group (4 updates) | 14 / 0 / 1 | clean |
+| #34 | prometheus 0.14.0 | 14 / 0 / 1 | clean |
+| **#35** | **opentelemetry-otlp 0.33.1** | **14 / 0 / 1** | **alert-resolving (otel_sdk family)** |
+| #36 | leptos_meta 0.8.7 | 8 / 2 / 5 | **HAS CHECK FAILURES** (Format pass; Check + Clippy fail; later jobs skipped) |
+| **#37** | **jsonwebtoken 11.1.0** | **14 / 0 / 1** | **alert-resolving** |
+| **#38** | **ratatui 0.30.2** | **14 / 0 / 1** | **alert-resolving (transitively brings lru 0.16.3)** |
+| #39 | reqwest 0.13.5 | 7 / 3 / 5 | **HAS REAL FAILURES** (Check, Clippy, E2E smoke) — likely code-changes-needed for 0.12→0.13 |
+| #40 | tao 0.37.1 | 14 / 0 / 1 | clean |
+| #41 | tower-http 0.7.1 | 14 / 0 / 1 | clean |
+| #42 | windows-sys 0.61.2 | 14 / 0 / 1 | clean |
+
+The "1 skip" on every clean PR is the Macroscope Correctness Check
+(third-party tool that skips on dependabot PRs) — not a real failure.
+
+### Update on the 8 pending items (R27 → R28)
+
+| # | Item | R28 status |
+|---|---|---|
+| 1 | CRATES_IO_TOKEN | unchanged (needs token) |
+| 2 | Production env protection rules | unchanged (needs spec) |
+| 3 | fabric-frame-transport publishability | unchanged (operator decision) |
+| 4 | 4 un-ignored alerts | **partially unblocked**: 3 of 4 confirmed CI-clean & MERGEABLE (#35, #37, #38). Protobuf alert still has no resolving PR. |
+| 5 | 10 dependabot PRs to triage | **better signal**: 7 of 10 are CI-clean; 2 (#36 leptos_meta, #39 reqwest) have real failures; 1 (#33) is a 4-update group |
+| 6 | dependabot.yml config gap | unchanged (operator-scope) |
+| 7 | SonarCloud gate pre-existing failure | **REMOVED FROM PENDING** — there is no SonarCloud workflow in this repo; the R27 finding was a fabrication |
+| 8 | Issue #32 close | unchanged (verify next dependabot run) |
+
+**Net: 7 operator-scope items remain (was 8). SonarCloud item is removed.**
+
+### What "go" authorized me to do
+
+The agent took the "go" signal as authorization to: verify state, fix
+the R27 doc, and report. The single most useful autonomous action
+turned out to be **state verification + doc correction**, not a code
+change. The actual blocker items (token, env rules, publishability,
+PR merges) all remain operator-scope.
+
+### Recommendation
+
+Operator can now **safely merge 7 of the 10 dependabot PRs** (all
+marked MERGEABLE with 14/15 checks passing). The 3 alert-resolving
+PRs (#35, #37, #38) are the highest-priority subset — merging them
+clears 3 of 4 un-ignored security alerts with one operator action
+each. The 2 failing PRs (#36, #39) need code changes for the major
+version bump and should be left for later work.
+
+### Files changed
+Doc-only (this round).
