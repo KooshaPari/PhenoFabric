@@ -47,7 +47,13 @@ COPY crates/fabric-research-ledger/Cargo.toml crates/fabric-research-ledger/Carg
 COPY examples/full-demo/Cargo.toml examples/full-demo/Cargo.toml
 
 # Create stub lib.rs / main.rs for each workspace member so cargo can resolve deps.
-# List must mirror the COPY list above.
+# List must mirror the COPY list above. Crates that declare [[bench]] entries in
+# their Cargo.toml need benches/ stubs too, otherwise `cargo build --release
+# --locked` in the cache step fails with "can't find `<name>` bench at
+# `benches/<name>.rs`" (see round 14 session notes for the 4 affected crates:
+# fabric-frame-transport, fabric-persist, fabric-checker, fabric-graph). The
+# stub bench body is `fn main() {}` because all four crates use `harness =
+# false` in their [[bench]] declaration.
 RUN mkdir -p crates/fabric-daemon/src crates/fabric-cli/src crates/fabric-graph/src \
              crates/fabric-graph-cli/src crates/fabric-capability/src \
              crates/fabric-capability-ffi/src crates/fabric-persist/src \
@@ -58,6 +64,8 @@ RUN mkdir -p crates/fabric-daemon/src crates/fabric-cli/src crates/fabric-graph/
              crates/fabric-surface-mojo/src crates/fabric-orchestrator/src \
              crates/fabric-terminal/src crates/fabric-capture/src \
              crates/fabric-integration-tests/src crates/fabric-research-ledger/src \
+             crates/fabric-frame-transport/benches crates/fabric-persist/benches \
+             crates/fabric-checker/benches crates/fabric-graph/benches \
              examples/full-demo/src && \
     for crate in fabric-graph fabric-graph-cli fabric-capability fabric-capability-ffi \
                  fabric-persist fabric-checker fabric-workspace \
@@ -66,6 +74,15 @@ RUN mkdir -p crates/fabric-daemon/src crates/fabric-cli/src crates/fabric-graph/
                  fabric-orchestrator fabric-terminal fabric-capture \
                  fabric-integration-tests fabric-research-ledger; do \
         echo "pub fn _stub() {}" > "crates/${crate}/src/lib.rs"; \
+    done && \
+    for bench in transport persist checker compiler; do \
+        case "$bench" in \
+            transport)     crate=fabric-frame-transport ;; \
+            persist)       crate=fabric-persist ;; \
+            checker)       crate=fabric-checker ;; \
+            compiler)      crate=fabric-graph ;; \
+        esac && \
+        echo "fn main() {}" > "crates/${crate}/benches/${bench}.rs"; \
     done && \
     mkdir -p examples/full-demo/src && \
     echo "pub fn _stub() {}" > examples/full-demo/src/lib.rs && \

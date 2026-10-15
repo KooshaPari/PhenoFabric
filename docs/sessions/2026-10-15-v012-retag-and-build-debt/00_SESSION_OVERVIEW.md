@@ -583,15 +583,25 @@ Final tally (release run 38678954768 at daab4bb):
 1. **CRATES_IO_TOKEN secret not configured** — `publish-crates` always
    fails. Operator must wire the secret in repo Settings → Secrets and
    variables → Actions → New repository secret. The job is already
-   `continue-on-error: true` so it doesn't block.
-2. **Dockerfile still missing `fabric-research-ledger` workspace member**
-   in the dep-cache COPY list (only the stub lib.rs gets created, not
-   the Cargo.toml). The image build will fail until the Dockerfile's
-   `crates/fabric-research-ledger/Cargo.toml` is added to the COPY
-   section. Also marked `continue-on-error: true`.
-3. **Leaked `KooshaPari.PhenoFabric.IRP3DE.dockerbuild` artifact**
+   `continue-on-error: true` so it doesn't block. `gh api` confirms
+   `total_count: 0 secrets` on the repo as of 2026-10-15T04:28Z.
+2. **Leaked `KooshaPari.PhenoFabric.IRP3DE.dockerbuild` artifact**
    in the release — looks like a stray test build. Small (35 KB) but
    the operator may want to remove it.
+
+**CORRECTION (Round 14, 2026-10-15T04:28Z):** The earlier "Round 13"
+item claiming `fabric-research-ledger` was missing from the Dockerfile
+COPY list was WRONG. Re-reading the docker-build job log (job
+116239421511) revealed the real failure: 4 crates declare `[[bench]]`
+entries in their Cargo.toml (`fabric-frame-transport` → `transport`,
+`fabric-persist` → `persist`, `fabric-checker` → `checker`,
+`fabric-graph` → `compiler`), and the Dockerfile's dep-cache step
+created stub `src/lib.rs` files but no stub `benches/<name>.rs` files.
+`cargo build --release --locked` then failed manifest validation with
+"can't find `<name>` bench at `benches/<name>.rs`". The research-ledger
+crate was already correctly handled (its Cargo.toml is at line 46 of
+the Dockerfile, its stub lib.rs is created). Round 14 fixes the real
+bug.
 
 ### Key learnings applied to future releases
 
@@ -617,3 +627,74 @@ tx-validated: 11 release assets published at https://github.com/KooshaPari/Pheno
 tx-task:      v0.1.2 final shipping confirmation
 tx-scope:     .github/workflows/release.yml + GitHub release
 tx-intent:    document that v0.1.2 is live with 4 CLI + 4 GUI platforms
+
+---
+
+## Round 14 — Dockerfile bench-stub bug (2026-10-15T04:28Z)
+
+Followed up on a stale todo. Pulled the full docker-build log for
+job 116239421511 (`gh api .../actions/jobs/<id>/logs`) and grep'd for
+errors. Found 4 cargo manifest-parse errors:
+
+```
+error: crates/fabric-frame-transport/Cargo.toml: can't find `transport`
+  bench at `benches/transport.rs` or `benches/transport/main.rs`.
+error: crates/fabric-persist/Cargo.toml: can't find `persist` bench
+  at `benches/persist.rs` or `benches/persist/main.rs`.
+error: crates/fabric-checker/Cargo.toml: can't find `checker` bench
+  at `benches/checker.rs` or `benches/checker/main.rs`.
+error: crates/fabric-graph/Cargo.toml: can't find `compiler` bench
+  at `benches/compiler.rs` or `benches/compiler/main.rs`.
+```
+
+These crates each declare `[[bench]] name = "X" harness = false` in
+their Cargo.toml. The Dockerfile's dep-cache step (lines 51-73 before
+the fix) creates stub `src/lib.rs` files for every workspace member,
+but does NOT create stub `benches/<name>.rs` files. When
+`cargo build --release --locked` runs at line 76, cargo validates
+the bench `path` against the empty `benches/` directory and bails.
+
+**Fix:** Add 4 new lines to the dep-cache `RUN` step in `Dockerfile`:
+
+```dockerfile
+# Add benches/ dirs to the mkdir -p
+crates/fabric-frame-transport/benches crates/fabric-persist/benches \
+crates/fabric-checker/benches crates/fabric-graph/benches \
+
+# Add a second for-loop after the lib.rs loop
+for bench in transport persist checker compiler; do
+    case "$bench" in
+        transport)     crate=fabric-frame-transport ;;
+        persist)       crate=fabric-persist ;;
+        checker)       crate=fabric-checker ;;
+        compiler)      crate=fabric-graph ;;
+    esac && \
+    echo "fn main() {}" > "crates/${crate}/benches/${bench}.rs";
+done
+```
+
+`fn main() {}` is correct because all 4 crates use `harness = false`,
+which means cargo expects the file to be a standalone binary.
+
+**Validation:** Ran a local simulation (`/tmp/bench-stub-test.sh` +
+`/tmp/cargo-metadata-test.sh`) that creates the same stub tree and
+runs `cargo metadata`. No bench-parse errors appear. The script then
+hits a different error (missing `fabric-capability` Cargo.toml), but
+that's because the test only copied 4 crates' Cargo.toml files; the
+real Dockerfile copies all 22. The relevant gate — bench manifest
+validation — passes.
+
+**Commit:** pending on next step. The Dockerfile change is small
+(15 lines) and isolated; no other workflow changes needed.
+
+**Future-improvement note (not done):** Write a `validate-dockerfile.sh`
+script that diffs the Dockerfile's COPY list against
+`cargo metadata --no-deps --format-version 1 | jq '.workspace_members[]'`
+and the union of all `[[bench]]` declarations. Would catch this class
+of bug before the build runs.
+
+tx-agent:     jcode
+tx-validated: local cargo-metadata simulation against stub tree
+tx-task:      Fix Dockerfile bench-stub for next release
+tx-scope:     Dockerfile
+tx-intent:    unblock docker-build job for the next release
