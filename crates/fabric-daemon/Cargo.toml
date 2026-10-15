@@ -42,7 +42,7 @@ reqwest = { version = "0.12", features = ["json"] }
 # v10 requires an explicit crypto backend: `rust_crypto` is selected over
 # `aws_lc_rs` because this crate only uses HMAC-SHA256, and it keeps the build
 # pure-Rust instead of adding aws-lc-rs and its C/cmake toolchain dependency.
-jsonwebtoken = { version = "10.3.0", default-features = false, features = ["rust_crypto"] }
+jsonwebtoken = { version = "11.1.0", default-features = false, features = ["rust_crypto"] }
 
 [dev-dependencies]
 tempfile = "3"
