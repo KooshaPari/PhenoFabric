@@ -18,7 +18,11 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # GHCR requires lowercase repository names; github.repository
+  # is "KooshaPari/PhenoFabric" (mixed case) which Docker rejects.
+  # GitHub Actions has no lowercase() expression function, so we
+  # hardcode the lowercase form. Update this if the repo is renamed.
+  IMAGE_NAME: kooshapari/phenofabric
 
 jobs:
   # ── Cross-platform CLI binary builds ─────────────────────────────────
@@ -34,10 +38,12 @@ jobs:
             os: ubuntu-latest
             archive_ext: tar.gz
             platform: linux-x86_64
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            archive_ext: tar.gz
-            platform: linux-aarch64
+          # linux-aarch64 disabled: GitHub-hosted ubuntu-latest runners
+          # (canadaeast) cannot reach the arm64 package indexes
+          # (security.ubuntu.com and azure.archive.ubuntu.com both 404
+          # on /dists/noble/{main,universe,...}/binary-arm64/Packages).
+          # Re-enable when a fix is available, or move to ubuntu-24.04-arm
+          # native arm64 runner. See session 2026-10-15-v012-retag-and-build-debt.
           - target: x86_64-apple-darwin
             os: macos-13
             archive_ext: tar.gz
@@ -453,10 +459,15 @@ jobs:
           | Platform | Archive |
           |----------|---------|
           | Linux x86_64 | `phenotype-fabric-TAG-linux-x86_64.tar.gz` |
-          | Linux aarch64 | `phenotype-fabric-TAG-linux-aarch64.tar.gz` |
           | macOS x64 | `phenotype-fabric-TAG-macos-x86_64.tar.gz` |
           | macOS ARM64 | `phenotype-fabric-TAG-macos-aarch64.tar.gz` |
           | Windows x64 | `phenotype-fabric-TAG-windows-x86_64.zip` |
+
+          > Linux aarch64 cross-build is currently disabled because
+          > GitHub-hosted runners in canadaeast cannot reach the
+          > arm64 package indexes (security/archive mirrors 404 on
+          > /dists/noble/.../binary-arm64/Packages). Re-enable when
+          > the environment issue is resolved.
 
           ## Desktop GUI
 
@@ -505,7 +516,10 @@ jobs:
           BUILD_IDENTITY: ${{ needs.identity.outputs.identity }}
         run: |
           echo "Publishing crates for build identity: ${BUILD_IDENTITY}"
-          echo "Build identity: ${BUILD_IDENTITY}" >> "${GITHUB_ENV}"
+          # Note: BUILD_IDENTITY is already exported by the env: block
+          # above; do NOT echo it into GITHUB_ENV — GITHUB_ENV requires
+          # strict KEY=VALUE format and rejects lines like
+          # "Build identity: abc123".
 
       - name: Verify lockfile matches build identity
         run: |
@@ -620,11 +634,11 @@ jobs:
           find release-assets -type f | sort
           echo "::endgroup::"
 
-      - name: Verify all 5 CLI archives present
+      - name: Verify all 4 CLI archives present
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           missing=0
-          for platform in linux-x86_64 linux-aarch64 macos-x86_64 macos-aarch64 windows-x86_64; do
+          for platform in linux-x86_64 macos-x86_64 macos-aarch64 windows-x86_64; do
             if [ "$platform" = "windows-x86_64" ]; then
               ext="zip"
             else
