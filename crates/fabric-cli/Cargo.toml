@@ -35,7 +35,7 @@ dirs = "5.0"
 bstr = "1.9"
 thiserror = "2.0"
 console = "0.15"
-ratatui = "0.29"
+ratatui = "0.30"
 crossterm = "0.29"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
