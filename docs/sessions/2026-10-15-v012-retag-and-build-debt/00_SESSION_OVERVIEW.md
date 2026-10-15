@@ -547,3 +547,73 @@ tx-validated: actionlint + yaml-parse + 9/10 release jobs succeeded at daab4bb
 tx-task:      v0.1.2 macos-13 deprecation fix
 tx-scope:     .github/workflows/release.yml
 tx-intent:    unblock 21+ hour macos-x64 queue by switching to macos-15-intel
+
+---
+
+## Round 13 — v0.1.2 SHIPPED (2026-10-15 ~04:26Z)
+
+Build GUI macos-x64 finished at `2026-10-15T04:25:53Z` (Tauri build on
+macos-15-intel took ~28 minutes). All 8 user-facing build jobs were
+SUCCESS. The `github-release` job ran and published the v0.1.2 release
+to https://github.com/KooshaPari/PhenoFabric/releases/tag/v0.1.2.
+
+Final tally (release run 38678954768 at daab4bb):
+
+| Job | Status | Artifact |
+|-----|--------|----------|
+| `Build CLI linux-x86_64` | ✅ success | `phenotype-fabric-v0.1.2-linux-x86_64.tar.gz` (6.4 MB) |
+| `Build CLI macos-aarch64` | ✅ success | `phenotype-fabric-v0.1.2-macos-aarch64.tar.gz` (5.8 MB) |
+| `Build CLI macos-x86_64` | ✅ success | `phenotype-fabric-v0.1.2-macos-x86_64.tar.gz` (6.2 MB) |
+| `Build CLI windows-x86_64` | ✅ success | `phenotype-fabric-v0.1.2-windows-x86_64.zip` (5.7 MB) |
+| `Build GUI linux-x64` | ✅ success | `.deb` (8.6 MB) + `.AppImage` (87 MB) |
+| `Build GUI macos-arm64` | ✅ success | `.dmg` (7.7 MB) |
+| `Build GUI macos-x64` | ✅ success | `.dmg` (8.0 MB) |
+| `Build GUI windows-x64` | ✅ success | `.msi` (8.0 MB) + `.exe` (5.6 MB) |
+| `Create GitHub Release` | ✅ success | published 11 assets, draft=false |
+| `Post-publish verification` | ⏭ skipped | run had failures (best-effort) |
+| `Build Docker image` | ❌ failure | best-effort; Dockerfile research-ledger bug |
+| `Publish crates` | ❌ failure | best-effort; CRATES_IO_TOKEN still missing |
+| `Push Docker image` | ❌ skipped | downstream of docker-build |
+
+**Release published at:** 2026-10-15T04:26:04Z
+**Total artifacts:** 11 (4 CLI + 7 GUI + 1 leaked `IRP3DE.dockerbuild`)
+
+### What's still broken (not blocking release)
+
+1. **CRATES_IO_TOKEN secret not configured** — `publish-crates` always
+   fails. Operator must wire the secret in repo Settings → Secrets and
+   variables → Actions → New repository secret. The job is already
+   `continue-on-error: true` so it doesn't block.
+2. **Dockerfile still missing `fabric-research-ledger` workspace member**
+   in the dep-cache COPY list (only the stub lib.rs gets created, not
+   the Cargo.toml). The image build will fail until the Dockerfile's
+   `crates/fabric-research-ledger/Cargo.toml` is added to the COPY
+   section. Also marked `continue-on-error: true`.
+3. **Leaked `KooshaPari.PhenoFabric.IRP3DE.dockerbuild` artifact**
+   in the release — looks like a stray test build. Small (35 KB) but
+   the operator may want to remove it.
+
+### Key learnings applied to future releases
+
+1. **Re-validate `runs-on` labels against the current runner-images
+   catalog before every release.** `actionlint` catches retired labels
+   but not before they break the queue.
+2. **`macos-13` retired 2025-09-19 → use `macos-15-intel`** for
+   x86_64 macOS. macos-15 (default) and macos-15-intel are both
+   available; only the `-intel` variant targets x86_64.
+3. **Continue-on-error via matrix flag** is the right pattern for
+   runner-availability risk: a future macos-15-intel retirement
+   won't block the whole release.
+
+### Tag SHA log for v0.1.2
+
+| Tag SHA | Commit | Reason |
+|---------|--------|--------|
+| `e8f7b0b` | `ff8f3ae` | initial re-tag after ff8f3ae fix (Dockerfile missing COPY) |
+| `daab4bb` | `daab4bb` | **current** — macos-13 → macos-15-intel fix |
+
+tx-agent:     jcode
+tx-validated: 11 release assets published at https://github.com/KooshaPari/PhenoFabric/releases/tag/v0.1.2
+tx-task:      v0.1.2 final shipping confirmation
+tx-scope:     .github/workflows/release.yml + GitHub release
+tx-intent:    document that v0.1.2 is live with 4 CLI + 4 GUI platforms
