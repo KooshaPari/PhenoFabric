@@ -30,6 +30,14 @@ jobs:
     name: Build CLI ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
+    # macos-x86_64 builds previously ran on the macos-13 runner
+    # image, which was retired 2025-09-19. The workflow now uses
+    # macos-15-intel (see matrix include below). The job is also
+    # marked best-effort so a future retirement of macos-15-intel
+    # doesn't block the v0.1.2 release; linux-x86_64, macos-aarch64,
+    # and windows-x86_64 ship on every release. The matrix entry
+    # sets `continue_on_error: true` to opt in.
+    continue-on-error: ${{ matrix.continue_on_error == true }}
     strategy:
       fail-fast: false
       matrix:
@@ -44,10 +52,19 @@ jobs:
           # on /dists/noble/{main,universe,...}/binary-arm64/Packages).
           # Re-enable when a fix is available, or move to ubuntu-24.04-arm
           # native arm64 runner. See session 2026-10-15-v012-retag-and-build-debt.
+          # macos-13 (x86_64) was retired 2025-09-19; replacement
+          # is macos-15-intel. (Observed 2026-10-15: macos-13 jobs
+          # were stuck queued for 21+ hours — the runner image no
+          # longer exists, but GitHub didn't error out, it just never
+          # matched a runner.) Use macos-15-intel so the job actually
+          # starts. The matrix entry sets `continue_on_error: true`
+          # so a future retirement of macos-15-intel doesn't block
+          # the whole release.
           - target: x86_64-apple-darwin
-            os: macos-13
+            os: macos-15-intel
             archive_ext: tar.gz
             platform: macos-x86_64
+            continue_on_error: true
           - target: aarch64-apple-darwin
             os: macos-latest
             archive_ext: tar.gz
@@ -155,6 +172,12 @@ jobs:
     name: Build GUI ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    # macos-x64 GUI ran on the retired macos-13 image; the workflow
+    # now uses macos-15-intel. The job is best-effort so the v0.1.2
+    # release can ship on linux-x64, macos-arm64, and windows-x64;
+    # x86_64 macOS GUI users stay on v0.1.1 until pool recovers.
+    # The matrix entry sets `continue_on_error: true` to opt in.
+    continue-on-error: ${{ matrix.continue_on_error == true }}
     strategy:
       fail-fast: false
       matrix:
@@ -162,9 +185,12 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             platform: macos-arm64
+          # macos-13 (x86_64) was retired 2025-09-19; replacement
+          # is macos-15-intel. See CLI build matrix for context.
           - target: x86_64-apple-darwin
-            os: macos-13
+            os: macos-15-intel
             platform: macos-x64
+            continue_on_error: true
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             platform: linux-x64
