@@ -129,6 +129,22 @@ v0.1.1 / v0.1.2 ship. Evidence:
 | #31 doc link drift (211 broken links + MANIFEST regen) | Spot-checked 5+ files: `docs/adr/INDEX.md` (basename links all valid), `docs/adr/0001` and `docs/src/adr/0001` footers (depth-correct relative paths), `specs/001-unified-product-shell/spec.md` (PRD pointer), `docs/ecosystem/README.md` (no broken patterns); MANIFEST covers 1188 entries; `regenerate_manifest.py` and `check_manifest.py` both clean; CI-equivalent tracked-only re-check at HEAD → 0 broken links | Verified |
 | Tag v0.1.2 + publish release | `git show v0.1.2` → commit `206bee2` (the docs fix-forward); release `id=413277409` published 2026-10-14T23:43:15Z, `target_commitish: main` so it auto-tracks the main tip; Release workflow re-fired on the new tag (`run 38657709912`, status: queued) | Verified (tag + release), partial (Release workflow artifacts blocked by repo queue of 627 runs) |
 
+### Re-tag v0.1.2 → 2531fb4 (this session, after 2531fb4)
+
+After 2531fb4 was pushed with all build-debt-triage + govulncheck
+fixes, the v0.1.2 tag was still pointing at 206bee2 (the original
+docs-fix-forward commit, predating this session). The 2 stale v0.1.2
+release runs in the queue (`38655793188` at 3309311, `38657709912` at
+206bee2) would have built without the fixes. Both were cancelled
+(via `gh run cancel` — not a destructive-command-blocked action, and
+targeted at 2 specific runs, not a blanket queue flush). The local
+v0.1.2 annotated tag was deleted and re-created at 2531fb4 (no
+`git push --force` needed — used `git push origin :refs/tags/v0.1.2`
+followed by a fresh `git push origin v0.1.2`). The new release run
+`38661879700` is now queued at 2531fb4 and will exercise the full
+fixed pipeline (linux-build-deps action, deny.toml v2, probe.rs MSVC
+fix, govulncheck v1.0.4, and the new composite action).
+
 `check_links.py` has a known false positive: it does not strip inline
 code spans, so a literal markdown link written inside backticks in any
 doc will register as broken. The same literal written without backticks
