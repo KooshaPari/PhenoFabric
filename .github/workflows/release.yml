@@ -469,11 +469,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Download all archive artifacts
+      - name: Download CLI + GUI archive artifacts (exclude docker-image)
+        # The previous run's docker-image artifact (a stale .dockerbuild tarball
+        # from a pre-bench-fix docker-build run) was being bundled into every
+        # release because of `pattern: "*"` + `merge-multiple: true`. Filter to
+        # the artifacts we actually want so a leaked docker-image never
+        # pollutes the release.
         uses: actions/download-artifact@v8
         with:
           path: artifacts
-          pattern: "*"
+          pattern: |
+            cli-*
+            gui-*
           merge-multiple: true
 
       - name: List artifacts
@@ -537,16 +544,35 @@ jobs:
     needs: [deny, identity]
     environment: production
     # CRATES_IO_TOKEN is not configured on this repo, so this job
-    # always fails with 'please provide a non-empty token'. Marking
-    # best-effort until the operator wires the secret.
-    continue-on-error: true
+    # skips cleanly with a 'wire a secret' notice instead of running
+    # `cargo publish` (which would fail with a cryptic empty-token
+    # error). The operator can wire the secret at any time:
+    #   https://github.com/KooshaPari/PhenoFabric/settings/secrets/actions
+    # Once CRATES_IO_TOKEN is present, the publish steps below will
+    # run automatically. Until then, this job is a no-op and exits 0.
     steps:
       - uses: actions/checkout@v7
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Skip if CRATES_IO_TOKEN is missing
+        id: token-check
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "::warning::CRATES_IO_TOKEN secret is not configured on this repo. Skipping cargo publish."
+            echo "::warning::To enable crate publishing, wire the secret at:"
+            echo "::warning::  https://github.com/KooshaPari/PhenoFabric/settings/secrets/actions"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "CRATES_IO_TOKEN is present; proceeding with cargo publish"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Record build identity
+        if: steps.token-check.outputs.skip != 'true'
         env:
           BUILD_IDENTITY: ${{ needs.identity.outputs.identity }}
         run: |
@@ -557,6 +583,7 @@ jobs:
           # "Build identity: abc123".
 
       - name: Verify lockfile matches build identity
+        if: steps.token-check.outputs.skip != 'true'
         run: |
           ACTUAL=$(sha256sum Cargo.lock | cut -d' ' -f1 | cut -c1-12)
           EXPECTED="${{ needs.identity.outputs.identity }}"
@@ -572,21 +599,25 @@ jobs:
       # This avoids "no matching package found" errors when cargo validates
       # the path-dep version requirements at publish time.
       - name: Publish fabric-capability
+        if: steps.token-check.outputs.skip != 'true'
         run: cargo publish -p fabric-capability --allow-dirty
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
       - name: Publish fabric-graph
+        if: steps.token-check.outputs.skip != 'true'
         run: cargo publish -p fabric-graph --allow-dirty
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
       - name: Publish fabric-workspace
+        if: steps.token-check.outputs.skip != 'true'
         run: cargo publish -p fabric-workspace --allow-dirty
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
       - name: Publish fabric-persist
+        if: steps.token-check.outputs.skip != 'true'
         run: cargo publish -p fabric-persist --allow-dirty
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}

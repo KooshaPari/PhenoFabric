@@ -698,3 +698,68 @@ tx-validated: local cargo-metadata simulation against stub tree
 tx-task:      Fix Dockerfile bench-stub for next release
 tx-scope:     Dockerfile
 tx-intent:    unblock docker-build job for the next release
+
+## Round 15 (2026-10-15T04:40Z) — leaked docker-image asset + publish-crates skip
+
+The 2 pending todos at the start of this round were re-examined:
+
+### Item 12: leaked `KooshaPari.PhenoFabric.IRP3DE.dockerbuild` asset (35 KB)
+
+**Root cause (deeper than cosmetic):** the github-release job
+(`.github/workflows/release.yml:472-477`) used
+`actions/download-artifact@v8` with `pattern: "*"` +
+`merge-multiple: true`. This downloads every artifact from every
+upstream job, including `docker-image` (the docker-build job's
+35 KB `phenotype-fabric-image.tar`, uploaded at line 455-461).
+The `softprops/action-gh-release@v3` step then globs `artifacts/*`
+and attaches everything to the release. So the v0.1.2 release
+inherited a stale dockerbuild tarball from a previous successful
+docker-build run (before the bench-stub bug made docker-build fail).
+
+**Fixes (defense in depth):**
+
+1. **Workflow filter** (`.github/workflows/release.yml` lines
+   472-484): replaced the `pattern: "*"` download with
+   `pattern: |\n  cli-*\n  gui-*`. Verified via a local fnmatch
+   simulation that all 8 CLI/GUI artifacts are matched and both
+   the live `docker-image` artifact and the historical
+   `KooshaPari.PhenoFabric.IRP3DE.dockerbuild` name are excluded.
+2. **Existing v0.1.2 release cleanup:** `gh release delete-asset
+   v0.1.2 KooshaPari.PhenoFabric.IRP3DE.dockerbuild --yes`
+   succeeded; release now has 10 clean assets (was 11). Re-verified
+   via `gh release view v0.1.2 --json assets | length`.
+
+### Item 11: CRATES_IO_TOKEN (still operator-scope, but more graceful)
+
+The agent cannot wire a GitHub repo secret. But the previous
+behavior (cryptic `cargo publish` failure with empty token) was
+operator-hostile. Replaced `continue-on-error: true` with an
+explicit "skip if token missing" step:
+
+- New `Skip if CRATES_IO_TOKEN is missing` step (lines 559-572)
+  reads `secrets.CRATES_IO_TOKEN` into an env var, checks if
+  empty, and either emits `skip=true` (with a 3-line ::warning::
+  pointing at the Settings URL) or `skip=false`.
+- All subsequent steps (Record build identity, Verify lockfile,
+  Publish fabric-capability, fabric-graph, fabric-workspace,
+  fabric-persist) gate on `if: steps.token-check.outputs.skip != 'true'`.
+- Removed `continue-on-error: true` — the job now exits cleanly
+  with a clear "wire the secret" notice instead of failing with
+  a 7-line stack trace and 5-iteration retry loop.
+
+When the operator wires the secret, the job will run automatically
+with no further workflow changes needed.
+
+**Validation:** `python3 -c "import yaml; yaml.safe_load(...)"`
+passes. actionlint only flags pre-existing SC2034 warnings on
+GUI collect scripts at lines 266/295/322 (TAG appears unused) —
+unrelated to this change.
+
+**Commit:** next step. Both changes are isolated to
+`.github/workflows/release.yml`.
+
+tx-agent:     jcode
+tx-validated: yaml-valid, fnmatch-simulation passes, gh release view asset-count=10
+tx-task:      Filter docker-image out of release assets + skip publish-crates cleanly
+tx-scope:     .github/workflows/release.yml
+tx-intent:    10 clean release assets, actionable operator message for CRATES_IO_TOKEN
