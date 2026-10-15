@@ -846,3 +846,102 @@ tx-validated: 3 separate cargo runs, all bench gates pass, E0432 isolated to sta
 tx-task:      End-to-end validate Dockerfile fix
 tx-scope:     target/docker-stub-simulation/ (gitignored)
 tx-intent:    Confirm bench manifest gate passes in the exact Dockerfile dep-cache shape
+
+---
+
+## Round 18 — Expand publish-crates from 4/15 to 12/15 publishable crates (commit `25d16f4`)
+
+### Discovery
+
+The auto-poke correctly kept saying "test the remaining hypotheses" on
+publish-crates. Round 17 had only confirmed that 4 specific crates were
+in the workflow. Round 18 asked: **how many crates are actually
+publishable, and how many of those does the workflow cover?**
+
+`cargo metadata --no-deps --format-version 1` is the source of truth.
+A crate is publishable iff its `publish` field is `None` (default true)
+or a non-empty list of registries.
+
+Result: **15 publishable crates** in the workspace.
+The workflow only published 4 of them. The other 11 were silent gaps.
+
+### Which 15 are publishable (and how each fares in the workflow)
+
+| Crate | In workflow? | Why / blocker |
+|-------|-------------|---------------|
+| fabric-capability | ✅ (existing) | leaf, no internal deps |
+| phenotype-manifest | ✅ (new) | leaf, v0.2.0 |
+| fabric-terminal | ✅ (new) | leaf |
+| fabric-capture | ✅ (new) | leaf |
+| fabric-research-ledger | ✅ (new) | leaf |
+| fabric-graph | ✅ (existing) | deps: capability (now in workflow before it) |
+| fabric-checker | ✅ (new) | deps: capability (manifest fix required) |
+| fabric-capability-ffi | ✅ (new) | deps: capability (manifest fix required) |
+| phenotype-nvms-adapter | ✅ (new) | deps: capability + manifest (manifest fix required) |
+| fabric-graph-cli | ✅ (new) | deps: graph + capability |
+| fabric-workspace | ✅ (existing) | deps: graph + capability |
+| fabric-persist | ✅ (existing) | deps: graph + capability |
+| fabric-daemon | ❌ blocked | deps include fabric-frame-transport (publish = false) |
+| fabric-surface-mojo | ❌ blocked | deps include fabric-frame-transport (publish = false) |
+| fabric-orchestrator | ❌ blocked | deps include fabric-frame-transport + fabric-checker |
+
+**12 of 15 publishable crates are now in the workflow** (80% coverage).
+The 3 blocked ones all share a common root: they depend on
+`fabric-frame-transport`, which has `publish = false`. Fixing that is
+a separate decision (do we want to publish the wire transport to
+crates.io, or keep it private?). Documented inline in release.yml with
+both paths.
+
+### Manifest fixes (commit `25d16f4`)
+
+Three crates had `path = "..."` deps without a `version` field. `cargo
+publish` rejects these because the path is stripped at publish time
+and the crates.io version is used instead — so a version is required
+even when the dep is a local path.
+
+| File | Fix |
+|------|-----|
+| `crates/fabric-checker/Cargo.toml` | `fabric-capability = { path = "../fabric-capability", version = "0.1.0" }` |
+| `crates/fabric-capability-ffi/Cargo.toml` | same as above |
+| `crates/phenotype-nvms-adapter/Cargo.toml` | fabric-capability (deps + dev-deps) version = "0.1.0"; phenotype-manifest version = "0.2.0" (it ships at v0.2.0) |
+
+### Validation
+
+For all 12 in-workflow crates I ran `cargo publish -p <name>
+--allow-dirty --dry-run`:
+
+- **5 leaves (fabric-capability + phenotype-manifest + fabric-terminal +
+  fabric-capture + fabric-research-ledger)** all get to "Uploading"
+  before the dry-run halts. These would actually publish.
+- **7 dependents (fabric-graph, fabric-checker, fabric-capability-ffi,
+  phenotype-nvms-adapter, fabric-graph-cli, fabric-workspace,
+  fabric-persist)** all fail with "no matching package found" on
+  crates.io for an upstream dep. **This is expected and resolves at
+  runtime** when the workflow runs in order — cargo will find the
+  freshly-published upstream crate on the next attempt.
+- `cargo check --workspace --offline` passes in 1.03s with no
+  errors (only pre-existing future-incompat warnings on `block` and
+  `proc-macro-error2`).
+- YAML valid, actionlint clean (only pre-existing SC2034 warnings
+  on `TAG` at lines 266/295/322).
+
+### What this changes for the operator
+
+If/when the operator wires `CRATES_IO_TOKEN`, the publish-crates job
+will now publish 12 crates in correct topological order (instead of
+just 4). The 3 remaining blocked crates (daemon, surface-mojo,
+orchestrator) require a separate decision: do we want to publish
+`fabric-frame-transport` to crates.io? The comment block in
+release.yml explains both paths.
+
+### Files touched
+
+```
+.github/workflows/release.yml            | 63 +++++++++++++++++++-
+crates/fabric-capability-ffi/Cargo.toml  |  2 +-
+crates/fabric-checker/Cargo.toml         |  2 +-
+crates/phenotype-nvms-adapter/Cargo.toml |  6 +--
+4 files changed, 67 insertions(+), 6 deletions(-)
+```
+
+Commit `25d16f4`, pushed to `origin/main`. 6th commit this session.
