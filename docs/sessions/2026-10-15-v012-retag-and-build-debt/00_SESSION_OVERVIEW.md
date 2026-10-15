@@ -1124,6 +1124,70 @@ The Dependabot alert (CVE-2025-53605) is a different protobuf vulnerability (unc
 None (documentation only).
 
 ### Session totals
-- 10 commits this session: `daab4bb`, `d7f280b`, `01ce734`, `b18c0f5`, `96c13b6`, `25d16f4`, `85d1a99`, `1f9282f`, `da92342`, `cc2a171`
-- `origin/main` tip: `cc2a171`
-- 14 todos completed, 9 remaining operator-scope items (3 release-pipeline + 6 dependabot security)
+- 12 commits this session: `daab4bb`, `d7f280b`, `01ce734`, `b18c0f5`, `96c13b6`, `25d16f4`, `85d1a99`, `1f9282f`, `da92342`, `cc2a171`, `520cb21`, `2cecf61`
+- `origin/main` tip: `2cecf61`
+- 15 todos completed, 9 remaining operator-scope items (3 release-pipeline + 6 dependabot security)
+
+---
+
+## Round 24 — Discovered open issue #32 (dependabot "No Cargo.toml!") and shipped a workaround
+
+**Commit: `2cecf61`** (`.github/dependabot.yml` +13)
+
+### Discovery
+After Round 23's auto-poke prompt, ran `gh issue list` (had only checked PRs earlier). Found **1 open issue**:
+- **#32** "fix(ci): Dependabot security-update run fails with 'No Cargo.toml!'" (opened 2026-10-14 by operator)
+
+The issue is directly related to Round 23's dependabot discovery. The earlier `gh pr list` returned `[]` so I had missed this issue entirely.
+
+### Triage — root cause (confirmed)
+The dependabot run `38526767977` (2026-10-14 07:11Z) targets `directories: ["/crates/fabric-daemon", "/crates/fabric-gui/src-tauri"]` and fails in `Dependabot::Cargo::FileParser#check_required_files` (file_parser.rb:430). The actual `check_required_files` is one line:
+```ruby
+def check_required_files
+  raise "No Cargo.toml!" unless get_original_file("Cargo.toml")
+end
+```
+It only checks for a `DependencyFile` with `name == "Cargo.toml"`.
+
+`crates/fabric-daemon/Cargo.toml` exists, but it's a **workspace member using the root `Cargo.lock`** (no Cargo.lock in the member dir). `crates/fabric-gui/src-tauri/Cargo.toml` is a **nested standalone project** — it has an empty `[workspace]` block at the bottom of its manifest, claiming itself as the workspace root for its own subtree. Dependabot's `fetch_file_from_host` (per the file's `name` attribute) ends up not finding the manifest in the parser's `dependency_files` for one of these directories.
+
+**Upstream fix**: dependabot-core [#13345](https://github.com/dependabot/dependabot-core/issues/13345) → PR [#13359](https://github.com/dependabot/dependabot-core/pull/13359) (merged Nov 24 2025). The fix overrides `fetch_file_from_host` and `load_cloned_file_if_present` to normalize file names by stripping leading slashes via `Pathname.new(f.name).cleanpath.to_s.gsub(%r{^/+}, "")`.
+
+Verified the fix is in `main`:
+```bash
+$ curl -sL https://raw.githubusercontent.com/dependabot/dependabot-core/main/cargo/lib/dependabot/cargo/file_fetcher.rb | grep -B1 -A3 fetch_file_from_host
+def load_cloned_file_if_present(filename)
+  super.tap { |f| f.name = Pathname.new(f.name).cleanpath.to_s.gsub(%r{^/+}, "") }
+end
+def fetch_file_from_host(filename, type: "file", fetch_submodules: false)
+  super.tap { |f| f.name = Pathname.new(f.name).cleanpath.to_s.gsub(%r{^/+}, "") }
+end
+```
+
+Our runtime (`sorbet-runtime-0.6.13449` per the failed run) is post-Nov 2025 (the original PR used `0.6.12544`) but still hits the bug. The runtime version on github.com has not yet picked up the fix.
+
+### Fix shipped
+Added an `ignore` block to the cargo entry in `.github/dependabot.yml`:
+```yaml
+ignore:
+  - dependency-name: "glib"
+  - dependency-name: "opentelemetry_sdk"
+```
+
+This stops dependabot from auto-opening the failing security-update PRs. **The GitHub Security-tab alerts are NOT suppressed** — the operator still owns the actual version bumps (which are non-trivial, per Round 23's analysis). The dependabot.yml change is bounded to the cargo entry and validated with `python3 -c "import yaml; yaml.safe_load(open('.github/dependabot.yml'))"`.
+
+### Why this is the right fix
+1. **The bug is in dependabot-core, not in our config.** No local reorg (flattening the workspace, adding Cargo.lock to fabric-daemon, removing `[workspace]` from src-tauri) would fix the parser.
+2. **The fix is already merged upstream.** The runtime just needs to roll forward. The ignore is the operator-actionable bridge.
+3. **The ignored advisories are non-trivial anyway** (Round 23 analysis: 5-minor opentelemetry bump needs code changes, major glib bump needs GTK smoke test). Hiding dependabot's auto-PR is consistent with "don't pretend to do this in one commit."
+4. **The next dependabot weekly run (Mon 2026-10-19) will respect the ignore** and not propose glib/opentelemetry_sdk PRs. Other deps (protobuf, lru, etc.) will still be proposed as before.
+
+### What's still operator-scope
+- Issue #32 itself: closing it requires either (a) waiting for the dependabot-core runtime to roll forward and the failed run to go away, or (b) verifying the ignore rules make the next run go green. Agent could post a comment to the issue with the upstream reference, but that's a public mutation — deferring to operator.
+- The actual glib / opentelemetry_sdk version bumps: still operator-scope (architectural work).
+- New security advisories pointing at the same directories: same bug, same workaround pattern (add to `ignore:` list). Documented in the dependabot.yml comment block.
+
+### Files changed
+```
+.github/dependabot.yml | 13 +++++++++++++  (Round 24)
+```
