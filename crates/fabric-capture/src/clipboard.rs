@@ -10,6 +10,8 @@ pub mod win {
     use windows_sys::Win32::Foundation::*;
     use windows_sys::Win32::System::DataExchange::*;
     use windows_sys::Win32::System::Memory::*;
+    use windows_sys::Win32::System::StationsAndDesktops::*;
+    use windows_sys::Win32::System::Threading::*;
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
     const CF_UNICODETEXT: u32 = 13;
