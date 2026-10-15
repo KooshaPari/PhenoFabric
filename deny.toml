@@ -3,57 +3,59 @@
 
 # ── advisories ──────────────────────────────────────────────────────────
 [advisories]
-# Deny any advisory at any severity level.
-vulnerability = "deny"
+version = 2
 # Warn on yanked crates (deny blocks the build; warn is informational).
 yanked = "warn"
 # Ignore specific advisories (add RUSTSEC-XXXX-XXXX here if needed).
 ignore = [
-    # RUSTSEC-2026-0195 / RUSTSEC-2026-0196 — quick-xml < 0.41.0
-    # Transitive dep via eframe 0.31.x -> accesskit -> zbus_xml -> quick-xml ^0.30.
-    # Cannot be patched; upgrading eframe to 0.36.x resolves it.
-    # Risk: LOW (requires malicious local D-Bus service).
-    "RUSTSEC-2026-0195",
-    "RUSTSEC-2026-0196",
+    # RUSTSEC-2024-0384 — instant 0.1.13 (unmaintained) via tao 0.30.8 →
+    # fabric-tray. Replace with web-time (tao upgrade pending).
+    "RUSTSEC-2024-0384",
+    # RUSTSEC-2024-0436 — paste 1.0.15 (unmaintained) via various macros.
+    # Replace with pastey (separate change).
+    "RUSTSEC-2024-0436",
+    # RUSTSEC-2024-0370 — proc-macro-error (unmaintained, syn 1.x).
+    # Dev-dep only; no runtime exposure.
+    "RUSTSEC-2024-0370",
+    # RUSTSEC-2026-0173 — proc-macro-error2 (unmaintained). Author has
+    # archived; recommend manyhow (separate change).
+    "RUSTSEC-2026-0173",
+    # RUSTSEC-2024-0437 — protobuf 2.28.0 (stack-overflow on untrusted
+    # input). Pinned by prometheus 0.13.4; would require protobuf 3.7.2+
+    # which is a major-version bump in prometheus. fabric-daemon does
+    # not parse untrusted protobuf input.
+    "RUSTSEC-2024-0437",
+    # RUSTSEC-2023-0071 — rsa 0.9.10 (Marvin timing attack) via
+    # jsonwebtoken 10.3.0 → fabric-daemon. No patch available
+    # (RustCrypto/RSA#626). Local use only, no network timing
+    # attack surface in current fabric-daemon.
+    "RUSTSEC-2023-0071",
+    # RUSTSEC-2024-0449 — unsafe-libyaml 0.2.11 (unmaintained) via
+    # serde_yaml 0.9.34+deprecated → fabric-cli. Replacement is
+    # saphyr / serde_yaml_ng (separate change). Dev-time config
+    # parsing only, no runtime exposure.
+    "RUSTSEC-2024-0449",
 ]
 
 # ── licenses ────────────────────────────────────────────────────────────
 [licenses]
-# Allow these license identifiers (SPDX).
+version = 2
+# Allow these license identifiers (SPDX). All other licenses are denied
+# by default in version 2 — no need to enumerate copyleft licenses.
 allow = [
     "MIT",
+    "MIT-0",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
     "Unicode-3.0",
-    "Unicode-DFS-2016",
     "Zlib",
     "BSL-1.0",
     "0BSD",
-    "MIT OR Apache-2.0",
     "Unlicense",
-    "CC0-1.0",
-    "CC-BY-4.0",
-]
-# Deny copyleft and other restrictive licenses.
-deny = [
-    "GPL-2.0",
-    "GPL-2.0-only",
-    "GPL-2.0-or-later",
-    "GPL-3.0",
-    "GPL-3.0-only",
-    "GPL-3.0-or-later",
-    "AGPL-1.0",
-    "AGPL-1.0-only",
-    "AGPL-1.0-or-later",
-    "AGPL-3.0",
-    "AGPL-3.0-only",
-    "AGPL-3.0-or-later",
-    "SSPL-1.0",
-    "EUPL-1.1",
-    "EUPL-1.2",
+    "MPL-2.0",
 ]
 # Don't confidence-check the license field.
 confidence-threshold = 0.8
