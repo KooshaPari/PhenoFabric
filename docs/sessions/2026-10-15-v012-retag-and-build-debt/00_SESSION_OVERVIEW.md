@@ -1056,3 +1056,74 @@ None (documentation only).
 - 9 commits this session: `daab4bb`, `d7f280b`, `01ce734`, `b18c0f5`, `96c13b6`, `25d16f4`, `85d1a99`, `1f9282f`, `da92342`
 - `origin/main` tip: `da92342`
 - 13 todos completed, 3 remaining (2 operator-scope, 1 awaiting operator inbox approval for env protection)
+
+---
+
+## Round 23 — Dependabot security alerts discovered (9 total: 3 fixed, 6 open)
+
+**No commit** (documentation only, no code change in this round).
+
+### Discovery
+While pushing the Round 22 doc, GitHub returned a side-effect notice:
+> `GitHub found 6 vulnerabilities on KooshaPari/PhenoFabric's default branch (5 moderate, 1 low)`
+
+I queried the Dependabot API to get the full picture. **9 alerts total** (3 fixed, 6 open). The "6" in the push output was a count of open alerts; the API returns 9 total entries including 3 historical ones that have since been fixed.
+
+### Full alert inventory
+
+| # | Sev | State | Package | GHSA | CVE | Manifest | Vuln → Patched |
+|---|-----|-------|---------|------|-----|----------|----------------|
+| 1 | medium | fixed | rustls | GHSA-2mjx-qc3c-rqvc | None | Cargo.lock | >= 0.23.13, < 0.23.45 → 0.23.45 |
+| 2 | medium | open | glib | GHSA-wrw7-89jp-8q8g | None | crates/fabric-gui/src-tauri/Cargo.lock | >= 0.15.0, < 0.20.0 → 0.20.0 |
+| 3 | medium | fixed | jsonwebtoken | GHSA-h395-gr6q-cpjc | CVE-2026-25537 | crates/fabric-daemon/Cargo.toml | < 10.3.0 → 10.3.0 |
+| 4 | medium | fixed | jsonwebtoken | GHSA-h395-gr6q-cpjc | CVE-2026-25537 | Cargo.lock | < 10.3.0 → 10.3.0 |
+| 5 | medium | open | opentelemetry_sdk | GHSA-w9wp-h8wv-79jx | CVE-2026-48504 | crates/fabric-daemon/Cargo.toml | <= 0.32.0 → 0.32.1 |
+| 6 | medium | open | opentelemetry_sdk | GHSA-w9wp-h8wv-79jx | CVE-2026-48504 | Cargo.lock | <= 0.32.0 → 0.32.1 |
+| 7 | medium | open | protobuf | GHSA-2gh3-rmm4-6rq5 | CVE-2025-53605 | Cargo.lock | < 3.7.2 → 3.7.2 |
+| 8 | low | open | lru | GHSA-rhfx-m35p-ff5j | None | Cargo.lock | >= 0.9.0, < 0.16.3 → 0.16.3 |
+| 9 | medium | open | glib | GHSA-wrw7-89jp-8q8g | None | Cargo.lock | >= 0.15.0, < 0.20.0 → 0.20.0 |
+
+### Fixability analysis (per open alert)
+
+1. **opentelemetry_sdk 0.27.1 → 0.32.1** (alerts 5, 6):
+   - Currently pinned via `crates/fabric-daemon/Cargo.toml:33: opentelemetry_sdk = "0.27"`
+   - Patched in 0.32.1 — but this is a **5-minor-version bump** (0.27 → 0.32), each potentially breaking
+   - Sibling deps (`opentelemetry`, `opentelemetry-otlp`, `tracing-opentelemetry`) all need similar bumps
+   - **Scope: hours; requires code changes. fabric-daemon is `publish=None` so doesn't block any published release.**
+
+2. **protobuf < 3.7.2** (alert 7):
+   - Already noted in `deny.toml` ignore list (`RUSTSEC-2024-0437` is a related but distinct advisory; comment says "would require protobuf 3.7.2+ which is a major-version bump in prometheus")
+   - **Scope: days; architectural. Defer.**
+
+3. **lru 0.12.5 → 0.16.3** (alert 8):
+   - Low severity (the only "low" of the 6)
+   - `cargo tree -i lru@0.12.5` shows: brought in by `ratatui v0.29.0` → `fabric-cli` + `fabric-tui`
+   - Fix: bump `ratatui = "0.29"` → `"0.30"` in `crates/fabric-cli/Cargo.toml:38` and `crates/fabric-tui/Cargo.toml:18`
+   - **Scope: 30-60min minimum; ratatui 0.30 may have breaking API changes; both fabric-cli and fabric-tui are publishable crates per Round 18 inventory (12/15 in workflow) so any change affects the publish surface.**
+
+4. **glib < 0.20.0** (alerts 2, 9):
+   - Major version bump in the GTK stack
+   - 5-version minor bump across `fabric-gui/src-tauri/` plus workspace lockfile
+   - **Scope: days; architectural. Defer.**
+
+### Agent-actionable assessment
+**None of the 6 open alerts are quick, isolated, low-risk fixes.** They fall into:
+- Multi-version major bumps (opentelemetry, glib)
+- Transitive fixes that touch publishable crates (lru via ratatui → fabric-cli + fabric-tui)
+- Already-acknowledged architectural items (protobuf, in deny.toml)
+
+**Recommendation: defer to operator. Dependabot will pick these up automatically** on its weekly Monday schedule (next: 2026-10-19). The dependabot config has `update-types: ["minor", "patch"]` so it WILL propose minor-version PRs for ratatui 0.29→0.30, lru via that, etc. The operator can review and merge the dependabot PRs at their discretion.
+
+### Cross-reference with deny.toml
+The `deny.toml` file already explicitly mentions protobuf (`RUSTSEC-2024-0437`):
+> "Pinned by prometheus 0.13.4; would require protobuf 3.7.2+ which is a major-version bump in prometheus. fabric-daemon does not parse untrusted protobuf input."
+
+The Dependabot alert (CVE-2025-53605) is a different protobuf vulnerability (uncontrolled recursion vs. the deny.toml's stack-overflow). The 3.7.2 patch address is the same in both cases — major-version bump in prometheus is the blocker. So the deny.toml comment effectively documents this for the operator already.
+
+### Files changed
+None (documentation only).
+
+### Session totals
+- 10 commits this session: `daab4bb`, `d7f280b`, `01ce734`, `b18c0f5`, `96c13b6`, `25d16f4`, `85d1a99`, `1f9282f`, `da92342`, `cc2a171`
+- `origin/main` tip: `cc2a171`
+- 14 todos completed, 9 remaining operator-scope items (3 release-pipeline + 6 dependabot security)
