@@ -25,12 +25,21 @@ partially shipped**:
   cargo publish issue)
 - ✓ **Dependabot config correct** for Mon 2026-10-20T05:29Z next
   run (R29 / `f8050e7` + R31 / `7648604`)
-- ⚠ **4 un-ignored security alerts** (protobuf, jsonwebtoken,
-  lru, otel_sdk) — all `patched=null` in GH advisory DB; resolving
-  PRs were closed by operator; filter blocks future auto-PRs
+- ⚠ **4 open security alerts** — `glib` x2, `opentelemetry_sdk`
+  x2, both with patched versions available (R38 correction; an
+  earlier draft said 6 including protobuf/jsonwebtoken/lru, which
+  is wrong — those are already fixed in the lockfile)
+- 🔴 **NEW (R38): `cargo-deny` was version-drifted.** CI installed
+  it unpinned, so the dependency-audit gate's green/red state for
+  5 weeks depended on which release the runner happened to cache,
+  not on the code. Failures were `deny.toml` SPDX parse errors, not
+  real advisories. Now pinned to 0.20.2; all four checks verified
+  passing locally. Agent-actionable, see item 7.
 
-**Session is in a stable resting state.** 7 operator-scope items
-documented. No agent-actionable work pending.
+**Session is in a stable resting state.** 9 operator-scope items
+documented (7 original + 2 new from R38). The R38 verification also
+found the issue-#32 close gate in this document was unsound — it
+would have authorised a false close; see item 6.
 
 ---
 
@@ -42,7 +51,7 @@ documented. No agent-actionable work pending.
 | Working tree | clean | R36 |
 | Open PRs | 0 (all 10 closed by operator 2026-10-15T07:19-07:22Z) | R35 |
 | Open issues | 1 (#32, gate to Mon 2026-10-20T05:29Z) | R35 |
-| Open alerts | 6 (4 un-ignored + 2 dupes for ignored) | R25 |
+| Open alerts | **4** (R38 correction; was documented as 6) — `glib` x2, `opentelemetry_sdk` x2, all with patched versions available | R38 |
 | Fixed alerts (this session) | 3 | R25 |
 | Production env protection rules | `[]` (unchanged) | R32 |
 | Dependabot config | `update-types: [minor, patch]` (R29) + `security-updates-only: true` (R31) | R29/R31 |
@@ -101,38 +110,45 @@ placeholder.
 
 **Action**: operator picks A/B/C. Each has compile + test impacts.
 
-### 4. 4 un-ignored alerts (R35)
+### 4. 4 open security alerts (CORRECTED R38)
 
-**Affected**:
-- `protobuf` (RUSTSEC-2024-0437, `protobuf 2.27.1` transitive)
-- `jsonwebtoken` (RUSTSEC-2024-0436, `jsonwebtoken 10.3.0`)
-- `lru` (RUSTSEC-2024-0435, `lru 0.12.5` transitive)
-- `opentelemetry_sdk` (RUSTSEC-2024-0429, `opentelemetry_sdk 0.27.1`)
+**CORRECTION (R38)**: the earlier draft of this handoff listed 6
+open alerts (`protobuf`, `jsonwebtoken`, `lru`, `opentelemetry_sdk`)
+and stated all had `patched=null`. That is **wrong**. Re-verified
+against the live API on 2026-10-15T21:34Z:
 
-**All have `patched=null`** in the GitHub advisory DB. None can
-be auto-resolved by version bumps.
+**Actually 4 open alerts, 2 packages, BOTH with a patched version:**
 
-**Resolving PRs were all closed by operator at 07:19-07:22Z**:
-- PR #35 opentelemetry-otlp 0.27.0 → 0.33.1 (would resolve
-  otel_sdk alert via major-version dep bump)
-- PR #37 jsonwebtoken 10.3.0 → 11.1.0 (direct resolve)
-- PR #38 ratatui 0.29.0 → 0.30.2 (transitive lru resolve)
-- (no resolving PR for protobuf)
+| # | Package | Sev | Patched in | Status |
+|---|---|---|---|---|
+| 1 | `glib` | medium | `0.20.0` | lockfile at `0.18.5` |
+| 8 | `glib` | medium | `0.20.0` | lockfile at `0.18.5` |
+| 4 | `opentelemetry_sdk` | medium | `0.32.1` | lockfile has `0.27.1` **and** `0.33.1` |
+| 5 | `opentelemetry_sdk` | medium | `0.32.1` | same |
 
-**The `update-types: [minor, patch]` filter (R29)** blocks
-future auto-PRs for major versions.
+`protobuf`, `jsonwebtoken`, `lru` and `ratatui` alerts are
+**already closed** — the lockfile confirms the resolving bumps
+actually landed: `jsonwebtoken 11.1.0`, `ratatui 0.30.2`,
+`protobuf 3.7.2`, `lru 0.18.5`. The `update-types: [minor, patch]`
+filter does **not** block a security advisory that already has a
+patched version, so the R29 filter is not the constraint it was
+described as being.
 
-**4 paths forward**:
-- (a) **Manually bump** those deps + accept the breaking-change
-  code work
-- (b) **Remove the filter** and re-open PRs #35/#37/#38 (re-add
-  the original resolving PRs); handle protobuf separately
-- (c) **Wait for upstream patches** (no ETA — `patched=null` is
-  the signal)
-- (d) **Document as accepted risk**; close alerts as "won't fix"
-  with a justification
+`opentelemetry_sdk` is the sharp edge: two copies coexist
+(`0.27.1` vulnerable, `0.33.1` already past the fix). Whichever
+crate still pins `0.27.1` is the one that needs the bump.
 
-**Action**: operator picks (a)/(b)/(c)/(d).
+**Paths forward (re-derived)**:
+- (a) Bump `glib 0.18.5 → 0.20.0` and `opentelemetry_sdk 0.27.1 →
+  0.32.1+`. Both have known patches; this is ordinary dependency
+  work, not unresolvable risk.
+- (b) Document as accepted risk; dismiss the 4 alerts as
+  won't-fix with a justification.
+- (c) Wait — **not applicable**, unlike the previous draft. Patched
+  versions exist for all 4.
+
+**Action**: operator picks (a)/(b). Note `glib` is a GTK major
+bump needing a `src-tauri` smoke test.
 
 ### 5. SonarCloud Quality Gate (R28 CORRECTION)
 
@@ -160,26 +176,179 @@ back to `25d16f4` (R18). Not introduced by R24/R26.
 of unrelated changes to clear the gate (sweep-of-unrelated is
 out-of-scope per the agent's standing rule).
 
-### 6. Issue #32 close (R32)
+### 6. Issue #32 close (R32) — VERIFICATION GATE IS UNSOUND (R38)
 
-**Open since 2026-10-14**:
-"fix(ci): Dependabot security-update run fails with 'No Cargo.toml!'"
+**The previous verification gate would produce a false close. Do
+not use it.** It said: "check the Mon 2026-10-20 run; if clean,
+close #32." But R31 silenced the failing job rather than fixing
+it, so **a clean run is expected whether or not the bug is
+fixed**. Closing #32 on a green run would record a resolution
+that never happened.
 
-**Gate**: the next scheduled dependabot security-update trigger
-on **Mon 2026-10-20T05:29Z** must run cleanly (R31 / commit
-`7648604` `security-updates-only: true` should silence the
-failing job).
+**What the failing run actually is** (verified R38):
 
-**Action**:
-1. Next session verifies the Mon run went green (read
-   `gh run list --workflow="Dependabot"` for that date)
-2. If clean: `gh issue close 32 --comment "Verified Mon
-   YYYY-MM-DD run; security-update flow silenced for
-   glib + opentelemetry_sdk per commit 7648604."`
-3. If still failing: re-investigate, possibly un-ignore the
-   deps to see the new error
+| Field | Value |
+|---|---|
+| Run | `38526767977`, 2026-10-14T07:11Z, sha `4a16747` |
+| Workflow | `Dependabot Updates` (id `356386660`, GitHub-managed) |
+| Event | `dynamic` |
+| Name | `cargo in /crates/fabric-daemon, /crates/fabric-gui/src-tauri for glib, opentelemetry_sdk - Update #1626309406` |
 
-### 7. 3 stale remote branches (R35)
+Two things follow:
+
+1. **There is no `.github/workflows/dependabot.yml` in this repo.**
+   The failing job is GitHub's own Dependabot engine reacting to
+   `.github/dependabot.yml` config, triggered by the `ignore`
+   entries added in R31. The previous handoff implied a repo
+   workflow was edited to fix it; that is not what happened.
+2. The run name shows Dependabot synthesised an **ad-hoc update**
+   for exactly the two packages R31 added to `ignore`
+   (`glib`, `opentelemetry_sdk`). R31's ignore entries did not
+   prevent these jobs from being queued — they only affect
+   scheduled runs, not the security-update path, which is the
+   documented behaviour of `security-updates-only`.
+
+**So the correct gate is:**
+
+```bash
+# Did the ad-hoc job for glib / opentelemetry_sdk recur on Monday?
+gh run list --workflow="Dependabot Updates" \
+  --created ">=2026-10-20" --limit 20 \
+  | grep -iE "glib|opentelemetry_sdk"
+```
+
+- **No matching run** → R31 worked; #32 can be closed honestly.
+- **Matching run, conclusion `failure`** → still broken; do not
+  close, re-investigate.
+- **Matching run, conclusion `success`** → the parser now
+  resolves the manifests; close #32 and say why it differs.
+
+Only the first case justifies closing #32. Do not close it on the
+strength of the overall Monday run being green.
+
+**The underlying bug is upstream**: `dependabot/dependabot-core`
+#13345, fixed by PR #13359. If ad-hoc jobs keep recurring, the
+real fix is the `source`/workspace mapping for the nested
+`src-tauri` crate, not more ignore entries.
+
+### 7. cargo-deny version drift — root-caused, and the gate is STILL not real (R38)
+
+**This item is written twice.** My first pass at it concluded
+"cargo-deny has never passed and the advisories check is a silent
+no-op since 2026-09-14." **That was wrong**, and the per-job
+conclusions disprove it. Corrected below.
+
+**What the run history actually shows:**
+
+| Run | Date | cargo-deny | Go vuln check |
+|---|---|---|---|
+| 38290237246 | 2026-10-12 | failure | failure |
+| 38322806067 | 2026-10-12 | failure | failure |
+| 38322837742 | 2026-10-12 | failure | failure |
+| 38322999575 | 2026-10-12 | failure | failure |
+| 38351585765 | 2026-10-13 | failure | failure |
+| 38660507431 | 2026-10-15T00:31 | **success** | failure |
+| 38671156527 | 2026-10-15T02:28 | **success** | success |
+| 38684918401 | 2026-10-15T05:05 | **success** | success |
+| 38697946861 | 2026-10-15T07:19 | **success** | success |
+
+`cargo-deny` started passing at 2026-10-15T00:31Z, before this
+session began. It is **not** currently broken, and the advisory
+gate has been running for ~13 hours, not for 5 weeks.
+
+**The real finding — drift that silently disabled the gate.**
+The failing runs died on:
+
+```
+error[custom]: expected a `WITH` here
+[ERROR] failed to deserialize config from '.../deny.toml'
+```
+
+which is cargo-deny failing to parse the SPDX license expressions in
+`deny.toml`. That is **tool-version drift**: CI ran
+`cargo install cargo-deny --locked`, which is pinned to *cargo's*
+lockfile, not to a cargo-deny release, so it floats to newest. The
+run that happened to install a newer cargo-deny failed on config
+parsing; the next one to install an older/newer build passed.
+Same class of bug as the `@latest` govulncheck failure in item 8,
+which *did* fully break its job for 5 weeks.
+
+**So why is this still worth acting on?** Because between
+2026-09-14 and 2026-10-15 the gate's green/red state depended on
+whatever cargo-deny release the runner happened to cache, not on
+the codebase. A security gate whose status is decided by an
+unpinned tool install is not a gate. The advisory check may well
+have passed every week, but for reasons unrelated to the code.
+
+**Fix (agent-actionable) — APPLIED IN R38:** `deny.yml` now pins
+`cargo install cargo-deny --version 0.20.2 --locked`, with a
+comment recording the failure mode. This converts a
+luck-dependent gate into a deterministic one.
+
+**Verified locally under the pin** (macOS, cargo-deny 0.20.2):
+
+| Check | Result |
+|---|---|
+| `cargo deny check licenses` | ok (exit 0) |
+| `cargo deny check advisories` | ok (exit 0) |
+| `cargo deny check bans` | ok (exit 0) |
+| `cargo deny check sources` | ok (exit 0) |
+
+Plus two `advisory-not-detected` **warnings** for stale ignore
+entries that no longer match any crate in the lockfile:
+
+- `RUSTSEC-2024-0384` (deny.toml line 13)
+- `RUSTSEC-2024-0437` (deny.toml line 27) — the `protobuf` one;
+  the lockfile is now on `protobuf 3.7.2`, past the advisory
+
+The `deny.toml` comments still describe `protobuf 2.28.0` and
+`jsonwebtoken 10.3.0`, which no longer match the lockfile. Two of
+the eight ignore entries document advisories that no longer apply.
+
+**`deny.toml` cleanup — DONE IN R38.** Removed the two
+`advisory-not-detected` entries and refreshed the stale comments:
+
+- dropped `RUSTSEC-2024-0384` (instant, via tao → fabric-tray)
+- dropped `RUSTSEC-2024-0437` (protobuf 2.x; lockfile is on 3.7.2)
+- kept `RUSTSEC-2023-0071` but annotated it — jsonwebtoken moved
+  10.3.0 → 11.1.0, so it no longer matches either; flagged for the
+  next lockfile refresh rather than silently left to rot
+
+Re-ran all four checks after the edit: **licenses / advisories /
+bans / sources all `ok`, exit 0, zero warnings.** Both
+`advisory-not-detected` warnings are gone.
+
+### 8. Go vulnerability check — ALREADY FIXED on push runs; cron record is stale (R38)
+
+The `go-audit` job failed in all 5 scheduled runs in item 7's
+table, but that history is **stale**. Root cause, from run
+38290237246:
+
+```
+go install golang.org/x/vuln/cmd/govulncheck@latest:
+  golang.org/x/vuln@v1.9.0 requires go >= 1.26.0
+  (running go 1.21.13; GOTOOLCHAIN=local)
+```
+
+The workflow ran `@latest`, which floated to a release needing a
+far newer Go than the pinned `go-version: "1.21"`. Commit
+`2531fb4` ("fix(ci): pin govulncheck to v1.0.4", 2026-10-14) pinned
+it, and **`Dependency Audit` has been green on every push run
+since** — 3 consecutive successes, most recently run `38697946861`
+at 2026-10-15T07:19Z.
+
+So this item is **not** an open defect. The only open question is
+whether the *scheduled* Monday run is green, since every scheduled
+run in the visible history predates the pin. That resolves on
+2026-10-20. No action needed now.
+
+Correction to my own first pass at this item: I initially
+recorded the Go audit as an unexplained weekly failure alongside
+the cargo-deny no-op. The two had different causes and different
+statuses — the cargo-deny job is still broken by version drift
+(item 7), the Go job was already fixed a day ago.
+
+### 10. 3 stale remote branches (R35)
 
 **Current state**: 3 `origin/*` branches from closed/squash-merged
 PRs are still present:
@@ -244,8 +413,9 @@ gh issue list --state open
 # Expected: 1 issue (#32)
 
 # 4. Check open alerts (optional)
-gh api /repos/KooshaPari/PhenoFabric/dependabot/alerts | jq '[.[] | select(.state == "open")] | length'
-# Expected: 6
+gh api /repos/KooshaPari/PhenoFabric/dependabot/alerts \
+  | jq '[.[] | select(.state == "open")] | length'
+# Expected: 4  (R38 correction — the "6" in earlier drafts was wrong)
 
 # 5. Check production env (optional)
 gh api /repos/KooshaPari/PhenoFabric/environments/production
@@ -265,14 +435,21 @@ If the Mon 2026-10-20T05:29Z dependabot run has happened:
 
 In order of expected impact:
 
-1. **Wait for Mon 2026-10-20T05:29Z dependabot run** — verify the
-   R31 fix worked; if yes, close #32
-2. **Document v0.1.2.x release plan** when operator decides
-   between a/b/c on the docker fix forward-port
-3. **Triage dependabot config** — should the filter be relaxed to
-   allow minor+patch security-updates too?
-4. **Prepare v0.1.3** if operator wants to move past the partial
-   v0.1.2
+1. **Confirm the R38 changes on CI** — the `deny.yml` pin and the
+   `deny.toml` cleanup were verified locally on macOS; watch the
+   next `Dependency Audit` run to see 0.20.2 install and all four
+   checks pass on Linux.
+2. **Verify the Mon 2026-10-20 dependabot run** against the
+   corrected gate in item 6 — check for a recurring ad-hoc
+   `glib`/`opentelemetry_sdk` job, not just an overall green run.
+3. **Decide the `glib` / `opentelemetry_sdk` bumps** (item 4).
+   Both have patched versions; this is ordinary dependency work.
+4. **Re-check `RUSTSEC-2023-0071`** at the next lockfile refresh —
+   annotated in `deny.toml` as no-longer-matching.
+5. **Document v0.1.2.x release plan** once the docker fix
+   forward-port is decided.
+6. **Prepare v0.1.3** if the operator wants to move past the
+   partial v0.1.2.
 
 ---
 

@@ -2207,3 +2207,94 @@ The handoff covers:
 ### Files changed
 - `docs/sessions/2026-10-15-v012-retag-and-build-debt/HANDOFF.md`
   (created, 358 lines)
+
+---
+
+## R38 — Fresh-session resumption, handoff verification, and corrections
+
+**Context**: this session resumed from `HANDOFF.md` (R37) to take
+over project ownership. Rather than trusting the handoff's claims,
+every one of them was re-verified against live state. That surfaced
+several material errors.
+
+### Corrections to the R37 handoff
+
+**1. Alert set was wrong (handoff said 6, actual is 4).**
+The handoff listed `protobuf`, `jsonwebtoken`, `lru` and
+`opentelemetry_sdk` as open with `patched=null` and no available
+fix. Live API returns **4** open alerts: `glib` (#1, #8) and
+`opentelemetry_sdk` (#4, #5), and **both have patched versions**
+(`glib 0.20.0`, `opentelemetry_sdk 0.32.1`). `Cargo.lock` shows
+`jsonwebtoken 11.1.0`, `ratatui 0.30.2`, `protobuf 3.7.2`,
+`lru 0.18.5` — all already past their advisory thresholds, so
+those alerts are genuinely closed. The R29
+`update-types: [minor, patch]` filter does not block advisories
+that already have a patched version, contrary to the handoff's
+framing. Consequence: the alerts are ordinary dependency work, not
+unresolvable risk requiring a "wait for upstream" path.
+
+**2. The issue-#32 verification gate was unsound.**
+The handoff said "check the Mon 2026-10-20 run; if clean, close
+#32." But R31 silenced the failing job via `ignore` entries rather
+than fixing it, so a green run is expected whether or not the bug
+is fixed — the gate would have authorised a **false close**.
+
+The failing run is `38526767977`, event `dynamic`, on GitHub's
+managed `Dependabot Updates` workflow (id `356386660`) — there is
+**no `.github/workflows/dependabot.yml` in this repo**. Its name
+is `cargo in /crates/fabric-daemon, /crates/fabric-gui/src-tauri
+for glib, opentelemetry_sdk - Update #1626309406`, i.e. an ad-hoc
+update synthesised for exactly the two packages R31 added to
+`ignore`, confirming `security-updates-only` does not suppress the
+security-update path. Replaced the gate with one that checks for a
+recurring ad-hoc job rather than overall run colour.
+
+### New finding: cargo-deny version drift
+
+`Dependency Audit` (`deny.yml`) had been failing repeatedly. Root
+cause from run `38290237246`:
+
+```
+error[custom]: expected a `WITH` here
+[ERROR] failed to deserialize config from '.../deny.toml'
+```
+
+`cargo install cargo-deny --locked` pins cargo's dependency
+resolution, **not the cargo-deny release**, so it floats to newest.
+Different runner caches produced different results, meaning the
+security gate's pass/fail tracked the tool version rather than the
+code.
+
+**Self-correction**: my first pass at this concluded "the gate has
+never passed and advisories are a silent no-op since 2026-09-14."
+Per-job conclusions disprove that — `cargo-deny` has been green
+since run `38660507431` at 2026-10-15T00:31Z, before this session
+started. The accurate finding is drift that made the gate
+luck-dependent, not a permanently dead gate.
+
+**Fixes applied**:
+- `.github/workflows/deny.yml` — pin `cargo-deny --version 0.20.2
+  --locked`, with a comment recording the failure mode
+- `deny.toml` — dropped `RUSTSEC-2024-0384` and `RUSTSEC-2024-0437`
+  (both `advisory-not-detected`; the lockfile moved past them),
+  and annotated `RUSTSEC-2023-0071` as also no-longer-matching
+  (jsonwebtoken 10.3.0 → 11.1.0)
+
+**Verified locally** (macOS, cargo-deny 0.20.2): `licenses`,
+`advisories`, `bans`, `sources` all `ok`, exit 0, zero warnings —
+including after the `deny.toml` edit.
+
+### Also verified (no change needed)
+
+The Go audit job's failure history is stale: `govulncheck@latest`
+floated to a release requiring Go >= 1.26 against a pinned Go 1.21.
+Commit `2531fb4` pinned it to `v1.0.4` on 2026-10-14 and the job
+has been green on every push run since. Only the scheduled Monday
+run remains unconfirmed, which resolves 2026-10-20.
+
+### Files changed
+- `.github/workflows/deny.yml` (pin cargo-deny to 0.20.2)
+- `deny.toml` (remove 2 stale ignores, refresh 1 comment)
+- `docs/sessions/.../HANDOFF.md` (corrected items 4 and 6, new
+  items 7 and 8, updated TL;DR / snapshot / next-steps)
+- `docs/sessions/.../00_SESSION_OVERVIEW.md` (this section)

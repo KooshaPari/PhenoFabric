@@ -23,8 +23,20 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      # Pinned deliberately. `--locked` only pins cargo's own
+      # dependency resolution, not the cargo-deny release, so an
+      # unpinned install floats to newest. When the runner picked up
+      # a release whose SPDX parser rejects the license expressions
+      # in deny.toml, the job died on
+      # "error[custom]: expected a `WITH` here" and reported
+      # `failed to deserialize config from deny.toml`. That made the
+      # dependency-audit gate's pass/fail depend on the runner's
+      # cached tool version rather than on the codebase.
+      # 0.20.2 parses deny.toml and runs all four checks; verified
+      # locally 2026-10-15. Bump deliberately and re-run the full
+      # check suite when you do.
       - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
+        run: cargo install cargo-deny --version 0.20.2 --locked
 
       - name: Check licenses
         run: cargo deny check licenses
