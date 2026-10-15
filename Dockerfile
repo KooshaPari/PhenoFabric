@@ -55,15 +55,18 @@ RUN mkdir -p crates/fabric-daemon/src crates/fabric-cli/src crates/fabric-graph/
              crates/fabric-gui/src crates/fabric-web/src crates/fabric-tui/src \
              crates/fabric-surface-mojo/src crates/fabric-orchestrator/src \
              crates/fabric-terminal/src crates/fabric-capture/src \
-             crates/fabric-integration-tests/src && \
+             crates/fabric-integration-tests/src crates/fabric-research-ledger/src \
+             examples/full-demo/src && \
     for crate in fabric-graph fabric-graph-cli fabric-capability fabric-capability-ffi \
                  fabric-persist fabric-checker fabric-workspace \
                  fabric-frame-transport phenotype-nvms-adapter phenotype-manifest \
                  fabric-tray fabric-gui fabric-web fabric-tui fabric-surface-mojo \
                  fabric-orchestrator fabric-terminal fabric-capture \
-                 fabric-integration-tests; do \
+                 fabric-integration-tests fabric-research-ledger; do \
         echo "pub fn _stub() {}" > "crates/${crate}/src/lib.rs"; \
     done && \
+    mkdir -p examples/full-demo/src && \
+    echo "pub fn _stub() {}" > examples/full-demo/src/lib.rs && \
     echo "fn main() {}" > crates/fabric-daemon/src/main.rs && \
     echo "fn main() {}" > crates/fabric-cli/src/main.rs
 
