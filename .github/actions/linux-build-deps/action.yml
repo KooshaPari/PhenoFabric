@@ -58,9 +58,10 @@ runs:
           # Write a clean legacy-style sources.list. Apt 2.x supports
           # both legacy and deb822 formats; the legacy one-line format
           # is the simplest to get right without deb822 edge cases.
-          sudo tee /etc/apt/sources.list.d/ubuntu.list > /dev/null <<'EOF'
-deb [arch=amd64,arm64] http://azure.archive.ubuntu.com/ubuntu noble main universe restricted multiverse
-EOF
+          # Use printf with a literal newline (avoids heredoc YAML
+          # indentation pitfalls) to ensure the line is a single
+          # \n-terminated entry in old-style deb format.
+          printf 'deb [arch=amd64,arm64] http://azure.archive.ubuntu.com/ubuntu noble main universe restricted multiverse\n' | sudo tee /etc/apt/sources.list.d/ubuntu.list > /dev/null
           sudo apt-get update
         fi
 
