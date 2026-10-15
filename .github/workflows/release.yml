@@ -684,7 +684,12 @@ jobs:
     name: Post-publish verification
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [github-release, publish-crates, docker, identity]
+    # Verify only depends on github-release + identity. publish-crates and
+    # docker are best-effort (token may be missing, docker-build may fail)
+    # and the verify job's purpose is to confirm the GitHub release itself
+    # is correct, which is independent of those side effects. The
+    # docker-pull step inside this job is already `continue-on-error: true`.
+    needs: [github-release, identity]
     permissions:
       contents: read
     steps:
@@ -700,7 +705,23 @@ jobs:
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           mkdir -p release-assets
-          gh release download "$TAG" --dir release-assets --pattern "*"
+          # Match the real asset-name format. Asset names are:
+          #   CLI: phenotype-fabric-${TAG}-{platform}.{tar.gz|zip}
+          #   GUI: phenotype-fabric-gui-{platform}.{AppImage|deb|dmg|exe|msi}
+          # We pass a list of --pattern flags (gh release download ANDs them
+          # across multiple --pattern calls; we use OR semantics by passing
+          # all in one invocation and using shell-extended globs). The
+          # docker-image artifact, if it ever leaks to the release, will NOT
+          # match any of these (it has a .tar suffix, not .tar.gz, and no
+          # -gui- segment).
+          gh release download "$TAG" --dir release-assets \
+            --pattern 'phenotype-fabric-*.tar.gz' \
+            --pattern 'phenotype-fabric-*.zip' \
+            --pattern 'phenotype-fabric-*.AppImage' \
+            --pattern 'phenotype-fabric-*.deb' \
+            --pattern 'phenotype-fabric-*.dmg' \
+            --pattern 'phenotype-fabric-*.exe' \
+            --pattern 'phenotype-fabric-*.msi'
           echo "::group::Downloaded assets"
           find release-assets -type f | sort
           echo "::endgroup::"
