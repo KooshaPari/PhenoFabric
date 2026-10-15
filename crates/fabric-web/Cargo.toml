@@ -17,7 +17,7 @@ fabric-tray = { path = "../fabric-tray" }
 fabric-frame-transport = { path = "../fabric-frame-transport" }
 
 leptos = { version = "0.7", features = [] }
-leptos_meta = "0.7"
+leptos_meta = "0.8"
 leptos_router = "0.7"
 console_error_panic_hook = "0.1"
 wasm-bindgen = "0.2"
