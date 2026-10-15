@@ -212,7 +212,14 @@ jobs:
       - name: Build Tauri bundle
         shell: bash
         working-directory: crates/fabric-gui/src-tauri
-        run: cargo tauri build --target ${{ matrix.target }}
+        run: |
+          # Tauri uses tauri.conf.json's "version" for bundle filenames and
+          # .deb/.rpm package versions. Strip the leading 'v' from the tag
+          # and pass via env var so the bundle picks up the released version
+          # (the file's hard-coded "0.1.0-nightly" has invalid characters for
+          # deb/rpm package versions and would fail Tauri bundling).
+          export TAURI_BUNDLE_VERSION="${GITHUB_REF#refs/tags/v}"
+          cargo tauri build --target ${{ matrix.target }}
 
       # ── Collect macOS artifacts ───────────────────────────────────────
       - name: Collect macOS artifacts

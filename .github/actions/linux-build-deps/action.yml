@@ -32,7 +32,20 @@ runs:
 
     - name: apt-get update
       shell: bash
-      run: sudo apt-get update
+      run: |
+        # GitHub-hosted arm64 cross-compile runners sometimes 404 on
+        # https://security.ubuntu.com/.../binary-arm64/Packages because
+        # the security mirror lags behind the archive mirror. Update
+        # the archive indices first, then retry once if the security
+        # mirror still 404s. Cross-compile only needs library .so files
+        # for the build environment, not security-patched runtime libs.
+        set +e
+        sudo apt-get update
+        rc=$?
+        if [ $rc -ne 0 ]; then
+          echo "apt-get update failed (rc=$rc); retrying once"
+          sudo apt-get update
+        fi
 
     - name: Install system libraries (host, x86_64)
       if: inputs.arch == 'host'
