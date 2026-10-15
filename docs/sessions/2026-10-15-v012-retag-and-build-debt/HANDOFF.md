@@ -36,10 +36,19 @@ partially shipped**:
   real advisories. Now pinned to 0.20.2; all four checks verified
   passing locally. Agent-actionable, see item 7.
 
+- 🔴 **Issue #32 is STILL BROKEN (R38, live evidence).** Not a
+  Monday-cron question — ad-hoc security-update jobs rooted at
+  `/crates/fabric-daemon` and `/crates/fabric-gui/src-tauri` are
+  failing **right now** with the original `No Cargo.toml!` error.
+  7 of 7 such jobs failed in the last 24h, while the sibling job
+  rooted at `/` passes. R31's `ignore` entries did not suppress
+  them. **Do not close #32.** See item 6.
+
 **Session is in a stable resting state.** 9 operator-scope items
-documented (7 original + 2 new from R38). The R38 verification also
-found the issue-#32 close gate in this document was unsound — it
-would have authorised a false close; see item 6.
+documented (7 original + 2 from R38). Two of the R37 handoff's
+claims were materially wrong and are corrected here: the alert set
+(4, not 6) and the issue-#32 close gate (would have authorised a
+false close).
 
 ---
 
@@ -176,60 +185,75 @@ back to `25d16f4` (R18). Not introduced by R24/R26.
 of unrelated changes to clear the gate (sweep-of-unrelated is
 out-of-scope per the agent's standing rule).
 
-### 6. Issue #32 close (R32) — VERIFICATION GATE IS UNSOUND (R38)
+### 6. Issue #32 is STILL BROKEN — confirmed live, 2026-10-15T21:38Z (R38)
 
-**The previous verification gate would produce a false close. Do
-not use it.** It said: "check the Mon 2026-10-20 run; if clean,
-close #32." But R31 silenced the failing job rather than fixing
-it, so **a clean run is expected whether or not the bug is
-fixed**. Closing #32 on a green run would record a resolution
-that never happened.
+**Status change: issue #32 must stay open.** The previous handoff
+was right that the bug is unsilenced, but framed it as a
+Monday-cron question. It is not — **it is recurring on an ad-hoc
+security-update trigger, and R31's `ignore` entries did not stop
+it.** Observed during this session:
 
-**What the failing run actually is** (verified R38):
+| Run | Job name | Conclusion |
+|---|---|---|
+| 38811390435 | `cargo in /crates/fabric-daemon, /crates/fabric-gui/src-tauri for glib, opentelemetry_sdk - Update #1630218070` | failure |
+| 38811390474 | `... - Update #1630218069` | failure |
+| 38811390741 | `... - Update #1630218068` | failure |
+| 38811390419 | `cargo in /. for glib, opentelemetry_sdk - Update #1630218067` | **success** |
 
-| Field | Value |
-|---|---|
-| Run | `38526767977`, 2026-10-14T07:11Z, sha `4a16747` |
-| Workflow | `Dependabot Updates` (id `356386660`, GitHub-managed) |
-| Event | `dynamic` |
-| Name | `cargo in /crates/fabric-daemon, /crates/fabric-gui/src-tauri for glib, opentelemetry_sdk - Update #1626309406` |
+**7 of 7** `src-tauri` ad-hoc jobs in the last 24h failed. Root
+cause is byte-identical to issue #32's original report:
 
-Two things follow:
-
-1. **There is no `.github/workflows/dependabot.yml` in this repo.**
-   The failing job is GitHub's own Dependabot engine reacting to
-   `.github/dependabot.yml` config, triggered by the `ignore`
-   entries added in R31. The previous handoff implied a repo
-   workflow was edited to fix it; that is not what happened.
-2. The run name shows Dependabot synthesised an **ad-hoc update**
-   for exactly the two packages R31 added to `ignore`
-   (`glib`, `opentelemetry_sdk`). R31's ignore entries did not
-   prevent these jobs from being queued — they only affect
-   scheduled runs, not the security-update path, which is the
-   documented behaviour of `security-updates-only`.
-
-**So the correct gate is:**
-
-```bash
-# Did the ad-hoc job for glib / opentelemetry_sdk recur on Monday?
-gh run list --workflow="Dependabot Updates" \
-  --created ">=2026-10-20" --limit 20 \
-  | grep -iE "glib|opentelemetry_sdk"
+```
+updater | ERROR <job_1630218068> No Cargo.toml!
+  .../cargo/file_parser.rb:430 Dependabot::Cargo::FileParser...
 ```
 
-- **No matching run** → R31 worked; #32 can be closed honestly.
-- **Matching run, conclusion `failure`** → still broken; do not
-  close, re-investigate.
-- **Matching run, conclusion `success`** → the parser now
-  resolves the manifests; close #32 and say why it differs.
+**The tell is in the contrast.** The sibling job rooted at `/`
+(run `38811390419`, same package pair, same trigger time) passes,
+while the ones rooted at `/crates/fabric-daemon,
+/crates/fabric-gui/src-tauri` fail. So it is specifically Dependabot
+failing to resolve manifests at those nested directories, not a
+general cargo problem and not the package versions.
 
-Only the first case justifies closing #32. Do not close it on the
-strength of the overall Monday run being green.
+**What this proves about the old gate:** R31 added
+`ignore: [{dependency-name: glib, security-updates-only: true}, ...]`
+hoping to suppress these. They did not suppress them. Dependabot
+still synthesises the ad-hoc security update, still points it at
+the nested directories, still fails. Waiting until Monday would
+have produced exactly the same failure and could have been
+mistaken for "the fix did not work".
 
-**The underlying bug is upstream**: `dependabot/dependabot-core`
-#13345, fixed by PR #13359. If ad-hoc jobs keep recurring, the
-real fix is the `source`/workspace mapping for the nested
-`src-tauri` crate, not more ignore entries.
+**Do NOT close #32.** Correct gate going forward:
+
+```bash
+# Ad-hoc security-update jobs rooted at the nested dirs must stop
+# recurring. Count failures, not overall run colour.
+gh run list --workflow="Dependabot Updates" \
+  --created ">=2026-10-20" --limit 100 \
+  | grep "src-tauri" | grep -c failure
+```
+
+- **0** → resolved; then and only then close #32.
+- **>0** → still broken; the ignore approach has been disproven.
+
+**The real fix is upstream/config, not ignores.**
+`dependabot/dependabot-core` #13345, fixed in PR #13359, but the
+runtime still reproduces it. The structural cause is that
+`src-tauri` is a nested manifest that Dependabot's
+`check_required_files` cannot resolve at the configured directory.
+Candidate remedies, all needing operator buy-in:
+
+- (a) Declare explicit `directories:` entries per ecosystem so
+  Dependabot parses each manifest directly
+- (b) Add `source`/`directory` mapping for the workspace layout
+- (c) Make `src-tauri` a path dependency of a workspace member so
+  the root manifest owns it
+- (d) Accept the failures as cosmetic noise (alerts are handled
+  manually anyway) and close #32 as wontfix
+
+**No work is lost** — these jobs only ever fail before opening a
+PR, and the 4 real alerts are being tracked manually. This is
+hygiene, not an active security regression.
 
 ### 7. cargo-deny version drift — root-caused, and the gate is STILL not real (R38)
 
@@ -318,6 +342,21 @@ Re-ran all four checks after the edit: **licenses / advisories /
 bans / sources all `ok`, exit 0, zero warnings.** Both
 `advisory-not-detected` warnings are gone.
 
+**Confirmed on CI (R38).** Manual `workflow_dispatch` run
+`38811471799` on ubuntu-latest: cargo-deny 0.20.2 installed and
+**every step green** — `Install cargo-deny`, `Check licenses`,
+`Check advisories`, `Check bans`, `Check sources`, plus the Go job
+(`govulncheck` across capprobe / checker / wire). The pin works on
+the real platform, not just macOS.
+
+Caveat on ordering: that dispatch ran against the post-pin,
+pre-cleanup `deny.toml` (the ignore-pruning and this commit landed
+together, but `deny.yml` only triggers on `Cargo.lock` /
+`Cargo.toml` / `crates/**/Cargo.toml` paths, so a docs+config-only
+commit does not fire it). The cleanup is therefore verified
+locally and will be exercised on the next natural Cargo-touching
+push or the Monday cron.
+
 ### 8. Go vulnerability check — ALREADY FIXED on push runs; cron record is stale (R38)
 
 The `go-audit` job failed in all 5 scheduled runs in item 7's
@@ -348,7 +387,7 @@ the cargo-deny no-op. The two had different causes and different
 statuses — the cargo-deny job is still broken by version drift
 (item 7), the Go job was already fixed a day ago.
 
-### 10. 3 stale remote branches (R35)
+### 9. 3 stale remote branches (R35)
 
 **Current state**: 3 `origin/*` branches from closed/squash-merged
 PRs are still present:
