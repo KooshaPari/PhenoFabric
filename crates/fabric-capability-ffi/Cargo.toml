@@ -7,7 +7,7 @@ description = "C FFI bindings for fabric-capability"
 repository = "https://github.com/phenotype-dev/phenotype-fabric"
 
 [dependencies]
-fabric-capability = { path = "../fabric-capability" }
+fabric-capability = { path = "../fabric-capability", version = "0.1.0" }
 serde = "1.0"
 serde_json = "1.0"
 thiserror = "2.0"

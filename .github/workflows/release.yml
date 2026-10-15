@@ -595,18 +595,79 @@ jobs:
 
       # Publish order must respect the workspace dependency graph.
       # fabric-capability is a leaf (no internal deps), so publish it first.
-      # Then fabric-graph, then the consumers (fabric-workspace, fabric-persist).
+      # Then the other leaves (phenotype-manifest, fabric-terminal, fabric-capture,
+      # fabric-research-ledger), then fabric-graph (depends on fabric-capability),
+      # then the consumers in topological order.
       # This avoids "no matching package found" errors when cargo validates
       # the path-dep version requirements at publish time.
+      #
+      # Crates that are publishable per `cargo metadata` but are NOT included
+      # here (because they depend on the not-yet-publishable fabric-frame-transport
+      # which has `publish = false`):
+      #   - fabric-daemon         (deps: fabric-graph, fabric-capability, fabric-frame-transport, fabric-persist)
+      #   - fabric-surface-mojo   (deps: fabric-graph, fabric-capability, fabric-frame-transport)
+      #   - fabric-orchestrator   (deps: many, including fabric-frame-transport and fabric-checker)
+      # To enable those, either flip fabric-frame-transport to publish = true,
+      # or add `version = "0.1.0"` to its path-deps in those three Cargo.toml
+      # files (cargo will fail publish-validation otherwise because the path
+      # will be stripped at publish time).
       - name: Publish fabric-capability
         if: steps.token-check.outputs.skip != 'true'
         run: cargo publish -p fabric-capability --allow-dirty
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
+      - name: Publish phenotype-manifest
+        if: steps.token-check.outputs.skip != 'true'
+        run: cargo publish -p phenotype-manifest --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish fabric-terminal
+        if: steps.token-check.outputs.skip != 'true'
+        run: cargo publish -p fabric-terminal --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish fabric-capture
+        if: steps.token-check.outputs.skip != 'true'
+        run: cargo publish -p fabric-capture --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish fabric-research-ledger
+        if: steps.token-check.outputs.skip != 'true'
+        run: cargo publish -p fabric-research-ledger --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
       - name: Publish fabric-graph
         if: steps.token-check.outputs.skip != 'true'
         run: cargo publish -p fabric-graph --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish fabric-checker
+        if: steps.token-check.outputs.skip != 'true'
+        run: cargo publish -p fabric-checker --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish fabric-capability-ffi
+        if: steps.token-check.outputs.skip != 'true'
+        run: cargo publish -p fabric-capability-ffi --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish phenotype-nvms-adapter
+        if: steps.token-check.outputs.skip != 'true'
+        run: cargo publish -p phenotype-nvms-adapter --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Publish fabric-graph-cli
+        if: steps.token-check.outputs.skip != 'true'
+        run: cargo publish -p fabric-graph-cli --allow-dirty
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
