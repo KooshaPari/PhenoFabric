@@ -10,6 +10,13 @@ updates:
     labels:
       - "dependencies"
       - "rust"
+    # Top-level filter: only propose minor + patch updates automatically.
+    # Major version bumps require a manual `dependabot create` action or
+    # an explicit `dependency-name` override below. The `rust-dependencies`
+    # group below catches the minor/patch updates in one PR per week.
+    update-types:
+      - "minor"
+      - "patch"
     groups:
       rust-dependencies:
         patterns: ["*"]
