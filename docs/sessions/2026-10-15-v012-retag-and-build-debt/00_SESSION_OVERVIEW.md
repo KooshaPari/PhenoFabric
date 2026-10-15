@@ -27,8 +27,12 @@ A CI-equivalent re-check on `git ls-files *.md` at `3309311` reported
 ## In-scope fix: 206bee2
 
 Fixed 22 stale `../PRD.md` → `../../PRD.md` links in
-`docs/src/adr/0001-0022` and one `[ADR Index](./adr/index.md)` →
-`./adr/INDEX.md` in `docs/src/SUMMARY.md`.
+`docs/src/adr/0001-0022` and one literal `ADR Index` → `./adr/INDEX.md`
+markdown link in `docs/src/SUMMARY.md` (the original was written as
+`[ADR Index] (./adr/index.md)` with a space, defeating the
+`check_links.py` regex — but the file got rewritten in the same PR to
+use the un-spaced form, which is why it then failed the cross-doc
+check).
 
 Local CI-equivalent re-check on 206bee2: **0 broken links**.
 
@@ -126,11 +130,13 @@ v0.1.1 / v0.1.2 ship. Evidence:
 | Tag v0.1.2 + publish release | `git show v0.1.2` → commit `206bee2` (the docs fix-forward); release `id=413277409` published 2026-10-14T23:43:15Z, `target_commitish: main` so it auto-tracks the main tip; Release workflow re-fired on the new tag (`run 38657709912`, status: queued) | Verified (tag + release), partial (Release workflow artifacts blocked by repo queue of 627 runs) |
 
 `check_links.py` has a known false positive: it does not strip inline
-code spans (`` `[ADR Index](./adr/index.md)` ``), so a literal link
-written inside backticks in any doc will register as broken. The
-script's main gate — fenced code blocks + path resolution — is sound.
-A future patch to `check_links.py` should also strip inline code
-spans to remove the false-positive class entirely.
+code spans, so a literal markdown link written inside backticks in any
+doc will register as broken. The same literal written without backticks
+also matches (e.g. a line `[ADR Index] (./adr/index.md)` with a space
+between `]` and `(` will NOT match because the regex requires
+no-space). The script's main gate — fenced code blocks + path
+resolution — is sound. A future patch to `check_links.py` should also
+strip inline code spans before matching.
 
 ## Operational note: Release queue depth
 
