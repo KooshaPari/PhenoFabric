@@ -29,26 +29,29 @@ partially shipped**:
   x2, both with patched versions available (R38 correction; an
   earlier draft said 6 including protobuf/jsonwebtoken/lru, which
   is wrong — those are already fixed in the lockfile)
-- 🔴 **NEW (R38): `cargo-deny` was version-drifted.** CI installed
-  it unpinned, so the dependency-audit gate's green/red state for
-  5 weeks depended on which release the runner happened to cache,
-  not on the code. Failures were `deny.toml` SPDX parse errors, not
-  real advisories. Now pinned to 0.20.2; all four checks verified
-  passing locally. Agent-actionable, see item 7.
-
+- ⚠️ **cargo-deny pin (R38, attribution corrected).** The
+  dependency-audit gate was failing on a `deny.toml` schema
+  mismatch; commit `33164d7` already fixed that on 2026-10-14 and
+  it has been green since. R38 additionally pinned cargo-deny to
+  0.20.2 for determinism — good hygiene, but **not** the fix, and
+  an earlier R38 claim that it was the fix was wrong. Verified
+  green on ubuntu-latest via run `38811471799`. See item 7.
 - 🔴 **Issue #32 is STILL BROKEN (R38, live evidence).** Not a
-  Monday-cron question — ad-hoc security-update jobs rooted at
-  `/crates/fabric-daemon` and `/crates/fabric-gui/src-tauri` are
-  failing **right now** with the original `No Cargo.toml!` error.
-  7 of 7 such jobs failed in the last 24h, while the sibling job
-  rooted at `/` passes. R31's `ignore` entries did not suppress
-  them. **Do not close #32.** See item 6.
+  Monday-cron question — ad-hoc Dependabot security-update jobs
+  rooted at `/crates/fabric-daemon` and
+  `/crates/fabric-gui/src-tauri` are failing **right now** with the
+  original `No Cargo.toml!` error. 7 of 7 such jobs failed in the
+  last 24h, while the sibling job rooted at `/` passes. R31's
+  `ignore` entries did not suppress them. **Do not close #32.**
+  See item 6.
 
 **Session is in a stable resting state.** 9 operator-scope items
-documented (7 original + 2 from R38). Two of the R37 handoff's
+documented (7 original + 2 from R38). Three of the R37 handoff's
 claims were materially wrong and are corrected here: the alert set
-(4, not 6) and the issue-#32 close gate (would have authorised a
-false close).
+(4 open, not 6), the issue-#32 close gate (would have authorised a
+false close, and the bug is live right now), and the ratatui
+alert (never existed). R38 also had to correct itself twice —
+adversarial review is recorded in item 7.
 
 ---
 
@@ -135,17 +138,66 @@ against the live API on 2026-10-15T21:34Z:
 | 4 | `opentelemetry_sdk` | medium | `0.32.1` | lockfile has `0.27.1` **and** `0.33.1` |
 | 5 | `opentelemetry_sdk` | medium | `0.32.1` | same |
 
-`protobuf`, `jsonwebtoken`, `lru` and `ratatui` alerts are
-**already closed** — the lockfile confirms the resolving bumps
-actually landed: `jsonwebtoken 11.1.0`, `ratatui 0.30.2`,
-`protobuf 3.7.2`, `lru 0.18.5`. The `update-types: [minor, patch]`
-filter does **not** block a security advisory that already has a
-patched version, so the R29 filter is not the constraint it was
-described as being.
+`protobuf`, `jsonwebtoken` and `lru` alerts are **already closed** —
+the lockfile confirms the resolving bumps landed:
+`jsonwebtoken 11.1.0`, `protobuf 3.7.2`, `lru 0.18.5`. The
+`update-types: [minor, patch]` filter does **not** block a security
+advisory that already has a patched version, so the R29 filter is
+not the constraint it was described as being.
+
+**R38 correction (from adversarial review):** R38 also claimed
+`ratatui` alerts were closed. **That is wrong — no ratatui alert
+has ever existed**; `dependabot/alerts?state=all` returns no rows
+for it. ratatui 0.30.2 is simply an upgrade. The actual closed set
+is **5** alerts, which R38 also undercounted by omitting one:
+
+| Alert | Package | Patched in |
+|---|---|---|
+| #9 | `rustls` | 0.23.45 |
+| #7 | `jsonwebtoken` | 10.3.0 |
+| #6 | `jsonwebtoken` | 10.3.0 |
+| #3 | `protobuf` | 3.7.2 |
+| #2 | `lru` | 0.16.3 |
+
+Note `lru` sits at 0.18.5 against a 0.16.3 fix threshold, so it is
+genuinely fixed, not papered over. Meanwhile `glib` at 0.18.5
+against a 0.20.0 threshold is exactly why #1/#8 are legitimately
+still open.
 
 `opentelemetry_sdk` is the sharp edge: two copies coexist
 (`0.27.1` vulnerable, `0.33.1` already past the fix). Whichever
 crate still pins `0.27.1` is the one that needs the bump.
+
+**R38 analysis finding — the otel bump is trivial, and the
+duplication is self-inflicted.** Delegated analysis plus direct
+re-verification found:
+
+| Fact | Evidence |
+|---|---|
+| **Zero** otel usage in `fabric-daemon` | `grep -rniE "otel\|opentele" crates/fabric-daemon/src/` → **0 matches** |
+| Telemetry is actually prometheus + tracing-subscriber | `src/metrics.rs`, `src/logging.rs` |
+| The version skew is self-inflicted | `Cargo.toml` mixes `opentelemetry* = "0.27"` with `opentelemetry-otlp = "0.33"` in the *same* manifest |
+| A second anchor holds 0.27.1 | `tracing-opentelemetry 0.28` also depends on SDK 0.27.1 — bumping only the direct pins will NOT clear it |
+| Only `.rs` hit repo-wide | `pub otel_endpoint: Option<String>` in `crates/phenotype-manifest/src/schema.rs:129` — a config field name, not an otel API |
+
+So the fix is **manifest-only, no code changes**, even though
+0.27 → 0.33 is a six-minor pre-1.0 jump that genuinely broke API
+upstream (`SdkTracerProvider` replaced the 0.27
+`TracerProvider`/`Tracer`/`with_config` style). That breaking
+surface is unreachable because nothing calls it.
+
+**Recommended over bumping: delete lines 32-35.** Four
+declared-but-unused telemetry crates are the entire cause of both
+alerts #4 and #5. Removing them is cleaner than bumping them, and
+it retires the 2-of-3 `opentelemetry_sdk` duplication outright.
+This also makes R31's `ignore` entries for `opentelemetry_sdk`
+unnecessary.
+
+**Correction to the release notes' premise:** `fabric-daemon` has
+**no `publish = false`** (10 other crates do), so the "internal
+only, not release-blocking" assumption in R26/R32 is wrong. Low
+practical risk — version 0.1.0 and `release.yml` builds binaries
+rather than pushing to crates.io — but a real inconsistency.
 
 **Paths forward (re-derived)**:
 - (a) Bump `glib 0.18.5 → 0.20.0` and `opentelemetry_sdk 0.27.1 →
@@ -156,8 +208,56 @@ crate still pins `0.27.1` is the one that needs the bump.
 - (c) Wait — **not applicable**, unlike the previous draft. Patched
   versions exist for all 4.
 
-**Action**: operator picks (a)/(b). Note `glib` is a GTK major
-bump needing a `src-tauri` smoke test.
+**Action**: see the ranked options below — the glib half is not
+the ordinary "bump it" work it looked like.
+
+**R38 analysis finding — the glib bump is purely transitive, so
+nobody in this repo can force it directly.** Verified with
+`cargo tree -i glib --offline --target all`:
+
+```
+glib v0.18.5
+├── atk v0.18.2 → gtk v0.18.2 → { libappindicator, muda, tao }
+│      └── tao / libappindicator → tray-icon v0.19.3 → fabric-tray
+├── cairo-rs v0.18.5
+├── gdk, gdk-pixbuf, gio v0.18.x
+```
+
+| Fact | Evidence |
+|---|---|
+| **No direct `glib` dependency anywhere** | `grep -rn glib --include=Cargo.toml` → **0 hits** |
+| Entirely transitive via the GTK stack | `cargo tree -i glib --target all` → glib ← atk/cairo-rs/gdk/gio ← gtk ← `tao`/`tray-icon` ← **`fabric-tray`** |
+| Only first-party entry point | `crates/fabric-tray` → propagates to `fabric-gui`, `fabric-web` |
+| Not built in the default workspace target | plain `cargo tree -i glib` → *"nothing to print"*; needs `--target all` (Linux-only path) |
+| `src-tauri` is excluded from the workspace | root `Cargo.toml` `exclude = ["crates/fabric-frame-transport/fuzz", "crates/fabric-gui/src-tauri"]`, and it declares its own empty `[workspace]` |
+| `tauri` is absent from the root lockfile | `grep -c '^name = "tauri"' Cargo.lock` → **0** |
+
+**Consequence for the decision:** glib cannot be bumped by editing
+our manifests at all — it is set by `tao 0.37.1` / `tray-icon
+0.19.3`, which come in via `fabric-tray`. Moving `glib 0.18.5 →
+0.20.0` means bumping **`tao`** (and likely `tray-icon`) to
+versions that pull the newer GTK bindings. That is why R31's
+`update-types: [minor, patch]` filter blocked it: the real
+constraint is upstream tao, and glib's own advisory is only
+reachable through it.
+
+**This also explains issue #32's failure pattern** (item 6). The
+nested `src-tauri` directory has its own workspace and is excluded
+from the root, which is exactly the layout Dependabot's
+`check_required_files` cannot resolve — hence `No Cargo.toml!`
+for jobs rooted there while the `/`-rooted job succeeds.
+
+So the honest ranking for the glib alerts is:
+
+- (a1) **Drop them** — glib is Linux-only, unreachable from the
+  default build, and unfixable without a tao/tray-icon upgrade.
+  Dismiss as won't-fix with that justification. Cheapest correct
+  answer.
+- (a2) Bump `tao` / `tray-icon` — real GTK generation bump, needs
+  a Linux smoke test of the tray. Highest effort.
+- (b) Document as accepted risk.
+- (c) Wait — not applicable; 0.20.0 exists upstream, the blocker
+  is our own dependency graph.
 
 ### 5. SonarCloud Quality Gate (R28 CORRECTION)
 
@@ -255,107 +355,54 @@ Candidate remedies, all needing operator buy-in:
 PR, and the 4 real alerts are being tracked manually. This is
 hygiene, not an active security regression.
 
-### 7. cargo-deny version drift — root-caused, and the gate is STILL not real (R38)
+### 7. cargo-deny: REAL root cause found — a `deny.toml` schema migration (R38 correction)
 
-**This item is written twice.** My first pass at it concluded
-"cargo-deny has never passed and the advisories check is a silent
-no-op since 2026-09-14." **That was wrong**, and the per-job
-conclusions disprove it. Corrected below.
+**This item was written twice, and the second version is also
+wrong. Adversarial review caught it. Final version below.**
 
-**What the run history actually shows:**
+**The actual root cause is NOT version drift.** Commit
+`33164d7` ("fix(deps): cargo-deny v2 schema migration and 7
+unmaintained advisories", 2026-10-14T17:25Z) migrated `deny.toml`
+from the cargo-deny 0.20 schema to v2 — removing
+`[advisories] vulnerability` and `[licenses] deny`, and adding
+`version = 2` to both sections. That migration is what fixed the
+`"expected a `WITH` here"` parse failure.
 
-| Run | Date | cargo-deny | Go vuln check |
-|---|---|---|---|
-| 38290237246 | 2026-10-12 | failure | failure |
-| 38322806067 | 2026-10-12 | failure | failure |
-| 38322837742 | 2026-10-12 | failure | failure |
-| 38322999575 | 2026-10-12 | failure | failure |
-| 38351585765 | 2026-10-13 | failure | failure |
-| 38660507431 | 2026-10-15T00:31 | **success** | failure |
-| 38671156527 | 2026-10-15T02:28 | **success** | success |
-| 38684918401 | 2026-10-15T05:05 | **success** | success |
-| 38697946861 | 2026-10-15T07:19 | **success** | success |
+**Timeline, which settles it:**
 
-`cargo-deny` started passing at 2026-10-15T00:31Z, before this
-session began. It is **not** currently broken, and the advisory
-gate has been running for ~13 hours, not for 5 weeks.
-
-**The real finding — drift that silently disabled the gate.**
-The failing runs died on:
-
-```
-error[custom]: expected a `WITH` here
-[ERROR] failed to deserialize config from '.../deny.toml'
-```
-
-which is cargo-deny failing to parse the SPDX license expressions in
-`deny.toml`. That is **tool-version drift**: CI ran
-`cargo install cargo-deny --locked`, which is pinned to *cargo's*
-lockfile, not to a cargo-deny release, so it floats to newest. The
-run that happened to install a newer cargo-deny failed on config
-parsing; the next one to install an older/newer build passed.
-Same class of bug as the `@latest` govulncheck failure in item 8,
-which *did* fully break its job for 5 weeks.
-
-**So why is this still worth acting on?** Because between
-2026-09-14 and 2026-10-15 the gate's green/red state depended on
-whatever cargo-deny release the runner happened to cache, not on
-the codebase. A security gate whose status is decided by an
-unpinned tool install is not a gate. The advisory check may well
-have passed every week, but for reasons unrelated to the code.
-
-**Fix (agent-actionable) — APPLIED IN R38:** `deny.yml` now pins
-`cargo install cargo-deny --version 0.20.2 --locked`, with a
-comment recording the failure mode. This converts a
-luck-dependent gate into a deterministic one.
-
-**Verified locally under the pin** (macOS, cargo-deny 0.20.2):
-
-| Check | Result |
+| When | What |
 |---|---|
-| `cargo deny check licenses` | ok (exit 0) |
-| `cargo deny check advisories` | ok (exit 0) |
-| `cargo deny check bans` | ok (exit 0) |
-| `cargo deny check sources` | ok (exit 0) |
+| 2026-10-13T05:28Z | run `38351585765` — cargo-deny **failing** |
+| 2026-10-14T17:25Z | `33164d7` migrates `deny.toml` to v2 schema |
+| 2026-10-15T00:31Z | run `38660507431` — cargo-deny **green**, on unpinned install |
+| 2026-10-15T14:38Z | `005e343` (R38) pins cargo-deny to 0.20.2 — **21h after** it was already green |
 
-Plus two `advisory-not-detected` **warnings** for stale ignore
-entries that no longer match any crate in the lockfile:
+My earlier claim that the green streak was evidence *for* the pin
+is causally false: the streak is caused by `33164d7` and predates
+the pin by a day. Version drift also predicts *intermittent*
+failure; the observed pattern is a clean linear green streak,
+which is the signature of a fixed config defect.
 
-- `RUSTSEC-2024-0384` (deny.toml line 13)
-- `RUSTSEC-2024-0437` (deny.toml line 27) — the `protobuf` one;
-  the lockfile is now on `protobuf 3.7.2`, past the advisory
+**What R38's pin is actually worth:** still worth having as
+hygiene — it makes the gate deterministic instead of dependent on
+which cargo-deny release the runner happens to fetch. But it is
+**not** the fix, and the R38 commit message overstated the case.
+The pin did no harm; the attribution did.
 
-The `deny.toml` comments still describe `protobuf 2.28.0` and
-`jsonwebtoken 10.3.0`, which no longer match the lockfile. Two of
-the eight ignore entries document advisories that no longer apply.
+**Verified state:** manual `workflow_dispatch` run `38811471799`
+on ubuntu-latest is fully green — cargo-deny 0.20.2 installed, all
+four checks pass, Go job green.
 
-**`deny.toml` cleanup — DONE IN R38.** Removed the two
-`advisory-not-detected` entries and refreshed the stale comments:
+**Second error found in R38's alert accounting** (see item 4):
+R38 claimed `ratatui` alerts were "already closed". **No ratatui
+alert has ever existed** — `?state=all` returns no rows. ratatui
+0.30.2 in the lockfile is an upgrade, not an alert resolution. The
+real closed set is 5 alerts: `rustls #9`, `jsonwebtoken #7`/`#6`,
+`protobuf #3`, `lru #2`. R38 omitted `rustls #9`.
 
-- dropped `RUSTSEC-2024-0384` (instant, via tao → fabric-tray)
-- dropped `RUSTSEC-2024-0437` (protobuf 2.x; lockfile is on 3.7.2)
-- kept `RUSTSEC-2023-0071` but annotated it — jsonwebtoken moved
-  10.3.0 → 11.1.0, so it no longer matches either; flagged for the
-  next lockfile refresh rather than silently left to rot
-
-Re-ran all four checks after the edit: **licenses / advisories /
-bans / sources all `ok`, exit 0, zero warnings.** Both
-`advisory-not-detected` warnings are gone.
-
-**Confirmed on CI (R38).** Manual `workflow_dispatch` run
-`38811471799` on ubuntu-latest: cargo-deny 0.20.2 installed and
-**every step green** — `Install cargo-deny`, `Check licenses`,
-`Check advisories`, `Check bans`, `Check sources`, plus the Go job
-(`govulncheck` across capprobe / checker / wire). The pin works on
-the real platform, not just macOS.
-
-Caveat on ordering: that dispatch ran against the post-pin,
-pre-cleanup `deny.toml` (the ignore-pruning and this commit landed
-together, but `deny.yml` only triggers on `Cargo.lock` /
-`Cargo.toml` / `crates/**/Cargo.toml` paths, so a docs+config-only
-commit does not fire it). The cleanup is therefore verified
-locally and will be exercised on the next natural Cargo-touching
-push or the Monday cron.
+**Two lockfiles, not one.** `glib 0.18.5` is pinned in **both**
+`Cargo.lock` and `crates/fabric-gui/src-tauri/Cargo.lock`. Any glib
+work must account for the excluded sub-workspace too.
 
 ### 8. Go vulnerability check — ALREADY FIXED on push runs; cron record is stale (R38)
 

@@ -2298,3 +2298,69 @@ run remains unconfirmed, which resolves 2026-10-20.
 - `docs/sessions/.../HANDOFF.md` (corrected items 4 and 6, new
   items 7 and 8, updated TL;DR / snapshot / next-steps)
 - `docs/sessions/.../00_SESSION_OVERVIEW.md` (this section)
+
+### R38c — adversarial review found two errors in R38; corrected forward
+
+R38's own claims were put to an independent reviewer worker. It
+refuted two of them. Both corrections are recorded here because
+**the original commit `005e343` overstated its own effect** and,
+being already pushed, is corrected forward rather than amended.
+
+**Refutation 1 — the cargo-deny root cause was not version drift.**
+R38 attributed the dependency-audit failures to an unpinned
+`cargo install cargo-deny` and presented the subsequent green
+streak as evidence the pin fixed it. That is causally false:
+
+- 2026-10-13T05:28Z run `38351585765`: cargo-deny **failing**
+- 2026-10-14T17:25Z commit `33164d7` migrates `deny.toml` to the
+  cargo-deny **v2 schema** (drops `[advisories] vulnerability` and
+  `[licenses] deny`, adds `version = 2` to both sections)
+- 2026-10-15T00:31Z run `38660507431`: cargo-deny **green**, on an
+  *unpinned* install
+- 2026-10-15T14:38Z `005e343` pins 0.20.2 — **21h after** it was
+  already green
+
+The schema migration is the real fix. The green streak predates
+the pin by a day and cannot be its evidence. The reviewer also
+noted that drift predicts *intermittent* failure whereas the
+observed pattern is a clean linear streak, which is the signature
+of a corrected config defect.
+
+The pin is retained as determinism hygiene — it does stop the gate
+from depending on whichever cargo-deny release a runner happens to
+fetch — but it is documented as hygiene, not as the fix.
+
+**Refutation 2 — the `ratatui` alert never existed.**
+R38 listed `ratatui` among the "already closed" alerts. `gh api
+.../dependabot/alerts?state=all` returns no rows for ratatui;
+0.30.2 in the lockfile is an ordinary upgrade, not an alert
+resolution. R38 also undercounted the closed set by omitting
+`rustls #9`. The closed set is 5: `rustls #9`, `jsonwebtoken #7`
+and `#6`, `protobuf #3`, `lru #2`.
+
+**Two further findings from the delegated analysis workers:**
+
+- `opentelemetry_sdk` (#4, #5) is **entirely unused**. Zero
+  references to `otel`/`opentele` anywhere under
+  `crates/fabric-daemon/src/`; telemetry is actually built on
+  `prometheus` (`metrics.rs`) and `tracing-subscriber`
+  (`logging.rs`). The duplication is self-inflicted — one manifest
+  pins `opentelemetry*` at 0.27 and `opentelemetry-otlp` at 0.33 —
+  and `tracing-opentelemetry 0.28` is a second independent anchor
+  on SDK 0.27.1, so bumping only the two direct pins would not have
+  cleared it. Recommended action is deleting the four lines, not
+  bumping them.
+- `glib` (#1, #8) is **purely transitive**. No `Cargo.toml` in the
+  repo declares it and no `.rs` file references `glib::`. It
+  arrives via `tao` / `tray-icon` → `fabric-tray`. It cannot be
+  bumped in isolation; reaching 0.20 requires moving the whole GTK
+  binding generation. Two separate lockfiles pin it: the root
+  `Cargo.lock` and `crates/fabric-gui/src-tauri/Cargo.lock`.
+
+Also refuted: the release notes' claim that `fabric-daemon` has
+`publish = false`. It has no `publish` key at all, while 10 other
+workspace crates do.
+
+### Files changed (R38c)
+- `docs/sessions/.../HANDOFF.md` — items 4 and 7 corrected, TL;DR
+  and next-steps updated
