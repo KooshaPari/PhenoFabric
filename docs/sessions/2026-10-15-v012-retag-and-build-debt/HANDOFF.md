@@ -63,10 +63,10 @@ adversarial review is recorded in item 7.
 | Working tree | clean | R36 |
 | Open PRs | 0 (all 10 closed by operator 2026-10-15T07:19-07:22Z) | R35 |
 | Open issues | 1 (#32, gate to Mon 2026-10-20T05:29Z) | R35 |
-| Open alerts | **4** (R38 correction; was documented as 6) — `glib` x2, `opentelemetry_sdk` x2, all with patched versions available | R38 |
+| Open alerts | **2** (R40; was 4) — `glib` #1, #8 only. Both proven unactionable: glib 0.20 unreachable, and the vulnerable `VariantStrIter` API is never called here | R40 |
 | Fixed alerts (this session) | 3 | R25 |
 | Production env protection rules | `[]` (unchanged) | R32 |
-| Dependabot config | `update-types: [minor, patch]` (R29) + `security-updates-only: true` (R31) | R29/R31 |
+| Dependabot config | `directories: ["/", "/crates/fabric-gui/src-tauri"]` (R39 restructure; R31 `security-updates-only` ignores removed as disproven) | R39 |
 | Local branches | 3 (1 main + 2 with unmerged work kept) | R36 |
 | Remote branches | 4 (1 main + 3 stale from closed/squash-merged PRs) | R35 |
 | Git tags | v0.1.0, v0.1.1, v0.1.2 (all ON-MAIN) | R35 |
@@ -135,8 +135,8 @@ against the live API on 2026-10-15T21:34Z:
 |---|---|---|---|---|
 | 1 | `glib` | medium | `0.20.0` | lockfile at `0.18.5` |
 | 8 | `glib` | medium | `0.20.0` | lockfile at `0.18.5` |
-| 4 | `opentelemetry_sdk` | medium | `0.32.1` | lockfile has `0.27.1` **and** `0.33.1` |
-| 5 | `opentelemetry_sdk` | medium | `0.32.1` | same |
+| 4 | `opentelemetry_sdk` | medium | `0.32.1` | **CLOSED in R40** — crates deleted |
+| 5 | `opentelemetry_sdk` | medium | `0.32.1` | **CLOSED in R40** — crates deleted |
 
 `protobuf`, `jsonwebtoken` and `lru` alerts are **already closed** —
 the lockfile confirms the resolving bumps landed:
@@ -164,52 +164,48 @@ genuinely fixed, not papered over. Meanwhile `glib` at 0.18.5
 against a 0.20.0 threshold is exactly why #1/#8 are legitimately
 still open.
 
-`opentelemetry_sdk` is the sharp edge: two copies coexist
-(`0.27.1` vulnerable, `0.33.1` already past the fix). Whichever
-crate still pins `0.27.1` is the one that needs the bump.
+`opentelemetry_sdk` was the sharp edge: two copies coexisted
+(`0.27.1` vulnerable, `0.33.1`). Whichever crate still pinned
+`0.27.1` was the one that needed the bump.
 
-**R38 analysis finding — the otel bump is trivial, and the
-duplication is self-inflicted.** Delegated analysis plus direct
-re-verification found:
+#### R40: RESOLVED — otel deps deleted, alerts #4 and #5 auto-closed
 
-| Fact | Evidence |
+Operator said `go`; the two otel alerts were the only remaining
+ones actionable by a dependency change. **Fixed by removal, not a
+version bump.**
+
+`crates/fabric-daemon/Cargo.toml` declared four otel crates that
+were never used. Verified before touching anything:
+`grep -rniI 'otel|opentele'` over `src/` and `tests/` → **0
+matches**, and the only 4 references in the crate were the manifest
+lines themselves. `fabric-daemon` was also the sole workspace crate
+declaring any opentelemetry dependency.
+
+The version skew was self-inflicted: one manifest pinned
+`opentelemetry*` at `0.27` while `opentelemetry-otlp` sat at `0.33`,
+and `tracing-opentelemetry 0.28` independently held
+`opentelemetry_sdk` at 0.27.1 — so bumping only the two direct pins
+would never have cleared the advisory.
+
+Result: **13 packages removed, 0 added**, including the vulnerable
+`opentelemetry_sdk 0.27.1` and the redundant `0.33.1` duplicate.
+
+**Verified after the change:**
+
+| Gate | Result |
 |---|---|
-| **Zero** otel usage in `fabric-daemon` | `grep -rniE "otel\|opentele" crates/fabric-daemon/src/` → **0 matches** |
-| Telemetry is actually prometheus + tracing-subscriber | `src/metrics.rs`, `src/logging.rs` |
-| The version skew is self-inflicted | `Cargo.toml` mixes `opentelemetry* = "0.27"` with `opentelemetry-otlp = "0.33"` in the *same* manifest |
-| A second anchor holds 0.27.1 | `tracing-opentelemetry 0.28` also depends on SDK 0.27.1 — bumping only the direct pins will NOT clear it |
-| Only `.rs` hit repo-wide | `pub otel_endpoint: Option<String>` in `crates/phenotype-manifest/src/schema.rs:129` — a config field name, not an otel API |
+| `cargo check --workspace --all-targets` | exit 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | exit 0 |
+| `cargo test -p fabric-daemon` | 8 tests + 1 doc-test pass |
+| `cargo deny check advisories` / `bans` / `licenses` | all ok |
+| CI workflow `38816418841` | **success** (Check, Format, Clippy, Release build, Integration, Unit, E2E smoke) |
+| Dependency Audit `38816418843` | **success** (cargo-deny + Go vuln check) |
+| E2E workflow `38816418828` | **success** (smoke + daemon binary) |
 
-So the fix is **manifest-only, no code changes**, even though
-0.27 → 0.33 is a six-minor pre-1.0 jump that genuinely broke API
-upstream (`SdkTracerProvider` replaced the 0.27
-`TracerProvider`/`Tracer`/`with_config` style). That breaking
-surface is unreachable because nothing calls it.
-
-**Recommended over bumping: delete lines 32-35.** Four
-declared-but-unused telemetry crates are the entire cause of both
-alerts #4 and #5. Removing them is cleaner than bumping them, and
-it retires the 2-of-3 `opentelemetry_sdk` duplication outright.
-This also makes R31's `ignore` entries for `opentelemetry_sdk`
-unnecessary.
-
-**Correction to the release notes' premise:** `fabric-daemon` has
-**no `publish = false`** (10 other crates do), so the "internal
-only, not release-blocking" assumption in R26/R32 is wrong. Low
-practical risk — version 0.1.0 and `release.yml` builds binaries
-rather than pushing to crates.io — but a real inconsistency.
-
-**Paths forward (re-derived)**:
-- (a) Bump `glib 0.18.5 → 0.20.0` and `opentelemetry_sdk 0.27.1 →
-  0.32.1+`. Both have known patches; this is ordinary dependency
-  work, not unresolvable risk.
-- (b) Document as accepted risk; dismiss the 4 alerts as
-  won't-fix with a justification.
-- (c) Wait — **not applicable**, unlike the previous draft. Patched
-  versions exist for all 4.
-
-**Action**: see the ranked options below — the glib half is not
-the ordinary "bump it" work it looked like.
+**Open alerts are now 2, down from 4** — `glib` #1 and #8 only,
+both proven unactionable in the section below. GitHub closed the
+otel alerts automatically once the vulnerable crates left the
+lockfile.
 
 **R38 analysis finding — the glib bump is purely transitive, so
 nobody in this repo can force it directly.** Verified with
@@ -572,7 +568,7 @@ gh issue list --state open
 # 4. Check open alerts (optional)
 gh api /repos/KooshaPari/PhenoFabric/dependabot/alerts \
   | jq '[.[] | select(.state == "open")] | length'
-# Expected: 4  (R38 correction — the "6" in earlier drafts was wrong)
+# Expected: 2  (glib #1, #8 — see R40/R39 for why they cannot be upgraded)
 
 # 5. Check production env (optional)
 gh api /repos/KooshaPari/PhenoFabric/environments/production

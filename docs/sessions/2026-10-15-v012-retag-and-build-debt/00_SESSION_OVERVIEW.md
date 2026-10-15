@@ -2442,3 +2442,51 @@ so there is no reachable code path at any glib version.
 The glib alerts now have a complete, auditable disposition: the
 fix version is unreachable through any dependency combination, and
 independently the vulnerable API is absent from the codebase.
+
+---
+
+## R40 — removed 4 unused opentelemetry crates; 2 of 4 alerts auto-closed
+
+Operator signal: `go`.
+
+`crates/fabric-daemon/Cargo.toml` declared `opentelemetry`,
+`opentelemetry_sdk`, `opentelemetry-otlp` and
+`tracing-opentelemetry`, and used none of them. Verified across
+every cargo target before removing: `grep -rniI 'otel|opentele'`
+over `src/` and `tests/` returned 0 matches, and the only 4
+references in the crate were the manifest lines themselves.
+`fabric-daemon` was also the only workspace crate declaring any
+opentelemetry dependency.
+
+Deleting rather than bumping was the correct move. The version
+skew was self-inflicted — one manifest mixing `0.27` with
+`opentelemetry-otlp 0.33` — and `tracing-opentelemetry 0.28` was a
+second independent anchor on `opentelemetry_sdk 0.27.1`, so
+bumping the two direct pins alone would not have cleared the
+advisory. Removal cleared it completely.
+
+**Outcome: 13 packages removed, 0 added**, including the
+vulnerable `opentelemetry_sdk 0.27.1` and the redundant `0.33.1`
+duplicate. GitHub auto-closed alerts #4 and #5.
+
+Validation, all on the resulting lockfile:
+
+| Gate | Result |
+|---|---|
+| `cargo check --workspace --all-targets` | exit 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | exit 0 |
+| `cargo test -p fabric-daemon` | 8 tests + 1 doc-test pass |
+| `cargo deny check advisories` / `bans` / `licenses` | all ok |
+| CI `38816418841` | success — Check, Format, Clippy, Release build, Integration, Unit, E2E smoke |
+| Dependency Audit `38816418843` | success — cargo-deny + Go vulnerability check |
+| E2E `38816418828` | success — smoke + daemon binary |
+
+**Open alerts: 4 → 2.** Only `glib` #1 and #8 remain, both proven
+unactionable (R39: glib 0.20 requires GTK4 and `tao` is at its
+final release; the vulnerable `VariantStrIter` API is never called
+in this repo).
+
+### Files changed
+- `crates/fabric-daemon/Cargo.toml` (-4 lines)
+- `Cargo.lock` (13 packages removed)
+- `docs/sessions/.../HANDOFF.md` (R40 section, refreshed counts)
