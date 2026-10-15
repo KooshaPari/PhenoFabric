@@ -2364,3 +2364,56 @@ workspace crates do.
 ### Files changed (R38c)
 - `docs/sessions/.../HANDOFF.md` — items 4 and 7 corrected, TL;DR
   and next-steps updated
+
+---
+
+## R39 — operator chose the upgrade path: attempted, and proven impossible
+
+Operator signal: "attempt gen upgrade and restructure issue 32".
+
+### 1. GTK generation upgrade (glib 0.18.5 → 0.20) — ATTEMPTED, IMPOSSIBLE
+
+Worked empirically rather than theorising:
+
+| Step | Result |
+|---|---|
+| `cargo update -p tray-icon --precise 0.24.2` | blocked by `tray-icon = "^0.19"` in `crates/fabric-tray/Cargo.toml` |
+| widened to `tray-icon = "0.24"`, `cargo update` | resolves; lifts `tray-icon` 0.19.3→0.24.2 and `muda` 0.15.3→0.19.3 — but **glib stays 0.18.5, gtk stays 0.18.2** |
+| `cargo update -p tao` | no change; `^0.37` already resolves to the newest |
+| `tao = "0.42"` | **fails to resolve — no such release exists** |
+| `cargo info tao` | latest is **0.37.1**, exactly what we already pin |
+
+The decisive constraint:
+
+- `gtk` (GTK3 line) tops out at **0.19.0** — no GTK3 release uses
+  glib 0.20.
+- `gtk4` (GTK4 line) reaches 0.11.5 and *does* use glib 0.20+, but
+  it is a different, incompatible C API.
+- `tao` is the only route to glib in the root graph and is already
+  at its final release, with no GTK4 adoption.
+- The root workspace contains **no webkit2gtk** at all, so its GTK
+  stack is purely `tao`/`tray-icon`/`muda`. The nested
+  `src-tauri` graph does carry `webkit2gtk 2.0.2`, likewise pinned
+  to glib 0.18.
+
+**Conclusion: glib 0.20 is unreachable without replacing the entire
+windowing layer.** Not a dependency bump — a platform migration.
+All experimental edits were reverted; `git status` confirms only
+`.github/dependabot.yml` remains modified.
+
+### 2. Issue #32 restructure — APPLIED
+
+`.github/dependabot.yml` restructured:
+
+- `directory: "/"` → `directories: ["/", "/crates/fabric-gui/src-tauri"]`,
+  so Dependabot parses each manifest location explicitly instead of
+  implicitly discovering the excluded nested workspace
+- Removed the R31 `ignore: [{security-updates-only: true}]` entries
+  for `glib` and `opentelemetry_sdk`. The hypothesis behind them —
+  that the flag suppresses the failing ad-hoc security jobs — is
+  disproven by the 2026-10-15 evidence: the jobs still queued and
+  still failed.
+
+Validation is limited to YAML parse + schema-key check; whether the
+nested jobs stop failing is only observable on the next ad-hoc
+security-update trigger or the Monday cron.

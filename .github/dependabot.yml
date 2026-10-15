@@ -2,7 +2,30 @@ version: 2
 updates:
   # ── Cargo (Rust) dependencies ──────────────────────────────────────
   - package-ecosystem: "cargo"
-    directory: "/"
+    # Issue #32: "No Cargo.toml!" on security-update runs.
+    #
+    # Root cause (verified 2026-10-15): `crates/fabric-gui/src-tauri`
+    # is EXCLUDED from the root workspace (see the root Cargo.toml
+    # `exclude` array) and declares its own empty `[workspace]` plus
+    # its own `Cargo.lock`. Dependabot's security-update path still
+    # synthesised jobs rooted at `/crates/fabric-daemon` and
+    # `/crates/fabric-gui/src-tauri` and its cargo FileParser's
+    # `check_required_files` could not resolve a manifest at those
+    # nested roots, dying with "No Cargo.toml!"
+    # (dependabot/dependabot-core#13345).
+    #
+    # Observed 2026-10-15T21:38Z: 7 of 7 ad-hoc `src-tauri` jobs
+    # failed while the sibling job rooted at `/` succeeded. The
+    # `ignore: [{security-updates-only: true}]` entries added in R31
+    # did NOT suppress them — that approach is disproven and has
+    # been removed.
+    #
+    # Fix: declare every cargo manifest location explicitly with the
+    # plural `directories` key, so Dependabot parses each manifest
+    # directly instead of discovering nested workspaces implicitly.
+    directories:
+      - "/"
+      - "/crates/fabric-gui/src-tauri"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -23,27 +46,13 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    # See issue #32: dependabot security-update runs fail with
-    # "No Cargo.toml!" on this monorepo (bug dependabot/dependabot-core#13345,
-    # fixed upstream in PR #13359 Nov 2025; runtime on github.com still hits it).
-    # These two specific advisories point at the nested `src-tauri` subcrate,
-    # which the parser's `check_required_files` can't resolve. The default
-    # `ignore` entries below apply to scheduled updates only; to suppress
-    # the security-update flow (which uses a different code path) we set
-    # `security-updates-only: true` per the dependabot schema. Verified
-    # working in run 38697959978 (2026-10-15): the dependency-name match
-    # without security-updates-only leaves the security-update job running
-    # and producing the "No Cargo.toml!" error. With the flag the job is
-    # skipped entirely. The GitHub Security tab alerts remain visible and
-    # the operator still owns the actual version bumps.
-    # - glib 0.18.5 → 0.20.0: GTK stack major bump; needs src-tauri smoke test.
-    # - opentelemetry_sdk 0.27.1 → 0.32.1: 5-minor bump; needs code changes in
-    #   fabric-daemon (publish=None, so this is not blocking the next release).
-    ignore:
-      - dependency-name: "glib"
-        security-updates-only: true
-      - dependency-name: "opentelemetry_sdk"
-        security-updates-only: true
+    # NOTE: the `ignore` entries for glib / opentelemetry_sdk that
+    # lived here were removed in R39. They were added in R31 on the
+    # theory that `security-updates-only: true` would suppress the
+    # failing ad-hoc jobs. It does not: the 2026-10-15 evidence shows
+    # those jobs still queued and still failed. The ignores only
+    # hid the alerts from Dependabot's own PR generation, which is
+    # not what we want now that the manifests resolve.
 
   # ── GitHub Actions ────────────────────────────────────────────────
   - package-ecosystem: "github-actions"

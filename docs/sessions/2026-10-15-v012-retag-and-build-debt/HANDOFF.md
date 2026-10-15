@@ -249,15 +249,59 @@ for jobs rooted there while the `/`-rooted job succeeds.
 
 So the honest ranking for the glib alerts is:
 
-- (a1) **Drop them** — glib is Linux-only, unreachable from the
-  default build, and unfixable without a tao/tray-icon upgrade.
-  Dismiss as won't-fix with that justification. Cheapest correct
-  answer.
-- (a2) Bump `tao` / `tray-icon` — real GTK generation bump, needs
-  a Linux smoke test of the tray. Highest effort.
+- (a1) **Drop them** — dismiss #1/#8 as won't-fix. **Now the only
+  viable option**; (a2) was attempted in R39 and proven impossible
+  (see below). Cheapest correct answer.
+- (a2) Bump `tao` / `tray-icon` — ~~real GTK generation bump~~
+  **RULED OUT in R39: glib 0.20 requires GTK4, and tao is already
+  at its final release.**
 - (b) Document as accepted risk.
-- (c) Wait — not applicable; 0.20.0 exists upstream, the blocker
-  is our own dependency graph.
+- (c) Wait — not applicable; 0.20.0 exists upstream, but it is
+  unreachable through any available dependency version.
+
+#### R39: (a2) ATTEMPTED AND PROVEN IMPOSSIBLE — glib 0.20 is unreachable
+
+Operator chose the upgrade path. **It was attempted empirically
+and it cannot work.** Evidence, in order:
+
+**1. `tao` has no newer release.** `cargo info tao` → latest is
+**0.37.1**, which is what we already pin. `tao = "^0.42"` fails to
+resolve — no such version exists. tao is the crate holding glib at
+0.18 in the root graph, and it cannot move.
+
+**2. `tray-icon` bumps, but changes nothing that matters.**
+Bumping `tray-icon 0.19 → 0.24.2` resolves cleanly and also
+lifts `muda 0.15.3 → 0.19.3`, but glib stays pinned at **0.18.5**
+and `gtk` at 0.18.2, because both `tao 0.37.1` and `gtk 0.18.2`
+still require the 0.18 line.
+
+**3. The decisive constraint — glib 0.20 needs GTK4, not GTK3.**
+
+| Crate | Our version | Latest available |
+|---|---|---|
+| `glib` | 0.18.5 | **0.22.10** |
+| `gtk` (GTK3) | 0.18.2 | **0.19.0** — the entire GTK3 line stops here |
+| `gtk4` (GTK4) | n/a | 0.11.5 |
+| `tao` | 0.37.1 | **0.37.1** — already latest |
+
+The GTK3 binding line (`gtk`) tops out at 0.19.0, and no GTK3
+release uses glib 0.20. glib 0.20+ exists only through **`gtk4`**,
+a different, non-compatible C API. Meanwhile `tao` — our
+windowing crate, and the only route to glib in the root graph — is
+already at its final release and does not adopt GTK4.
+
+**Conclusion: glib 0.20 is unreachable in this project** without
+replacing the entire windowing layer (tao + tray-icon + muda +
+Tauri) with GTK4-based alternatives. That is not a dependency
+bump; it is a platform migration. The alerts cannot be remediated
+by upgrading.
+
+This confirms and strengthens option (a1). The correct action is
+to **dismiss #1 and #8 as won't-fix** with this justification
+recorded on the alerts — not silence, but an accurate reason.
+The `webkit2gtk 2.0.2` in the nested `src-tauri` graph is pinned
+to glib 0.18 as well, so the nested sub-workspace has the same
+ceiling.
 
 ### 5. SonarCloud Quality Gate (R28 CORRECTION)
 
