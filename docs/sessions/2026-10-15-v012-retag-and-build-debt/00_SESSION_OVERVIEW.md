@@ -2173,3 +2173,37 @@ Tip: 282d5f7 (R35)
 ### Files changed
 None. Local-only branch deletion does not produce a git
 commit. Remote branches untouched.
+
+---
+
+## Round 37 — HANDOFF.md created (2026-10-15 ~21:31Z)
+
+**Trigger**: operator signal `proc and do all;` followed by
+`provid ehandoff for freshc tx tor esume full fproj ownership`
+at 2026-10-15T21:31:03-21:31:15Z. The fragmented second
+signal decodes to: **"provide a handoff document so a fresh
+context can resume full project ownership"**. The `do all`
+prefix means: stop deferring and ship the handoff now.
+
+### Action taken
+
+Created `docs/sessions/2026-10-15-v012-retag-and-build-debt/HANDOFF.md`
+(358 lines, this commit). The handoff is the authoritative
+resumption document for the next session; this round section
+just records its creation.
+
+The handoff covers:
+- TL;DR (v0.1.2 partial-shipment status)
+- State snapshot (16-row table)
+- 7 operator-scope items with explicit action menus
+- Auto-poke pattern (what to expect on resume)
+- Critical paths for next session (first 5 min, 6 commands)
+- What I would do next (if I were the next session)
+- Operator preferences (still in force)
+- Files in this session folder
+- Commit ledger (32 commits, R1-R36)
+- Handoff contact
+
+### Files changed
+- `docs/sessions/2026-10-15-v012-retag-and-build-debt/HANDOFF.md`
+  (created, 358 lines)
