@@ -217,9 +217,14 @@ jobs:
           # .deb/.rpm package versions. Strip the leading 'v' from the tag
           # and pass via env var so the bundle picks up the released version
           # (the file's hard-coded "0.1.0-nightly" has invalid characters for
-          # deb/rpm package versions and would fail Tauri bundling).
-          export TAURI_BUNDLE_VERSION="${GITHUB_REF#refs/tags/v}"
-          cargo tauri build --target ${{ matrix.target }}
+          # Tauri reads the version from tauri.conf.json. Inject the release
+          # tag at build time via --config so deb/rpm/msi/nsis/dmg package
+          # versions are sourced from the tag rather than the workspace
+          # version (e.g. 0.1.0-nightly, which fails Debian/RPM version
+          # spec validation). The Tauri CLI merges this JSON over the
+          # existing config, so the "version" key on the root is replaced.
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          cargo tauri build --target ${{ matrix.target }} --config "{\"version\": \"${TAG_VERSION}\"}"
 
       # ── Collect macOS artifacts ───────────────────────────────────────
       - name: Collect macOS artifacts
