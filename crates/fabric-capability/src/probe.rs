@@ -103,6 +103,13 @@ impl Probe for PosixProbe {
 mod cpu {
     use super::*;
     use crate::descriptor::ComputeCapabilities;
+    // `Error` is referenced inside the `not(any(linux, macos))` cfg branch
+    // below; an explicit import keeps Windows MSVC rustc happy where
+    // `use super::*;` does not transitively re-export the crate-root
+    // `pub use error::Error;` re-export. The `#[cfg]` keeps clippy quiet
+    // on platforms that never reach the branch.
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    use crate::Error;
 
     /// Probes CPU/NUMA/cache/memory from /proc and /sys.
     ///
