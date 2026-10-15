@@ -2044,3 +2044,61 @@ the first try.
 
 ### Files changed
 None. Documentation only.
+
+---
+
+## Round 35 — operator closed all 10 dependabot PRs; state re-verified (2026-10-15 ~21:20Z)
+
+**Trigger**: fourth operator signal `go` at 2026-10-15T21:19:28Z.
+Auto-poke did state poll; discovered operator had closed all 10
+dependabot PRs at 2026-10-15T07:19-07:22Z (~13h before the signal).
+
+### State delta since R34
+
+| Item | R34 state | Current (21:20Z) |
+|---|---|---|
+| Open dependabot PRs | 10 (#33-#42) | **0** — all closed by operator |
+| `origin/main` tip | `2c96b7f` (R34) | `2c96b7f` (unchanged) |
+| CI on tip | 10/11 pass | 4 most recent runs all success |
+| Production env protection rules | `[]` | `[]` (unchanged) |
+| Issue #32 | open | open (gate: Mon 2026-10-20) |
+| Open alerts | 6 (3 un-ignored: protobuf, jsonwebtoken, lru, otel_sdk) | 6 (unchanged) |
+| `dependabot.yml` | `update-types: [minor, patch]` on cargo: (R29 / commit `f8050e7`) | unchanged |
+
+### Discovered inconsistency in the session doc
+
+R27 finding C stated the dependabot config fix was "documented
+but not made (architectural decision — operator's call)". This
+was incorrect: the fix was made in R29 / commit `f8050e7` on
+2026-10-14T23:48:57Z — one full day before R27's doc and 8
+hours before the 2026-10-15T05:29Z weekly run that opened the
+10 PRs. R29's section explicitly says "dependabot config gap
+closed" and `git show f8050e7` confirms the commit exists.
+
+The fact that 10 major-version PRs were still opened after the
+filter was applied is a separate issue: either dependabot's
+runtime ignored the filter for the 2026-10-15 batch (queued
+trigger from before the config was applied), or the filter has
+a known gap. Either way, operator's bulk close confirms the
+intent: **no major version auto-PRs in the weekly batch**.
+
+The next scheduled run is Monday 2026-10-20T05:29Z. With the
+filter in place and the 10 stale PRs cleared, the expectation
+is:
+- 0 major-version PRs (filter blocks them)
+- 1 grouped `rust-dependencies` PR for any minor/patch updates
+  that have become available since 2026-10-15
+- 0 security-update jobs for `glib` / `opentelemetry_sdk`
+  (R31 / commit `7648604` `security-updates-only: true`)
+
+If the Mon 2026-10-20 run goes green, issue #32 can be closed.
+
+### Verified fact (sanity)
+
+`gh api /repos/KooshaPari/PhenoFabric/dependabot/alerts | jq`
+parses — no jq syntax issue. The earlier `jq` parse failure in
+this turn was a bash-escaping bug in the command line, not a
+real error. Alert count is 6 open, 3 fixed (unchanged from R25).
+
+### Files changed
+None. Documentation only.
