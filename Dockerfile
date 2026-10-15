@@ -43,6 +43,8 @@ COPY crates/fabric-orchestrator/Cargo.toml crates/fabric-orchestrator/Cargo.toml
 COPY crates/fabric-terminal/Cargo.toml crates/fabric-terminal/Cargo.toml
 COPY crates/fabric-capture/Cargo.toml crates/fabric-capture/Cargo.toml
 COPY crates/fabric-integration-tests/Cargo.toml crates/fabric-integration-tests/Cargo.toml
+COPY crates/fabric-research-ledger/Cargo.toml crates/fabric-research-ledger/Cargo.toml
+COPY examples/full-demo/Cargo.toml examples/full-demo/Cargo.toml
 
 # Create stub lib.rs / main.rs for each workspace member so cargo can resolve deps.
 # List must mirror the COPY list above.
@@ -75,6 +77,7 @@ RUN cargo build --release --locked 2>/dev/null || cargo build --release
 
 # Now copy real source and rebuild only the targets we need.
 COPY crates/ crates/
+COPY examples/ examples/
 
 RUN cargo build --release --bin fabric-daemon --bin fabric-cli
 
