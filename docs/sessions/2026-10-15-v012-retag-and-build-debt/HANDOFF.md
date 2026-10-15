@@ -290,17 +290,44 @@ a different, non-compatible C API. Meanwhile `tao` — our
 windowing crate, and the only route to glib in the root graph — is
 already at its final release and does not adopt GTK4.
 
+**Direct proof of the version gap** (read from the vendored crate
+source, not prose): `gtk-0.19.0/Cargo.toml` declares
+
+```toml
+[dependencies.glib]
+version = "0.22"
+```
+
+The GTK3 line therefore jumps `^0.18` → `^0.22` with **no
+intermediate release**. There is no `gtk` version that requires
+glib `0.20`, so the patched version the advisory names is not
+reachable through any GTK3 release at any point in time.
+
 **Conclusion: glib 0.20 is unreachable in this project** without
 replacing the entire windowing layer (tao + tray-icon + muda +
 Tauri) with GTK4-based alternatives. That is not a dependency
 bump; it is a platform migration. The alerts cannot be remediated
 by upgrading.
 
+**The advisory is also unreachable in our code** — a stronger
+justification than "can't upgrade". RUSTSEC-2024-0429 concerns
+unsoundness in **`glib::VariantStrIter`**. Verified:
+`grep -rn VariantStrIter --include=*.rs .` → **0 matches**. The
+API the advisory describes is never called anywhere in this
+repository, so there is no reachable code path regardless of
+version.
+
 This confirms and strengthens option (a1). The correct action is
-to **dismiss #1 and #8 as won't-fix** with this justification
-recorded on the alerts — not silence, but an accurate reason.
-The `webkit2gtk 2.0.2` in the nested `src-tauri` graph is pinned
-to glib 0.18 as well, so the nested sub-workspace has the same
+to **dismiss #1 and #8 as wont_fix** with both justifications
+recorded on the alerts:
+
+1. glib 0.20 is unreachable (GTK3 line skips it; tao is final)
+2. the vulnerable `VariantStrIter` API is never called here
+
+That is an accurate, auditable disposition rather than a silent
+suppression. The `webkit2gtk 2.0.2` in the nested `src-tauri`
+graph is likewise pinned to glib 0.18 and non-optional via
+`tauri-runtime-wry`, so the nested sub-workspace shares the same
 ceiling.
 
 ### 5. SonarCloud Quality Gate (R28 CORRECTION)

@@ -2417,3 +2417,28 @@ All experimental edits were reverted; `git status` confirms only
 Validation is limited to YAML parse + schema-key check; whether the
 nested jobs stop failing is only observable on the next ad-hoc
 security-update trigger or the Monday cron.
+
+### R39b — independent research confirms the block, and finds the advisory is unreachable too
+
+A delegated researcher read the crates.io sparse index and REST API
+directly rather than relying on prose. It confirmed the R39
+empirical result and added two findings I then verified myself:
+
+- `gtk-0.19.0/Cargo.toml` declares `[dependencies.glib] version =
+  "0.22"`. Read straight from the vendored crate source. The GTK3
+  line goes `^0.18` → `^0.22` with no intermediate release, so no
+  `gtk` version has ever required glib 0.20.
+- No GTK4 webkit binding exists: `webkit2gtk4`, `webkit2gtk-4.0`
+  and `webkit2gtk-sys4` are all absent from the index.
+  `tauri-runtime-wry` 2.11.4 pins `gtk` and `webkit2gtk` as
+  non-optional, so Tauri's Linux webview cannot be swapped.
+
+It also identified the advisory's actual subject —
+RUSTSEC-2024-0429 is an unsoundness in `glib::VariantStrIter` — and
+I verified `grep -rn VariantStrIter --include=*.rs .` returns **0
+matches**. The vulnerable API is never called in this repository,
+so there is no reachable code path at any glib version.
+
+The glib alerts now have a complete, auditable disposition: the
+fix version is unreachable through any dependency combination, and
+independently the vulnerable API is absent from the codebase.
