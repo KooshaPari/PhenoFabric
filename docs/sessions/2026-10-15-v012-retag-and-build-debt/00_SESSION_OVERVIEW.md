@@ -2799,3 +2799,73 @@ expired sessions are filtered to `logged_in:false`; mocks are
 
 **This still is NOT A1 acceptance.** "Actual scoped user state
 observed" requires a live session, and none has ever been executed.
+
+---
+
+## R45 — HEADLINE: four CLI commands are dead from CLI-to-daemon protocol drift
+
+Found by running the real binary against a real daemon, not by reading
+docs. `fabric network tailscale` returned:
+
+```
+error: tailscale query failed
+  ↳: cause: daemon returned error: UNKNOWN_TYPE: unknown message type: network_tailscale_request
+```
+
+This is the **same defect class as PR #43** (auth), still live
+elsewhere. Systematically enumerated every message type the CLI sends
+and every arm the daemon dispatches:
+
+| CLI sends | Daemon dispatches? | Sender | User-visible effect |
+|---|---|---|---|
+| `network_status_request` | **NO** | `commands/network.rs:50` | `fabric network status` dead |
+| `network_stun_request` | **NO** | `commands/network.rs:151` | `fabric network stun` dead |
+| `network_tailscale_request` | **NO** | `commands/network.rs:210` | `fabric network tailscale` dead |
+| `surface_lease_request` | **NO** | `commands/surface.rs:84` | `fabric surface lease` dead |
+
+**It is worse than a naming mismatch.** There are no network or
+surface handler modules in the daemon at all: `crates/fabric-daemon/src/wire/`
+contains only `auth_handlers.rs`, `handlers.rs`, `mod.rs`,
+`protocol.rs`. `grep -rn "network_status\|surface_lease\|network_stun\|network_tailscale"`
+across `crates/fabric-daemon/src/` returns **zero hits**. The
+handlers do not exist; renaming the CLI strings alone would not fix
+these.
+
+The daemon's actual 17 arms: `auth_complete auth_email auth_logout
+auth_start auth_status auth_verify capabilities_request
+compile_request health_check heartbeat probe_request routes_request
+save_config topology_request webrtc_answer webrtc_ice webrtc_offer`.
+
+**Why this matters for A2 specifically:** `network tailscale` is the
+peer-discovery path and `surface lease` is the capability path. So
+A2 was never only "a producer is missing" — two of its transport
+commands have no server implementation.
+
+### What demonstrably works today (live, this session)
+
+| Command | Result |
+|---|---|
+| `fabric version` | works — `fabric-cli 0.1.0` / `Fabric workspace v0.1.0` |
+| `fabric probe` | **works** — real signed capability probe: node ID, epoch, schema, topology hash, `Signatures: 1`, compute capabilities |
+| `fabric status` | **works** with daemon — `healthy`, `Uptime: 32s`, `127.0.0.1:9400`, `Topology epoch: 0`, `0 leases, 0 plans` |
+| `fabric surface list` | works but **always empty** — `0 active surface capabilities` |
+| `fabric network *` | **dead** — all three subcommands |
+| `fabric surface lease` | **dead** |
+
+So the working surface is: capability probing, workspace/graph
+building, daemon health, and version — plus TUI. The network and
+surface-lease commands are presented in `--help` as working but are
+not.
+
+### Also: usability defect — errors exit 0
+
+`fabric network status` prints `error: daemon not reachable` and
+**exits 0**. A script cannot detect the failure. Same pattern when the
+daemon is up and returns `UNKNOWN_TYPE` — still exit 0.
+
+### Also: no user has ever run this
+
+All **10** release assets of v0.1.2 report `downloadCount: 0`
+(GUI AppImage/deb/dmg×2/exe/msi, CLI tarballs×3 + zip). The project is
+**entirely unvalidated by real use** — which matches the operator's
+note that this is effectively a fresh project awaiting first feedback.
