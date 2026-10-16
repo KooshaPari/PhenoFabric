@@ -2737,3 +2737,65 @@ requires an interactive browser session.
 
 So A1 may be **much closer than the handoff implied**: a live login
 attempt is now plausible where before it was structurally impossible.
+
+---
+
+## R44b — CORRECTION: my R44 "remaining defects" list was wrong
+
+R44 (pushed as `0ca147e`) claimed the remaining A1 work was the
+negative criteria "D5 irrecoverable login loop, D6 cancellation
+indistinguishable, D4 IPv4-only listener, D1 CSRF state". **That was
+wrong.** A verification leaf (`sheep`) checked each against the
+current source, and I independently re-verified the load-bearing
+ones. **D1, D3, D4, D5 and D6 are all fixed.**
+
+Verified myself, not taken on report:
+
+| Defect | Claimed open by R44 | Actually | Evidence |
+|---|---|---|---|
+| D4 IPv4-only listener | open | **FIXED** | `auth_callback.rs:86` binds `Ipv6Addr::LOCALHOST`, `:95` binds IPv4 — both, same port. Lines 43-52 document the `::1`-before-`127.0.0.1` reasoning. |
+| D5 irrecoverable loop | open | **FIXED** | `READ_TIMEOUT = Duration::from_secs(30)` (`:17`), `handled` `AtomicBool` guard (`:119`, `:136`), read timeout applied at `:141`. Test asserts the timeout at `:307`. |
+| D1 CSRF state | open | **FIXED** | `index.html:2268` `_authState = generateAuthState()`, `:2283` `state: _authState` sent, `:2200-2202` validated one-shot then nulled. |
+| D3 dead `start_auth` | open | **FIXED** | PKCE present: `:2284-2285` `code_challenge` + `code_challenge_method: 'S256'`. |
+
+So the handoff's own defect table is **stale on D1, D3, D4, D5, D6**
+— the same failure mode this session keeps finding in inherited
+documents. R44 propagated that staleness instead of catching it.
+
+**What A1 actually still needs:** a live SSO round-trip. Nothing
+structural remains.
+
+### Two genuine findings from the verification leaf
+
+Both are real and neither is a gate blocker, recorded so they are
+not lost:
+
+1. **Auth middleware is off by default, and off means pass-through.**
+   `auth/middleware/mod.rs` `validate_message` opens with
+   `if !self.config.enabled { return Ok(None); }` — commented "If
+   auth is disabled, pass everything through." The daemon logs
+   `auth middleware enabled=false` and WorkOS secret `unset`. This is
+   a **wire-transport** bypass: every message is accepted without an
+   `AuthenticatedUser`. It **cannot** fabricate `logged_in:true`,
+   because session writes are gated on a real token exchange
+   (`auth_handlers.rs:190 login_success` is the sole non-test
+   `set_auth_session` call site). Worth knowing, correctly scoped.
+2. **`--json` prints the access token.** The token is intentionally
+   returned on the wire (`auth_handlers.rs:217,222`) and
+   `output::emit` prints raw response JSON under `--json`
+   (`output.rs:37-38`). So `fabric auth login --json` writes the
+   access token to stdout. Not a daemon-side leak, but a real
+   exposure for anyone piping CLI output to a log.
+
+Also noted: `fabric auth logout` deletes `~/.fabric/auth/token.json`
+but nothing ever writes that file (vestigial), and it never sends
+`auth_logout` — so the CLI cannot clear the daemon session; only the
+GUI does (`daemon.rs:839`).
+
+**(a) no demo success HOLDS** — every `logged_in:true` is gated on a
+real WorkOS exchange; missing `client_id` yields `auth_error`;
+expired sessions are filtered to `logged_in:false`; mocks are
+`#[cfg(test)]`-confined.
+
+**This still is NOT A1 acceptance.** "Actual scoped user state
+observed" requires a live session, and none has ever been executed.
