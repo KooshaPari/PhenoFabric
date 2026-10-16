@@ -2869,3 +2869,66 @@ All **10** release assets of v0.1.2 report `downloadCount: 0`
 (GUI AppImage/deb/dmg×2/exe/msi, CLI tarballs×3 + zip). The project is
 **entirely unvalidated by real use** — which matches the operator's
 note that this is effectively a fresh project awaiting first feedback.
+
+---
+
+## R46 — PROVEN: the release artifact ships without its main CLI binary
+
+Downloaded the actual published artifact and listed it:
+
+```
+$ gh release download v0.1.2 --repo KooshaPari/PhenoFabric \
+    --pattern "*linux-x86_64.tar.gz"
+$ tar tzf phenotype-fabric-v0.1.2-linux-x86_64.tar.gz
+phenotype-fabric-v0.1.2-linux-x86_64/
+phenotype-fabric-v0.1.2-linux-x86_64/fabric-tray
+phenotype-fabric-v0.1.2-linux-x86_64/fabric-daemon
+phenotype-fabric-v0.1.2-linux-x86_64/README.md
+phenotype-fabric-v0.1.2-linux-x86_64/fabric-tui
+```
+
+**`fabric` — the primary CLI — is not in the tarball.** Neither is
+`fabric-graph-cli`. Only the daemon, tray and TUI ship.
+
+### Root cause
+
+`.github/workflows/release.yml:136` (and `:154` for Windows):
+
+```yaml
+for bin in fabric-daemon fabric-cli fabric-tui fabric-tray fabric-graph; do
+  cp "$TARGET_DIR/$bin" "$DIST/" 2>/dev/null || true
+```
+
+Two of those five names are not real cargo targets:
+
+| Name in workflow | Actual `[[bin]]` | Result |
+|---|---|---|
+| `fabric-cli` | **`fabric`** (`crates/fabric-cli/Cargo.toml:10`) | **silent miss** |
+| `fabric-graph` | **`fabric-graph-cli`** | **silent miss** |
+| `fabric-daemon` | `fabric-daemon` | shipped |
+| `fabric-tui` | `fabric-tui` | shipped |
+| `fabric-tray` | `fabric-tray` | shipped |
+
+`2>/dev/null || true` makes the miss **silent**: the copy fails, the
+step still succeeds, the release is published, and nothing warns.
+
+### Why nobody noticed
+
+Both causes compounded: every release asset has
+`downloadCount: 0` (verified R45), so no user ever hit the missing
+binary; and CI is green because the failure is swallowed. A release
+that could never have been used passed every gate.
+
+**This also means the parent outcome's first word — "INSTALLED" — is
+false today.** `install.sh:6-7` also names `fabric-graph`, which is
+not a crate target.
+
+### Fix shape (not yet applied)
+
+1. Correct the bin names in `release.yml` (`fabric-cli` → `fabric`,
+   `fabric-graph` → `fabric-graph-cli`).
+2. **Remove `2>/dev/null || true` from the binary copies** — a missing
+   expected binary must fail the release, not be skipped. Keep it only
+   for genuinely optional files like LICENSE.
+3. Reconcile `install.sh` against real targets.
+4. Re-cut the release so the artifacts actually contain `fabric`.
