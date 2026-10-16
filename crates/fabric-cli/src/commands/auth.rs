@@ -70,10 +70,7 @@ fn login(args: &LoginArgs) -> Result<()> {
             })?;
 
             // Print the auth URL for the user to open.
-            let auth_url = response
-                .get("url")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let auth_url = response.get("url").and_then(|v| v.as_str()).unwrap_or("");
             if !auth_url.is_empty() && !args.json {
                 eprintln!(
                     "{} open this URL to complete login:\n  {}",
