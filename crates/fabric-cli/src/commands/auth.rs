@@ -44,14 +44,14 @@ pub fn dispatch(sub: &crate::AuthCommand, _workspace: &std::path::Path) -> Resul
 }
 
 fn login(args: &LoginArgs) -> Result<()> {
-    let msg = serde_json::json!({"type": "auth_login_request"});
+    let msg = serde_json::json!({"type": "auth_start"});
 
     match wire_client::send_message(&args.daemon, &msg) {
         Ok(response) => {
             let format = output::resolve_format(args.json, false);
             output::emit(format, &response, || {
                 let auth_url = response
-                    .get("auth_url")
+                    .get("url")
                     .and_then(|v| v.as_str())
                     .unwrap_or("(no url)");
                 let state = response
@@ -70,10 +70,7 @@ fn login(args: &LoginArgs) -> Result<()> {
             })?;
 
             // Print the auth URL for the user to open.
-            let auth_url = response
-                .get("auth_url")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let auth_url = response.get("url").and_then(|v| v.as_str()).unwrap_or("");
             if !auth_url.is_empty() && !args.json {
                 eprintln!(
                     "{} open this URL to complete login:\n  {}",
@@ -107,14 +104,14 @@ fn login(args: &LoginArgs) -> Result<()> {
 }
 
 fn status(args: &StatusArgs) -> Result<()> {
-    let msg = serde_json::json!({"type": "auth_status_request"});
+    let msg = serde_json::json!({"type": "auth_status"});
 
     match wire_client::send_message(&args.daemon, &msg) {
         Ok(response) => {
             let format = output::resolve_format(args.json, false);
             output::emit(format, &response, || {
                 let authenticated = response
-                    .get("authenticated")
+                    .get("logged_in")
                     .and_then(|v| v.as_bool())
                     .unwrap_or(false);
                 let provider = response
@@ -122,13 +119,14 @@ fn status(args: &StatusArgs) -> Result<()> {
                     .and_then(|v| v.as_str())
                     .unwrap_or("none");
                 let email = response
-                    .get("email")
+                    .get("user_email")
                     .and_then(|v| v.as_str())
                     .unwrap_or("-");
                 let expires = response
-                    .get("expires_at")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("-");
+                    .get("session_expiry_secs")
+                    .and_then(|v| v.as_u64())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "-".to_string());
 
                 let auth_label = if authenticated {
                     console::style("authenticated").green().bold()
