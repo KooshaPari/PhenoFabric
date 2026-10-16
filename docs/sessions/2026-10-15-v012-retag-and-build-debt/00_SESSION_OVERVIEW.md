@@ -2490,3 +2490,49 @@ in this repo).
 - `crates/fabric-daemon/Cargo.toml` (-4 lines)
 - `Cargo.lock` (13 packages removed)
 - `docs/sessions/.../HANDOFF.md` (R40 section, refreshed counts)
+
+---
+
+## R41 — attempted to validate the issue-#32 restructure; it remains unproven
+
+Operator signal: `proc`.
+
+The R39 restructure had been flagged as behaviourally unvalidated.
+Checked whether anything had exercised it since.
+
+**Finding: the gate is untested, not fixed.**
+
+- Baseline: **14 of 14 `src-tauri` jobs have failed, ever**
+- Jobs of any kind since the restructure (21:47Z): **0**
+- Newest `src-tauri` job is still `38811390741` (21:38Z), pre-restructure
+
+**Cause of the silence:** the failing jobs were triggered by
+`opentelemetry_sdk` #4/#5, which R40 fixed at 22:20Z. Dependabot
+has no reason to re-run for fixed alerts. The two survivors
+(`glib` #1/#8) target `src-tauri/Cargo.lock` and `Cargo.lock`, but
+glib is unactionable per R39 and no new advisory has appeared to
+provoke a run.
+
+**What could be verified offline, was:**
+
+- config live on `origin/main` with
+  `directories: ['/', '/crates/fabric-gui/src-tauri']` and no `ignore`
+- full-config schema validation **VALID** — no block declares both
+  `directory` and `directories`, all 7 blocks correctly typed, each
+  with `schedule` and `package-ecosystem`
+- structural cause re-confirmed: `src-tauri` carries its own 143 KB
+  `Cargo.lock`, its own empty `[workspace]`, and appears in the root
+  `exclude` array
+
+**Could not force a test run.** `POST /dependabot/dependency-graph/
+snapshot` and `POST /dependabot` both return 404 for this token's
+scope; there is no supported on-demand trigger for a security-update
+job.
+
+Recorded in HANDOFF item 6 with an explicit caveat: on Monday, a `0`
+failure count is only meaningful if a `src-tauri` job actually ran.
+Check the job count alongside the failure count — a quiet week is
+not a fix.
+
+### Files changed
+- `docs/sessions/.../HANDOFF.md` (R41 section in item 6)

@@ -411,12 +411,60 @@ runtime still reproduces it. The structural cause is that
 Candidate remedies, all needing operator buy-in:
 
 - (a) Declare explicit `directories:` entries per ecosystem so
-  Dependabot parses each manifest directly
+  Dependabot parses each manifest directly — **DONE in R39**
 - (b) Add `source`/`directory` mapping for the workspace layout
 - (c) Make `src-tauri` a path dependency of a workspace member so
   the root manifest owns it
 - (d) Accept the failures as cosmetic noise (alerts are handled
   manually anyway) and close #32 as wontfix
+
+#### R41: restructure verified as far as possible offline — still unproven behaviourally
+
+Operator said `proc`. Checked whether the R39 restructure had
+actually changed behaviour. **It has not been tested yet**, and
+the reason matters:
+
+**Baseline: 14 of 14 `src-tauri` jobs have failed, ever.** Zero
+have failed since the restructure — but also **zero have run
+since**, so the gate is untested rather than fixed.
+
+| Check | Result |
+|---|---|
+| Jobs since 2026-10-15T21:47Z | **0 of any kind** |
+| Newest `src-tauri` job | `38811390741`, 21:38Z — pre-restructure |
+| Config live on `origin/main` | `directories: ['/', '/crates/fabric-gui/src-tauri']`, no `ignore` block |
+| Full-config schema validation | **VALID** — no block has both `directory` and `directories`; all 7 blocks typed correctly; every block has `schedule` + `package-ecosystem` |
+| Structural cause confirmed | `src-tauri` has its own `Cargo.lock` (143 KB), its own empty `[workspace]`, and is in the root `exclude` array |
+
+**Why no job has re-fired.** The failing jobs were triggered by
+`opentelemetry_sdk` #4/#5, which were **fixed at 2026-10-15T22:20Z**
+by the R40 removal. Dependabot has no reason to re-run for them.
+The two alerts that remain (`glib` #1/#8) target
+`crates/fabric-gui/src-tauri/Cargo.lock` and `Cargo.lock`, but
+glib is unactionable (R39) and no newer advisory has appeared to
+provoke a run.
+
+**So the restructure cannot be validated until either a
+`src-tauri`-resident advisory appears or Monday's scheduled run
+fires.** That is a real limitation of this verification, not a
+pass. Treat #32 as *probably fixed, unproven*.
+
+There is no supported way to force a security-update job on
+demand: `POST /dependabot/dependency-graph/snapshot` and
+`POST /dependabot` both return 404 for this token's scope.
+
+**Monday's check remains the decisive one:**
+
+```bash
+# 0 nested-dir failures after 2026-10-20 = restructure worked
+gh run list --workflow="Dependabot Updates" \
+  --created ">=2026-10-20" --limit 100 \
+  | grep "src-tauri" | grep -c failure
+```
+
+Caveat worth carrying: a `0` result is weaker evidence than it
+looks if **no `src-tauri` job ran at all**. Confirm the job count
+alongside the failure count — a quiet week is not a fix.
 
 **No work is lost** — these jobs only ever fail before opening a
 PR, and the 4 real alerts are being tracked manually. This is
