@@ -44,7 +44,7 @@ pub fn dispatch(sub: &crate::AuthCommand, _workspace: &std::path::Path) -> Resul
 }
 
 fn login(args: &LoginArgs) -> Result<()> {
-    let msg = serde_json::json!({"type": "auth_login_request"});
+    let msg = serde_json::json!({"type": "auth_start"});
 
     match wire_client::send_message(&args.daemon, &msg) {
         Ok(response) => {
@@ -107,7 +107,7 @@ fn login(args: &LoginArgs) -> Result<()> {
 }
 
 fn status(args: &StatusArgs) -> Result<()> {
-    let msg = serde_json::json!({"type": "auth_status_request"});
+    let msg = serde_json::json!({"type": "auth_status"});
 
     match wire_client::send_message(&args.daemon, &msg) {
         Ok(response) => {
