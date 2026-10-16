@@ -2592,3 +2592,79 @@ than a broken one.
 
 ### Files changed
 - `docs/sessions/.../HANDOFF.md` (R42 section in item 1)
+
+---
+
+## R43 — Heartbeat gap: loop was lost, tick fired 14.6h late, PR #43 merged
+
+Operator said `go` at 2026-10-16T22:27Z after a long idle gap.
+
+### 1. The heartbeat was NOT in the schedule list
+
+At 2026-10-16T22:28Z, `schedule list` returned only two unrelated
+tasks (HeliosLite streak-20 re-arm, weekly memory maintenance). The
+PhenoFabric 10-minute heartbeat was **absent**. The tick that
+arrived at 22:28Z was the last one from 07:50Z, firing **14.6 hours
+late**.
+
+This is the known scheduled-task delivery-delay issue, but worse
+than previously recorded. Prior audit
+(`scratch/sched_delivery_audit_20261012.md`) logged 4 consecutive
+late fires at 9h49m, 7h17m, 8h29m, 9h13m — max 9h13m. This one is
+**14h38m**, a new worst case.
+
+**Re-armed** as `sched_b2844962` (10m). The new task carries an
+instruction to log any tick that fires more than 20m late, so the
+delay trend becomes visible in the WBS rather than silent.
+
+**Consequence for the loop**: between 07:50Z and 22:28Z there were
+~88 expected ticks. Roughly one fired. The "10-minute heartbeat"
+requested by the operator has not been operating at that cadence.
+No gate moved during the gap, and none could have — see below.
+
+### 2. PR #43 MERGED — the auth wire fix is on main
+
+| Ref | Value |
+|---|---|
+| `origin/main` | **`420b4dd`** — "fix(cli): send daemon auth message names (#43)", 2026-10-16T00:22:52-0700 |
+| Local checkout | still on branch `fix/cli-auth-wire-names` at `ba9157b` (same content, squash-merged) |
+
+So the CLI/daemon auth message-name mismatch (found in R38-ish work
+by gorilla/monkey: CLI sent `auth_login_request`/`auth_status_request`
+while the daemon only handled `auth_start`/`auth_status`) is now
+**fixed on main**. `fabric auth login` and `fabric auth status` can
+now reach the daemon's auth handlers instead of falling through to
+`unknown_message`.
+
+**This does NOT flip A1.** The gate requires an observed live
+WorkOS flow — success, denial, cancellation, expired session,
+unavailable network, and native callback — with "actual scoped user
+state observed". No session exists (`~/.fabric` and
+`~/.config/fabric` absent), so the local-side acceptance is still
+unmet. The merge removes one blocker (wire names) and leaves the
+other (no live identity) in place.
+
+### 3. State unchanged elsewhere
+
+| Item | State |
+|---|---|
+| Desk `100.96.135.160` | Reachable — `ssh -o BatchMode=yes desk hostname` exit 0, `kooshapari-desk` |
+| Open alerts | **2** — `glib` #1/#8 only |
+| Open issues | **1** — #32, gated on the Mon 2026-10-20 dependabot cron |
+| A1 / A2 / A3 | **NO / NO / NO** per dromedary's scoring of HANDOFF.md:303/:400/:404 |
+| Producer path | Closed. No production path both loads capabilities and serves `fabric surface list` |
+| Cancel / reconnect / focus | ABSENT |
+
+### 4. Honest read on the loop
+
+~80 heartbeat ticks have now run across this window. **Not one could
+move a gate**, because both remaining blockers are outside agent
+reach:
+
+- **A1** needs a live WorkOS identity the operator owns.
+- **A2** needs a production producer path that does not exist in the
+  tree — an implementation decision, not a discovery task.
+
+Continuing to tick at 10m adds no information. The loop is correctly
+scoped (it dispatches only leaves that can change acceptance) which
+is why it dispatches nothing. Recorded rather than papered over.
