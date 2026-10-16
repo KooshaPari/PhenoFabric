@@ -94,6 +94,53 @@ is missing.
 (Settings > Secrets > Actions > New repository secret) or
 `gh secret set CRATES_IO_TOKEN`.
 
+#### R42: audited the publish path — the token is the ONLY hard blocker
+
+The "2-of-3 cargo publish issue" needed verification rather than
+trust. **Audited all 24 manifests for ground truth:**
+
+| Metric | Value |
+|---|---|
+| Manifests declaring `publish = false` | **10** (`fabric-cli`, `fabric-frame-transport` + fuzz, `fabric-gui` ×2, `fabric-integration-tests`, `fabric-tray`, `fabric-tui`, `fabric-web`, `fabric-full-demo`) |
+| Publishable candidates | **15** |
+| Published by the workflow | **12** |
+| In workflow but unpublishable (would fail) | **0** |
+
+The 3 omitted are exactly the ones the workflow comment names, and
+I confirmed each still path-depends the unpublished crate:
+
+| Crate | Path-dep on `fabric-frame-transport` |
+|---|---|
+| `fabric-daemon` | line 22 (dep) + line 46 (dev-dep) |
+| `fabric-orchestrator` | line 27 |
+| `fabric-surface-mojo` | line 14 |
+
+So the dependency graph is correct and the omission is deliberate,
+not a bug. `cargo publish` would fail on those three because the
+path is stripped at publish time and no crates.io version exists.
+
+**This makes the decision sharper than the handoff stated.** The
+handoff framed this as "token + a 2-of-3 issue", implying two
+problems. It is really **one problem with an optional follow-on**:
+
+1. **Blocking, unavoidable:** wire `CRATES_IO_TOKEN`. With it, 12
+   of 15 crates publish cleanly today.
+2. **Optional:** to reach all 15, either flip
+   `fabric-frame-transport` to `publish = true` (making it a real
+   0.1.0 crate — it already has a proper description, license and
+   version), or add `version = "0.1.0"` alongside the `path` on
+   those 3 manifests so cargo can resolve them from the registry.
+
+Note the workflow already degrades gracefully: with no token it
+emits a `::warning::` and exits 0 rather than failing cryptically.
+So this job is a clean no-op today, not a broken one.
+
+**Correction to a subagent's earlier report:** an analysis worker
+reported `fabric-daemon` as having *no* `publish = false`, which
+was wrong — it has no `publish` key at all, which is a different
+thing (publishable, by default). That distinction matters here:
+absence of the key means publishable, not internal-only.
+
 ### 2. Production env protection rules
 
 **Blocker**: Pro plan API PUT returns 404. Only the POST endpoint

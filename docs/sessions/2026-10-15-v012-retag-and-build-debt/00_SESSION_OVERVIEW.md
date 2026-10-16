@@ -2536,3 +2536,59 @@ not a fix.
 
 ### Files changed
 - `docs/sessions/.../HANDOFF.md` (R41 section in item 6)
+
+---
+
+## R42 — audited the crates publish path; token is the only hard blocker
+
+Operator signal: `proc`.
+
+Handoff item 1 described a "CRATES_IO_TOKEN + 2-of-3 cargo publish
+issue", implying two blockers. Audited all 24 manifests for ground
+truth rather than trusting the framing.
+
+**Ground truth:**
+
+| Metric | Value |
+|---|---|
+| Manifests declaring `publish = false` | 10 |
+| Publishable candidates | 15 |
+| Published by `release.yml` | 12 |
+| In workflow but unpublishable (would fail) | **0** |
+
+The 3 omitted crates are exactly those the workflow comment names,
+and each still path-depends the unpublished `fabric-frame-transport`:
+
+- `fabric-daemon` (line 22 dep + line 46 dev-dep)
+- `fabric-orchestrator` (line 27)
+- `fabric-surface-mojo` (line 14)
+
+`cargo publish` would fail on those three because the `path` is
+stripped at publish time and no crates.io version exists. The
+omission is deliberate and correct, not a bug.
+
+**Reframing the decision:** this is one blocking problem with an
+optional follow-on, not two problems.
+
+1. Blocking and unavoidable: wire `CRATES_IO_TOKEN`. With it, 12 of
+   15 crates publish cleanly today.
+2. Optional, to reach all 15: flip `fabric-frame-transport` to
+   `publish = true` (it already has a proper version 0.1.0,
+   description and license), or add `version = "0.1.0"` beside the
+   `path` on those three manifests.
+
+The workflow already degrades gracefully: with no token it emits a
+`::warning::` and exits 0, so the job is a clean no-op today rather
+than a broken one.
+
+**Two corrections made to my own prior record:**
+
+- An earlier subagent report stated `fabric-daemon` lacks
+  `publish = false`. True but misleading: it has no `publish` key at
+  all, which means *publishable by default*, not internal-only.
+  That distinction is material to this decision.
+- My first pass at the table wrote 9 for the `publish = false`
+  count; a script re-check put it at 10. Corrected.
+
+### Files changed
+- `docs/sessions/.../HANDOFF.md` (R42 section in item 1)
