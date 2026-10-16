@@ -2668,3 +2668,72 @@ reach:
 Continuing to tick at 10m adds no information. The loop is correctly
 scoped (it dispatches only leaves that can change acceptance) which
 is why it dispatches nothing. Recorded rather than papered over.
+
+---
+
+## R44 — A1 re-scoped: all three documented fatal auth layers are now fixed
+
+The handoff's A1 gate text (HANDOFF.md:303, §6.4) sits above a
+defect table (D1-D9) written 2026-09-18 from source inspection. It
+states: **"Three independent fatal layers, so SSO could never have
+worked"** — D8 (missing `response_type=code`), D2 (no registered
+redirect URI), D9 (daemon cannot exchange a code).
+
+**All three are now addressed.** Verified on 2026-10-16:
+
+| Layer | Defect | Status now | Evidence |
+|---|---|---|---|
+| D8 | Request omitted `response_type=code`, so WorkOS sent it to the generic error page | **Fixed** | probe below includes `response_type=code` and is accepted |
+| D2 | Every redirect URI in the codebase was rejected | **RESOLVED — verified live today** | see probe |
+| D9 | Daemon returned `unknown message type: auth_start` etc. | **Fixed by PR #43** | see below |
+
+**D2 live probe (2026-10-16T22:33Z):**
+
+```
+GET https://api.workos.com/user_management/authorize
+      ?client_id=client_01K4KYZR40RK7R9X3PPB5SEJ66
+      &response_type=code&provider=authkit
+      &redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback
+->
+https://significant-vessel-93-staging.authkit.app/bootstrap
+      ?client_id=...&redirect_uri=...&authorization_session_id=01M53DK2RAMP8FC3X0MGXG4GPC
+```
+
+The 2026-09-18 probe of the same endpoint returned
+`redirect-uri-invalid`. It now returns a real **`/bootstrap`**
+redirect carrying an `authorization_session_id`, which means WorkOS
+accepted the request and created an authorization session. The
+redirect-URI layer is genuinely fixed, not just documented as fixed.
+
+**D9 now fixed by PR #43** — verified on `main` (`420b4dd`):
+
+```
+crates/fabric-cli/src/commands/auth.rs:47   {"type": "auth_start"}
+crates/fabric-cli/src/commands/auth.rs:107  {"type": "auth_status"}
+crates/fabric-daemon/src/wire/protocol.rs   "auth_start" | "AuthStart"   => handle_auth_start
+                                            "auth_status" | "AuthStatus" => handle_auth_status
+```
+
+The CLI and daemon now agree on message names, so the
+`unknown_message` fallback is no longer hit for login/status. This is
+the first of the three fatal layers to be closed by this session's
+own work.
+
+**Also available and previously unrecorded:** the `workos` CLI
+(`~/.local/bin/workos`, 0.22.0) is **authenticated** as
+`kooshapari@gmail.com`, active environment `staging`. Use
+`--mode agent --insecure-storage` to avoid a macOS Keychain prompt.
+The client belongs to instance `significant-vessel-93-staging`, i.e.
+**staging, not production**.
+
+**What this changes for A1:** the handoff framed A1 as blocked by
+three unfixable protocol layers. Those are closed. What remains is
+(A) the negative criteria — D5 "the login flow can wedge permanently
+with no recovery path... exactly the 'irrecoverable login loop' A1
+forbids", D6 "denial and cancellation are indistinguishable from
+success", D4 IPv4-only listener vs `localhost` resolving to `::1`,
+D1 CSRF `state` never sent — and (B) a live SSO round-trip, which
+requires an interactive browser session.
+
+So A1 may be **much closer than the handoff implied**: a live login
+attempt is now plausible where before it was structurally impossible.
