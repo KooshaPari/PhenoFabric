@@ -123,6 +123,51 @@ jobs:
         shell: bash
         run: cargo build --workspace --release --bins --target ${{ matrix.target }}
 
+      # Guard the packaging step below: assert every EXPECTED release binary
+      # exists (and is executable on Unix) BEFORE any archive is created.
+      # Historically a wrong bin name in the copy loop (e.g. "fabric-cli"
+      # instead of the real [[bin]] "fabric") made `cp` fail, but the
+      # `2>/dev/null || true` swallowed it -- the archive shipped without
+      # the binary and CI stayed green. This step fails loudly and names the
+      # real target names so the defect cannot recur silently.
+      #
+      # EXPECTED_RELEASE_BINS is the single source of truth for the CLI
+      # release contents. Keep it in sync with both packaging loops below.
+      - name: Assert expected release binaries exist
+        shell: bash
+        env:
+          EXPECTED_RELEASE_BINS: fabric-daemon fabric fabric-tui fabric-tray fabric-graph-cli
+        run: |
+          TARGET_DIR="target/${{ matrix.target }}/release"
+          missing=0
+          if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
+            suffix=".exe"
+          else
+            suffix=""
+          fi
+          for bin in $EXPECTED_RELEASE_BINS; do
+            path="${TARGET_DIR}/${bin}${suffix}"
+            if [ ! -f "$path" ]; then
+              echo "::error::Expected release binary not found: $path"
+              echo "::error::Is '$bin' a real cargo [[bin]] target? Check: cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; [print(t[\"name\"]) for p in json.load(sys.stdin)[\"packages\"] for t in p[\"targets\"] if \"bin\" in t[\"kind\"]]'"
+              missing=1
+              continue
+            fi
+            # On Unix the archives must ship runnable binaries; on Windows
+            # the .exe carries no POSIX exec bit, so only check -x there-free.
+            if [ -z "$suffix" ] && [ ! -x "$path" ]; then
+              echo "::error::Release binary is not executable: $path"
+              missing=1
+              continue
+            fi
+            echo "OK release binary: $path"
+          done
+          if [ "$missing" = "1" ]; then
+            echo "::error::One or more expected release binaries are missing; refusing to package a partial release."
+            exit 1
+          fi
+          echo "All expected release binaries present: $EXPECTED_RELEASE_BINS"
+
       # ── Package ───────────────────────────────────────────────────────
       - name: Create archive (Unix)
         if: matrix.archive_ext == 'tar.gz'
@@ -133,9 +178,22 @@ jobs:
           TARGET_DIR="target/${{ matrix.target }}/release"
           mkdir -p "$DIST"
 
-          for bin in fabric-daemon fabric-cli fabric-tui fabric-tray fabric-graph; do
-            cp "$TARGET_DIR/$bin" "$DIST/" 2>/dev/null || true
+          # Binaries that MUST be present in every CLI release archive.
+          # These names are the real cargo target names (verify against
+          # `cargo metadata` [[bin]] names); a name that is not a target
+          # name (e.g. "fabric-cli" instead of "fabric", or "fabric-graph"
+          # instead of "fabric-graph-cli") makes the copy below fail. We do
+          # NOT swallow that error anymore -- a missing expected binary must
+          # fail the release, not be silently skipped.
+          for bin in fabric-daemon fabric fabric-tui fabric-tray fabric-graph-cli; do
+            if [ ! -x "$TARGET_DIR/$bin" ]; then
+              echo "::error::Expected release binary missing or not executable: $TARGET_DIR/$bin"
+              exit 1
+            fi
+            cp "$TARGET_DIR/$bin" "$DIST/"
           done
+          # LICENSE* and README.md are optional supporting files: ship them
+          # when present, but never fail the release because they're absent.
           cp LICENSE* "$DIST/" 2>/dev/null || true
           cp README.md "$DIST/" 2>/dev/null || true
 
@@ -151,9 +209,17 @@ jobs:
           TARGET_DIR="target/${{ matrix.target }}/release"
           mkdir -p "$DIST"
 
-          for bin in fabric-daemon fabric-cli fabric-tui fabric-tray fabric-graph; do
-            cp "$TARGET_DIR/$bin.exe" "$DIST/" 2>/dev/null || true
+          # Same expected-binary set as the Unix archive (see the comment
+          # above); names are the real cargo [[bin]] target names, and a
+          # missing expected binary fails the release instead of being skipped.
+          for bin in fabric-daemon fabric fabric-tui fabric-tray fabric-graph-cli; do
+            if [ ! -f "$TARGET_DIR/$bin.exe" ]; then
+              echo "::error::Expected release binary missing: $TARGET_DIR/$bin.exe"
+              exit 1
+            fi
+            cp "$TARGET_DIR/$bin.exe" "$DIST/"
           done
+          # LICENSE* and README.md are optional supporting files (see above).
           cp LICENSE* "$DIST/" 2>/dev/null || true
           cp README.md "$DIST/" 2>/dev/null || true
 

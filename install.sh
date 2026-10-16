@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
 # install.sh — curl installer for Phenotype Fabric
-# Usage: curl -fsSL https://raw.githubusercontent.com/<REDACTED>/PhenoFabric/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/KooshaPari/PhenoFabric/main/install.sh | bash
 set -euo pipefail
 
-REPO="<REDACTED>/PhenoFabric"
-BINS="fabric-daemon fabric-cli fabric-tui fabric-gui fabric-tray fabric-graph"
+REPO="KooshaPari/PhenoFabric"
+# Binaries installed into INSTALL_DIR. These are the real cargo [[bin]]
+# target names and MUST match the release archive contents in
+# .github/workflows/release.yml:
+#   - "fabric"         is the [[bin]] of the fabric-cli crate
+#     (crates/fabric-cli/Cargo.toml), NOT the crate name "fabric-cli"
+#   - "fabric-graph-cli" is the crate/bin name; there is no "fabric-graph"
+#     binary (fabric-graph is a library crate with no [[bin]])
+#   - "fabric-gui" is deliberately absent: the GUI is a Tauri app shipped as
+#     a separate .dmg/.deb/.msi/.AppImage asset by the build-gui job, and
+#     crates/fabric-gui is a library-only crate with no cargo binary target.
+# Keeping a name here that can never exist in the archive just produces a
+# permanent "Skipped (not in archive)" warning.
+BINS="fabric fabric-daemon fabric-tui fabric-tray fabric-graph-cli"
 INSTALL_DIR="/usr/local/bin"
 
 # ── Colors ────────────────────────────────────────────────────────────
@@ -137,7 +149,7 @@ main() {
     fi
   done
   echo
-  info "Get started: fabric-cli --help"
+  info "Get started: fabric --help"
 }
 
 main "$@"
