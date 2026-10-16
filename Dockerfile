@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # Multi-stage Dockerfile for Phenotype Fabric daemon
 # ──────────────────────────────────────────────────────────────────────
-# Stage 1: Build both fabric-daemon and fabric-cli (cli used for health)
+# Stage 1: Build fabric-daemon and the CLI (the CLI's [[bin]] is `fabric`)
 # Stage 2: Minimal runtime image
 # ──────────────────────────────────────────────────────────────────────
 
@@ -96,7 +96,7 @@ RUN cargo build --release --locked 2>/dev/null || cargo build --release
 COPY crates/ crates/
 COPY examples/ examples/
 
-RUN cargo build --release --bin fabric-daemon --bin fabric-cli
+RUN cargo build --release --bin fabric-daemon --bin fabric
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────
 FROM debian:bookworm-slim AS runtime
@@ -114,16 +114,20 @@ RUN groupadd --gid 1000 fabric && \
 RUN mkdir -p /var/lib/fabric && chown fabric:fabric /var/lib/fabric
 
 # Copy binaries from builder.
+# The CLI binary is named `fabric` (the fabric-cli crate's [[bin]] target);
+# there is no `fabric-cli` binary. See .github/workflows/release.yml.
 COPY --from=builder /build/target/release/fabric-daemon /usr/local/bin/fabric-daemon
-COPY --from=builder /build/target/release/fabric-cli     /usr/local/bin/fabric-cli
+COPY --from=builder /build/target/release/fabric        /usr/local/bin/fabric
 
 # Expose wire-server port.
 EXPOSE 9400
 
 # Health check: send a health_check message over the wire protocol.
-# fabric-daemon health --connect uses the TCP wire protocol on port 9400.
+# `fabric-daemon health --connect` speaks the TCP wire protocol on port 9400.
+# Note: the CLI (`fabric`) has no `health` subcommand and uses `--daemon`,
+# not `--connect`; the daemon binary is the correct health probe.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD /usr/local/bin/fabric-cli health --connect 127.0.0.1:9400 || exit 1
+    CMD /usr/local/bin/fabric-daemon health --connect 127.0.0.1:9400 || exit 1
 
 USER fabric
 
