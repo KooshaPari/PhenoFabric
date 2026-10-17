@@ -40,6 +40,14 @@ pub struct DaemonConfig {
 pub struct ServerConfig {
     /// Address to listen on (e.g. "127.0.0.1:9400").
     pub listen: String,
+    /// Address the OAuth/HTTP callback listener binds on (e.g. "127.0.0.1:9401").
+    ///
+    /// Distinct from `listen` because the wire server already binds the
+    /// configured `listen` address for newline-delimited JSON. The callback
+    /// serves `GET /auth/callback` from this address instead, so the
+    /// registered WorkOS `workos_redirect_uri` (which ends in
+    /// `/auth/callback`) resolves to a real endpoint the daemon owns.
+    pub callback_listen_addr: String,
     /// Maximum concurrent connections.
     pub max_connections: usize,
     /// Request timeout in milliseconds.
@@ -50,6 +58,7 @@ impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             listen: "127.0.0.1:9400".into(),
+            callback_listen_addr: "127.0.0.1:9401".into(),
             max_connections: 64,
             request_timeout_ms: 5000,
         }

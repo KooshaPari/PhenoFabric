@@ -68,6 +68,7 @@ pub fn start_daemon(federation_id: &str) -> DaemonInstance {
         },
         server: ServerConfig {
             listen: "127.0.0.1:0".into(),
+            callback_listen_addr: "127.0.0.1:0".into(),
             max_connections: 16,
             request_timeout_ms: 5000,
         },

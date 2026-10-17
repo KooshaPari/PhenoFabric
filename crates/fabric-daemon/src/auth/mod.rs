@@ -3,6 +3,7 @@
 //! Provides WorkOS OAuth 2.0 integration and Infisical secrets management
 //! for securing wire transport and daemon operations.
 
+pub mod callback;
 pub mod middleware;
 pub mod oauth;
 mod secret_read;

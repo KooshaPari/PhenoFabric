@@ -178,7 +178,6 @@ fn cmd_start(
             std::process::exit(1);
         }
     };
-
     // If a config file path was provided, wire it for persistence on changes.
     if let Some(ref path) = config_path {
         coordinator.set_config_path(path.clone());
@@ -223,6 +222,41 @@ fn cmd_start(
             .expect("failed to create tokio runtime"),
     );
 
+    // Spin up the OAuth/HTTP callback listener on a separate thread. The
+    // wire server already owns `listen_addr`; this listener binds a
+    // distinct address so the registered `workos_redirect_uri` (which
+    // ends in `/auth/callback`) resolves to a real HTTP endpoint. Bind
+    // failure is logged, not fatal: the daemon's primary job (wire
+    // transport) keeps running even if OAuth login is temporarily
+    // unavailable.
+    let callback_addr = config.server.callback_listen_addr.clone();
+    match TcpListener::bind(&callback_addr) {
+        Ok(callback_listener) => {
+            let callback_coord = coordinator.clone();
+            let callback_runtime = runtime.clone();
+            let callback_timeout = std::time::Duration::from_millis(timeout);
+            std::thread::Builder::new()
+                .name("callback-listener".to_string())
+                .spawn(move || {
+                    crate::auth::callback::run_callback_server(
+                        callback_listener,
+                        callback_coord,
+                        callback_runtime,
+                        callback_timeout,
+                    );
+                })
+                .expect("failed to spawn callback listener thread");
+            info!(addr = %callback_addr, "OAuth callback listener thread spawned");
+        }
+        Err(e) => {
+            tracing::error!(
+                addr = %callback_addr,
+                error = %e,
+                "failed to bind callback listener; WorkOS login will be unavailable but daemon continues"
+            );
+        }
+    }
+
     // Run wire server (blocking until shutdown).
     if let Err(e) = wire::run_wire_server(
         listener,
@@ -230,7 +264,7 @@ fn cmd_start(
         max_conn,
         timeout,
         auth,
-        runtime,
+        runtime.clone(),
     ) {
         tracing::error!("wire server error: {e}");
     }

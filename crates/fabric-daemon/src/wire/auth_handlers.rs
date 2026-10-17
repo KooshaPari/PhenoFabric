@@ -20,6 +20,10 @@ pub(crate) async fn handle_auth_start(coordinator: &Coordinator) -> Option<Strin
     };
 
     let request = provider.generate_auth_url();
+    // Register the issued state with the OAuth/HTTP callback listener so
+    // the matching `/auth/callback` request can validate it. One-shot
+    // semantics live in `auth::callback::take_state`.
+    crate::auth::callback::record_state(&request.state);
 
     Some(format!(
         r#"{{"type":"auth_start_response","status":"ok","url":{},"state":{},"redirect_uri":{}}}"#,

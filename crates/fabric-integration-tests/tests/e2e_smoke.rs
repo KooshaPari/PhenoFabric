@@ -31,7 +31,8 @@ fn start_daemon() -> (Arc<Coordinator>, String, Arc<AtomicBool>) {
             ..Default::default()
         },
         server: fabric_daemon::config::ServerConfig {
-            listen: "127.0.0.1:0".into(), // random port
+            listen: "127.0.0.1:0".into(),               // random port
+            callback_listen_addr: "127.0.0.1:0".into(), // random port
             max_connections: 16,
             request_timeout_ms: 5000,
         },
