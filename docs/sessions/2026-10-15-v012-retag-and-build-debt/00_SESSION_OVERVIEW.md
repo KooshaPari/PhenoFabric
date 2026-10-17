@@ -3318,3 +3318,65 @@ acceptance still requires more, none of it done:
 
 So A2 remains NO. What changed is that the remaining work is now
 additive features rather than a missing wire.
+
+---
+
+## R54 — A2 cancellation and session lifecycle: CI-verified
+
+`485726b` is green across the board.
+
+| Workflow | Commit | Result |
+|---|---|---|
+| **CI** | `485726b` | **success** — Format, Check, Clippy, Release build, Unit tests, Integration tests, E2E smoke: all 7 |
+| **Spec Validation** | `485726b` | **success** |
+| CI | `b4ebffb` | success (previous A2 commit) |
+
+### What was added
+
+Two gaps deliberately left open when the frame path was first wired,
+both named in A2's acceptance text.
+
+**Teardown / expiry / cap** — sessions previously lived until daemon
+shutdown, so state grew without bound and there was no way to end one.
+Now: an explicit session close, an idle-expiry sweep with a bounded
+timeout, and a cap on concurrent sessions with a clear error past the
+limit. Every path removes the session from the map, and a closed or
+expired session rejects further `frame_data` with a clear error rather
+than panicking or silently accepting.
+
+**Cancellation** — a session can now be cancelled mid-transfer: it
+leaves the active state, partial state is released, and later
+`frame_data` for it fails cleanly.
+
+### Verified before commit
+
+I re-ran every gate rather than trusting the worker's report:
+
+| Gate | Result |
+|---|---|
+| `cargo fmt --all -- --check` | exit 0 |
+| `cargo test --workspace --lib` | **676 passed, 0 failed** (was 627) |
+| `cargo clippy --workspace --all-targets -- -D warnings` | exit 0, **0 errors** |
+| `cargo test -p fabric-integration-tests` | **55 passed, 0 failed** (was 51) |
+| `check_manifest.py` | 1077 files, digests verified |
+
+No existing test was removed, weakened, or ignored — confirmed by
+diffing removed `#[test]` / `#[tokio::test]` / `#[ignore]` lines
+(none). I also confirmed the worker did **not** touch the two manifest
+scripts, which were fixed earlier in this session and are out of its
+scope.
+
+### A2 status: blockers gone, acceptance still open
+
+Two of A2's named requirements are now implemented and CI-verified
+(disconnect/reconnect remains only partly covered: session state
+surviving a reconnect is proven, but there is no resume logic).
+Still open:
+
+- **reconnect / resume logic**
+- **focus / input / output ownership**
+- **payload decoding** — the server accounts frame headers, it does not
+  decode encoded payloads
+- **two real devices** — the desk is reachable
+
+A2 remains NO.
