@@ -29,6 +29,10 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     "auth_status",
     "auth_verify",
     "auth_logout",
+    // --- Frame plane (fabric-frame-transport message types) ---
+    "session_init",
+    "frame_data",
+    "frame_ack",
 ];
 
 /// Required fields per message type (fields that MUST be present and non-null).
@@ -58,6 +62,13 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
     ("auth_status", &[]),
     ("auth_verify", &["email", "code"]),
     ("auth_logout", &[]),
+    // Frame-plane fields mirror `fabric_frame_transport` exactly:
+    // `SessionInit` (lib.rs:108-116), `FrameHeader` (lib.rs:131-141),
+    // and `FrameAck` (lib.rs:195-199). `frame_data` requires the sequence
+    // number because it is what the session state keys frames on.
+    ("session_init", &["client_id"]),
+    ("frame_data", &["seq"]),
+    ("frame_ack", &["seq"]),
 ];
 
 /// Expected field types (field_name, expected_json_type).
@@ -232,246 +243,5 @@ fn value_type_name(val: &serde_json::Value) -> &'static str {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn schema_is_valid_json() {
-        let parsed: serde_json::Value = serde_json::from_str(WIRE_PROTOCOL_SCHEMA)
-            .expect("WIRE_PROTOCOL_SCHEMA must be valid JSON");
-        assert!(parsed.is_object());
-    }
-
-    #[test]
-    fn validate_empty_object_fails() {
-        let result = validate_against_schema(r#"{}"#, "wire");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, "MISSING_TYPE");
-    }
-
-    #[test]
-    fn validate_non_object_fails() {
-        let result = validate_against_schema(r#""hello""#, "wire");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, "NOT_OBJECT");
-    }
-
-    #[test]
-    fn validate_invalid_json_fails() {
-        let result = validate_against_schema("not json", "wire");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, "INVALID_JSON");
-    }
-
-    #[test]
-    fn validate_unknown_type_fails() {
-        let result = validate_against_schema(r#"{"type":"foo"}"#, "wire");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, "UNKNOWN_TYPE");
-    }
-
-    #[test]
-    fn validate_heartbeat_passes() {
-        let result = validate_against_schema(r#"{"type":"heartbeat"}"#, "wire");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn validate_health_check_passes() {
-        let result = validate_against_schema(r#"{"type":"health_check"}"#, "wire");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn validate_compile_request_missing_source_fails() {
-        let result =
-            validate_against_schema(r#"{"type":"compile_request","destination":"b"}"#, "wire");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, "MISSING_FIELD");
-    }
-
-    #[test]
-    fn validate_compile_request_missing_destination_fails() {
-        let result = validate_against_schema(r#"{"type":"compile_request","source":"a"}"#, "wire");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, "MISSING_FIELD");
-    }
-
-    #[test]
-    fn validate_compile_request_passes() {
-        let result = validate_against_schema(
-            r#"{"type":"compile_request","source":"a","destination":"b"}"#,
-            "wire",
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn validate_compile_request_wrong_type_fails() {
-        let result = validate_against_schema(
-            r#"{"type":"compile_request","source":123,"destination":"b"}"#,
-            "wire",
-        );
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, "WRONG_TYPE");
-    }
-
-    #[test]
-    fn validate_webrtc_offer_passes() {
-        let result = validate_against_schema(
-            r#"{"type":"webrtc_offer","target":"n1","sdp":"v=0..."}"#,
-            "wire",
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn validate_webrtc_offer_missing_target_fails() {
-        let result = validate_against_schema(r#"{"type":"webrtc_offer","sdp":"v=0..."}"#, "wire");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn validate_compile_request_null_source_fails() {
-        let result = validate_against_schema(
-            r#"{"type":"compile_request","source":null,"destination":"b"}"#,
-            "wire",
-        );
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, "NULL_FIELD");
-    }
-
-    #[test]
-    fn validate_save_config_passes() {
-        let result = validate_against_schema(
-            r#"{"type":"save_config","overrides":{"server":{"listen":"0.0.0.0:5555"}}}"#,
-            "wire",
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn validate_save_config_empty_passes() {
-        // save_config has no required fields.
-        let result = validate_against_schema(r#"{"type":"save_config"}"#, "wire");
-        assert!(result.is_ok());
-    }
-
-    // --- network introspection + surface lease ---
-
-    #[test]
-    fn network_requests_pass_schema() {
-        for t in [
-            "network_status_request",
-            "network_stun_request",
-            "network_tailscale_request",
-        ] {
-            let result = validate_against_schema(&format!(r#"{{"type":"{t}"}}"#), "wire");
-            assert!(result.is_ok(), "{t} should pass schema validation");
-        }
-    }
-
-    #[test]
-    fn surface_lease_request_passes_schema() {
-        let result = validate_against_schema(
-            r#"{"type":"surface_lease_request","name":"primary-display","protocol":"posix","locality_floor":"L5","requires_rt":true}"#,
-            "wire",
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn surface_lease_request_missing_name_fails_schema() {
-        let result = validate_against_schema(
-            r#"{"type":"surface_lease_request","protocol":"posix","locality_floor":"L5"}"#,
-            "wire",
-        );
-        let err = result.unwrap_err();
-        assert_eq!(err.code, "MISSING_FIELD");
-        assert!(err.message.contains("name"));
-    }
-
-    #[test]
-    fn surface_lease_request_requires_rt_wrong_type_fails_schema() {
-        let result = validate_against_schema(
-            r#"{"type":"surface_lease_request","name":"d","protocol":"posix","locality_floor":"L5","requires_rt":"yes"}"#,
-            "wire",
-        );
-        assert_eq!(result.unwrap_err().code, "WRONG_TYPE");
-    }
-}
-
-#[cfg(test)]
-mod auth_types_tests {
-    use super::*;
-
-    #[test]
-    fn auth_start_is_known_and_requires_nothing() {
-        for t in ["auth_start", "AuthStart"] {
-            assert!(is_known_type(t), "{t} should be a known type");
-            assert!(required_fields(t).is_empty(), "{t} requires no fields");
-        }
-    }
-
-    #[test]
-    fn auth_complete_requires_code() {
-        assert!(is_known_type("auth_complete"));
-        assert_eq!(required_fields("auth_complete"), &["code"]);
-    }
-
-    #[test]
-    fn auth_email_requires_email() {
-        assert!(is_known_type("auth_email"));
-        assert_eq!(required_fields("auth_email"), &["email"]);
-    }
-
-    #[test]
-    fn auth_status_is_known_and_requires_nothing() {
-        for t in ["auth_status", "AuthStatus"] {
-            assert!(is_known_type(t), "{t} should be a known type");
-            assert!(required_fields(t).is_empty(), "{t} requires no fields");
-        }
-    }
-
-    #[test]
-    fn auth_verify_requires_email_and_code() {
-        assert!(is_known_type("auth_verify"));
-        assert_eq!(required_fields("auth_verify"), &["email", "code"]);
-    }
-
-    #[test]
-    fn auth_logout_is_known_and_requires_nothing() {
-        for t in ["auth_logout", "AuthLogout"] {
-            assert!(is_known_type(t), "{t} should be a known type");
-            assert!(required_fields(t).is_empty(), "{t} requires no fields");
-        }
-    }
-
-    #[test]
-    fn unknown_still_rejected() {
-        assert!(!is_known_type("auth_destroy"));
-        assert!(!is_known_type("definitely_not_a_type"));
-    }
-
-    #[test]
-    fn network_requests_are_known_and_require_nothing() {
-        for t in [
-            "network_status_request",
-            "network_stun_request",
-            "network_tailscale_request",
-        ] {
-            assert!(is_known_type(t), "{t} should be a known type");
-            assert!(required_fields(t).is_empty(), "{t} requires no fields");
-        }
-    }
-
-    #[test]
-    fn surface_lease_request_is_known_and_requires_three_fields() {
-        assert!(is_known_type("surface_lease_request"));
-        assert!(is_known_type("SurfaceLeaseRequest"));
-        assert_eq!(
-            required_fields("surface_lease_request"),
-            &["name", "protocol", "locality_floor"]
-        );
-    }
-}
+#[path = "schema_tests.rs"]
+mod tests;

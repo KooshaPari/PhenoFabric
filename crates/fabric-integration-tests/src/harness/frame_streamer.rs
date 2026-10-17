@@ -1,12 +1,21 @@
-//! Simulated frame streaming between two daemons over the real TCP stack.
+//! Frame streaming between a client and a real daemon over the real TCP stack.
 //!
-//! Opens a std TCP connection to the target daemon's wire server address
-//! and exercises the frame protocol (SessionInit / FrameData) end-to-end.
-//! Messages are sent as JSON lines so the line-based wire server can parse
-//! them and return a response (typically an UNKNOWN_TYPE error), proving
-//! the TCP connection delivers bytes correctly.
+//! Opens a std TCP connection to the target daemon's wire server address and
+//! drives the frame protocol (`session_init` / `frame_data` / `frame_ack`)
+//! end-to-end as line-delimited JSON, which is the framing the daemon wire
+//! server speaks (`fabric-daemon/src/wire/mod.rs`, `reader.lines()`).
+//!
+//! # What changed when the frame dispatcher landed
+//!
+//! Previously every frame message came back as an `UNKNOWN_TYPE` validation
+//! error: the types were absent from `REQUEST_MESSAGE_TYPES`, so
+//! `validate_message` rejected them before the dispatcher was consulted.
+//! `fabric-daemon/src/wire/frame_handlers.rs` now handles them, so this
+//! harness gets real responses: `session_ack`, `frame_ack`, and
+//! `frame_ack_response`. The response types are asserted here rather than
+//! discarded, because an ignored response is exactly what hid this gap.
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use fabric_frame_transport::{Codec, PROTOCOL_VERSION};
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
@@ -19,9 +28,11 @@ use std::time::{Duration, Instant};
 /// Summary of a simulated streaming session.
 #[derive(Debug)]
 pub struct StreamResult {
+    /// Server-assigned session id, learned from the `session_ack`.
+    pub session_id: u64,
     /// Number of frames sent.
     pub frames_sent: u32,
-    /// Number of frames acknowledged (local ack in current impl).
+    /// Number of frames the daemon acknowledged with `status: "ok"`.
     pub frames_acknowledged: u32,
     /// Average round-trip time across all acknowledged frames (microseconds).
     pub avg_rtt_us: u64,
@@ -30,14 +41,57 @@ pub struct StreamResult {
 }
 
 // ---------------------------------------------------------------------------
+// Wire helpers
+// ---------------------------------------------------------------------------
+
+/// Send one JSON line and read exactly one JSON response line.
+fn exchange(
+    writer: &mut TcpStream,
+    reader: &mut BufReader<TcpStream>,
+    message: &serde_json::Value,
+) -> Result<serde_json::Value> {
+    let line = serde_json::to_string(message).context("serialize frame wire message")?;
+    writer
+        .write_all(line.as_bytes())
+        .context("write frame wire message")?;
+    writer.write_all(b"\n").context("write newline")?;
+    writer.flush().context("flush frame wire message")?;
+
+    let mut response = String::new();
+    let read = reader
+        .read_line(&mut response)
+        .context("read frame wire response")?;
+    if read == 0 {
+        bail!("daemon closed the connection before responding to {line}");
+    }
+    serde_json::from_str(response.trim())
+        .with_context(|| format!("daemon response was not JSON: {}", response.trim()))
+}
+
+/// The transport variant name for a `Codec`, as the wire represents it.
+///
+/// `Codec` derives `Serialize`/`Deserialize` (`fabric-frame-transport/src/lib.rs`),
+/// so the wire form is the Rust variant name (`"Hevc"`, `"Av1"`, `"Nv12"`,
+/// `"Rgba"`). Using the serde name rather than a display name keeps the JSON
+/// the daemon reads identical to what the transport itself would emit.
+fn codec_name(codec: Codec) -> &'static str {
+    match codec {
+        Codec::Hevc => "Hevc",
+        Codec::Av1 => "Av1",
+        Codec::Nv12 => "Nv12",
+        Codec::Rgba => "Rgba",
+    }
+}
+
+// ---------------------------------------------------------------------------
 // stream_frames_between
 // ---------------------------------------------------------------------------
 
-/// Simulate a frame streaming session against `server_addr`.
+/// Stream `frame_count` frames against the daemon at `server_addr`.
 ///
-/// Connects via std TCP, sends a `SessionInit` as a JSON line, reads the
-/// server's response, then streams `frame_count` synthetic frame headers
-/// as JSON lines. Each frame sent triggers a local ack to measure RTT.
+/// Drives a real session: `session_init` opens a session and the daemon
+/// returns the `session_id`; each `frame_data` carries that id and must come
+/// back with `status: "ok"`; then each `frame_ack` reports the measured RTT.
 ///
 /// # Arguments
 ///
@@ -47,13 +101,11 @@ pub struct StreamResult {
 /// * `frame_count` -- number of frames to stream.
 /// * `codec` -- codec to negotiate in SessionInit.
 ///
-/// # Note
+/// # Errors
 ///
-/// The wire server currently handles JSON line protocol and will return
-/// an `UNKNOWN_TYPE` error for session_init / frame_data messages. This
-/// is expected: the test proves the transport types and wire encoding work
-/// over a real TCP connection. A future wire server enhancement will
-/// dispatch frame messages to enable true round-trip validation.
+/// Returns an error if any message gets a `frame_error` response, or if the
+/// daemon answers `session_init` without a usable `session_id`. A frame for an
+/// unknown session is reported, never silently ignored.
 pub fn stream_frames_between(
     server_addr: &str,
     client_id: &str,
@@ -62,7 +114,7 @@ pub fn stream_frames_between(
     frame_count: u32,
     codec: Codec,
 ) -> Result<StreamResult> {
-    let mut stream =
+    let stream =
         TcpStream::connect(server_addr).with_context(|| format!("connect to {server_addr}"))?;
     // Disable Nagle, matching the daemon's wire server. Both directions must
     // opt out: with Nagle left on, a small framing write waits for an ACK that
@@ -78,38 +130,34 @@ pub fn stream_frames_between(
         .set_write_timeout(Some(Duration::from_secs(5)))
         .context("set write timeout")?;
 
-    // --- Session handshake (JSON line) ---
+    let reader_stream = stream.try_clone().context("clone stream for reader")?;
+    let mut reader = BufReader::new(reader_stream);
+    let mut writer = stream;
+
+    // --- Session handshake ---
     let session_init = serde_json::json!({
         "type": "session_init",
         "version": PROTOCOL_VERSION,
-        "preferred_codec": format!("{:?}", codec),
+        "preferred_codec": codec_name(codec),
         "width": width,
         "height": height,
         "target_fps": 60,
         "max_latency_ms": 33,
         "client_id": client_id,
     });
-    let init_line = serde_json::to_string(&session_init).context("serialize SessionInit")?;
-    stream
-        .write_all(init_line.as_bytes())
-        .context("send SessionInit")?;
-    stream.write_all(b"\n").context("send newline")?;
-    stream.flush().context("flush SessionInit")?;
+    let ack = exchange(&mut writer, &mut reader, &session_init)?;
+    if ack["type"] != "session_ack" {
+        bail!("expected session_ack, got: {ack}");
+    }
+    let session_id = ack["session_id"]
+        .as_u64()
+        .with_context(|| format!("session_ack carried no session_id: {ack}"))?;
 
-    // Read the response line from the wire server.
-    // The server will respond with a JSON error (unknown message type).
-    let reader_stream = stream.try_clone().context("clone stream for reader")?;
-    let mut reader = BufReader::new(reader_stream);
-    let mut response_line = String::new();
-    reader
-        .read_line(&mut response_line)
-        .context("read server response")?;
-    // The response is expected to be an error (unknown type), which is fine
-    // for this test -- it proves the wire encoding delivered the bytes.
-
-    // --- Stream frames (JSON lines) ---
+    // --- Stream frames ---
+    // The synthetic payload is built once so `payload_len` below is a real
+    // measurement of the bytes this frame stands for, not arithmetic.
     let frame_payload = make_synthetic_payload(width, height);
-    let mut frames_sent: u32 = 0;
+    let frame_payload_len = frame_payload.len();
     let mut frames_acknowledged: u32 = 0;
     let mut total_rtt_us: u64 = 0;
     let session_start = Instant::now();
@@ -119,40 +167,47 @@ pub fn stream_frames_between(
 
         let send_time = Instant::now();
 
-        // Send frame header as JSON line (payload not sent over wire since
-        // the server doesn't handle binary frame data yet).
+        // The frame header travels as JSON, mirroring
+        // `fabric_frame_transport::FrameHeader` field for field. The encoded
+        // payload itself is not streamed: the wire server accounts frames, it
+        // does not decode them.
         let frame_msg = serde_json::json!({
             "type": "frame_data",
+            "session_id": session_id,
             "seq": seq,
             "pts_us": pts_us,
             "dts_us": pts_us,
             "is_keyframe": seq == 0,
-            "codec": format!("{:?}", codec),
+            "codec": codec_name(codec),
             "width": width,
             "height": height,
-            "payload_len": frame_payload.len(),
+            "payload_len": frame_payload_len,
             "duration_us": 16_667,
         });
-        let frame_line = serde_json::to_string(&frame_msg).context("serialize FrameData")?;
-        stream
-            .write_all(frame_line.as_bytes())
-            .context("send FrameData")?;
-        stream.write_all(b"\n").context("send newline")?;
-        stream.flush().context("flush FrameData")?;
+        let frame_ack = exchange(&mut writer, &mut reader, &frame_msg)?;
+        if frame_ack["type"] != "frame_ack" {
+            bail!("expected frame_ack for seq {seq}, got: {frame_ack}");
+        }
+        if frame_ack["status"] != "ok" {
+            bail!("daemon did not accept frame {seq}: {frame_ack}");
+        }
 
-        // Read the server's response to prevent write buffer from filling.
-        // The server returns an error (unknown type) for frame_data.
-        let mut resp = String::new();
-        let _ = reader.read_line(&mut resp);
-
-        frames_sent += 1;
-
-        // Simulate local ack timing.
-        // In a future phase the wire server will echo FrameData, enabling
-        // true round-trip validation with FrameAck.
         let rtt = send_time.elapsed().as_micros() as u64;
         total_rtt_us += rtt;
         frames_acknowledged += 1;
+
+        // --- Acknowledge the frame back ---
+        let ack_msg = serde_json::json!({
+            "type": "frame_ack",
+            "session_id": session_id,
+            "seq": seq,
+            "rtt_us": rtt,
+            "recv_pts_us": pts_us,
+        });
+        let ack_response = exchange(&mut writer, &mut reader, &ack_msg)?;
+        if ack_response["type"] != "frame_ack_response" {
+            bail!("expected frame_ack_response for seq {seq}, got: {ack_response}");
+        }
     }
 
     let elapsed = session_start.elapsed();
@@ -163,7 +218,8 @@ pub fn stream_frames_between(
     };
 
     Ok(StreamResult {
-        frames_sent,
+        session_id,
+        frames_sent: frame_count,
         frames_acknowledged,
         avg_rtt_us,
         elapsed,
@@ -203,11 +259,24 @@ mod tests {
     #[test]
     fn stream_result_default_fields() {
         let result = StreamResult {
+            session_id: 0,
             frames_sent: 0,
             frames_acknowledged: 0,
             avg_rtt_us: 0,
             elapsed: Duration::ZERO,
         };
         assert_eq!(result.frames_sent, 0);
+    }
+
+    #[test]
+    fn codec_names_match_the_transport_serde_representation() {
+        // The wire carries the serde variant name, which is what the frame
+        // handler's `parse_codec` accepts. Asserting this pins the contract:
+        // if the enum were renamed, these tests would fail rather than the
+        // daemon silently rejecting every frame.
+        assert_eq!(codec_name(Codec::Hevc), "Hevc");
+        assert_eq!(codec_name(Codec::Av1), "Av1");
+        assert_eq!(codec_name(Codec::Nv12), "Nv12");
+        assert_eq!(codec_name(Codec::Rgba), "Rgba");
     }
 }

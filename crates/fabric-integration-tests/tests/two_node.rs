@@ -11,6 +11,8 @@ use fabric_daemon::federation::MergeStrategy;
 use fabric_frame_transport::Codec;
 use fabric_graph::model::NodeId;
 use fabric_graph::multihop::builtin_stages;
+use std::io::{BufRead, BufReader, Write};
+use std::net::TcpStream;
 use std::time::Duration;
 
 use fabric_integration_tests::harness::federation::{
@@ -259,4 +261,174 @@ fn two_node_heartbeat_roundtrip() {
 
     stop_daemon(a);
     stop_daemon(b);
+}
+
+// ===========================================================================
+// Test 6: Real Frame Round-Trip Through a Real Daemon
+// ===========================================================================
+
+/// A single frame must survive a full round trip through a real daemon:
+/// `session_init` -> `session_ack`, `frame_data` -> `frame_ack`,
+/// `frame_ack` -> `frame_ack_response`.
+///
+/// This is the A2 gate. Before the frame dispatcher landed, `session_init`
+/// and `frame_data` were absent from `REQUEST_MESSAGE_TYPES`, so validation
+/// rejected them with `UNKNOWN_TYPE` and this path did not exist. The test
+/// asserts on the daemon's actual responses rather than on the mere fact that
+/// bytes reached it, because an ignored response is what hid the gap.
+#[test]
+fn frame_round_trip_through_real_daemon() {
+    let (_a, b) = start_two_daemons();
+
+    let mut stream = TcpStream::connect(&b.addr).expect("connect to daemon b wire server");
+    stream.set_nodelay(true).expect("set TCP_NODELAY");
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+        .expect("set read timeout");
+
+    let mut reader = BufReader::new(stream.try_clone().expect("clone stream"));
+
+    // Send one request line and read exactly one response line.
+    let mut exchange = |request: &str| -> serde_json::Value {
+        stream.write_all(request.as_bytes()).expect("write request");
+        stream.write_all(b"\n").expect("write newline");
+        stream.flush().expect("flush request");
+
+        let mut line = String::new();
+        let read = reader.read_line(&mut line).expect("read response");
+        assert_ne!(read, 0, "daemon closed the connection");
+        serde_json::from_str(line.trim())
+            .unwrap_or_else(|e| panic!("response was not JSON ({e}): {line}"))
+    };
+
+    // --- 1. Open a session ---
+    let ack = exchange(
+        r#"{"type":"session_init","version":1,"preferred_codec":"Rgba","width":64,"height":48,"target_fps":60,"max_latency_ms":33,"client_id":"round-trip-client"}"#,
+    );
+    assert_eq!(ack["type"], "session_ack", "got: {ack}");
+    let session_id = ack["session_id"]
+        .as_u64()
+        .unwrap_or_else(|| panic!("session_ack carried no session_id: {ack}"));
+    assert_eq!(session_id, 1, "first session should be id 1");
+    assert_eq!(ack["codec"], "Rgba");
+    assert_eq!(ack["width"], 64);
+    assert_eq!(ack["height"], 48);
+
+    // --- 2. Send one real frame for that session ---
+    // 64*48*4 = 12288 bytes of RGBA.
+    let frame = exchange(&format!(
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667}}"#
+    ));
+    assert_eq!(frame["type"], "frame_ack", "got: {frame}");
+    assert_eq!(frame["status"], "ok", "daemon rejected the frame: {frame}");
+    assert_eq!(frame["seq"], 0);
+    assert_eq!(frame["session_id"], session_id);
+    assert_eq!(
+        frame["frame_count"], 1,
+        "daemon should count exactly one frame"
+    );
+    assert_eq!(
+        frame["frames_received"], 12288,
+        "daemon should account the frame's payload bytes"
+    );
+    assert_eq!(frame["is_keyframe"], true);
+
+    // --- 3. Acknowledge the frame ---
+    let ack_response = exchange(&format!(
+        r#"{{"type":"frame_ack","session_id":{session_id},"seq":0,"rtt_us":1234,"recv_pts_us":0}}"#
+    ));
+    assert_eq!(
+        ack_response["type"], "frame_ack_response",
+        "got: {ack_response}"
+    );
+    assert_eq!(
+        ack_response["acked"], true,
+        "the daemon did receive frame 0, so the ack must be honored"
+    );
+    assert_eq!(ack_response["rtt_us"], 1234);
+    assert_eq!(ack_response["recorded_rtt_us"], 1234);
+    assert_eq!(ack_response["ack_count"], 1);
+
+    // --- 4. A frame for an unknown session is reported, not dropped ---
+    let orphan = exchange(
+        r#"{"type":"frame_data","session_id":4242,"seq":0,"codec":"Rgba","payload_len":16}"#,
+    );
+    assert_eq!(orphan["type"], "frame_error", "got: {orphan}");
+    assert_eq!(
+        orphan["error"], "unknown_session",
+        "an unknown session must be an explicit error"
+    );
+    assert_eq!(orphan["session_id"], 4242);
+    let active = orphan["active_sessions"]
+        .as_array()
+        .expect("error should list active sessions");
+    assert!(
+        active.contains(&serde_json::json!(session_id)),
+        "error should name the live session: {orphan}"
+    );
+
+    stop_daemon(b);
+}
+
+/// Server-side state must persist across separate connections.
+///
+/// Session state lives on the coordinator, not on the socket, so a client can
+/// reconnect and keep streaming into the same session. If the state were
+/// per-connection, the second connection's frames would fail with
+/// `unknown_session`.
+#[test]
+fn frame_session_state_survives_reconnection() {
+    let (_a, b) = start_two_daemons();
+
+    let session_id = {
+        let mut stream = TcpStream::connect(&b.addr).expect("connect");
+        stream.set_nodelay(true).expect("set TCP_NODELAY");
+        let mut reader = BufReader::new(stream.try_clone().expect("clone"));
+        stream
+            .write_all(
+                br#"{"type":"session_init","version":1,"preferred_codec":"Av1","width":32,"height":32,"target_fps":30,"max_latency_ms":33,"client_id":"reconnect"}"#,
+            )
+            .and_then(|_| stream.write_all(b"\n"))
+            .and_then(|_| stream.flush())
+            .expect("send session_init");
+        let mut line = String::new();
+        reader.read_line(&mut line).expect("read session_ack");
+        let ack: serde_json::Value = serde_json::from_str(line.trim()).expect("parse ack");
+        assert_eq!(ack["codec"], "Av1");
+        ack["session_id"].as_u64().expect("session_id")
+    };
+
+    // Open a brand-new connection and keep using the session from it.
+    let mut stream = TcpStream::connect(&b.addr).expect("reconnect");
+    stream.set_nodelay(true).expect("set TCP_NODELAY");
+    let mut reader = BufReader::new(stream.try_clone().expect("clone"));
+    let frame = exchange_frame(&mut stream, &mut reader, session_id, 0);
+    assert_eq!(
+        frame["type"], "frame_ack",
+        "session state did not survive the reconnect: {frame}"
+    );
+    assert_eq!(frame["frame_count"], 1);
+
+    stop_daemon(b);
+}
+
+/// Send one frame line and parse the single response line.
+fn exchange_frame(
+    stream: &mut TcpStream,
+    reader: &mut BufReader<TcpStream>,
+    session_id: u64,
+    seq: u64,
+) -> serde_json::Value {
+    let request = format!(
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"codec":"Av1","width":32,"height":32,"payload_len":4096}}"#
+    );
+    stream
+        .write_all(request.as_bytes())
+        .and_then(|_| stream.write_all(b"\n"))
+        .and_then(|_| stream.flush())
+        .expect("send frame_data");
+    let mut line = String::new();
+    let read = reader.read_line(&mut line).expect("read frame_ack");
+    assert_ne!(read, 0, "daemon closed the connection");
+    serde_json::from_str(line.trim()).unwrap_or_else(|e| panic!("bad JSON ({e}): {line}"))
 }

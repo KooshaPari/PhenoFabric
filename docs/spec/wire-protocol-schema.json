@@ -554,6 +554,153 @@
         }
       },
       "additionalProperties": true
+    },
+    {
+      "$comment": "session_init: open a frame-streaming session. Fields mirror fabric_frame_transport::SessionInit; the daemon replies with session_ack carrying the server-assigned session_id.",
+      "type": "object",
+      "required": [
+        "type",
+        "client_id"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "session_init",
+            "SessionInit"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "preferred_codec": {
+          "type": "string",
+          "enum": [
+            "Hevc",
+            "Av1",
+            "Nv12",
+            "Rgba"
+          ]
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "target_fps": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_latency_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "$comment": "frame_data: deliver one frame for an established session. Fields mirror fabric_frame_transport::FrameHeader; session_id is the id from session_ack. A frame for an unknown session returns frame_error with error=unknown_session.",
+      "type": "object",
+      "required": [
+        "type",
+        "seq"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "frame_data",
+            "FrameData"
+          ]
+        },
+        "session_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pts_us": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dts_us": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "is_keyframe": {
+          "type": "boolean"
+        },
+        "codec": {
+          "type": "string",
+          "enum": [
+            "Hevc",
+            "Av1",
+            "Nv12",
+            "Rgba"
+          ]
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload_len": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duration_us": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "$comment": "frame_ack: acknowledge a received frame. Fields mirror fabric_frame_transport::FrameAck. The daemon replies with frame_ack_response, whose acked field is true only when it had received a frame at or past seq.",
+      "type": "object",
+      "required": [
+        "type",
+        "seq"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "frame_ack",
+            "FrameAck"
+          ]
+        },
+        "session_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rtt_us": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recv_pts_us": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
     }
   ]
 }

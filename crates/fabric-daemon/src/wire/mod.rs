@@ -4,6 +4,8 @@
 //! Implements the server side of spec 025.
 
 mod auth_handlers;
+pub mod frame_handlers;
+pub mod frame_session_state;
 mod handlers;
 mod network_handlers;
 pub mod protocol;

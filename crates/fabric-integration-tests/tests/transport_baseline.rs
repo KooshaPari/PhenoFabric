@@ -59,10 +59,15 @@ fn start_stub_server() -> StubServer {
 ///
 /// Mirrors the daemon wire server in the two ways this baseline depends on:
 /// line-delimited JSON request/response, and `TCP_NODELAY` on the accepted
-/// socket. The reply *content* is an ack rather than the daemon's current
-/// `unknown_message` error: the streamer only requires a line per request to
-/// keep its read/write loop synchronized, and a valid ack keeps the exchange a
-/// well-formed request/response stream.
+/// socket.
+///
+/// The replies match the shapes `fabric-daemon/src/wire/frame_handlers.rs`
+/// actually emits, because `stream_frames_between` now asserts on them: it
+/// requires a `session_ack` carrying `session_id`, a `frame_ack` with
+/// `status: "ok"`, and a `frame_ack_response` per frame. A stub replying
+/// `{"type":"session_ack","status":"ok"}` with no `session_id` would make this
+/// harness fail for a reason that has nothing to do with the throughput being
+/// measured, so the stub tracks the real contract rather than a looser one.
 fn serve_connection(stream: TcpStream) {
     // Match run_wire_server: request/response framing, small writes.
     let _ = stream.set_nodelay(true);
@@ -93,20 +98,37 @@ fn serve_connection(stream: TcpStream) {
     }
 }
 
+/// Session id the stub hands out, mirroring the daemon's server-assigned ids.
+const STUB_SESSION_ID: u64 = 1;
+
 /// Build the JSON ack line for an incoming wire message.
+///
+/// Mirrors the daemon's frame-plane response shapes:
+/// `session_ack` (with `session_id`), `frame_ack`, and `frame_ack_response`.
 fn ack_for(message: &str) -> String {
     let parsed: serde_json::Value = match serde_json::from_str(message) {
         Ok(value) => value,
-        Err(_) => return r#"{"type":"error","error":"invalid_json"}"#.to_string(),
+        Err(_) => return r#"{"type":"frame_error","error":"invalid_json"}"#.to_string(),
     };
+    let field = |name: &str| parsed.get(name).and_then(serde_json::Value::as_u64);
     match parsed.get("type").and_then(|v| v.as_str()) {
-        Some("session_init") => r#"{"type":"session_ack","status":"ok"}"#.to_string(),
+        Some("session_init") => format!(
+            r#"{{"type":"session_ack","codec":"Hevc","width":{width},"height":{height},"fps":60,"session_id":{STUB_SESSION_ID},"server_time_ms":0}}"#,
+            width = field("width").unwrap_or(0),
+            height = field("height").unwrap_or(0),
+        ),
         Some("frame_data") => {
-            let seq = parsed
-                .get("seq")
-                .and_then(serde_json::Value::as_u64)
-                .unwrap_or(0);
-            format!(r#"{{"type":"frame_ack","seq":{seq},"status":"ok"}}"#)
+            let seq = field("seq").unwrap_or(0);
+            format!(
+                r#"{{"type":"frame_ack","status":"ok","session_id":{STUB_SESSION_ID},"seq":{seq},"last_seq":{seq},"frame_count":0,"frames_received":0,"payload_len":0,"is_keyframe":false}}"#
+            )
+        }
+        Some("frame_ack") => {
+            let seq = field("seq").unwrap_or(0);
+            let rtt_us = field("rtt_us").unwrap_or(0);
+            format!(
+                r#"{{"type":"frame_ack_response","status":"ok","session_id":{STUB_SESSION_ID},"seq":{seq},"acked":true,"rtt_us":{rtt_us},"recv_pts_us":0,"frame_count":0,"frames_received":0,"ack_count":0,"last_seq":null,"recorded_rtt_us":{rtt_us}}}"#
+            )
         }
         Some(other) => {
             format!(r#"{{"type":"error","error":"unknown_message","type":"{other}"}}"#)

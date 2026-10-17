@@ -11,11 +11,12 @@ use fabric_persist::Persist;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tracing::info;
 
 use crate::config::DaemonConfig;
 use crate::health::HealthResponse;
+use crate::wire::frame_session_state::FrameSessionState;
 
 /// The main coordinator state, shared across threads.
 pub struct Coordinator {
@@ -31,6 +32,13 @@ pub struct Coordinator {
     pub(super) config: Mutex<DaemonConfig>,
     /// Path to persist config on disk (None = config-only, no file persistence).
     pub(super) config_path: Mutex<Option<PathBuf>>,
+    /// Live frame-streaming sessions, keyed by daemon-assigned session id.
+    ///
+    /// Held behind its own mutex rather than inside `state` because frame
+    /// traffic is high-frequency and must not contend with topology/lease
+    /// state, and because a poisoned frame lock should not take down the
+    /// topology handlers.
+    pub(super) frame_sessions: Mutex<FrameSessionState>,
 }
 
 /// Authenticated login state, stored after a successful WorkOS exchange.
@@ -94,6 +102,7 @@ impl Coordinator {
             start_time: Instant::now(),
             config: Mutex::new(config),
             config_path: Mutex::new(None),
+            frame_sessions: Mutex::new(FrameSessionState::new()),
         })
     }
 
@@ -380,6 +389,28 @@ impl Coordinator {
             .unwrap_or_else(|e| e.into_inner())
             .auth_session
             .clone()
+    }
+
+    /// Take the frame-session lock for a frame-plane handler.
+    ///
+    /// A poisoned lock is recovered rather than propagated: losing frame
+    /// bookkeeping must not take the daemon down, and the alternative
+    /// (panicking every handler) would be worse than serving the next message.
+    pub(crate) fn frame_sessions_mut(&self) -> std::sync::MutexGuard<'_, FrameSessionState> {
+        self.frame_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Milliseconds since the Unix epoch, for `SessionAck::server_time_ms`.
+    ///
+    /// Falls back to 0 if the system clock is before the epoch, which is
+    /// better than panicking inside a wire handler.
+    pub fn now_ms(&self) -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0)
     }
 }
 

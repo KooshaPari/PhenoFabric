@@ -88,6 +88,27 @@ pub async fn process_message(message: &str, coordinator: &Coordinator) -> Option
             super::auth_handlers::handle_auth_verify(&validated.value, coordinator).await
         }
         "auth_logout" | "AuthLogout" => super::auth_handlers::handle_auth_logout(coordinator).await,
+        // --- Frame plane (fabric-frame-transport message types) ---
+        // These are the JSON projection of the frame protocol's `SessionInit`,
+        // `FrameData`, and `FrameAck` messages. The daemon wire server is
+        // line-delimited JSON while the frame transport is length-prefixed
+        // binary, so `frame_handlers` deserializes each line into the real
+        // transport types rather than inventing a parallel message shape.
+        //
+        // `session_ack`, `frame_ack_response`, and `frame_error` are response
+        // types the server emits; they are never accepted as requests.
+        "session_init" | "SessionInit" => Some(super::frame_handlers::handle_session_init(
+            &validated.value,
+            coordinator,
+        )),
+        "frame_data" | "FrameData" => Some(super::frame_handlers::handle_frame_data(
+            &validated.value,
+            coordinator,
+        )),
+        "frame_ack" | "FrameAck" => Some(super::frame_handlers::handle_frame_ack(
+            &validated.value,
+            coordinator,
+        )),
         _ => Some(format!(
             r#"{{"error":"unknown_message","type":"{}"}}"#,
             msg_type
@@ -286,5 +307,130 @@ mod tests {
             .await
             .unwrap();
         assert!(resp.contains("UNKNOWN_TYPE"), "got: {resp}");
+    }
+
+    // --- Frame plane ---
+    //
+    // These prove the three frame message types reach a handler instead of
+    // falling through to `unknown_message`. Before the frame arms existed
+    // they were rejected as `UNKNOWN_TYPE` by validation, because they were
+    // absent from `REQUEST_MESSAGE_TYPES`.
+
+    /// A valid `session_init` line, as the frame streamer sends it.
+    fn session_init_line() -> &'static str {
+        r#"{"type":"session_init","version":1,"preferred_codec":"Rgba","width":64,"height":48,"target_fps":60,"max_latency_ms":33,"client_id":"protocol-test"}"#
+    }
+
+    #[tokio::test]
+    async fn session_init_is_dispatched_to_a_handler() {
+        let coord = make_coordinator();
+        let resp = process_message(session_init_line(), &coord).await.unwrap();
+        assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
+        assert!(!resp.contains("unknown_message"), "fell through: {resp}");
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "session_ack");
+        assert_eq!(v["session_id"], 1);
+        assert_eq!(v["width"], 64);
+        assert_eq!(v["height"], 48);
+        assert_eq!(v["codec"], "Rgba");
+    }
+
+    #[tokio::test]
+    async fn session_init_pascal_case_is_dispatched() {
+        let coord = make_coordinator();
+        let line = r#"{"type":"SessionInit","version":1,"preferred_codec":"Av1","width":32,"height":32,"target_fps":30,"max_latency_ms":33,"client_id":"c"}"#;
+        let resp = process_message(line, &coord).await.unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "session_ack");
+        assert_eq!(v["codec"], "Av1");
+    }
+
+    #[tokio::test]
+    async fn frame_data_is_dispatched_for_a_known_session() {
+        let coord = make_coordinator();
+        process_message(session_init_line(), &coord).await.unwrap();
+
+        let frame = r#"{"type":"frame_data","session_id":1,"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667}"#;
+        let resp = process_message(frame, &coord).await.unwrap();
+        assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "frame_ack");
+        assert_eq!(v["status"], "ok");
+        assert_eq!(v["seq"], 0);
+        assert_eq!(v["frame_count"], 1);
+        assert_eq!(v["frames_received"], 12288);
+    }
+
+    #[tokio::test]
+    async fn frame_data_without_a_session_init_is_an_unknown_session_error() {
+        let coord = make_coordinator();
+        let frame =
+            r#"{"type":"frame_data","session_id":7,"seq":0,"codec":"Rgba","payload_len":16}"#;
+        let resp = process_message(frame, &coord).await.unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "frame_error");
+        assert_eq!(v["error"], "unknown_session");
+        assert_eq!(v["session_id"], 7);
+    }
+
+    #[tokio::test]
+    async fn frame_ack_is_dispatched_for_a_known_session() {
+        let coord = make_coordinator();
+        process_message(session_init_line(), &coord).await.unwrap();
+        let frame =
+            r#"{"type":"frame_data","session_id":1,"seq":1,"codec":"Rgba","payload_len":32}"#;
+        process_message(frame, &coord).await.unwrap();
+
+        let ack =
+            r#"{"type":"frame_ack","session_id":1,"seq":1,"rtt_us":4200,"recv_pts_us":16667}"#;
+        let resp = process_message(ack, &coord).await.unwrap();
+        assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "frame_ack_response");
+        assert_eq!(v["acked"], true);
+        assert_eq!(v["rtt_us"], 4200);
+    }
+
+    #[tokio::test]
+    async fn frame_data_missing_seq_is_a_validation_error() {
+        let coord = make_coordinator();
+        process_message(session_init_line(), &coord).await.unwrap();
+        let frame = r#"{"type":"frame_data","session_id":1,"codec":"Rgba"}"#;
+        let resp = process_message(frame, &coord).await.unwrap();
+        assert!(resp.contains("MISSING_FIELD"), "got: {resp}");
+    }
+
+    #[tokio::test]
+    async fn session_init_missing_client_id_is_a_validation_error() {
+        let coord = make_coordinator();
+        let line = r#"{"type":"session_init","version":1,"preferred_codec":"Rgba","width":64,"height":48,"target_fps":60,"max_latency_ms":33}"#;
+        let resp = process_message(line, &coord).await.unwrap();
+        assert!(resp.contains("MISSING_FIELD"), "got: {resp}");
+    }
+
+    #[tokio::test]
+    async fn frame_data_with_a_non_integer_seq_is_a_validation_error() {
+        // A float seq would silently become 0 if validation did not reject it.
+        let coord = make_coordinator();
+        process_message(session_init_line(), &coord).await.unwrap();
+        let frame =
+            r#"{"type":"frame_data","session_id":1,"seq":1.5,"codec":"Rgba","payload_len":8}"#;
+        let resp = process_message(frame, &coord).await.unwrap();
+        assert!(resp.contains("WRONG_TYPE"), "got: {resp}");
+    }
+
+    #[tokio::test]
+    async fn frame_types_do_not_displace_the_other_arms() {
+        // Adding the frame arms must not change how any pre-existing type is
+        // dispatched.
+        let coord = make_coordinator();
+        let resp = process_message(r#"{"type":"heartbeat"}"#, &coord)
+            .await
+            .unwrap();
+        assert!(resp.contains("heartbeat_ack"), "got: {resp}");
+        let resp = process_message(r#"{"type":"health_check"}"#, &coord)
+            .await
+            .unwrap();
+        assert!(resp.contains("healthy"), "got: {resp}");
     }
 }

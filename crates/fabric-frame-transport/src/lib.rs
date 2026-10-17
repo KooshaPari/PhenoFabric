@@ -20,6 +20,7 @@
 //! - `0x07` Error      — bidirectional, error notification
 //! - `0x08` KeyFrame   — server → client, request IDR/keyframe
 
+pub mod frame_validation;
 pub mod schema;
 pub mod stats;
 pub mod transforms;
