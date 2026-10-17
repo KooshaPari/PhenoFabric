@@ -1,6 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{RwLock, RwLockReadGuard};
 
 use crate::descriptor::{CapabilityDescriptor, Signature};
 
@@ -29,11 +30,34 @@ pub struct ChainVerification {
 /// extends it with intermediates / NodeAuthorities and (optionally) a
 /// revocation list. `verify_chain` is the entry point used by callers
 /// that want the new R1 guarantees.
-#[derive(Debug, Clone)]
+///
+/// # Revocation-list mutability
+///
+/// The revocation list is held behind an [`RwLock`] so that a holder of
+/// a [`super::handle::CapabilityHandle`] (an `&TrustStore` borrow) can
+/// still observe revocations posted to the same store on the next
+/// `check()`. Without this, long-lived handles would block all future
+/// revocations, or revocations would block long-lived handles. The
+/// `RwLock` is the smallest design that closes audit finding G-11
+/// without weakening the per-use re-check contract.
+///
+/// Poisoning: if a writer panics, the lock is poisoned and subsequent
+/// reads will fail with `PoisonError`. In a security context this is
+/// the correct fail-closed behavior.
 pub struct TrustStore {
     root_key_id: String,
     by_key_id: HashMap<String, Authority>,
-    revocation_list: Option<RevocationList>,
+    revocation_list: RwLock<Option<RevocationList>>,
+}
+
+impl std::fmt::Debug for TrustStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TrustStore")
+            .field("root_key_id", &self.root_key_id)
+            .field("by_key_id", &self.by_key_id)
+            .field("revocation_list", &"<RwLock<Option<RevocationList>>>")
+            .finish()
+    }
 }
 
 impl TrustStore {
@@ -55,7 +79,7 @@ impl TrustStore {
         Ok(Self {
             root_key_id,
             by_key_id,
-            revocation_list: None,
+            revocation_list: RwLock::new(None),
         })
     }
 
@@ -131,10 +155,7 @@ impl TrustStore {
 
     /// Installs a revocation list. Validates that the list's signature
     /// is from the TrustRoot's signing key.
-    pub fn set_revocation_list(
-        &mut self,
-        list: RevocationList,
-    ) -> std::result::Result<(), TrustError> {
+    pub fn set_revocation_list(&self, list: RevocationList) -> std::result::Result<(), TrustError> {
         let root = self
             .by_key_id
             .get(&self.root_key_id)
@@ -147,13 +168,38 @@ impl TrustStore {
                 expected: self.root_key_id.clone(),
                 actual: actual_key_id,
             })?;
-        self.revocation_list = Some(list);
+        let mut guard = self
+            .revocation_list
+            .write()
+            .map_err(|e| TrustError::Codec(format!("revocation_list lock poisoned: {e}")))?;
+        *guard = Some(list);
         Ok(())
     }
 
     /// Returns the TrustRoot's key_id (base64 of the root public key).
     pub fn root_key_id(&self) -> &str {
         &self.root_key_id
+    }
+
+    /// Returns the authority for `key_id` if it is currently valid (known to
+    /// the store and not revoked). This is the per-call primitive the
+    /// [`super::handle::CapabilityHandle`] uses to make revocation reach a
+    /// live handle: the check consults the authoritative revocation list on
+    /// every call, never trusts a value captured at grant time.
+    pub fn authority(&self, key_id: &str) -> std::result::Result<&Authority, TrustError> {
+        let auth = self
+            .by_key_id
+            .get(key_id)
+            .ok_or_else(|| TrustError::UnknownAuthority(key_id.to_string()))?;
+        if let Some(list) = read_revocation_list(&self.revocation_list)? {
+            if let Some(entry) = list.revocations.iter().find(|e| e.key_id == key_id) {
+                return Err(TrustError::KeyRevoked {
+                    key_id: key_id.to_string(),
+                    reason: entry.reason.clone(),
+                });
+            }
+        }
+        Ok(auth)
     }
 
     /// Verifies that `descriptor` carries at least one signature whose
@@ -181,7 +227,9 @@ impl TrustStore {
                 }
             };
             // b. Revocation check.
-            if let Some(list) = &self.revocation_list {
+            if let Some(list) =
+                read_revocation_list(&self.revocation_list).map_err(|e| e.clone())?
+            {
                 if let Some(entry) = list.revocations.iter().find(|e| e.key_id == sig.key_id) {
                     if first_error.is_none() {
                         first_error = Some(TrustError::KeyRevoked {
@@ -293,6 +341,15 @@ impl TrustStore {
     }
 }
 
+fn read_revocation_list(
+    lock: &RwLock<Option<RevocationList>>,
+) -> std::result::Result<Option<RevocationList>, TrustError> {
+    let guard: RwLockReadGuard<'_, Option<RevocationList>> = lock
+        .read()
+        .map_err(|e| TrustError::Codec(format!("revocation_list lock poisoned: {e}")))?;
+    Ok(guard.clone())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -398,7 +455,7 @@ mod tests {
             revoked_at: Utc::now(),
         }];
         let list = RevocationList::build_and_sign(entries, &wrong_key).unwrap();
-        let mut store = TrustStore::new(root).unwrap();
+        let store = TrustStore::new(root).unwrap();
         let result = store.set_revocation_list(list);
         assert!(matches!(
             result,

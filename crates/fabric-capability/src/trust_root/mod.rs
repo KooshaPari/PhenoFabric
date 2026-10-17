@@ -33,9 +33,11 @@
 //! `TrustStore` is opt-in.
 
 mod authority;
+mod handle;
 mod store;
 mod types;
 
 pub use authority::Authority;
+pub use handle::CapabilityHandle;
 pub use store::{ChainVerification, TrustStore};
 pub use types::{RevocationEntry, RevocationList, RevocationReason, TrustError, MAX_CHAIN_DEPTH};

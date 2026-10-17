@@ -56,6 +56,6 @@ pub use probe::Probe;
 pub use schema::validate_descriptor;
 pub use signing::{sign, verify, SigningKey, VerificationKey};
 pub use trust_root::{
-    Authority, ChainVerification, RevocationEntry, RevocationList, RevocationReason, TrustError,
-    TrustStore, MAX_CHAIN_DEPTH,
+    Authority, CapabilityHandle, ChainVerification, RevocationEntry, RevocationList,
+    RevocationReason, TrustError, TrustStore, MAX_CHAIN_DEPTH,
 };

@@ -11,7 +11,7 @@ use super::dispatch::{process_callback, HttpResponse};
 use crate::coordinator::Coordinator;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
@@ -160,6 +160,14 @@ fn write_response(
     writer.write_all(head.as_bytes())?;
     writer.write_all(body)?;
     writer.flush()?;
+
+    // Graceful close for `Connection: close`: FIN the write side so the peer
+    // sees end-of-stream rather than a reset. Do NOT drain the read side here
+    // -- that was tried and made the tests measurably worse, because holding
+    // the connection open to drain races the caller's own EOF handling. The
+    // correct client behaviour is to read Content-Length bytes and stop, so
+    // the server does not need to keep the connection alive for it.
+    let _ = writer.shutdown(Shutdown::Write);
     Ok(())
 }
 

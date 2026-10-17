@@ -13,7 +13,7 @@ pub const MAX_CHAIN_DEPTH: usize = 2;
 
 /// Errors that [`super::TrustStore`] can produce during construction, authority
 /// insertion, revocation-list installation, or chain verification.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum TrustError {
     #[error("unknown authority: key_id {0} is not in the TrustStore")]
     UnknownAuthority(String),

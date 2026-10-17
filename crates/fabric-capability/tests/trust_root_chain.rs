@@ -199,7 +199,7 @@ fn it06_revocation_list_wire_format_roundtrip() {
     assert_eq!(restored.signature.sig, list.signature.sig);
 
     let root = Authority::trust_root(&root_key, "test-root");
-    let mut store = TrustStore::new(root).unwrap();
+    let store = TrustStore::new(root).unwrap();
     store
         .set_revocation_list(restored)
         .expect("restored list must be accepted");
