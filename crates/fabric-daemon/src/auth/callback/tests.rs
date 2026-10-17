@@ -23,6 +23,24 @@ use super::server::run_callback_server;
 use crate::coordinator::Coordinator;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+
+/// Serializes tests that touch the process-wide state registry.
+///
+/// The registry is a `OnceLock<Mutex<HashMap<..>>>` shared by the whole
+/// process, and several tests call `clear_registry_for_tests()`. Cargo runs
+/// tests in parallel by default, so without this lock one test's clear wipes
+/// another test's in-flight state and the suite fails intermittently -- it
+/// passed locally and failed on CI, which is exactly the shape of a race.
+/// Hold this guard for the whole test body. A poisoned lock is recovered
+/// rather than propagated, so one failing test does not cascade.
+#[cfg(test)]
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    static SERIAL: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+    match SERIAL.get_or_init(|| std::sync::Mutex::new(())).lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -138,6 +156,7 @@ fn record_empty_is_a_noop() {
 /// marker that would mean validation short-circuited.
 #[test]
 fn valid_callback_reaches_auth_complete() {
+    let _serial = serial();
     clear_registry_for_tests();
     let coord = make_coordinator();
     let (addr, shutdown) = spawn_test_listener(coord);
@@ -168,6 +187,7 @@ fn valid_callback_reaches_auth_complete() {
 /// with 400 and never reaches `handle_auth_complete`.
 #[test]
 fn wrong_state_rejected_with_400() {
+    let _serial = serial();
     clear_registry_for_tests();
     let coord = make_coordinator();
     let (addr, shutdown) = spawn_test_listener(coord);
@@ -192,6 +212,7 @@ fn wrong_state_rejected_with_400() {
 /// not consumed, so a subsequent valid retry still works.
 #[test]
 fn missing_code_rejected_with_400() {
+    let _serial = serial();
     clear_registry_for_tests();
     let coord = make_coordinator();
     let (addr, shutdown) = spawn_test_listener(coord);
@@ -220,6 +241,7 @@ fn missing_code_rejected_with_400() {
 /// existed) is rejected with 400.
 #[test]
 fn unknown_state_rejected_with_400() {
+    let _serial = serial();
     clear_registry_for_tests();
     let coord = make_coordinator();
     let (addr, shutdown) = spawn_test_listener(coord);
@@ -257,6 +279,7 @@ fn html_escape_handles_special_characters() {
 
 #[test]
 fn non_get_returns_405() {
+    let _serial = serial();
     clear_registry_for_tests();
     let coord = make_coordinator();
     let (addr, shutdown) = spawn_test_listener(coord);
@@ -278,6 +301,7 @@ fn non_get_returns_405() {
 
 #[test]
 fn unknown_path_returns_404() {
+    let _serial = serial();
     clear_registry_for_tests();
     let coord = make_coordinator();
     let (addr, shutdown) = spawn_test_listener(coord);
