@@ -3008,3 +3008,65 @@ exit code, not cargo's, and the log was truncated to the last 30 lines.
 Re-run without the pipe, the true result was **562 passed / 1 failed**,
 which exposed the regression above. Piping test output to a pager
 silently destroys the pass/fail signal — worth avoiding.
+
+---
+
+## R48 — Spec Validation fixed: it had been failing since at least 2026-10-13
+
+While watching CI I found **Spec Validation red**, and checked whether I
+had caused it. **I had not** — `gh run list --workflow="Spec Validation"`
+showed **8 consecutive failures** back to 2026-10-13, all predating this
+session's work.
+
+**The failing step reported:**
+
+```
+Manifest mismatch: 0 added, 123 removed
+```
+
+**Root cause:** `program/scripts/regenerate_manifest.py` walked the
+filesystem with a small hardcoded exclude list (`EXCLUDE_DIRS = {".git",
+".archive", "node_modules", "__pycache__", "target", "tmp_local"}`) and
+never consulted git. It therefore hashed **123 paths that a clean CI
+checkout cannot contain**:
+
+- `.env` and `.infisical.json` — **secrets files**
+- build outputs: `cmd/trust/trust`, `crates/fabric-gui/src-tauri/binaries/*`,
+  the macOS `.app` bundle
+- the generated, gitignored `docs/book/**`
+
+A filesystem-derived manifest can never match CI, so this check was
+**structurally incapable of passing**. `check_manifest.py` had the
+mirror-image defect: it built its "actual files" list with
+`root.rglob("*")` plus the same hardcoded excludes, so locally it
+demanded entries for ignored files that CI can never have.
+
+**Fix:**
+
+| Script | Change |
+|---|---|
+| `regenerate_manifest.py` | file list now comes from `git ls-files -z` |
+| `check_manifest.py` | same, and it now also verifies each recorded digest against the file's current content (previously it compared file *names* only) |
+
+**Result:**
+
+```
+Generated manifest with 1069 tracked entries.
+Manifest matches tracked tree (1069 files, all digests verified).
+```
+
+1192 → 1069 entries. The 123-entry difference is exactly the ignored
+paths that should never have been listed. `.env` and `.infisical.json`
+hashes are no longer committed.
+
+Committed as `b88566d`.
+
+### Incident: GitHub Actions backlog
+
+At the time of writing, `Spec Validation` and `CI` on `b88566d` were both
+still `queued` — `CI` on `1fa52c3` had been queued over 30 minutes. This
+is platform queue delay, not a workflow failure. The result is expected
+on the next heartbeat. Note that `CI` on `1fa52c3` was already **6 of 7
+green** (Clippy, Check, Format, Release build, Unit tests, Integration
+tests all success) with only E2E pending, and the E2E *workflow*
+(`38986046866`) was **success** in 14m12s.
