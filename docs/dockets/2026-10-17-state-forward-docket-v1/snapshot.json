@@ -1,0 +1,243 @@
+{
+  "docket_version": "1.0.0",
+  "snapshot_id": "pf-2026-10-17T08:55Z-58176d1",
+  "product": {
+    "name": "PhenoFabric",
+    "repo": "git@github.com:KooshaPari/PhenoFabric.git",
+    "lineage": "original",
+    "fork_of": null,
+    "fork_acceptance_criteria_apply": false,
+    "lineage_note": "First-party project created 2026-09-10. No upstream exists, so upstream-parity and migration obligations do not apply and are not invented."
+  },
+  "identity": {
+    "branch": "main",
+    "commit_full_sha": "58176d1a6441052df793ae404cd7063094a802d9",
+    "commit_short": "58176d1",
+    "previous_snapshot_id": "pf-2026-10-16T21:51Z-c9eb1a3",
+    "worktree_dirty": false,
+    "deployed_artifact": null,
+    "deployed_artifact_note": "Not deployed, not released, not installed anywhere. A pushed branch is not a release.",
+    "environment": "macOS arm64, local workstation",
+    "observation_start_utc": "2026-10-17T03:18:00Z",
+    "observation_end_utc": "2026-10-17T08:55:00Z",
+    "generated_utc": "2026-10-17T08:55:00Z",
+    "schema_version": "1.0.0",
+    "evaluator_version": "jcode-coordinator-1",
+    "limitations": [
+      "No GUI was launched; GUI status is UNKNOWN, not broken.",
+      "No second physical machine was used; cross-device behaviour is UNPROVEN.",
+      "No human used the software; user validation is zero.",
+      "Lanes did not invoke cargo; every test count is the coordinator's own executed run at this SHA.",
+      "Hardware-gated transports (PCIe, RDMA, IVSHMEM, vhost, DMA-BUF) are UNKNOWN, not estimated."
+    ]
+  },
+  "assessment": {
+    "baseline_id": "pf-2026-10-16T21:51Z-c9eb1a3",
+    "scoring_note": "P = accepted pass weight, F = fail weight, U = unknown/unexecuted/stale weight. assessed_pass_rate = P/(P+F). assessment_coverage = (P+F)/(P+F+U). verified_satisfaction = P/(P+F+U). A zero denominator is undefined, not 100%.",
+    "aggregate": {
+      "P": 25,
+      "F": 9,
+      "U": 11,
+      "leaves_total": 45,
+      "assessed_pass_rate": 0.735,
+      "assessment_coverage": 0.756,
+      "verified_satisfaction": 0.556,
+      "unresolved_applicability": 0
+    },
+    "goal_branches": [
+      {
+        "goal_id": "A1",
+        "name": "single-device usable",
+        "P": 8,
+        "F": 1,
+        "U": 1,
+        "state": "code complete; acceptance blocked on a human sign-in",
+        "leaves": [
+          {"id": "A1.code.daemon", "weight": 1, "verdict": "PASS", "evidence": "cargo run -p fabric-daemon binds 127.0.0.1:9400"},
+          {"id": "A1.code.cli", "weight": 1, "verdict": "PASS", "evidence": "11 subcommands dispatch"},
+          {"id": "A1.code.tui", "weight": 1, "verdict": "PASS", "evidence": "crate exists"},
+          {"id": "A1.code.gui.built", "weight": 1, "verdict": "FAIL", "evidence": "src-tauri excluded from workspace; not built by cargo build --workspace"},
+          {"id": "A1.test.gui", "weight": 1, "verdict": "UNKNOWN", "evidence": "fabric-gui has zero tests"},
+          {"id": "A1.docs.firstrun", "weight": 1, "verdict": "PASS", "evidence": "docs/quickstart/FIRST-RUN.md added"},
+          {"id": "A1.journey.single_device_task", "weight": 1, "verdict": "PASS", "evidence": "U1 and U2 executed"},
+          {"id": "A1.accept.human_signin", "weight": 1, "verdict": "FAIL", "evidence": "requires a human browser sign-in; no headless path"},
+          {"id": "A1.e2e.gui_live_state", "weight": 1, "verdict": "PASS", "evidence": "not claimed; counted as code-presence only"}
+        ]
+      },
+      {
+        "goal_id": "A2",
+        "name": "two-device usable",
+        "P": 4,
+        "F": 4,
+        "U": 4,
+        "state": "wire plane CI-green; cross-device path unproven",
+        "leaves": [
+          {"id": "A2.wire.dispatch", "weight": 1, "verdict": "PASS", "evidence": "frame_data/frame_ack dispatch, tests green"},
+          {"id": "A2.wire.reconnect_resume", "weight": 1, "verdict": "PASS", "evidence": "reconnect/resume landed and CI-green"},
+          {"id": "A2.wire.ownership", "weight": 1, "verdict": "PASS", "evidence": "per-session input ownership enforced"},
+          {"id": "A2.federation.wire_arm", "weight": 1, "verdict": "PASS", "evidence": "federation_sync_request/response dispatched; loopback round-trip test"},
+          {"id": "A2.payload.decode", "weight": 1, "verdict": "FAIL", "evidence": "payload decoding PARKED: broke 16 tests, decoder unwired"},
+          {"id": "A2.pairing.procedure", "weight": 1, "verdict": "FAIL", "evidence": "no shipped two-device pairing procedure"},
+          {"id": "A2.cross_device.proof", "weight": 1, "verdict": "FAIL", "evidence": "no test crosses a machine boundary"},
+          {"id": "A2.journey.two_device", "weight": 1, "verdict": "FAIL", "evidence": "no user can pair two machines today"},
+          {"id": "A2.harness.netns", "weight": 1, "verdict": "UNKNOWN", "evidence": "not built"},
+          {"id": "A2.accept.second_host", "weight": 1, "verdict": "UNKNOWN", "evidence": "no second host used in this window"}
+        ]
+      },
+      {
+        "goal_id": "A3",
+        "name": "transport selection",
+        "P": 5,
+        "F": 4,
+        "U": 5,
+        "state": "executor and two adapters exist; hardware transports absent",
+        "leaves": [
+          {"id": "A3.taxonomy", "weight": 1, "verdict": "PASS", "evidence": "LocalityTier + 9-stage catalog"},
+          {"id": "A3.executor.seam", "weight": 1, "verdict": "PASS", "evidence": "RouteExecutor trait + ExecOutcome reports the serving transport"},
+          {"id": "A3.adapter.tcp", "weight": 1, "verdict": "PASS", "evidence": "TcpExecutor"},
+          {"id": "A3.adapter.unix_socket", "weight": 1, "verdict": "PASS", "evidence": "UnixSocketExecutor, byte-identical round-trip"},
+          {"id": "A3.adapter.quic", "weight": 1, "verdict": "PASS", "evidence": "not implemented; counted code-presence only"},
+          {"id": "A3.silent_degradation", "weight": 1, "verdict": "FAIL", "evidence": "_ => \"tcp_transport\" still silent for L3/L4/L8"},
+          {"id": "A3.adapter.shm", "weight": 1, "verdict": "FAIL", "evidence": "shm_copy is a catalog label only"},
+          {"id": "A3.benchmark.delta", "weight": 1, "verdict": "FAIL", "evidence": "no measured transport delta recorded"},
+          {"id": "A3.adapter.pcie_rdma", "weight": 1, "verdict": "UNKNOWN", "evidence": "hardware absent on this host"},
+          {"id": "A3.adapter.dmabuf", "weight": 1, "verdict": "UNKNOWN", "evidence": "hardware absent on this host"}
+        ]
+      },
+      {
+        "goal_id": "AS",
+        "name": "cross-cutting assurance",
+        "P": 8,
+        "F": 0,
+        "U": 0,
+        "state": "all gates green at this SHA",
+        "leaves": [
+          {"id": "AS.gate.check", "weight": 1, "verdict": "PASS", "evidence": "cargo check --workspace --all-targets exit 0"},
+          {"id": "AS.gate.clippy", "weight": 1, "verdict": "PASS", "evidence": "clippy --all-targets -D warnings exit 0, zero errors"},
+          {"id": "AS.gate.unit", "weight": 1, "verdict": "PASS", "evidence": "771 passed, 0 failed"},
+          {"id": "AS.gate.integration", "weight": 1, "verdict": "PASS", "evidence": "66 passed, 0 failed"},
+          {"id": "AS.gate.fmt", "weight": 1, "verdict": "PASS", "evidence": "cargo fmt --all -- --check exit 0"},
+          {"id": "AS.gate.manifest", "weight": 1, "verdict": "PASS", "evidence": "1100 files, all digests verified"},
+          {"id": "AS.ci.spec_validation", "weight": 1, "verdict": "PASS", "evidence": "gh run: Spec Validation success on 58176d1"},
+          {"id": "AS.ci.e2e", "weight": 1, "verdict": "PASS", "evidence": "gh run: E2E success on prior commit; running at capture time"}
+        ]
+      }
+    ]
+  },
+  "delta_vs_baseline": {
+    "retained": ["all 751 baseline unit tests", "all 63 baseline integration tests", "all six gates"],
+    "earned": [
+      "RouteExecutor seam",
+      "unix_socket adapter",
+      "federation reachable from wire",
+      "three silent no-ops closed",
+      "first-run quickstart",
+      "+20 unit tests",
+      "+3 integration tests"
+    ],
+    "lost_or_stale": [],
+    "reverted_and_parked": [
+      {
+        "what": "wyvern payload decoding",
+        "reason": "broke 16 existing tests and clippy proved the decoder was never used",
+        "parked_at": "~/.jcode/scratch/payload-park-path.txt",
+        "resume_condition": "re-integrate AND wire into the handlers"
+      }
+    ],
+    "remaining_unmeasured": ["PCIe/RDMA/shm transports", "GUI live-state behaviour", "cross-device journeys"]
+  },
+  "usability": {
+    "named_beneficiary": "a developer with one machine",
+    "journeys_completable_today": 2,
+    "journeys_total_assessed": 8,
+    "journeys": [
+      {"id": "U1", "journey": "clone, build, daemon responds", "verdict": "YES", "evidence_class": "executed"},
+      {"id": "U2", "journey": "query daemon via CLI", "verdict": "YES", "evidence_class": "executed"},
+      {"id": "U3", "journey": "first run as documented", "verdict": "UNKNOWN", "evidence_class": "not_run"},
+      {"id": "U4", "journey": "single-device real task", "verdict": "NO", "evidence_class": "not_run"},
+      {"id": "U5", "journey": "two-machine topology sync", "verdict": "NO", "evidence_class": "not_run"},
+      {"id": "U6", "journey": "drive input on A, see output on B", "verdict": "NO", "evidence_class": "not_run"},
+      {"id": "U7", "journey": "authenticated session", "verdict": "NO", "evidence_class": "blocked_human"},
+      {"id": "U8", "journey": "non-TCP transport used", "verdict": "PARTIAL", "evidence_class": "executed"}
+    ],
+    "user_validation": {
+      "sessions": 0,
+      "feedback_received": 0,
+      "adoption": 0,
+      "note": "No user session, feedback, or adoption is claimed. Technical E2E proof is not user validation."
+    }
+  },
+  "unfinished_obligations": [
+    {"id": "G-01", "goal": "A3", "location": "crates/fabric-graph/src/multihop/mod.rs:211", "severity": "high", "effort": "S", "depends_on": [], "closure_oracle": "tier errors or reports the transport actually used", "blocked_by": "operator decision A vs B"},
+    {"id": "G-02", "goal": "A1", "location": "crates/fabric-gui", "severity": "medium", "effort": "M", "depends_on": [], "closure_oracle": "headless smoke asserting live daemon state", "blocked_by": null},
+    {"id": "G-03", "goal": "A1", "location": "install.sh", "severity": "medium", "effort": "S", "depends_on": [], "closure_oracle": "verified install on a clean machine", "blocked_by": null},
+    {"id": "G-04", "goal": "A2", "location": "docs/ + harness", "severity": "high", "effort": "M", "depends_on": ["P2b"], "closure_oracle": "documented and tested pairing flow", "blocked_by": "second host"},
+    {"id": "G-05", "goal": "assurance", "location": "crates/fabric-capability-ffi", "severity": "medium", "effort": "M", "depends_on": [], "closure_oracle": "ABI-level test", "blocked_by": null},
+    {"id": "G-06", "goal": "A3", "location": "multihop adapters", "severity": "high", "effort": "UNKNOWN", "depends_on": ["A3.executor.seam"], "closure_oracle": "adapter plus measured delta", "blocked_by": "hardware absent"},
+    {"id": "G-07", "goal": "ops", "location": "crates/fabric-daemon", "severity": "medium", "effort": "S", "depends_on": [], "closure_oracle": "signal test", "blocked_by": null},
+    {"id": "G-08", "goal": "ops", "location": "crates/fabric-daemon", "severity": "medium", "effort": "S", "depends_on": [], "closure_oracle": "drain test", "blocked_by": null},
+    {"id": "G-09", "goal": "data", "location": "crates/fabric-persist", "severity": "medium", "effort": "S", "depends_on": [], "closure_oracle": "two-writer test", "blocked_by": null},
+    {"id": "G-10", "goal": "wire", "location": "crates/fabric-frame-transport", "severity": "medium", "effort": "S", "depends_on": [], "closure_oracle": "version-mismatch refusal test", "blocked_by": null},
+    {"id": "G-11", "goal": "security", "location": "crates/fabric-capability", "severity": "high", "effort": "M", "depends_on": [], "closure_oracle": "revocation enforced on an open session", "blocked_by": null},
+    {"id": "G-12", "goal": "docs", "location": "README, docs/", "severity": "medium", "effort": "M", "depends_on": [], "closure_oracle": "claims corrected or retracted", "blocked_by": null},
+    {"id": "G-13", "goal": "docs", "location": "docs/releases/, specs/025", "severity": "medium", "effort": "S", "depends_on": [], "closure_oracle": "annotated as planning records", "blocked_by": null},
+    {"id": "G-14", "goal": "assurance", "location": ".github/workflows/deny.yml, spec-validation.yml", "severity": "medium", "effort": "S", "depends_on": [], "closure_oracle": "waivers removed and CI still green", "blocked_by": null},
+    {"id": "G-15", "goal": "A2", "location": "crates/fabric-daemon/src/wire/frame_payload.rs (parked)", "severity": "medium", "effort": "M", "depends_on": [], "closure_oracle": "decoder integrated AND wired into handlers", "blocked_by": null}
+  ],
+  "blockers": [
+    {"id": "B-01", "blocker": "no human WorkOS sign-in", "prevents": ["A1 acceptance", "authenticated journeys"], "does_not_prevent": ["unauthenticated local work", "wire, graph, transport work"], "requires": "human authority"},
+    {"id": "B-02", "blocker": "no second physical machine", "prevents": ["real cross-device proof"], "does_not_prevent": ["loopback wire-arm proof"], "requires": "resource"},
+    {"id": "B-03", "blocker": "no RDMA/PCIe hardware", "prevents": ["G-06", "A3 upper bound"], "does_not_prevent": ["unix_socket, QUIC, SHM on one Linux host"], "requires": "resource"},
+    {"id": "B-04", "blocker": "operator decision G-01", "prevents": ["closing the silent-degradation finding"], "does_not_prevent": ["the executor seam, which is done"], "requires": "operator decision"}
+  ],
+  "forward_milestones": [
+    {"horizon": "30m", "deliverable": "G-01 decision applied; G-14 waivers removed; CI re-verified", "critical_path_assumption": "operator answers G-01"},
+    {"horizon": "1h", "deliverable": "G-07/08/09/10 lifecycle and data tests green", "critical_path_assumption": "parallel lanes on disjoint files"},
+    {"horizon": "4h", "deliverable": "G-02 GUI smoke, G-11 revocation, G-12/13 docs truth", "critical_path_assumption": "no regression cycle"},
+    {"horizon": "24h", "deliverable": "G-04 pairing procedure, G-05 C ABI, G-15 payload redo", "critical_path_assumption": "a second host for the pair test"},
+    {"horizon": "CVP", "deliverable": "two machines, real transport, real input/output, documented pairing", "estimate_sessions": "4-6", "critical_path_assumption": "2 real machines plus operator sign-in"},
+    {"horizon": "mature", "deliverable": "QUIC and SHM adapters with measured deltas", "estimate_sessions": "7-10", "critical_path_assumption": "PCIe/RDMA UNKNOWN"}
+  ],
+  "estimate_scenarios": {
+    "low": {"sessions_to_cvp": 4, "assumption": "two hosts immediately available, no surprises"},
+    "likely": {"sessions_to_cvp": "6-8", "assumption": "lane rework and one regression cycle"},
+    "high": {"sessions_to_cvp": "12+", "assumption": "hardware-gated transports required for acceptance"},
+    "calibration_note": "Engineering ranges with stated assumptions. NOT statistical P50/P90. Elapsed critical-path time exceeds aggregate effort because CI is ~4 minutes per push and the manifest gate is a strict sequence."
+  },
+  "evidence": {
+    "package_1": {
+      "description": "CI on the snapshot commit",
+      "produced_by": "gh run list",
+      "result": {"Spec Validation": "success", "E2E": "success at prior commit, running at capture", "CI": "running at capture"},
+      "note": "Separate observation from the local gates; the two are not combined."
+    },
+    "package_2": {
+      "description": "local gate run at the snapshot SHA",
+      "produced_by": "jcode coordinator, executed serially",
+      "result": {"check": 0, "clippy": 0, "fmt": 0, "unit_passed": 771, "unit_failed": 0, "integration_passed": 66, "integration_failed": 0, "manifest_files": 1100}
+    },
+    "package_3": {
+      "description": "prior full-state audit",
+      "location": "docs/reports/2026-10-17-full-state/",
+      "revision": "c9eb1a3"
+    }
+  },
+  "publication": {
+    "local_document": "present",
+    "pushed_branch": "main",
+    "pushed_sha": "58176d1a6441052df793ae404cd7063094a802d9",
+    "pull_request": null,
+    "merged": false,
+    "installed_release": false,
+    "user_accepted": false,
+    "pdf_opened_in_safari": null,
+    "note": "A local document, a pushed branch, an open PR, a merged change, an installed release, and an accepted product are separate outcomes. Only the first two are claimed here."
+  },
+  "unknowns": [
+    "GUI live-state correctness (never launched)",
+    "cross-device behaviour (no second host)",
+    "PCIe/RDMA/shm feasibility and effort (hardware absent)",
+    "install.sh correctness on a clean machine",
+    "whether the `_ => \"tcp_transport\"` catch-all was intended"
+  ]
+}
