@@ -2932,3 +2932,79 @@ not a crate target.
    for genuinely optional files like LICENSE.
 3. Reconcile `install.sh` against real targets.
 4. Re-cut the release so the artifacts actually contain `fabric`.
+
+---
+
+## R47 — the four dead commands now work end-to-end (verified live)
+
+Committed as `2f300df`. This closes the R45 finding.
+
+**Verification method matters here.** My first attempt reported the
+commands *still* returning `UNKNOWN_TYPE`. That was **my own test
+error, not a product defect**: a stale daemon from an earlier test
+(PID 69986) was still holding `127.0.0.1:9400`, so the freshly built
+daemon failed to bind —
+
+```
+ERROR fabric_daemon: failed to bind to 127.0.0.1:9400:
+  Address already in use (os error 48)
+```
+
+— and the CLI was talking to the **old** binary. Two stale daemons had
+survived earlier `kill`s. After killing them and confirming the port
+was free (`bind_conflict_count: 0`), the real result:
+
+```
+$ fabric network status
+Network status:
+  UPnP:            unavailable
+  STUN:            ok
+  Tailscale:       connected
+  External IP:     76.172.89.243
+  TS Peers:        6
+
+$ fabric network tailscale
+Tailscale status:
+Status:            connected
+Hostname:          Koosha's Laptop
+HOSTNAME             TAILSCALE_IP     OS                   ONLINE
+kooshapari-desk      100.122.128.84   linux                no
+localhost            100.69.171.56    iOS                  no
+instinct-agent       100.68.138.87    linux                yes
+
+$ fabric surface lease --name disp0 --protocol posix
+leased surface lease 01a14739-eed6-70be-88c4-942f826357ef (Pending)
+```
+
+All three now return **real data**, not `UNKNOWN_TYPE`. `STUN: ok` with
+a live external IP and a real Tailscale peer enumeration mean the
+previously-unreachable network plane is now reachable from the binary.
+
+**This is A2-relevant.** Peer discovery over Tailscale is the transport
+A2 needs, and it now reports actual peers from the CLI.
+
+### Verification gates used
+
+| Gate | Result |
+|---|---|
+| `cargo check --workspace --all-targets` | exit 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` (CI-exact) | exit 0 |
+| `cargo test --workspace --lib` | **562 passed, 0 failed**, 18 crates |
+| `fabric network status` / `tailscale` / `surface lease` live | real output, no `UNKNOWN_TYPE` |
+
+### A regression the test gate caught (and I fixed rather than papered over)
+
+An intermediate state failed
+`validation::tests::surface_lease_request_requires_rt_is_boolean`: the
+new validation arm accepted `requires_rt: "yes"` because the gate was
+never implemented. Fixed by adding `validate_optional_bool` and
+applying it — not by weakening the test.
+
+### Method note on my own earlier test command
+
+My first test run reported exit 0 with only 30 tests. That was wrong:
+the command was `cargo test ... | tail -30`, so `$?` was **tail's**
+exit code, not cargo's, and the log was truncated to the last 30 lines.
+Re-run without the pipe, the true result was **562 passed / 1 failed**,
+which exposed the regression above. Piping test output to a pager
+silently destroys the pass/fail signal — worth avoiding.
