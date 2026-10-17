@@ -133,6 +133,12 @@ fn validate_field_types(
             validate_optional_object(obj, "config", msg_type)?;
             validate_optional_object(obj, "overrides", msg_type)?;
         }
+        "surfaceleaserequest" => {
+            validate_string_field(obj, "name", msg_type)?;
+            validate_string_field(obj, "protocol", msg_type)?;
+            validate_string_field(obj, "locality_floor", msg_type)?;
+            validate_optional_bool(obj, "requires_rt", msg_type)?;
+        }
         _ => {}
     }
     Ok(())
@@ -149,6 +155,26 @@ fn validate_string_field(
             return Err(ValidationError {
                 message: format!(
                     "field '{field}' must be a string in '{msg_type}', got {}",
+                    type_name(val)
+                ),
+                code: "WRONG_TYPE".into(),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Validate that an optional field, if present, is a boolean.
+fn validate_optional_bool(
+    obj: &serde_json::Map<String, Value>,
+    field: &str,
+    msg_type: &str,
+) -> Result<(), ValidationError> {
+    if let Some(val) = obj.get(field) {
+        if !val.is_boolean() {
+            return Err(ValidationError {
+                message: format!(
+                    "field '{field}' must be a boolean in '{msg_type}', got {}",
                     type_name(val)
                 ),
                 code: "WRONG_TYPE".into(),
@@ -221,6 +247,7 @@ pub fn validation_error_response(err: &ValidationError) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::schema::{is_known_type, required_fields};
 
     #[test]
     fn valid_heartbeat() {
@@ -450,5 +477,62 @@ mod tests {
         let result = validate_message(r#"{"type":"save_config","overrides":"not-an-object"}"#);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, "WRONG_TYPE");
+    }
+
+    // --- network introspection + surface lease (added with the daemon arms) ---
+
+    #[test]
+    fn network_requests_are_known_and_parameterless() {
+        for t in [
+            "network_status_request",
+            "network_stun_request",
+            "network_tailscale_request",
+        ] {
+            assert!(is_known_type(t), "{t} should be a known type");
+            assert!(
+                validate_message(&format!(r#"{{"type":"{t}"}}"#)).is_ok(),
+                "{t} should validate with no other fields"
+            );
+        }
+    }
+
+    #[test]
+    fn network_requests_pascal_case_accepted() {
+        assert!(validate_message(r#"{"type":"NetworkStatusRequest"}"#).is_ok());
+        assert!(validate_message(r#"{"type":"NetworkStunRequest"}"#).is_ok());
+        assert!(validate_message(r#"{"type":"NetworkTailscaleRequest"}"#).is_ok());
+    }
+
+    #[test]
+    fn surface_lease_request_requires_named_fields() {
+        let msg = r#"{"type":"surface_lease_request","name":"display-0","protocol":"posix","locality_floor":"L5"}"#;
+        assert!(validate_message(msg).is_ok());
+        assert_eq!(
+            required_fields("surface_lease_request"),
+            &["name", "protocol", "locality_floor"]
+        );
+    }
+
+    #[test]
+    fn surface_lease_request_missing_name_rejected() {
+        let msg = r#"{"type":"surface_lease_request","protocol":"posix","locality_floor":"L5"}"#;
+        let err = validate_message(msg).unwrap_err();
+        assert_eq!(err.code, "MISSING_FIELD");
+        assert!(err.message.contains("name"));
+    }
+
+    #[test]
+    fn surface_lease_request_wrong_type_protocol_rejected() {
+        let msg = r#"{"type":"surface_lease_request","name":"d","protocol":7,"locality_floor":"L5"}"#;
+        assert_eq!(validate_message(msg).unwrap_err().code, "WRONG_TYPE");
+    }
+
+    #[test]
+    fn surface_lease_request_requires_rt_is_boolean() {
+        let msg = r#"{"type":"surface_lease_request","name":"d","protocol":"posix","locality_floor":"L5","requires_rt":"yes"}"#;
+        assert_eq!(validate_message(msg).unwrap_err().code, "WRONG_TYPE");
+
+        let ok = r#"{"type":"surface_lease_request","name":"d","protocol":"posix","locality_floor":"L5","requires_rt":true}"#;
+        assert!(validate_message(ok).is_ok());
     }
 }

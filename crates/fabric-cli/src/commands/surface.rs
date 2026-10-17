@@ -7,7 +7,6 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use std::path::Path;
-use std::str::FromStr;
 
 use fabric_graph::surface::{SurfaceProtocol, SurfaceSpec};
 
@@ -58,7 +57,7 @@ fn lease(args: &LeaseArgs, _workspace: &Path) -> Result<()> {
     let protocol = parse_protocol(&args.protocol)?;
 
     // Parse locality tier.
-    let locality = fabric_capability::locality::LocalityTier::from_str(&args.locality_floor)
+    let locality = parse_locality(&args.locality_floor)
         .map_err(|e| anyhow::anyhow!("unknown locality tier '{}': {}", args.locality_floor, e))?;
 
     // Build a SurfaceSpec.
@@ -210,5 +209,89 @@ fn parse_protocol(s: &str) -> Result<SurfaceProtocol> {
         "webrtc" | "web_rtc" | "web-rtc" => Ok(SurfaceProtocol::WebRtc),
         "asp" => Ok(SurfaceProtocol::Asp),
         other => Ok(SurfaceProtocol::Custom(other.to_string())),
+    }
+}
+
+/// Parse a locality tier from either the short code (`"L5"`) or the long
+/// variant name (`"L5Loopback"`).
+///
+/// `LocalityTier::from_str` only accepts the short codes, but this command's
+/// own `--locality-floor` help text advertises the long names and its
+/// `default_value` is `"L5Loopback"`. Without this fallback the command
+/// failed on its own default before it ever reached the daemon. The daemon
+/// side accepts both forms too (see `fabric-daemon`'s
+/// `wire/surface_handlers.rs`), so the two now agree.
+fn parse_locality(s: &str) -> std::result::Result<fabric_capability::locality::LocalityTier, String> {
+    use fabric_capability::locality::LocalityTier;
+    use std::str::FromStr;
+
+    if let Ok(tier) = LocalityTier::from_str(s) {
+        return Ok(tier);
+    }
+
+    match s.trim().to_lowercase().as_str() {
+        "l0sameprocess" => Ok(LocalityTier::L0SameProcess),
+        "l1samenuma" => Ok(LocalityTier::L1SameNuma),
+        "l2crossnumashm" => Ok(LocalityTier::L2CrossNumaShm),
+        "l3pciep2p" => Ok(LocalityTier::L3PcieP2P),
+        "l4rdma" => Ok(LocalityTier::L4Rdma),
+        "l5loopback" => Ok(LocalityTier::L5Loopback),
+        "l6lan" => Ok(LocalityTier::L6Lan),
+        "l7wan" => Ok(LocalityTier::L7Wan),
+        "l8oob" => Ok(LocalityTier::L8Oob),
+        other => Err(other.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_the_commands_own_default_locality() {
+        // `LeaseArgs.locality_floor` defaults to "L5Loopback"; the command
+        // must not fail on its own default.
+        assert!(parse_locality("L5Loopback").is_ok());
+    }
+
+    #[test]
+    fn short_and_long_forms_agree() {
+        use fabric_capability::locality::LocalityTier;
+        let pairs = [
+            ("L0", "L0SameProcess"),
+            ("L1", "L1SameNuma"),
+            ("L2", "L2CrossNumaShm"),
+            ("L3", "L3PcieP2P"),
+            ("L4", "L4Rdma"),
+            ("L5", "L5Loopback"),
+            ("L6", "L6Lan"),
+            ("L7", "L7Wan"),
+            ("L8", "L8Oob"),
+        ];
+        for (short, long) in pairs {
+            assert_eq!(
+                parse_locality(short).unwrap(),
+                parse_locality(long).unwrap(),
+                "{short} and {long} must resolve to the same tier"
+            );
+        }
+        assert_eq!(parse_locality("L5").unwrap(), LocalityTier::L5Loopback);
+    }
+
+    #[test]
+    fn unknown_locality_is_rejected() {
+        assert!(parse_locality("L99Nowhere").is_err());
+        assert!(parse_locality("").is_err());
+    }
+
+    #[test]
+    fn protocol_table_is_unchanged() {
+        assert_eq!(parse_protocol("posix").unwrap(), SurfaceProtocol::Posix);
+        assert_eq!(parse_protocol("VNC").unwrap(), SurfaceProtocol::Vnc);
+        assert_eq!(parse_protocol("web-rtc").unwrap(), SurfaceProtocol::WebRtc);
+        assert_eq!(
+            parse_protocol("weird").unwrap(),
+            SurfaceProtocol::Custom("weird".into())
+        );
     }
 }

@@ -5,7 +5,9 @@
 
 mod auth_handlers;
 mod handlers;
+mod network_handlers;
 pub mod protocol;
+mod surface_handlers;
 
 use crate::auth::middleware::routes::auth_error_response;
 use crate::auth::middleware::set_current_user;

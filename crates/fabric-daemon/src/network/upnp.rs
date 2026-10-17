@@ -113,7 +113,7 @@ impl UPnPClient {
     /// gateway's control URL, and fetches the external IP address.
     pub async fn discover(&self) -> Result<GatewayInfo, NetworkError> {
         let response = self.send_msearch().await?;
-        let control_url = self.parse_control_url(&response)?;
+        let control_url = self.parse_control_url(&response).await?;
 
         // Build a temporary GatewayInfo to query external IP.
         let temp_gw = GatewayInfo {
@@ -254,7 +254,7 @@ impl UPnPClient {
         Ok(response)
     }
 
-    fn parse_control_url(&self, ssdp_response: &str) -> Result<String, NetworkError> {
+    async fn parse_control_url(&self, ssdp_response: &str) -> Result<String, NetworkError> {
         let location = ssdp_response
             .lines()
             .find_map(|line| {
@@ -269,19 +269,41 @@ impl UPnPClient {
                 message: "No Location header in SSDP response".into(),
             })?;
 
-        let xml = self.fetch_device_description(&location)?;
+        let xml = self.fetch_device_description(&location).await?;
         extract_control_url(&xml)
     }
 
-    fn fetch_device_description(&self, location: &str) -> Result<String, NetworkError> {
-        let response =
-            reqwest::blocking::get(location).map_err(|e| NetworkError::UpnpDiscovery {
-                message: format!("Failed to fetch device description: {e}"),
+    /// Fetches the device-description XML from the gateway's LOCATION url.
+    ///
+    /// Uses the async `reqwest` client deliberately. This is reached from
+    /// `discover()`, which is an `async fn`; calling `reqwest::blocking::get`
+    /// here would build a nested runtime and panic with "Cannot drop a runtime
+    /// in a context where blocking is not allowed" whenever the gateway
+    /// actually answers an SSDP probe. `send_soap_request` uses the async
+    /// client for the same reason.
+    async fn fetch_device_description(&self, location: &str) -> Result<String, NetworkError> {
+        let client = reqwest::Client::builder()
+            .timeout(self.discovery_timeout)
+            .build()
+            .map_err(|e| NetworkError::UpnpDiscovery {
+                message: format!("Failed to build HTTP client: {e}"),
             })?;
 
-        response.text().map_err(|e| NetworkError::UpnpDiscovery {
-            message: format!("Failed to read device description: {e}"),
-        })
+        let response =
+            client
+                .get(location)
+                .send()
+                .await
+                .map_err(|e| NetworkError::UpnpDiscovery {
+                    message: format!("Failed to fetch device description: {e}"),
+                })?;
+
+        response
+            .text()
+            .await
+            .map_err(|e| NetworkError::UpnpDiscovery {
+                message: format!("Failed to read device description: {e}"),
+            })
     }
 
     /// Sends a SOAP request to the gateway and returns the response body.

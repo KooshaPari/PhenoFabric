@@ -5,6 +5,13 @@
 //!
 //! Each node is assigned a federation_id prefix to avoid ID collisions
 //! when merging topologies from different daemons.
+//!
+//! Federation is not wired to any wire message type yet (the daemon has no
+//! federation arm in `wire/protocol.rs`), so in the binary target these items
+//! are unreferenced. They are kept compiling because `lib.rs` exports the
+//! module as public API and its tests cover the topology-merge logic.
+//! Remove this allow when the first federation wire arm lands.
+#![allow(dead_code, unused_imports)]
 
 mod discovery;
 mod merge;

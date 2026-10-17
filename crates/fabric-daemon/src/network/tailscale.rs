@@ -152,8 +152,12 @@ struct RawPeer {
     os: String,
     #[serde(rename = "PublicKey", default)]
     public_key: String,
+    /// Node id. Unused downstream, but must be accepted: the tailscale CLI
+    /// emits this as a *string* (`"nxDF9i8a2A21CNTRL"`), so typing it `u64`
+    /// makes `parse_status_json` fail on every real invocation. Older
+    /// fixtures used a numeric id, so accept both shapes.
     #[serde(rename = "ID", default)]
-    _id: u64,
+    _id: serde_json::Value,
 }
 
 /// Parses the raw tailscale status JSON into our types.
@@ -290,10 +294,52 @@ mod tests {
             online: true,
             os: "linux".into(),
             public_key: "k".into(),
-            _id: 1,
+            _id: serde_json::Value::Null,
         };
         let peer = convert_peer(raw).unwrap();
         assert_eq!(peer.ip, "");
+    }
+
+    #[test]
+    fn parse_status_accepts_string_node_id() {
+        // Real tailscale CLI emits a string node id, not a number. Regression
+        // guard: this used to be typed `u64`, which made every live
+        // `tailscale status --json` parse fail.
+        let json = r#"{
+            "Self": {
+                "HostName": "laptop",
+                "TailscaleIPs": ["100.64.0.1"],
+                "Online": true,
+                "OS": "macOS",
+                "PublicKey": "nodekey:abc",
+                "ID": "nxDF9i8a2A21CNTRL"
+            }
+        }"#;
+        let status = parse_status_json(json).expect("string node id must parse");
+        assert_eq!(status.self_node.hostname, "laptop");
+        assert_eq!(status.self_node.ip, "100.64.0.1");
+    }
+
+    #[test]
+    fn parse_status_accepts_numeric_node_id() {
+        // Older numeric-id fixtures must keep working.
+        let json = r#"{
+            "Self": {
+                "HostName": "legacy",
+                "TailscaleIPs": ["100.64.0.9"],
+                "Online": true,
+                "OS": "linux",
+                "PublicKey": "k",
+                "ID": 1
+            }
+        }"#;
+        assert!(parse_status_json(json).is_ok());
+    }
+
+    #[test]
+    fn parse_status_accepts_missing_node_id() {
+        let json = r#"{"Self":{"HostName":"noid","Online":false}}"#;
+        assert!(parse_status_json(json).is_ok());
     }
 
     #[test]

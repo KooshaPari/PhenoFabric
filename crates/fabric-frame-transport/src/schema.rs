@@ -19,6 +19,10 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     "webrtc_answer",
     "webrtc_ice",
     "save_config",
+    "network_status_request",
+    "network_stun_request",
+    "network_tailscale_request",
+    "surface_lease_request",
     "auth_start",
     "auth_complete",
     "auth_email",
@@ -39,6 +43,12 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
     ("webrtc_offer", &["target", "sdp"]),
     ("webrtc_answer", &["target", "sdp"]),
     ("webrtc_ice", &["from", "candidate"]),
+    // Network introspection requests carry no parameters: the daemon probes
+    // the host itself and returns whatever it observes.
+    ("network_status_request", &[]),
+    ("network_stun_request", &[]),
+    ("network_tailscale_request", &[]),
+    ("surface_lease_request", &["name", "protocol", "locality_floor"]),
     ("auth_start", &[]),
     ("auth_complete", &["code"]),
     ("auth_email", &["email"]),
@@ -63,6 +73,12 @@ const FIELD_TYPES: &[(&str, &str, &str)] = &[
     ("candidate", "string", "webrtc_ice"),
     ("config", "object", "save_config"),
     ("overrides", "object", "save_config"),
+    // surface_lease_request fields. `requires_rt` is a bool; the CLI always
+    // sends it, but it is not required so a minimal request still validates.
+    ("name", "string", "surface_lease_request"),
+    ("protocol", "string", "surface_lease_request"),
+    ("locality_floor", "string", "surface_lease_request"),
+    ("requires_rt", "boolean", "surface_lease_request"),
     ("code", "string", "auth_complete"),
     ("code_verifier", "string", "auth_complete"),
     ("email", "string", "auth_email"),
@@ -337,6 +353,49 @@ mod tests {
         let result = validate_against_schema(r#"{"type":"save_config"}"#, "wire");
         assert!(result.is_ok());
     }
+
+    // --- network introspection + surface lease ---
+
+    #[test]
+    fn network_requests_pass_schema() {
+        for t in [
+            "network_status_request",
+            "network_stun_request",
+            "network_tailscale_request",
+        ] {
+            let result = validate_against_schema(&format!(r#"{{"type":"{t}"}}"#), "wire");
+            assert!(result.is_ok(), "{t} should pass schema validation");
+        }
+    }
+
+    #[test]
+    fn surface_lease_request_passes_schema() {
+        let result = validate_against_schema(
+            r#"{"type":"surface_lease_request","name":"primary-display","protocol":"posix","locality_floor":"L5","requires_rt":true}"#,
+            "wire",
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn surface_lease_request_missing_name_fails_schema() {
+        let result = validate_against_schema(
+            r#"{"type":"surface_lease_request","protocol":"posix","locality_floor":"L5"}"#,
+            "wire",
+        );
+        let err = result.unwrap_err();
+        assert_eq!(err.code, "MISSING_FIELD");
+        assert!(err.message.contains("name"));
+    }
+
+    #[test]
+    fn surface_lease_request_requires_rt_wrong_type_fails_schema() {
+        let result = validate_against_schema(
+            r#"{"type":"surface_lease_request","name":"d","protocol":"posix","locality_floor":"L5","requires_rt":"yes"}"#,
+            "wire",
+        );
+        assert_eq!(result.unwrap_err().code, "WRONG_TYPE");
+    }
 }
 
 #[cfg(test)]
@@ -389,5 +448,27 @@ mod auth_types_tests {
     fn unknown_still_rejected() {
         assert!(!is_known_type("auth_destroy"));
         assert!(!is_known_type("definitely_not_a_type"));
+    }
+
+    #[test]
+    fn network_requests_are_known_and_require_nothing() {
+        for t in [
+            "network_status_request",
+            "network_stun_request",
+            "network_tailscale_request",
+        ] {
+            assert!(is_known_type(t), "{t} should be a known type");
+            assert!(required_fields(t).is_empty(), "{t} requires no fields");
+        }
+    }
+
+    #[test]
+    fn surface_lease_request_is_known_and_requires_three_fields() {
+        assert!(is_known_type("surface_lease_request"));
+        assert!(is_known_type("SurfaceLeaseRequest"));
+        assert_eq!(
+            required_fields("surface_lease_request"),
+            &["name", "protocol", "locality_floor"]
+        );
     }
 }

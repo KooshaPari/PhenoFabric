@@ -59,6 +59,22 @@ pub async fn process_message(message: &str, coordinator: &Coordinator) -> Option
             handlers::handle_compile_request(&validated.value, coordinator)
         }
         "save_config" | "SaveConfig" => handlers::handle_save_config(&validated.value, coordinator),
+        // --- Network introspection (fabric network status|stun|tailscale) ---
+        // These probe the daemon host rather than any shared state, so they
+        // need no coordinator access. They do real network I/O, hence `.await`.
+        "network_status_request" | "NetworkStatusRequest" => {
+            super::network_handlers::handle_network_status_request().await
+        }
+        "network_stun_request" | "NetworkStunRequest" => {
+            super::network_handlers::handle_network_stun_request().await
+        }
+        "network_tailscale_request" | "NetworkTailscaleRequest" => {
+            super::network_handlers::handle_network_tailscale_request().await
+        }
+        // --- Surface plane ---
+        "surface_lease_request" | "SurfaceLeaseRequest" => {
+            super::surface_handlers::handle_surface_lease_request(&validated.value, coordinator)
+        }
         // --- Auth (public routes, pre-auth bootstrap) ---
         "auth_start" | "AuthStart" => super::auth_handlers::handle_auth_start(coordinator).await,
         "auth_complete" | "AuthComplete" => {
@@ -196,5 +212,79 @@ mod tests {
         let msg = r#"{"type":"compile_request","source":123,"destination":"b"}"#;
         let resp = process_message(msg, &coord).await.unwrap();
         assert!(resp.contains("WRONG_TYPE"));
+    }
+
+    // --- The four previously-unhandled message types ---
+    //
+    // Regression guards: these all used to return UNKNOWN_TYPE from
+    // validation, before the dispatcher was ever consulted.
+
+    #[tokio::test]
+    async fn network_status_request_is_handled() {
+        let coord = make_coordinator();
+        let resp = process_message(r#"{"type":"network_status_request"}"#, &coord)
+            .await
+            .unwrap();
+        assert!(
+            !resp.contains("unknown_message") && !resp.contains("UNKNOWN_TYPE"),
+            "network_status_request must not fall through: {resp}"
+        );
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        for section in ["upnp", "stun", "tailscale"] {
+            assert!(v[section]["status"].is_string(), "{section}.status missing");
+        }
+    }
+
+    #[tokio::test]
+    async fn network_stun_request_is_handled() {
+        let coord = make_coordinator();
+        let resp = process_message(r#"{"type":"network_stun_request"}"#, &coord)
+            .await
+            .unwrap();
+        assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert!(v.get("error").is_none(), "must not be a wire error: {resp}");
+        assert!(v["external_port"].is_number());
+    }
+
+    #[tokio::test]
+    async fn network_tailscale_request_is_handled() {
+        let coord = make_coordinator();
+        let resp = process_message(r#"{"type":"network_tailscale_request"}"#, &coord)
+            .await
+            .unwrap();
+        assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert!(v.get("error").is_none(), "must not be a wire error: {resp}");
+        assert!(v["peers"].is_array());
+    }
+
+    #[tokio::test]
+    async fn surface_lease_request_is_handled() {
+        let coord = make_coordinator();
+        let msg = r#"{"type":"surface_lease_request","name":"primary-display","protocol":"posix","locality_floor":"L5Loopback","requires_rt":false}"#;
+        let resp = process_message(msg, &coord).await.unwrap();
+        assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert!(v["handle"].is_string());
+        assert_eq!(v["state"], "Pending");
+    }
+
+    #[tokio::test]
+    async fn surface_lease_request_missing_name_is_a_validation_error() {
+        let coord = make_coordinator();
+        let msg = r#"{"type":"surface_lease_request","protocol":"posix","locality_floor":"L5"}"#;
+        let resp = process_message(msg, &coord).await.unwrap();
+        assert!(resp.contains("MISSING_FIELD"), "got: {resp}");
+    }
+
+    #[tokio::test]
+    async fn unknown_type_still_falls_through() {
+        // The new arms must not accidentally swallow unrelated types.
+        let coord = make_coordinator();
+        let resp = process_message(r#"{"type":"totally_bogus"}"#, &coord)
+            .await
+            .unwrap();
+        assert!(resp.contains("UNKNOWN_TYPE"), "got: {resp}");
     }
 }

@@ -341,6 +341,92 @@
       "additionalProperties": true
     },
     {
+      "$comment": "network_status_request: probe UPnP, STUN, and Tailscale availability on the daemon host",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "network_status_request",
+            "NetworkStatusRequest"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "$comment": "network_stun_request: perform a STUN binding request and return the observed external address",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "network_stun_request",
+            "NetworkStunRequest"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "$comment": "network_tailscale_request: report local Tailscale node status and tailnet peers",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "network_tailscale_request",
+            "NetworkTailscaleRequest"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "$comment": "surface_lease_request: create a surface lease in the Pending state (binding happens at route-planning time)",
+      "type": "object",
+      "required": [
+        "type",
+        "name",
+        "protocol",
+        "locality_floor"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "surface_lease_request",
+            "SurfaceLeaseRequest"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "protocol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locality_floor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requires_rt": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "$comment": "auth_start: begin WorkOS AuthKit login, returns authorize URL + state + PKCE challenge",
       "type": "object",
       "required": [

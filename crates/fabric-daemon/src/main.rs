@@ -6,8 +6,10 @@
 mod auth;
 mod config;
 mod coordinator;
+mod federation;
 mod health;
 mod logging;
+mod network;
 mod secret_loader;
 mod wire;
 

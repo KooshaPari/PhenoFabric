@@ -2,6 +2,14 @@
 //!
 //! Provides UPnP port forwarding, Tailscale mesh networking, and STUN NAT
 //! traversal for establishing peer-to-peer connections.
+//!
+//! These are a complete NAT-traversal toolkit: port-mapping control, hole
+//! punching, and peer discovery are all used by mesh bring-up, but only the
+//! read-only introspection surface is reachable over the wire protocol today
+//! (`wire/network_handlers.rs`). The rest is deliberately kept compiling
+//! rather than deleted, because `lib.rs` exports it as public API and its unit
+//! tests are the regression guard for the RFC 5389/UPnP parsers.
+#![allow(dead_code)]
 
 pub mod stun;
 pub mod tailscale;
