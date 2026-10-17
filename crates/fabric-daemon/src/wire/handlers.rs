@@ -159,6 +159,80 @@ pub(crate) fn handle_save_config(
     }
 }
 
+/// Handle a `federation_sync_request`: merge the peer's `TopologySnapshot`
+/// with the local topology and return the merged view.
+///
+/// Request shape:
+/// ```json
+/// {
+///   "type": "federation_sync_request",
+///   "peer_snapshot": { ... TopologySnapshot ... },
+///   "strategy": "MergeAll" | "LocalPrimary" | "PeerPrimary"
+/// }
+/// ```
+///
+/// The local topology is read from `coordinator.topology_snapshot()` (the
+/// `probe_response` JSON shape). Peer nodes and edges are prefixed with
+/// their `federation_id` by `merge_topologies_from_json`; see the merge
+/// module for per-strategy semantics. On success, the response is
+/// `{"type":"federation_sync_response", "nodes": [...], "edges": [...],
+/// "peer_count": N, "max_epoch": E, "federation_ids": [...]}`.
+pub(crate) fn handle_federation_sync_request(
+    parsed: &serde_json::Value,
+    coordinator: &Coordinator,
+) -> Option<String> {
+    let peer_snapshot: crate::federation::TopologySnapshot = match parsed.get("peer_snapshot") {
+        Some(v) => match serde_json::from_value(v.clone()) {
+            Ok(s) => s,
+            Err(e) => {
+                return Some(format!(
+                    r#"{{"type":"federation_sync_error","error":"invalid_peer_snapshot","message":"{}"}}"#,
+                    e
+                ));
+            }
+        },
+        None => {
+            return Some(
+                r#"{"type":"federation_sync_error","error":"missing_peer_snapshot","message":"peer_snapshot field required"}"#.into(),
+            );
+        }
+    };
+
+    let strategy: crate::federation::MergeStrategy = match parsed.get("strategy") {
+        Some(v) => match serde_json::from_value(v.clone()) {
+            Ok(s) => s,
+            Err(_) => {
+                return Some(
+                    r#"{"type":"federation_sync_error","error":"invalid_strategy","message":"strategy must be MergeAll, LocalPrimary, or PeerPrimary"}"#.into(),
+                );
+            }
+        },
+        None => {
+            return Some(
+                r#"{"type":"federation_sync_error","error":"missing_strategy","message":"strategy field required"}"#.into(),
+            );
+        }
+    };
+
+    let local_json = coordinator.topology_snapshot();
+    let merged =
+        crate::federation::merge_topologies_from_json(&local_json, &[peer_snapshot], &strategy);
+
+    // Wrap the merged result with a `type` field. The MergedTopology already
+    // serializes to a JSON object, so we add the discriminator in place
+    // rather than nesting under a `merged` key.
+    let body = serde_json::to_value(&merged).unwrap_or(serde_json::json!({}));
+    let mut response = body
+        .as_object()
+        .cloned()
+        .unwrap_or_else(serde_json::Map::new);
+    response.insert(
+        "type".to_string(),
+        serde_json::Value::String("federation_sync_response".to_string()),
+    );
+    Some(serde_json::Value::Object(response).to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

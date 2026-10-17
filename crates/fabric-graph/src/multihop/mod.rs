@@ -10,7 +10,7 @@ pub mod stages;
 pub mod validate;
 
 pub use cost::{compute_route_cost, RouteCost};
-pub use executor::{ExecError, ExecOutcome, RouteExecutor, TcpExecutor};
+pub use executor::{ExecError, ExecOutcome, RouteExecutor, TcpExecutor, UnixSocketExecutor};
 pub use stages::{builtin_stages, TransportStage};
 pub use validate::{validate_multihop, RouteValidationError};
 

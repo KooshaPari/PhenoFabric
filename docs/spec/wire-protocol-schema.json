@@ -461,6 +461,65 @@
       "additionalProperties": false
     },
     {
+      "$comment": "federation_sync_request: peer presents its own TopologySnapshot and a merge strategy; the daemon responds with the merged view of (local, peer) topologies. The local snapshot is read from coordinator.topology_snapshot() and the merge function prefixes peer nodes/edges with peer.federation_id to avoid ID collisions.",
+      "type": "object",
+      "required": [
+        "type",
+        "peer_snapshot",
+        "strategy"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "federation_sync_request",
+            "FederationSyncRequest"
+          ]
+        },
+        "peer_snapshot": {
+          "type": "object",
+          "description": "Embedded TopologySnapshot from the peer daemon: federation_id, source_addr, topology_epoch, node_count, edge_count, and a nodes/edges map keyed by id.",
+          "properties": {
+            "federation_id": {
+              "type": "string"
+            },
+            "source_addr": {
+              "type": "string"
+            },
+            "topology_epoch": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "node_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "edge_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "nodes": {
+              "type": "object"
+            },
+            "edges": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        },
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "MergeAll",
+            "LocalPrimary",
+            "PeerPrimary"
+          ],
+          "description": "MergeStrategy: MergeAll adds prefixed peer nodes alongside local; LocalPrimary drops peer nodes whose unprefixed name already exists locally; PeerPrimary adds prefixed peer nodes on top of the local view."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "$comment": "surface_lease_request: create a surface lease in the Pending state (binding happens at route-planning time)",
       "type": "object",
       "required": [

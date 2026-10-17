@@ -6,6 +6,16 @@
 **Status:** Research and architecture baseline; not an implementation-complete claim  
 **Scope owner:** Runtime substrate for distributed compute, data locality, interactive I/O, surfaces, transport selection, and real-time quality of service
 
+## Start here
+
+**Before you build anything**, read **[`docs/quickstart/FIRST-RUN.md`](docs/quickstart/FIRST-RUN.md)**. It tells you:
+
+- which path works today (Section 1: unauthenticated local mode — `cargo run -p fabric-daemon`, no config);
+- which path requires credentials only WorkOS can issue (Section 2);
+- and — most importantly — **which features do not work yet** despite looking real in the repo (Section 3: two-device pairing, non-TCP transports, the GUI app, etc.).
+
+The quickstart is the only document on this page that has been checked against the source line by line. Everything else below is product pitch, design rules, or aspiration; it is *not* a guide to getting a working system today.
+
 > A packaged, all-in-one computing environment that makes connected physical machines, operating-system sessions, virtual machines, accelerators, displays, audio devices, input devices, storage, and remote locations appear as one coherent interactive computer—while preserving the physical facts needed to make good placement decisions.
 
 ## The product in one sentence

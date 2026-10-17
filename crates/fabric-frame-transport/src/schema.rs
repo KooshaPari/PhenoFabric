@@ -48,6 +48,11 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     // peer. The new owner ids are required; the focus seat defaults to the
     // new input owner.
     "session_transfer",
+    // --- Federation: cross-daemon topology sync ---
+    // The peer presents its own TopologySnapshot and a merge strategy; the
+    // handler responds with the merged view. See the wire handler in
+    // `fabric-daemon::wire::handlers::handle_federation_sync_request`.
+    "federation_sync_request",
 ];
 
 /// Required fields per message type (fields that MUST be present and non-null).
@@ -103,6 +108,11 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
         "session_transfer",
         &["session_id", "input_owner", "output_owner"],
     ),
+    // Federation sync carries the peer's snapshot and a merge strategy.
+    // The strategy field is a string (MergeAll | LocalPrimary | PeerPrimary)
+    // and is parsed by serde into the typed `MergeStrategy` enum on the
+    // handler side; the schema only checks the wire-level string-ness.
+    ("federation_sync_request", &["peer_snapshot", "strategy"]),
 ];
 
 /// Expected field types (field_name, expected_json_type).
@@ -143,6 +153,11 @@ const FIELD_TYPES: &[(&str, &str, &str)] = &[
     ("input_owner", "string", "session_transfer"),
     ("output_owner", "string", "session_transfer"),
     ("focus_owner", "string", "session_transfer"),
+    // Federation sync: peer_snapshot is an embedded TopologySnapshot object;
+    // strategy is a string enum parsed into the typed MergeStrategy by the
+    // handler. The schema only enforces the wire-level types.
+    ("peer_snapshot", "object", "federation_sync_request"),
+    ("strategy", "string", "federation_sync_request"),
 ];
 
 /// Error type for schema validation failures.

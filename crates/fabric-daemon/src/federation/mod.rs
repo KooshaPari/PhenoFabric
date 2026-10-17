@@ -6,11 +6,21 @@
 //! Each node is assigned a federation_id prefix to avoid ID collisions
 //! when merging topologies from different daemons.
 //!
-//! Federation is not wired to any wire message type yet (the daemon has no
-//! federation arm in `wire/protocol.rs`), so in the binary target these items
-//! are unreferenced. They are kept compiling because `lib.rs` exports the
-//! module as public API and its tests cover the topology-merge logic.
-//! Remove this allow when the first federation wire arm lands.
+//! Federation is wired to the wire protocol via `federation_sync_request`
+//! in `wire::protocol::process_message`; the handler in
+//! `wire::handlers::handle_federation_sync_request` consumes the peer's
+//! `TopologySnapshot`, calls `merge_topologies_from_json` against the
+//! local snapshot read from `coordinator.topology_snapshot()`, and
+//! returns the merged view as `federation_sync_response`.
+//!
+//! The background sync machinery in `discovery` and `state` is still only
+//! reachable from integration tests; the wire arm IS the sync trigger
+//! for cross-daemon topology exchange. The module-level `dead_code`
+//! allow below is left in place so the binary target still compiles when
+//! no caller invokes `sync_topology` / `FederationState::spawn_sync_thread`
+//! directly -- they remain public API for the test target and a future
+//! background-sync configuration that will be wired through
+//! `FederationConfig`.
 #![allow(dead_code, unused_imports)]
 
 mod discovery;

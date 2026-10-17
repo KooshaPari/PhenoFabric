@@ -71,6 +71,15 @@ pub async fn process_message(message: &str, coordinator: &Coordinator) -> Option
         "network_tailscale_request" | "NetworkTailscaleRequest" => {
             super::network_handlers::handle_network_tailscale_request().await
         }
+        // --- Federation: cross-daemon topology sync ---
+        // The request carries the peer's TopologySnapshot; the handler merges
+        // it with the local snapshot and returns the merged view. This is the
+        // "cross a real TCP connection" path for the federation module: peer A
+        // opens a connection to peer B, sends this request, and B responds
+        // with the merged topology.
+        "federation_sync_request" | "FederationSyncRequest" => {
+            handlers::handle_federation_sync_request(&validated.value, coordinator)
+        }
         // --- Surface plane ---
         "surface_lease_request" | "SurfaceLeaseRequest" => {
             super::surface_handlers::handle_surface_lease_request(&validated.value, coordinator)
@@ -575,5 +584,79 @@ mod tests {
             .await
             .unwrap();
         assert!(resp.contains("MISSING_FIELD"), "got: {resp}");
+    }
+
+    // --- Federation: cross-daemon topology sync ---
+    //
+    // Regression guards: `federation_sync_request` must reach the handler,
+    // not fall through to `unknown_message`. Validation also enforces the
+    // two required fields, so a bare type-only request must be rejected
+    // before the handler runs.
+
+    fn federation_request(strategy: &str) -> String {
+        format!(
+            r#"{{"type":"federation_sync_request","strategy":"{}","peer_snapshot":{{"federation_id":"peer-A","source_addr":"127.0.0.1:7001","topology_epoch":1,"node_count":1,"edge_count":0,"nodes":{{"peer-node":{{"id":"peer-node","label":"Peer Node","locality":"L5Loopback","cap_count":0,"tags":[],"federation_id":"peer-A"}}}},"edges":{{}}}}}}"#,
+            strategy
+        )
+    }
+
+    #[tokio::test]
+    async fn federation_sync_request_snake_case_reaches_handler() {
+        let coord = make_coordinator();
+        let resp = process_message(&federation_request("MergeAll"), &coord)
+            .await
+            .unwrap();
+        assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
+        assert!(!resp.contains("unknown_message"), "fell through: {resp}");
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "federation_sync_response");
+        // The peer's node should be present in the merged view, prefixed
+        // with its federation id. Local topology is empty, so the merged
+        // view is just the peer's nodes (unchanged by MergeAll).
+        let nodes = v["nodes"].as_array().unwrap();
+        let merged_ids: Vec<&str> = nodes.iter().filter_map(|n| n["id"].as_str()).collect();
+        assert!(
+            merged_ids.iter().any(|id| id.contains("peer-node")),
+            "merged nodes missing the peer node: {merged_ids:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn federation_sync_request_pascal_case_is_dispatched() {
+        // PascalCase type names are accepted everywhere else; federation
+        // must follow the same convention.
+        let coord = make_coordinator();
+        let line = r#"{"type":"FederationSyncRequest","strategy":"MergeAll","peer_snapshot":{"federation_id":"","source_addr":"","topology_epoch":0,"node_count":0,"edge_count":0,"nodes":{},"edges":{}}}"#;
+        let resp = process_message(line, &coord).await.unwrap();
+        assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "federation_sync_response");
+    }
+
+    #[tokio::test]
+    async fn federation_sync_request_missing_peer_snapshot_is_a_validation_error() {
+        let coord = make_coordinator();
+        let msg = r#"{"type":"federation_sync_request","strategy":"MergeAll"}"#;
+        let resp = process_message(msg, &coord).await.unwrap();
+        assert!(resp.contains("MISSING_FIELD"), "got: {resp}");
+    }
+
+    #[tokio::test]
+    async fn federation_sync_request_missing_strategy_is_a_validation_error() {
+        let coord = make_coordinator();
+        let msg = r#"{"type":"federation_sync_request","peer_snapshot":{}}"#;
+        let resp = process_message(msg, &coord).await.unwrap();
+        assert!(resp.contains("MISSING_FIELD"), "got: {resp}");
+    }
+
+    #[tokio::test]
+    async fn federation_sync_request_invalid_peer_snapshot_is_a_handler_error() {
+        // A non-object peer_snapshot violates the schema's `object` type
+        // expectation, so validation rejects it with WRONG_TYPE. This
+        // regression guard makes sure the field type entry is in place.
+        let coord = make_coordinator();
+        let msg = r#"{"type":"federation_sync_request","strategy":"MergeAll","peer_snapshot":"not-an-object"}"#;
+        let resp = process_message(msg, &coord).await.unwrap();
+        assert!(resp.contains("WRONG_TYPE"), "got: {resp}");
     }
 }

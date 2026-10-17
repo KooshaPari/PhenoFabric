@@ -133,6 +133,14 @@ fn validate_field_types(
             validate_optional_object(obj, "config", msg_type)?;
             validate_optional_object(obj, "overrides", msg_type)?;
         }
+        "federationsyncrequest" => {
+            // peer_snapshot is an embedded TopologySnapshot object. Presence is
+            // already enforced by schema::required_fields; validate the type here
+            // so a peer that sends a scalar is refused by the wire schema rather
+            // than falling through to the handler's serde error.
+            validate_optional_object(obj, "peer_snapshot", msg_type)?;
+            validate_string_field(obj, "strategy", msg_type)?;
+        }
         "surfaceleaserequest" => {
             validate_string_field(obj, "name", msg_type)?;
             validate_string_field(obj, "protocol", msg_type)?;
