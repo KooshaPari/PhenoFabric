@@ -146,6 +146,24 @@ pub struct FrameSession {
     /// Whether a client is currently attached. Flipped by
     /// `FrameSessionDisconnect`; see [`super::frame_session_lifecycle`].
     pub state: SessionState,
+    /// The peer id currently allowed to send input frames to this session.
+    ///
+    /// Initialized from the `client_id` in `session_init` and updated only by
+    /// an explicit `session_transfer` (or, for the test-only `insert_session`,
+    /// by the caller). A `frame_data` whose `sender_id` differs is rejected
+    /// with `input_owner_mismatch` so a peer that is not the current input
+    /// owner cannot drive the stream.
+    pub input_owner: String,
+    /// The peer id currently entitled to receive the daemon's output for this
+    /// session. The line-delimited JSON transport sends responses on the
+    /// socket that asked, so the output owner is recorded and reported back
+    /// rather than enforced at packet-routing time -- the report is what lets
+    /// a downstream consumer verify the daemon's framing decision.
+    pub output_owner: String,
+    /// The peer id the daemon currently considers the focus holder. Updated
+    /// on every accepted `frame_data` to that frame's `sender_id`, so a
+    /// silent peer cannot keep focus once another peer takes over input.
+    pub focus_owner: String,
 }
 
 impl FrameSession {
@@ -157,9 +175,14 @@ impl FrameSession {
     /// this daemon will actually carry; a real encoder negotiation is a
     /// separate increment.
     fn from_init(session_id: u64, init: &SessionInit, now_ms: u64) -> Self {
+        // Initial ownership seats go to the session's opener: input is who
+        // the daemon will accept frames from, output is who the daemon will
+        // report the session's counters back to, and focus tracks the most
+        // recent sender (which is the opener, by definition, at t=0).
+        let owner = init.client_id.clone();
         Self {
             session_id,
-            client_id: init.client_id.clone(),
+            client_id: owner.clone(),
             codec: init.preferred_codec,
             width: init.width,
             height: init.height,
@@ -172,6 +195,9 @@ impl FrameSession {
             acks: HashMap::new(),
             last_activity_ms: now_ms,
             state: SessionState::Active,
+            input_owner: owner.clone(),
+            output_owner: owner.clone(),
+            focus_owner: owner,
         }
     }
 
@@ -244,6 +270,78 @@ pub struct TeardownOutcome {
     pub client_id: String,
     /// Its final counters.
     pub counters: SessionCounters,
+}
+
+/// A snapshot of a session's three ownership seats.
+///
+/// Returned by [`FrameSessionState::current_owners`] and by the `Ok` arm of
+/// [`FrameSessionState::transfer_ownership`] so a handler can build a
+/// `session_transfer_ack` (or a `session_ack` carrying the initial seats)
+/// without re-locking the session state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionOwners {
+    /// Peer id allowed to drive input for this session.
+    pub input_owner: String,
+    /// Peer id entitled to receive this session's output.
+    pub output_owner: String,
+    /// Peer id the daemon currently considers the focus holder.
+    pub focus_owner: String,
+}
+
+/// Why an explicit ownership transition was refused.
+///
+/// A refusal is a control-plane outcome, not a state change: the session
+/// keeps its previous owners and the caller can recover. The variant is
+/// emitted on the wire as `error` and the message text names what was
+/// wrong so the caller can fix the request rather than retry blindly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransferRejection {
+    /// A required field was missing or malformed upstream of the state
+    /// layer. Callers should not normally see this; the schema layer rejects
+    /// it first.
+    MissingField,
+    /// The new owner id was an empty string. An empty owner is a degenerate
+    /// transition because the daemon has no peer to attribute frames to, so
+    /// it is refused rather than silently recorded.
+    DegenerateTransfer,
+    /// The session id names a session this daemon never issued (or one
+    /// whose teardown has aged out of the bounded history). Reported as
+    /// `unknown_session` on the wire for the same reason `frame_data` and
+    /// `session_resume` use that name.
+    UnknownSession,
+    /// The session id names a session this daemon tore down (close, cancel,
+    /// or expiry). The session is final; a transfer against a dead id is
+    /// not a transfer.
+    SessionGone(TeardownReason),
+}
+
+impl TransferRejection {
+    /// Stable snake_case name used on the wire.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::MissingField => "missing_field",
+            Self::DegenerateTransfer => "degenerate_transfer",
+            Self::UnknownSession => "unknown_session",
+            Self::SessionGone(reason) => match reason {
+                TeardownReason::Closed => "session_gone_closed",
+                TeardownReason::Cancelled => "session_gone_cancelled",
+                TeardownReason::Expired => "session_gone_expired",
+            },
+        }
+    }
+}
+
+/// Outcome of an ownership transition that actually took effect.
+///
+/// Carries the new owners so the response is one read; the session is
+/// already updated when this returns, so the caller does not need to
+/// re-read it to build the ack.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransferOutcome {
+    /// The session whose ownership changed.
+    pub session_id: u64,
+    /// The new ownership seats.
+    pub owners: SessionOwners,
 }
 
 /// All live streaming sessions, keyed by daemon-assigned session id.
@@ -485,6 +583,91 @@ impl FrameSessionState {
         let mut ids: Vec<u64> = self.sessions.keys().copied().collect();
         ids.sort_unstable();
         ids
+    }
+
+    /// Read the current ownership seats of `session_id`.
+    ///
+    /// Returns `None` for an id the daemon never issued, or one whose
+    /// teardown has aged out. The owner ids are cloned out so the caller can
+    /// drop the state lock before serializing a response.
+    pub fn current_owners(&self, session_id: u64) -> Option<SessionOwners> {
+        let session = self.sessions.get(&session_id)?;
+        Some(SessionOwners {
+            input_owner: session.input_owner.clone(),
+            output_owner: session.output_owner.clone(),
+            focus_owner: session.focus_owner.clone(),
+        })
+    }
+
+    /// Explicit ownership transition: hand the input / output / focus seats
+    /// to new peer ids.
+    ///
+    /// This is the only state-layer path that mutates ownership after
+    /// `session_init`. The session_id is bearer-grade, so any caller that
+    /// knows the id can ask for a transfer; the daemon enforces the
+    /// transition's shape (non-empty owners, focus defaults to the new
+    /// input owner) and updates the seats atomically. Frames that were
+    /// already in flight when the transfer completed observe the new owners
+    /// on their next handler pass, because every check goes through the
+    /// session's stored seats at read time.
+    ///
+    /// An empty `input_owner` or `output_owner` is refused as a
+    /// [`TransferRejection::DegenerateTransfer`] because a session with no
+    /// attributed input or output is a daemon state that no caller can
+    /// reason about; the explicit refusal is what lets a bug report point
+    /// at the offending request rather than at a later, less informative
+    /// symptom.
+    ///
+    /// An id that names no live session is refused as either
+    /// [`TransferRejection::UnknownSession`] (the daemon never issued it)
+    /// or [`TransferRejection::SessionGone`] (the daemon issued it and has
+    /// since torn it down). The two paths stay distinct for the same
+    /// reason `frame_data` keeps them distinct: a client whose session
+    /// expired deserves to be told so, not told its id was never valid.
+    pub fn transfer_ownership(
+        &mut self,
+        session_id: u64,
+        input_owner: &str,
+        output_owner: &str,
+        focus_owner: Option<&str>,
+    ) -> Result<TransferOutcome, TransferRejection> {
+        if input_owner.is_empty() || output_owner.is_empty() {
+            return Err(TransferRejection::DegenerateTransfer);
+        }
+        // Focus falls back to the new input owner so the daemon never has a
+        // session whose focus seat points at a peer the input gate would
+        // refuse: input is the seat the daemon actually checks, and focus
+        // tracks "the most recent legitimate input source".
+        let focus = focus_owner.unwrap_or(input_owner);
+        if focus.is_empty() {
+            return Err(TransferRejection::DegenerateTransfer);
+        }
+        // Distinguish "this daemon never issued that id" from "this daemon
+        // issued it and has since torn it down", using the bounded teardown
+        // history the rest of the frame plane already consults. A
+        // transfer against a dead id is not a transfer: the session is
+        // gone, not pending a new owner.
+        if !self.sessions.contains_key(&session_id) {
+            return Err(match self.teardown_reason(session_id) {
+                Some(reason) => TransferRejection::SessionGone(reason),
+                None => TransferRejection::UnknownSession,
+            });
+        }
+        let session = self
+            .sessions
+            .get_mut(&session_id)
+            .expect("contains_key check above guarantees the entry exists");
+        session.input_owner = input_owner.to_string();
+        session.output_owner = output_owner.to_string();
+        session.focus_owner = focus.to_string();
+        Ok(TransferOutcome {
+            session_id,
+            owners: SessionOwners {
+                input_owner: session.input_owner.clone(),
+                output_owner: session.output_owner.clone(),
+                focus_owner: session.focus_owner.clone(),
+            },
+        })
     }
 }
 

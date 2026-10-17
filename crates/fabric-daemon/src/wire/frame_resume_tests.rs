@@ -46,6 +46,14 @@ fn init_value(client: &str) -> Value {
 }
 
 fn frame_value(session_id: u64, seq: u64, payload_len: u32) -> Value {
+    // The session's input owner is the opener's `client_id`, so the default
+    // sender here is the same id that the tests pass to `init_value`.
+    // Tests that need to drive a different peer should construct a frame
+    // by hand.
+    frame_value_with_sender(session_id, seq, payload_len, "client-a")
+}
+
+fn frame_value_with_sender(session_id: u64, seq: u64, payload_len: u32, sender_id: &str) -> Value {
     serde_json::json!({
         "type": "frame_data",
         "session_id": session_id,
@@ -58,6 +66,7 @@ fn frame_value(session_id: u64, seq: u64, payload_len: u32) -> Value {
         "height": 48,
         "payload_len": payload_len,
         "duration_us": 16_667,
+        "sender_id": sender_id,
     })
 }
 

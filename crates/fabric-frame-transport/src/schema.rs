@@ -43,6 +43,11 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     // the same proof `session_close`/`session_cancel` already require -- no
     // token, nonce, or handshake is invented for it.
     "session_resume",
+    // Explicit ownership transition. The session_id is bearer-grade, so this
+    // is the canonical way to hand the input / output / focus seats to a new
+    // peer. The new owner ids are required; the focus seat defaults to the
+    // new input owner.
+    "session_transfer",
 ];
 
 /// Required fields per message type (fields that MUST be present and non-null).
@@ -76,15 +81,28 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
     // `SessionInit` (lib.rs:108-116), `FrameHeader` (lib.rs:131-141),
     // and `FrameAck` (lib.rs:195-199). `frame_data` requires the sequence
     // number because it is what the session state keys frames on.
+    //
+    // `sender_id` is the ownership field on the frame header: it MUST name the
+    // client_id currently registered as the session's `input_owner`. A frame
+    // from anyone else is rejected with `input_owner_mismatch` (see
+    // `frame_handlers::handle_frame_data`). The same is required on
+    // `frame_ack` since acks are produced by the same logical sender.
     ("session_init", &["client_id"]),
-    ("frame_data", &["seq"]),
-    ("frame_ack", &["seq"]),
+    ("frame_data", &["seq", "sender_id"]),
+    ("frame_ack", &["seq", "sender_id"]),
     // Teardown names the session it tears down, so `session_id` is mandatory:
     // a close without one could not identify its target.
     ("session_close", &["session_id"]),
     ("session_cancel", &["session_id"]),
     // Resume names the session it continues, for the same reason.
     ("session_resume", &["session_id"]),
+    // An explicit ownership transition: session_id names the session,
+    // `input_owner` and `output_owner` name the new owners. `focus_owner` is
+    // optional and falls back to the new input owner at handler time.
+    (
+        "session_transfer",
+        &["session_id", "input_owner", "output_owner"],
+    ),
 ];
 
 /// Expected field types (field_name, expected_json_type).
@@ -114,6 +132,17 @@ const FIELD_TYPES: &[(&str, &str, &str)] = &[
     ("email", "string", "auth_email"),
     ("email", "string", "auth_verify"),
     ("code", "string", "auth_verify"),
+    // Ownership fields on the frame plane. `sender_id` is a string on
+    // `frame_data` and `frame_ack`; `input_owner`, `output_owner`, and
+    // `focus_owner` are strings on `session_transfer`. None of these are
+    // required by the schema to be non-empty -- emptiness is a semantic check
+    // the handler performs against the live session state, where it can be
+    // reported as a `degenerate_transfer` rather than a generic type error.
+    ("sender_id", "string", "frame_data"),
+    ("sender_id", "string", "frame_ack"),
+    ("input_owner", "string", "session_transfer"),
+    ("output_owner", "string", "session_transfer"),
+    ("focus_owner", "string", "session_transfer"),
 ];
 
 /// Error type for schema validation failures.

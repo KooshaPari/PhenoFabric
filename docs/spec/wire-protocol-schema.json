@@ -676,11 +676,12 @@
       "additionalProperties": true
     },
     {
-      "$comment": "frame_data: deliver one frame for an established session. Fields mirror fabric_frame_transport::FrameHeader; session_id is the id from session_ack. A frame for an unknown session returns frame_error with error=unknown_session.",
+      "$comment": "frame_data: deliver one frame for an established session. Fields mirror fabric_frame_transport::FrameHeader; session_id is the id from session_ack. A frame for an unknown session returns frame_error with error=unknown_session. sender_id is the ownership field: it must match the session's current input_owner, otherwise the frame is rejected with input_owner_mismatch.",
       "type": "object",
       "required": [
         "type",
-        "seq"
+        "seq",
+        "sender_id"
       ],
       "properties": {
         "type": {
@@ -697,6 +698,10 @@
         "seq": {
           "type": "integer",
           "minimum": 0
+        },
+        "sender_id": {
+          "type": "string",
+          "minLength": 1
         },
         "pts_us": {
           "type": "integer",
@@ -738,11 +743,12 @@
       "additionalProperties": true
     },
     {
-      "$comment": "frame_ack: acknowledge a received frame. Fields mirror fabric_frame_transport::FrameAck. The daemon replies with frame_ack_response, whose acked field is true only when it had received a frame at or past seq.",
+      "$comment": "frame_ack: acknowledge a received frame. Fields mirror fabric_frame_transport::FrameAck. The daemon replies with frame_ack_response, whose acked field is true only when it had received a frame at or past seq. sender_id is the ownership field; it must match the session's current input_owner.",
       "type": "object",
       "required": [
         "type",
-        "seq"
+        "seq",
+        "sender_id"
       ],
       "properties": {
         "type": {
@@ -760,6 +766,10 @@
           "type": "integer",
           "minimum": 0
         },
+        "sender_id": {
+          "type": "string",
+          "minLength": 1
+        },
         "rtt_us": {
           "type": "integer",
           "minimum": 0
@@ -767,6 +777,42 @@
         "recv_pts_us": {
           "type": "integer",
           "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "$comment": "session_transfer: explicit ownership transition. Hands the input/output/focus seats to new owners. focus_owner is optional and defaults to input_owner. Empty owner ids are rejected as degenerate_transfer. Session must exist; a transfer against an unknown id returns unknown_session.",
+      "type": "object",
+      "required": [
+        "type",
+        "session_id",
+        "input_owner",
+        "output_owner"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "session_transfer",
+            "SessionTransfer"
+          ]
+        },
+        "session_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "input_owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "output_owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "focus_owner": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": true

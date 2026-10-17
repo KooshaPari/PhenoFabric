@@ -42,12 +42,14 @@ pub(super) fn validate_frame_fields(
             u32(obj, "payload_len", msg_type)?;
             u32(obj, "duration_us", msg_type)?;
             bool(obj, "is_keyframe", msg_type)?;
+            string(obj, "sender_id", msg_type)?;
             Ok(())
         }
         "frameack" => {
             u64(obj, "seq", msg_type)?;
             u64(obj, "rtt_us", msg_type)?;
             u64(obj, "recv_pts_us", msg_type)?;
+            string(obj, "sender_id", msg_type)?;
             Ok(())
         }
         // Teardown carries only the session it tears down. The check is here
@@ -60,6 +62,28 @@ pub(super) fn validate_frame_fields(
         // rather than silently read as "absent".
         "sessionclose" | "sessioncancel" | "sessionresume" => {
             u64(obj, "session_id", msg_type)?;
+            Ok(())
+        }
+        "sessiontransfer" => {
+            // `session_id` was already enforced by the schema as required; the
+            // type check is here so a string session_id reads as 0 instead of
+            // a misleading `unknown_session`. `input_owner` and `output_owner`
+            // are required by the schema and must be strings here too.
+            // `focus_owner` is optional; if present it must be a string.
+            u64(obj, "session_id", msg_type)?;
+            string(obj, "input_owner", msg_type)?;
+            string(obj, "output_owner", msg_type)?;
+            if let Some(val) = obj.get("focus_owner") {
+                if !val.is_string() {
+                    return Err(ValidationError {
+                        message: format!(
+                            "field 'focus_owner' must be a string in '{msg_type}', got {}",
+                            type_name(val)
+                        ),
+                        code: "WRONG_TYPE".into(),
+                    });
+                }
+            }
             Ok(())
         }
         _ => Ok(()),

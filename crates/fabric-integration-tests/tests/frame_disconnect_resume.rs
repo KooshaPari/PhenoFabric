@@ -19,9 +19,14 @@ use fabric_integration_tests::harness::{start_two_daemons, stop_daemon};
 const INIT_LINE: &str = r#"{"type":"session_init","version":1,"preferred_codec":"Rgba","width":64,"height":48,"target_fps":60,"max_latency_ms":33,"client_id":"teardown-client"}"#;
 
 /// One `frame_data` line. 64*48*4 = 12288 bytes of RGBA per frame.
+///
+/// The `sender_id` matches the `client_id` from `INIT_LINE` because the
+/// session is opened by that peer; the ownership gate refuses any frame
+/// whose declared sender is not the session's current input owner, so a
+/// matching id is required for the frame to land.
 fn frame_line(session_id: u64, seq: u64) -> String {
     format!(
-        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667}}"#
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"teardown-client"}}"#
     )
 }
 

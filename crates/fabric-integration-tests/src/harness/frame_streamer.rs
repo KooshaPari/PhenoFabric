@@ -171,6 +171,14 @@ pub fn stream_frames_between(
         // `fabric_frame_transport::FrameHeader` field for field. The encoded
         // payload itself is not streamed: the wire server accounts frames, it
         // does not decode them.
+        //
+        // `sender_id` is the wire protocol's ownership gate: the daemon
+        // refuses `frame_data` whose declared sender is not the session's
+        // current input owner. Using the same `client_id` we sent in
+        // `session_init` means the frame is accepted by the default owner;
+        // ownership hand-off tests open a fresh session and then issue a
+        // `session_transfer` before sending their frames under the new
+        // owner.
         let frame_msg = serde_json::json!({
             "type": "frame_data",
             "session_id": session_id,
@@ -183,6 +191,7 @@ pub fn stream_frames_between(
             "height": height,
             "payload_len": frame_payload_len,
             "duration_us": 16_667,
+            "sender_id": client_id,
         });
         let frame_ack = exchange(&mut writer, &mut reader, &frame_msg)?;
         if frame_ack["type"] != "frame_ack" {
@@ -197,12 +206,17 @@ pub fn stream_frames_between(
         frames_acknowledged += 1;
 
         // --- Acknowledge the frame back ---
+        //
+        // The ack carries the same `sender_id` as the frame that
+        // produced it: the input owner is the one entity that may emit
+        // both directions of the per-frame exchange.
         let ack_msg = serde_json::json!({
             "type": "frame_ack",
             "session_id": session_id,
             "seq": seq,
             "rtt_us": rtt,
             "recv_pts_us": pts_us,
+            "sender_id": client_id,
         });
         let ack_response = exchange(&mut writer, &mut reader, &ack_msg)?;
         if ack_response["type"] != "frame_ack_response" {

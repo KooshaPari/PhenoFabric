@@ -37,7 +37,20 @@ fn init_value(client: &str) -> Value {
     })
 }
 
+/// Build a `frame_data` value with `sender_id` defaulted to `"client-a"`.
+///
+/// Most tests open their session via [`init_value("client-a")`], so the
+/// default sender id matches the session's input owner. Tests that need to
+/// drive a different peer can pass an explicit `sender_id` and pair it with
+/// a session opened by that peer (or a `session_transfer` that hands input
+/// to them).
 fn frame_value(session_id: u64, seq: u64, payload_len: u32) -> Value {
+    frame_value_with_sender(session_id, seq, payload_len, "client-a")
+}
+
+/// Like [`frame_value`], but lets the caller pick the `sender_id`. Used by
+/// the ownership-enforcement tests below.
+fn frame_value_with_sender(session_id: u64, seq: u64, payload_len: u32, sender_id: &str) -> Value {
     serde_json::json!({
         "type": "frame_data",
         "session_id": session_id,
@@ -50,6 +63,7 @@ fn frame_value(session_id: u64, seq: u64, payload_len: u32) -> Value {
         "height": 48,
         "payload_len": payload_len,
         "duration_us": 16_667,
+        "sender_id": sender_id,
     })
 }
 
@@ -237,7 +251,8 @@ fn frame_data_oversize_payload_rejected() {
 #[test]
 fn frame_ack_for_unknown_session_is_an_error() {
     let coord = make_coordinator();
-    let v = serde_json::json!({"type":"frame_ack","session_id":7,"seq":0,"rtt_us":100});
+    let v =
+        serde_json::json!({"type":"frame_ack","session_id":7,"seq":0,"rtt_us":100,"sender_id":"x"});
     let resp = handle_frame_ack(&v, &coord);
     let parsed = parse(&resp);
     assert_eq!(parsed["error"], "unknown_session");
@@ -255,6 +270,7 @@ fn frame_ack_records_rtt() {
         "seq": 3,
         "rtt_us": 1234,
         "recv_pts_us": 3 * 16_667,
+        "sender_id": "client-a",
     });
     let resp = handle_frame_ack(&ack, &coord);
     let v = parse(&resp);
@@ -281,6 +297,7 @@ fn frame_ack_before_any_frame_is_not_acked() {
         "seq": 0,
         "rtt_us": 500,
         "recv_pts_us": 0,
+        "sender_id": "client-a",
     });
     let v = parse(&handle_frame_ack(&ack, &coord));
     assert_eq!(v["acked"], false);
@@ -296,11 +313,11 @@ fn frame_ack_for_seq_beyond_last_frame_is_not_acked() {
     handle_session_init(&init_value("client-a"), &coord);
     handle_frame_data(&frame_value(1, 2, 64), &coord);
 
-    let ack = serde_json::json!({"type":"frame_ack","session_id":1,"seq":9,"rtt_us":1});
+    let ack = serde_json::json!({"type":"frame_ack","session_id":1,"seq":9,"rtt_us":1,"sender_id":"client-a"});
     let v = parse(&handle_frame_ack(&ack, &coord));
     assert_eq!(v["acked"], false, "seq 9 was never received");
 
-    let in_range = serde_json::json!({"type":"frame_ack","session_id":1,"seq":1,"rtt_us":2});
+    let in_range = serde_json::json!({"type":"frame_ack","session_id":1,"seq":1,"rtt_us":2,"sender_id":"client-a"});
     let v2 = parse(&handle_frame_ack(&in_range, &coord));
     assert_eq!(v2["acked"], true, "seq 1 is at or below last_seq 2");
 }
@@ -309,7 +326,7 @@ fn frame_ack_for_seq_beyond_last_frame_is_not_acked() {
 fn frame_ack_without_session_id_is_an_error() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    let v = serde_json::json!({"type":"frame_ack","seq":0,"rtt_us":1});
+    let v = serde_json::json!({"type":"frame_ack","seq":0,"rtt_us":1,"sender_id":"client-a"});
     let resp = handle_frame_ack(&v, &coord);
     assert_eq!(parse(&resp)["error"], "missing_session_id");
 }
@@ -329,9 +346,13 @@ fn session_state_tracks_two_independent_sessions() {
     handle_session_init(&init_value("a"), &coord);
     handle_session_init(&init_value("b"), &coord);
 
-    handle_frame_data(&frame_value(1, 0, 10), &coord);
-    handle_frame_data(&frame_value(1, 1, 10), &coord);
-    handle_frame_data(&frame_value(2, 0, 99), &coord);
+    // `frame_value_with_sender` is used here (rather than `frame_value`)
+    // because the default sender id (`"client-a"`) does not match the
+    // owners of these sessions (`"a"` and `"b"`). The ownership gate
+    // would otherwise refuse the frames as `input_owner_mismatch`.
+    handle_frame_data(&frame_value_with_sender(1, 0, 10, "a"), &coord);
+    handle_frame_data(&frame_value_with_sender(1, 1, 10, "a"), &coord);
+    handle_frame_data(&frame_value_with_sender(2, 0, 99, "b"), &coord);
 
     let state = coord.frame_sessions_mut();
     let s1 = state.get(1).unwrap();
@@ -371,6 +392,7 @@ fn frame_ack_response_matches_transport_frame_ack_fields() {
         "seq": 5,
         "rtt_us": 999,
         "recv_pts_us": 5 * 16_667,
+        "sender_id": "client-a",
     });
     let v = parse(&handle_frame_ack(&ack, &coord));
     let expected = FrameAck {
@@ -469,7 +491,7 @@ fn frame_ack_after_close_fails_cleanly() {
     handle_session_init(&init_value("client-a"), &coord);
     handle_session_close(&close_value(1), &coord);
 
-    let ack = serde_json::json!({"type":"frame_ack","session_id":1,"seq":0,"rtt_us":1});
+    let ack = serde_json::json!({"type":"frame_ack","session_id":1,"seq":0,"rtt_us":1,"sender_id":"client-a"});
     let v = parse(&handle_frame_ack(&ack, &coord));
     assert_eq!(v["error"], "session_gone");
     assert_eq!(v["reason"], "closed");
@@ -522,7 +544,16 @@ fn session_close_leaves_other_sessions_live() {
     handle_session_close(&close_value(1), &coord);
 
     assert_eq!(coord.frame_sessions_mut().len(), 1);
-    let live = parse(&handle_frame_data(&frame_value(2, 0, 64), &coord));
+    // Session 2 was opened with `client_id = "b"`, so its input owner is
+    // "b"; the default `frame_value` would not match.
+    let live = parse(&handle_frame_data(
+        &frame_value_with_sender(2, 0, 64, "b"),
+        &coord,
+    ));
+    assert_eq!(
+        live["type"], "frame_ack",
+        "session 2 must still accept frames after session 1 is closed"
+    );
     assert_eq!(
         live["type"], "frame_ack",
         "session 2 must still work: {live}"
@@ -562,7 +593,7 @@ fn session_cancel_releases_partial_state() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
     handle_frame_data(&frame_value(1, 0, 100), &coord);
-    let ack = serde_json::json!({"type":"frame_ack","session_id":1,"seq":0,"rtt_us":900});
+    let ack = serde_json::json!({"type":"frame_ack","session_id":1,"seq":0,"rtt_us":900,"sender_id":"client-a"});
     handle_frame_ack(&ack, &coord);
 
     {
@@ -677,7 +708,7 @@ fn frame_ack_after_expiry_fails_cleanly() {
     age_session_past_idle_timeout(&coord, 1);
     sweep_expired_frame_sessions(&coord);
 
-    let ack = serde_json::json!({"type":"frame_ack","session_id":1,"seq":0,"rtt_us":1});
+    let ack = serde_json::json!({"type":"frame_ack","session_id":1,"seq":0,"rtt_us":1,"sender_id":"client-a"});
     assert_eq!(parse(&handle_frame_ack(&ack, &coord))["reason"], "expired");
 }
 

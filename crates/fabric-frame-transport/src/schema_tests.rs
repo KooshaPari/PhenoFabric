@@ -182,6 +182,8 @@ mod frame_types_tests {
             "FrameData",
             "frame_ack",
             "FrameAck",
+            "session_transfer",
+            "SessionTransfer",
         ] {
             assert!(is_known_type(t), "{t} should be a known type");
         }
@@ -232,9 +234,27 @@ mod frame_types_tests {
     }
 
     #[test]
-    fn frame_data_and_ack_require_seq() {
-        assert_eq!(required_fields("frame_data"), &["seq"]);
-        assert_eq!(required_fields("frame_ack"), &["seq"]);
+    fn frame_data_and_ack_require_seq_and_sender_id() {
+        // `seq` was the original required field; `sender_id` was added so the
+        // daemon can attribute input to a peer without trusting the sender's
+        // self-declaration alone. Both must remain required.
+        assert_eq!(required_fields("frame_data"), &["seq", "sender_id"]);
+        assert_eq!(required_fields("frame_ack"), &["seq", "sender_id"]);
+    }
+
+    #[test]
+    fn session_transfer_requires_owners() {
+        // Both `input_owner` and `output_owner` are required, and the
+        // session must identify which session to hand over. `focus_owner`
+        // is optional and falls back to `input_owner` at the daemon.
+        assert_eq!(
+            required_fields("session_transfer"),
+            &["session_id", "input_owner", "output_owner"],
+        );
+        assert_eq!(
+            required_fields("SessionTransfer"),
+            &["session_id", "input_owner", "output_owner"],
+        );
     }
 
     #[test]
@@ -254,7 +274,13 @@ mod frame_types_tests {
 
     #[test]
     fn frame_data_missing_seq_fails_schema() {
-        let result = validate_against_schema(r#"{"type":"frame_data","codec":"Rgba"}"#, "wire");
+        // The schema also requires `sender_id`, but `seq` is the first one
+        // surfaced here because that is the field the test pins. The
+        // exact field is enforced by the per-field tests above.
+        let result = validate_against_schema(
+            r#"{"type":"frame_data","codec":"Rgba","sender_id":"peer-1"}"#,
+            "wire",
+        );
         assert_eq!(result.unwrap_err().code, "MISSING_FIELD");
     }
 

@@ -8,6 +8,7 @@ pub mod frame_handlers;
 pub mod frame_resume;
 pub mod frame_session_lifecycle;
 pub mod frame_session_state;
+pub mod frame_transfer;
 mod handlers;
 mod network_handlers;
 pub mod protocol;
@@ -336,7 +337,7 @@ fn note_session_in_line(line: &str, sessions: &mut Vec<u64>) {
     let normalized = msg_type.to_ascii_lowercase().replace('_', "");
     if !matches!(
         normalized.as_str(),
-        "framedata" | "frameack" | "sessionresume"
+        "framedata" | "frameack" | "sessionresume" | "sessiontransfer"
     ) {
         return;
     }

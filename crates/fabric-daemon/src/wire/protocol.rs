@@ -127,6 +127,15 @@ pub async fn process_message(message: &str, coordinator: &Coordinator) -> Option
             &validated.value,
             coordinator,
         )),
+        // Ownership transition. Hands the input / output / focus seats of a
+        // live session to new peer ids. The handler lives in its own module
+        // for the same reason resume does: it is a self-contained control
+        // plane request with its own error taxonomy, and adding it to
+        // `frame_handlers` would have pushed that file past the 500-line
+        // ceiling.
+        "session_transfer" | "SessionTransfer" => Some(
+            super::frame_transfer::handle_session_transfer(&validated.value, coordinator),
+        ),
         _ => Some(format!(
             r#"{{"error":"unknown_message","type":"{}"}}"#,
             msg_type
@@ -368,7 +377,7 @@ mod tests {
         let coord = make_coordinator();
         process_message(session_init_line(), &coord).await.unwrap();
 
-        let frame = r#"{"type":"frame_data","session_id":1,"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667}"#;
+        let frame = r#"{"type":"frame_data","session_id":1,"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"protocol-test"}"#;
         let resp = process_message(frame, &coord).await.unwrap();
         assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
         let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -382,8 +391,7 @@ mod tests {
     #[tokio::test]
     async fn frame_data_without_a_session_init_is_an_unknown_session_error() {
         let coord = make_coordinator();
-        let frame =
-            r#"{"type":"frame_data","session_id":7,"seq":0,"codec":"Rgba","payload_len":16}"#;
+        let frame = r#"{"type":"frame_data","session_id":7,"seq":0,"codec":"Rgba","payload_len":16,"sender_id":"x"}"#;
         let resp = process_message(frame, &coord).await.unwrap();
         let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(v["type"], "frame_error");
@@ -395,18 +403,100 @@ mod tests {
     async fn frame_ack_is_dispatched_for_a_known_session() {
         let coord = make_coordinator();
         process_message(session_init_line(), &coord).await.unwrap();
-        let frame =
-            r#"{"type":"frame_data","session_id":1,"seq":1,"codec":"Rgba","payload_len":32}"#;
+        let frame = r#"{"type":"frame_data","session_id":1,"seq":1,"codec":"Rgba","payload_len":32,"sender_id":"protocol-test"}"#;
         process_message(frame, &coord).await.unwrap();
 
-        let ack =
-            r#"{"type":"frame_ack","session_id":1,"seq":1,"rtt_us":4200,"recv_pts_us":16667}"#;
+        let ack = r#"{"type":"frame_ack","session_id":1,"seq":1,"rtt_us":4200,"recv_pts_us":16667,"sender_id":"protocol-test"}"#;
         let resp = process_message(ack, &coord).await.unwrap();
         assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
         let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(v["type"], "frame_ack_response");
         assert_eq!(v["acked"], true);
         assert_eq!(v["rtt_us"], 4200);
+    }
+
+    #[tokio::test]
+    async fn frame_data_missing_sender_id_is_a_validation_error() {
+        // The schema lists `sender_id` as a required string on `frame_data`,
+        // so a frame that omits it is rejected before reaching the handler.
+        let coord = make_coordinator();
+        process_message(session_init_line(), &coord).await.unwrap();
+        let frame =
+            r#"{"type":"frame_data","session_id":1,"seq":1,"codec":"Rgba","payload_len":8}"#;
+        let resp = process_message(frame, &coord).await.unwrap();
+        assert!(resp.contains("MISSING_FIELD"), "got: {resp}");
+    }
+
+    #[tokio::test]
+    async fn frame_data_with_wrong_sender_id_is_rejected() {
+        // The daemon must reject a `frame_data` whose declared `sender_id`
+        // is not the session's current input owner. The init opener is
+        // `protocol-test`; a frame claiming to be from `attacker` is
+        // refused with `input_owner_mismatch` rather than being counted.
+        let coord = make_coordinator();
+        process_message(session_init_line(), &coord).await.unwrap();
+        let frame = r#"{"type":"frame_data","session_id":1,"seq":1,"codec":"Rgba","payload_len":8,"sender_id":"attacker"}"#;
+        let resp = process_message(frame, &coord).await.unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "frame_error");
+        assert_eq!(v["error"], "input_owner_mismatch");
+        assert_eq!(v["session_id"], 1);
+        assert_eq!(v["current_input_owner"], "protocol-test");
+        assert_eq!(v["declared_sender_id"], "attacker");
+    }
+
+    #[tokio::test]
+    async fn session_transfer_hands_input_to_a_new_peer() {
+        // A2 ownership handoff: after `session_transfer`, the previous
+        // input owner is locked out of `frame_data` and the new owner is
+        // accepted.
+        let coord = make_coordinator();
+        process_message(session_init_line(), &coord).await.unwrap();
+
+        let transfer = r#"{"type":"session_transfer","session_id":1,"input_owner":"new-input","output_owner":"new-output"}"#;
+        let resp = process_message(transfer, &coord).await.unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "session_transfer_ack");
+        assert_eq!(v["input_owner"], "new-input");
+        assert_eq!(v["output_owner"], "new-output");
+        // focus_owner defaults to input_owner when not supplied.
+        assert_eq!(v["focus_owner"], "new-input");
+
+        // The new owner can drive frames; the old one is rejected.
+        let new_frame = r#"{"type":"frame_data","session_id":1,"seq":1,"codec":"Rgba","payload_len":8,"sender_id":"new-input"}"#;
+        let resp = process_message(new_frame, &coord).await.unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "frame_ack");
+
+        let old_frame = r#"{"type":"frame_data","session_id":1,"seq":2,"codec":"Rgba","payload_len":8,"sender_id":"protocol-test"}"#;
+        let resp = process_message(old_frame, &coord).await.unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "frame_error");
+        assert_eq!(v["error"], "input_owner_mismatch");
+        assert_eq!(v["current_input_owner"], "new-input");
+    }
+
+    #[tokio::test]
+    async fn session_transfer_empty_owner_is_a_degenerate_transfer() {
+        let coord = make_coordinator();
+        process_message(session_init_line(), &coord).await.unwrap();
+        let transfer = r#"{"type":"session_transfer","session_id":1,"input_owner":"","output_owner":"new-output"}"#;
+        let resp = process_message(transfer, &coord).await.unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "frame_error");
+        assert_eq!(v["error"], "degenerate_transfer");
+    }
+
+    #[tokio::test]
+    async fn session_transfer_unknown_session_is_unknown_session() {
+        let coord = make_coordinator();
+        let transfer =
+            r#"{"type":"session_transfer","session_id":99,"input_owner":"x","output_owner":"y"}"#;
+        let resp = process_message(transfer, &coord).await.unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "frame_error");
+        assert_eq!(v["error"], "unknown_session");
+        assert_eq!(v["session_id"], 99);
     }
 
     #[tokio::test]
@@ -431,8 +521,7 @@ mod tests {
         // A float seq would silently become 0 if validation did not reject it.
         let coord = make_coordinator();
         process_message(session_init_line(), &coord).await.unwrap();
-        let frame =
-            r#"{"type":"frame_data","session_id":1,"seq":1.5,"codec":"Rgba","payload_len":8}"#;
+        let frame = r#"{"type":"frame_data","session_id":1,"seq":1.5,"codec":"Rgba","payload_len":8,"sender_id":"protocol-test"}"#;
         let resp = process_message(frame, &coord).await.unwrap();
         assert!(resp.contains("WRONG_TYPE"), "got: {resp}");
     }

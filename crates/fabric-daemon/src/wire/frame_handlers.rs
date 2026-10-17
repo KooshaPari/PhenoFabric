@@ -101,6 +101,27 @@ fn frame_error(error: &str, message: String) -> String {
     }))
 }
 
+/// Build the rejection for a frame whose declared sender is not the session's
+/// current input owner.
+///
+/// The error names the owner the daemon has on file (not the offender's id)
+/// because the offender's id is the *untrusted* input: the daemon does not
+/// assume the caller is who they say they are, so the diagnostic points at
+/// the truth the daemon can verify.
+fn input_owner_mismatch(session_id: u64, current_owner: &str, declared_sender: &str) -> String {
+    respond(serde_json::json!({
+        "type": "frame_error",
+        "error": "input_owner_mismatch",
+        "session_id": session_id,
+        "current_input_owner": current_owner,
+        "declared_sender_id": declared_sender,
+        "message": format!(
+            "frame declared sender_id '{declared_sender}' but session {session_id} is \
+             owned by '{current_owner}'; only the current input owner can drive frames"
+        ),
+    }))
+}
+
 /// Build the `frame_error` for a `frame_data` / `frame_ack` that names a
 /// session which is no longer live.
 ///
@@ -241,6 +262,14 @@ pub fn handle_session_init(value: &Value, coordinator: &Coordinator) -> String {
         server_time_ms: coordinator.now_ms(),
     };
 
+    // Echo the initial ownership seats on the session_ack so the client
+    // does not have to send a follow-up request to learn them. The seats
+    // are the same string -- the opener's client_id -- for all three fields
+    // at t=0; the daemon only diverges them on an explicit session_transfer.
+    let input_owner = session.input_owner.clone();
+    let output_owner = session.output_owner.clone();
+    let focus_owner = session.focus_owner.clone();
+
     respond(serde_json::json!({
         "type": "session_ack",
         "codec": ack.codec,
@@ -255,6 +284,11 @@ pub fn handle_session_init(value: &Value, coordinator: &Coordinator) -> String {
         "client_id": session.client_id,
         "max_latency_ms": session.max_latency_ms,
         "version": session.version,
+        // Initial ownership seats. A subsequent session_transfer can change
+        // any of these; the response to a transfer is `session_transfer_ack`.
+        "input_owner": input_owner,
+        "output_owner": output_owner,
+        "focus_owner": focus_owner,
     }))
 }
 
@@ -290,6 +324,20 @@ pub fn handle_frame_data(value: &Value, coordinator: &Coordinator) -> String {
         None => return frame_error("missing_codec", "frame_data must name a codec".to_string()),
     };
 
+    // `sender_id` is required by the schema, so reaching here with a missing
+    // field is a protocol bug rather than a normal path. The schema layer
+    // produces `validation_error`; this branch is the safety net for any
+    // future call that bypasses the schema and reaches the handler directly.
+    let sender_id = match value.get("sender_id").and_then(Value::as_str) {
+        Some(s) => s.to_string(),
+        None => {
+            return frame_error(
+                "missing_sender_id",
+                "frame_data must declare sender_id naming the current input owner".to_string(),
+            )
+        }
+    };
+
     let payload_len = opt_u32(value, "payload_len");
     let header = FrameHeader {
         seq,
@@ -321,10 +369,27 @@ pub fn handle_frame_data(value: &Value, coordinator: &Coordinator) -> String {
         return session_lookup_error(&state, session_id);
     }
 
+    // Ownership gate: the declared sender must match the session's current
+    // input owner. A mismatch is refused before the frame is counted, so a
+    // non-owner's stream cannot pollute the session's frame accounting or
+    // move the focus seat. The match is exact -- whitespace and case count
+    // -- so a typo in `sender_id` is reported rather than silently coerced
+    // into acceptance.
+    let current_input_owner = state
+        .get(session_id)
+        .map(|s| s.input_owner.clone())
+        .unwrap_or_default();
+    if sender_id != current_input_owner {
+        return input_owner_mismatch(session_id, &current_input_owner, &sender_id);
+    }
+
+    // The frame is now accepted. The focus seat moves to the sender so a
+    // silent peer cannot keep focus once another peer takes over input.
     let counters = state.touch_session(session_id, coordinator.now_ms(), |session| {
         session.last_seq = Some(seq);
         session.frame_count += 1;
         session.frames_received += payload_len as u64;
+        session.focus_owner = sender_id.clone();
     });
 
     let Some(counters) = counters else {
@@ -341,6 +406,11 @@ pub fn handle_frame_data(value: &Value, coordinator: &Coordinator) -> String {
         "frames_received": counters.frames_received,
         "payload_len": header.payload_len,
         "is_keyframe": header.is_keyframe,
+        // Echo the ownership seats so a downstream consumer can verify the
+        // daemon's framing decision on every accepted frame, not just at
+        // session start.
+        "input_owner": current_input_owner,
+        "focus_owner": sender_id,
     }))
 }
 
@@ -374,9 +444,30 @@ pub fn handle_frame_ack(value: &Value, coordinator: &Coordinator) -> String {
         recv_pts_us: opt_u64(value, "recv_pts_us"),
     };
 
+    // `sender_id` is the ownership gate for frame_ack as for frame_data: the
+    // ack is produced by the same logical sender (the input owner) and a
+    // foreign ack is refused before it can move counters.
+    let sender_id = match value.get("sender_id").and_then(Value::as_str) {
+        Some(s) => s.to_string(),
+        None => {
+            return frame_error(
+                "missing_sender_id",
+                "frame_ack must declare sender_id naming the current input owner".to_string(),
+            )
+        }
+    };
+
     let mut state = coordinator.frame_sessions_mut();
     if !state.contains(session_id) {
         return session_lookup_error(&state, session_id);
+    }
+
+    let current_input_owner = state
+        .get(session_id)
+        .map(|s| s.input_owner.clone())
+        .unwrap_or_default();
+    if sender_id != current_input_owner {
+        return input_owner_mismatch(session_id, &current_input_owner, &sender_id);
     }
 
     let mut acked = false;
@@ -412,6 +503,10 @@ pub fn handle_frame_ack(value: &Value, coordinator: &Coordinator) -> String {
         "ack_count": counters.ack_count,
         "last_seq": counters.last_seq,
         "recorded_rtt_us": recorded_rtt_us,
+        // The input owner is the only legitimate sender of an ack for this
+        // session; echoing it back lets the caller verify its own
+        // identity assumption against the daemon's state.
+        "input_owner": current_input_owner,
     }))
 }
 

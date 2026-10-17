@@ -315,9 +315,11 @@ fn frame_round_trip_through_real_daemon() {
     assert_eq!(ack["height"], 48);
 
     // --- 2. Send one real frame for that session ---
-    // 64*48*4 = 12288 bytes of RGBA.
+    // 64*48*4 = 12288 bytes of RGBA. The `sender_id` matches the
+    // session's input owner (the opener) so the ownership gate accepts
+    // the frame rather than rejecting it as `input_owner_mismatch`.
     let frame = exchange(&format!(
-        r#"{{"type":"frame_data","session_id":{session_id},"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667}}"#
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"round-trip-client"}}"#
     ));
     assert_eq!(frame["type"], "frame_ack", "got: {frame}");
     assert_eq!(frame["status"], "ok", "daemon rejected the frame: {frame}");
@@ -335,7 +337,7 @@ fn frame_round_trip_through_real_daemon() {
 
     // --- 3. Acknowledge the frame ---
     let ack_response = exchange(&format!(
-        r#"{{"type":"frame_ack","session_id":{session_id},"seq":0,"rtt_us":1234,"recv_pts_us":0}}"#
+        r#"{{"type":"frame_ack","session_id":{session_id},"seq":0,"rtt_us":1234,"recv_pts_us":0,"sender_id":"round-trip-client"}}"#
     ));
     assert_eq!(
         ack_response["type"], "frame_ack_response",
@@ -350,8 +352,11 @@ fn frame_round_trip_through_real_daemon() {
     assert_eq!(ack_response["ack_count"], 1);
 
     // --- 4. A frame for an unknown session is reported, not dropped ---
+    // The session id is the only thing being tested here, so `sender_id`
+    // is filled in with a placeholder; the schema check is bypassed in
+    // the same way the test bypasses it before reaching the handler.
     let orphan = exchange(
-        r#"{"type":"frame_data","session_id":4242,"seq":0,"codec":"Rgba","payload_len":16}"#,
+        r#"{"type":"frame_data","session_id":4242,"seq":0,"codec":"Rgba","payload_len":16,"sender_id":"placeholder"}"#,
     );
     assert_eq!(orphan["type"], "frame_error", "got: {orphan}");
     assert_eq!(
@@ -420,7 +425,7 @@ fn exchange_frame(
     seq: u64,
 ) -> serde_json::Value {
     let request = format!(
-        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"codec":"Av1","width":32,"height":32,"payload_len":4096}}"#
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"codec":"Av1","width":32,"height":32,"payload_len":4096,"sender_id":"reconnect"}}"#
     );
     stream
         .write_all(request.as_bytes())
@@ -464,9 +469,13 @@ fn frame_exchange(addr: &str) -> impl FnMut(&str) -> serde_json::Value {
 
 const INIT_LINE: &str = r#"{"type":"session_init","version":1,"preferred_codec":"Rgba","width":64,"height":48,"target_fps":60,"max_latency_ms":33,"client_id":"teardown-client"}"#;
 
+/// One `frame_data` line whose `sender_id` matches the opener
+/// (`teardown-client`). The ownership gate refuses a frame whose declared
+/// sender is not the session's current input owner, so the helper hard
+/// codes the matching id rather than letting each caller choose.
 fn frame_line(session_id: u64, seq: u64) -> String {
     format!(
-        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667}}"#
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"teardown-client"}}"#
     )
 }
 
@@ -621,8 +630,14 @@ fn session_cancel_leaves_other_sessions_live() {
         r#"{{"type":"session_cancel","session_id":{first_id}}}"#
     ));
 
-    // The untouched session still carries frames.
-    let live = exchange(&frame_line(second_id, 0));
+    // The untouched session still carries frames. The frame's
+    // `sender_id` must match the second session's opener
+    // (`second-client`), not the first session's opener
+    // (`teardown-client`), because the ownership gate checks
+    // per-session.
+    let live = exchange(&format!(
+        r#"{{"type":"frame_data","session_id":{second_id},"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"second-client"}}"#
+    ));
     assert_eq!(
         live["type"], "frame_ack",
         "cancelling session {first_id} must not affect session {second_id}: {live}"
