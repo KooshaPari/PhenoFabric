@@ -880,6 +880,47 @@ jobs:
             exit 1
           fi
 
+      # The step above only proves the ARCHIVES exist. It says nothing about
+      # their CONTENTS -- which is exactly how v0.1.2 shipped four archives
+      # that were missing the main `fabric` CLI binary (the build asked for
+      # a bin named "fabric-cli" that does not exist, and `2>/dev/null ||
+      # true` swallowed the miss). Verify the contents too, so a
+      # wrong-bin-name release can never pass verification again.
+      - name: Verify CLI archives contain the expected binaries
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          # Must match EXPECTED_RELEASE_BINS in the build/package job.
+          EXPECTED="fabric fabric-daemon fabric-tui fabric-tray fabric-graph-cli"
+          failed=0
+          for platform in linux-x86_64 macos-x86_64 macos-aarch64; do
+            archive="release-assets/phenotype-fabric-${TAG}-${platform}.tar.gz"
+            [ -f "$archive" ] || continue
+            listing=$(tar tzf "$archive")
+            for bin in $EXPECTED; do
+              if ! printf '%s\n' "$listing" | grep -qE "/${bin}$"; then
+                echo "::error::${archive} does not contain expected binary '${bin}'"
+                failed=1
+              fi
+            done
+            echo "---- ${archive} ----"
+            printf '%s\n' "$listing"
+          done
+          zip_archive="release-assets/phenotype-fabric-${TAG}-windows-x86_64.zip"
+          if [ -f "$zip_archive" ]; then
+            listing=$(unzip -l "$zip_archive")
+            for bin in $EXPECTED; do
+              if ! printf '%s\n' "$listing" | grep -qE "${bin}\.exe"; then
+                echo "::error::${zip_archive} does not contain expected binary '${bin}.exe'"
+                failed=1
+              fi
+            done
+          fi
+          if [ "$failed" = "1" ]; then
+            echo "::error::One or more release archives are missing expected binaries; the release artifact is not usable."
+            exit 1
+          fi
+          echo "All release archives contain the expected binaries: $EXPECTED"
+
       - name: Verify Docker image is pullable
         # The docker-build job is marked continue-on-error upstream, so
         # the image may not exist. Treat this verification as best-effort
