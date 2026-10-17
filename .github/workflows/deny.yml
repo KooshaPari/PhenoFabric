@@ -61,13 +61,24 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: "1.21"
+          # 1.26.x, not 1.21. The three govulncheck steps below were passing
+          # only because of `|| true`; with the waiver removed, the pinned 1.21
+          # toolchain reported REAL standard-library vulnerabilities in all
+          # three modules (exit 3):
+          #   GO-2026-4971  net      fixed in go1.25.10
+          #   GO-2025-3956  os/exec  fixed in go1.23.12
+          #   GO-2025-3750  syscall  fixed in go1.23.10
+          # Verified locally: at go1.26.5 all three modules report
+          # 0 vulnerabilities and exit 0.
+          go-version: "1.26.x"
           cache: false
 
       - name: Install govulncheck
-        # Pin to v1.0.4: v1.1+ requires Go 1.22, and `GOTOOLCHAIN=local`
-        # below prevents the auto-upgrade that would otherwise resolve it.
-        run: go install golang.org/x/vuln/cmd/govulncheck@v1.0.4
+        # Previously pinned to v1.0.4 because v1.1+ requires Go 1.22 and the
+        # toolchain was 1.21. With Go 1.26.x that constraint is gone, so track
+        # latest rather than pinning to a version chosen to work around an
+        # outdated toolchain.
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
       - name: Run govulncheck (capprobe)
         working-directory: cmd/capprobe

@@ -5,7 +5,7 @@
   ".github/actions/linux-build-deps/action.yml": "a6d55aebf62146ea4755e560516b6e2c985572a07954180f852a2bc887c2102f",
   ".github/dependabot.yml": "ad2c750f7b6ee464824b6aa8bc0bb63b4ce1affcccd8477ad2f4ff7ea30dcd99",
   ".github/workflows/ci.yml": "7077d948765a591eeada90fca664dee0765660e26a40c58b7545887948d497d6",
-  ".github/workflows/deny.yml": "ae2d593649faa04c32a674c8f474b17f7a45ffa1953da92eabc59f4745e64541",
+  ".github/workflows/deny.yml": "f0c75a0ab757d56810b623145d9c52c5d14d7b65b8d1240f8ba58fac1e01b151",
   ".github/workflows/e2e.yml": "eb530ef03caf26bc2432b019d23d5ab22d4715d68a8ce88ca617bde36fadf90e",
   ".github/workflows/release.yml": "d77b1a2b583a732f79f6d5ce65060ecb07a108a029a2ef5f08c9019b5cc56ffa",
   ".github/workflows/spec-validation.yml": "61a0533ea3460bb2495e581430bd112fb42bafa03a8bc15b1a1fa9cbb1e989e6",
