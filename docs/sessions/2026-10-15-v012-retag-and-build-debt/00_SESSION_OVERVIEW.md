@@ -3070,3 +3070,39 @@ on the next heartbeat. Note that `CI` on `1fa52c3` was already **6 of 7
 green** (Clippy, Check, Format, Release build, Unit tests, Integration
 tests all success) with only E2E pending, and the E2E *workflow*
 (`38986046866`) was **success** in 14m12s.
+
+---
+
+## R49 — CI queue blocked ~26 min: likely account Actions capacity (operator-scope)
+
+The Spec Validation run for `b88566d` stayed `queued` for ~26 minutes.
+That is not normal queueing, and I did not want to sit on it silently.
+
+**What I checked:**
+
+| Hypothesis | Result |
+|---|---|
+| Workflow concurrency blocking | **RULED OUT** — only `ci.yml` and `e2e.yml` declare a `concurrency` block; `spec-validation.yml` has none |
+| Normal queue delay | **Unlikely** — 3 runs sat queued for 20-26 min while 9 others completed, and an **older** Spec Validation run (`1fa52c3`) completed while the newer one did not |
+| Account Actions capacity / spending limit | **LEADING HYPOTHESIS, UNVERIFIED** — `gh api /users/.../settings/billing/actions` returns HTTP 404 and states the token needs the `user` scope, which it does not have |
+
+`AGENTS.md` already warns that this account's Actions free tier was
+exhausted by agent swarms, which makes capacity exhaustion the most
+probable cause. I could not confirm it, so I am **not** asserting it as
+fact — only as the leading hypothesis.
+
+**This is an operator-scope blocker.** An agent cannot resolve a
+billing or spending-limit condition. If runs never leave `queued`, no
+amount of further agent work will produce a CI result.
+
+**What this means for the record:**
+
+- The Spec Validation fix (`b88566d`) is **verified locally**
+  (1069 tracked entries, all digests verified, exit 0) but
+  **unconfirmed in CI**. I am recording it that way rather than
+  claiming a pass.
+- No queued run is reported as green or as failing. A queued run has
+  no conclusion.
+
+**Operator action if CI stays queued:** check Settings → Billing →
+Actions spending limit / included minutes for the account.
