@@ -61,6 +61,29 @@ pub fn run_wire_server(
             break;
         }
 
+        // Idle-expiry sweep. Driven from this loop rather than from a
+        // per-connection reader thread because this loop ticks on a
+        // wall-clock cadence whether or not any client is sending: a session
+        // belonging to a client that vanished without closing must still be
+        // reaped, and that client will send nothing to trigger it.
+        //
+        // The loop sleeps ~100 ms per tick when the listener has nothing to
+        // accept, so this scans at roughly 10 Hz. The timeout is far larger
+        // (see `frame_session_state::DEFAULT_IDLE_TIMEOUT_MS`), so the sweep
+        // cost is a hash-map scan of at most
+        // `MAX_CONCURRENT_SESSIONS` entries per tick.
+        {
+            let expired = frame_handlers::sweep_expired_frame_sessions(&coordinator);
+            if !expired.is_empty() {
+                info!(
+                    count = expired.len(),
+                    sessions = ?expired,
+                    idle_timeout_ms = frame_session_state::DEFAULT_IDLE_TIMEOUT_MS,
+                    "expired idle frame sessions"
+                );
+            }
+        }
+
         // Accept with a short timeout so we can check shutdown flag periodically.
         match listener.accept() {
             Ok((stream, peer_addr)) => {

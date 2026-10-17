@@ -109,6 +109,17 @@ pub async fn process_message(message: &str, coordinator: &Coordinator) -> Option
             &validated.value,
             coordinator,
         )),
+        // Session teardown. Same wiring as the frame messages above: the line
+        // is validated here, then handed to a frame handler that owns the
+        // session-state transition.
+        "session_close" | "SessionClose" => Some(super::frame_handlers::handle_session_close(
+            &validated.value,
+            coordinator,
+        )),
+        "session_cancel" | "SessionCancel" => Some(super::frame_handlers::handle_session_cancel(
+            &validated.value,
+            coordinator,
+        )),
         _ => Some(format!(
             r#"{{"error":"unknown_message","type":"{}"}}"#,
             msg_type

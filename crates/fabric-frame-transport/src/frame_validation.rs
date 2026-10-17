@@ -50,6 +50,14 @@ pub(super) fn validate_frame_fields(
             u64(obj, "recv_pts_us", msg_type)?;
             Ok(())
         }
+        // Teardown carries only the session it tears down. The check is here
+        // rather than relying on the handler's `as_u64` because a string or a
+        // negative number would otherwise read as "absent" and produce a
+        // misleading `missing_session_id` instead of `WRONG_TYPE`.
+        "sessionclose" | "sessioncancel" => {
+            u64(obj, "session_id", msg_type)?;
+            Ok(())
+        }
         _ => Ok(()),
     }
 }

@@ -341,6 +341,52 @@
       "additionalProperties": true
     },
     {
+      "$comment": "session_close: orderly end of a frame session; removes it from the daemon",
+      "type": "object",
+      "required": [
+        "type",
+        "session_id"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "session_close",
+            "SessionClose"
+          ]
+        },
+        "session_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Server-assigned session id from a prior session_ack."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "$comment": "session_cancel: abort a frame session mid-transfer; removes it from the daemon",
+      "type": "object",
+      "required": [
+        "type",
+        "session_id"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "session_cancel",
+            "SessionCancel"
+          ]
+        },
+        "session_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Server-assigned session id from a prior session_ack."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "$comment": "network_status_request: probe UPnP, STUN, and Tailscale availability on the daemon host",
       "type": "object",
       "required": [

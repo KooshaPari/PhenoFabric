@@ -33,6 +33,11 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     "session_init",
     "frame_data",
     "frame_ack",
+    // Session teardown. `session_close` is the orderly end of a session;
+    // `session_cancel` is an abort mid-transfer. Both name a server-assigned
+    // `session_id` from a prior `session_ack` and both remove the session.
+    "session_close",
+    "session_cancel",
 ];
 
 /// Required fields per message type (fields that MUST be present and non-null).
@@ -69,6 +74,10 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
     ("session_init", &["client_id"]),
     ("frame_data", &["seq"]),
     ("frame_ack", &["seq"]),
+    // Teardown names the session it tears down, so `session_id` is mandatory:
+    // a close without one could not identify its target.
+    ("session_close", &["session_id"]),
+    ("session_cancel", &["session_id"]),
 ];
 
 /// Expected field types (field_name, expected_json_type).

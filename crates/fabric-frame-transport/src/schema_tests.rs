@@ -175,6 +175,8 @@ mod frame_types_tests {
     fn frame_types_are_known() {
         for t in [
             "session_init",
+            "session_close",
+            "session_cancel",
             "SessionInit",
             "frame_data",
             "FrameData",
@@ -189,6 +191,44 @@ mod frame_types_tests {
     fn session_init_requires_client_id() {
         assert_eq!(required_fields("session_init"), &["client_id"]);
         assert_eq!(required_fields("SessionInit"), &["client_id"]);
+    }
+
+    #[test]
+    fn teardown_types_require_session_id() {
+        assert_eq!(required_fields("session_close"), &["session_id"]);
+        assert_eq!(required_fields("session_cancel"), &["session_id"]);
+    }
+
+    #[test]
+    fn valid_teardown_passes_schema() {
+        for line in [
+            r#"{"type":"session_close","session_id":1}"#,
+            r#"{"type":"session_cancel","session_id":7}"#,
+        ] {
+            assert!(
+                validate_against_schema(line, "wire").is_ok(),
+                "should validate: {line}"
+            );
+        }
+    }
+
+    #[test]
+    fn teardown_without_session_id_fails_schema() {
+        for line in [
+            r#"{"type":"session_close"}"#,
+            r#"{"type":"session_cancel"}"#,
+        ] {
+            let err =
+                validate_against_schema(line, "wire").expect_err("teardown must name its session");
+            assert_eq!(err.code, "MISSING_FIELD", "for {line}: {err}");
+        }
+    }
+
+    #[test]
+    fn teardown_null_session_id_fails_schema() {
+        let err = validate_against_schema(r#"{"type":"session_close","session_id":null}"#, "wire")
+            .expect_err("null session_id must be rejected");
+        assert_eq!(err.code, "NULL_FIELD");
     }
 
     #[test]

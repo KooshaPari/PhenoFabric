@@ -94,6 +94,52 @@ fn frame_ack_missing_seq_rejected() {
 }
 
 #[test]
+fn valid_session_close() {
+    assert!(validate_message(r#"{"type":"session_close","session_id":3}"#).is_ok());
+}
+
+#[test]
+fn valid_session_cancel() {
+    assert!(validate_message(r#"{"type":"session_cancel","session_id":3}"#).is_ok());
+}
+
+#[test]
+fn teardown_missing_session_id_rejected() {
+    for line in [
+        r#"{"type":"session_close"}"#,
+        r#"{"type":"session_cancel"}"#,
+    ] {
+        let err = validate_message(line).expect_err("must name its session");
+        assert_eq!(err.code, "MISSING_FIELD", "for {line}");
+    }
+}
+
+#[test]
+fn teardown_null_session_id_rejected() {
+    let err = validate_message(r#"{"type":"session_close","session_id":null}"#)
+        .expect_err("null rejected");
+    assert_eq!(err.code, "NULL_FIELD");
+}
+
+// A string or float session_id must be WRONG_TYPE, not silently read as
+// "absent" by the handler's `as_u64`, which would report the misleading
+// `missing_session_id` instead.
+#[test]
+fn teardown_non_integer_session_id_rejected() {
+    for bad in [r#""3""#, "1.5", "-1", "true"] {
+        let line = format!(r#"{{"type":"session_close","session_id":{bad}}}"#);
+        let err = validate_message(&line).expect_err("must be an unsigned integer");
+        assert_eq!(err.code, "WRONG_TYPE", "for {line}: {err}");
+    }
+}
+
+#[test]
+fn teardown_types_accept_pascal_case() {
+    assert!(validate_message(r#"{"type":"SessionClose","session_id":1}"#).is_ok());
+    assert!(validate_message(r#"{"type":"SessionCancel","session_id":1}"#).is_ok());
+}
+
+#[test]
 fn frame_types_accept_pascal_case() {
     assert!(validate_message(&INIT.replace("session_init", "SessionInit")).is_ok());
     assert!(validate_message(r#"{"type":"FrameData","seq":0}"#).is_ok());

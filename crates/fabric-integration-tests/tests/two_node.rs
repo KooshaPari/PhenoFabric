@@ -432,3 +432,202 @@ fn exchange_frame(
     assert_ne!(read, 0, "daemon closed the connection");
     serde_json::from_str(line.trim()).unwrap_or_else(|e| panic!("bad JSON ({e}): {line}"))
 }
+
+// ===========================================================================
+// Test 8: session_close over a real daemon
+// ===========================================================================
+
+/// Open a connection to `addr` and return a request/response exchange closure.
+///
+/// Only the closure is returned: it borrows the connection it wrote to, and
+/// no caller in these tests needs the raw socket, so handing it back would
+/// only invite using it while the closure still owns it.
+fn frame_exchange(addr: &str) -> impl FnMut(&str) -> serde_json::Value {
+    let mut stream = TcpStream::connect(addr).expect("connect to daemon wire server");
+    stream.set_nodelay(true).expect("set TCP_NODELAY");
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+        .expect("set read timeout");
+    let mut reader = BufReader::new(stream.try_clone().expect("clone stream"));
+
+    move |request: &str| -> serde_json::Value {
+        stream.write_all(request.as_bytes()).expect("write request");
+        stream.write_all(b"\n").expect("write newline");
+        stream.flush().expect("flush request");
+        let mut line = String::new();
+        let read = reader.read_line(&mut line).expect("read response");
+        assert_ne!(read, 0, "daemon closed the connection");
+        serde_json::from_str(line.trim())
+            .unwrap_or_else(|e| panic!("response was not JSON ({e}): {line}"))
+    }
+}
+
+const INIT_LINE: &str = r#"{"type":"session_init","version":1,"preferred_codec":"Rgba","width":64,"height":48,"target_fps":60,"max_latency_ms":33,"client_id":"teardown-client"}"#;
+
+fn frame_line(session_id: u64, seq: u64) -> String {
+    format!(
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667}}"#
+    )
+}
+
+/// A full `session_init` -> frames -> `session_close` cycle over real TCP.
+///
+/// Asserts on the daemon's actual responses, including that a frame sent
+/// after the close is rejected with `session_gone` rather than silently
+/// accepted.
+#[test]
+fn session_close_over_real_daemon() {
+    let (_a, b) = start_two_daemons();
+    let mut exchange = frame_exchange(&b.addr);
+
+    // --- Open ---
+    let ack = exchange(INIT_LINE);
+    assert_eq!(ack["type"], "session_ack", "got: {ack}");
+    let session_id = ack["session_id"].as_u64().expect("session_id");
+
+    // --- Stream a couple of frames so the close has counters to report ---
+    let f0 = exchange(&frame_line(session_id, 0));
+    assert_eq!(f0["type"], "frame_ack", "got: {f0}");
+    let f1 = exchange(&frame_line(session_id, 1));
+    assert_eq!(f1["frame_count"], 2);
+
+    // --- Close ---
+    let closed = exchange(&format!(
+        r#"{{"type":"session_close","session_id":{session_id}}}"#
+    ));
+    assert_eq!(closed["type"], "session_close_ack", "got: {closed}");
+    assert_eq!(closed["status"], "ok");
+    assert_eq!(closed["reason"], "closed");
+    assert_eq!(closed["session_id"], session_id);
+    assert_eq!(
+        closed["frame_count"], 2,
+        "final counters are reported: {closed}"
+    );
+    assert_eq!(closed["frames_received"], 24_576);
+
+    // --- A frame after the close is rejected cleanly ---
+    let after = exchange(&frame_line(session_id, 2));
+    assert_eq!(after["type"], "frame_error", "got: {after}");
+    assert_eq!(
+        after["error"], "session_gone",
+        "a frame for a closed session must be an explicit error: {after}"
+    );
+    assert_eq!(after["reason"], "closed");
+
+    // --- The daemon is still healthy and can host a new session ---
+    let health = exchange(r#"{"type":"health_check"}"#);
+    assert_eq!(health["status"], "healthy");
+    let reack = exchange(INIT_LINE);
+    assert_eq!(reack["type"], "session_ack");
+    assert_ne!(
+        reack["session_id"], session_id,
+        "a closed id must not be reused"
+    );
+
+    stop_daemon(b);
+}
+
+/// Closing twice over the wire is reported, not accepted as a second success.
+#[test]
+fn session_close_twice_over_real_daemon() {
+    let (_a, b) = start_two_daemons();
+    let mut exchange = frame_exchange(&b.addr);
+
+    let ack = exchange(INIT_LINE);
+    let session_id = ack["session_id"].as_u64().expect("session_id");
+    let close = format!(r#"{{"type":"session_close","session_id":{session_id}}}"#);
+
+    assert_eq!(exchange(&close)["status"], "ok");
+    let second = exchange(&close);
+    assert_eq!(second["type"], "frame_error", "got: {second}");
+    assert_eq!(second["error"], "session_gone");
+
+    stop_daemon(b);
+}
+
+// ===========================================================================
+// Test 9: session_cancel over a real daemon
+// ===========================================================================
+
+/// A session can be cancelled mid-transfer: the session stops being active,
+/// its partial state is released, and the next frame for it fails cleanly.
+#[test]
+fn session_cancel_mid_transfer_over_real_daemon() {
+    let (_a, b) = start_two_daemons();
+    let mut exchange = frame_exchange(&b.addr);
+
+    let ack = exchange(INIT_LINE);
+    assert_eq!(ack["type"], "session_ack", "got: {ack}");
+    let session_id = ack["session_id"].as_u64().expect("session_id");
+
+    // --- Start the transfer, then abort part-way through ---
+    for seq in 0..3 {
+        let f = exchange(&frame_line(session_id, seq));
+        assert_eq!(f["type"], "frame_ack", "frame {seq} should land: {f}");
+    }
+
+    let cancelled = exchange(&format!(
+        r#"{{"type":"session_cancel","session_id":{session_id}}}"#
+    ));
+    assert_eq!(cancelled["type"], "session_close_ack", "got: {cancelled}");
+    assert_eq!(cancelled["status"], "ok");
+    assert_eq!(
+        cancelled["reason"], "cancelled",
+        "cancel must report its own reason, distinct from a close: {cancelled}"
+    );
+    assert_eq!(cancelled["frame_count"], 3, "partial progress is reported");
+
+    // --- The session is no longer active ---
+    let after = exchange(&frame_line(session_id, 3));
+    assert_eq!(after["type"], "frame_error", "got: {after}");
+    assert_eq!(
+        after["error"], "session_gone",
+        "a frame for a cancelled session must fail cleanly: {after}"
+    );
+    assert_eq!(after["reason"], "cancelled");
+
+    // --- The daemon survives and can serve a new session ---
+    let reack = exchange(INIT_LINE);
+    assert_eq!(reack["type"], "session_ack", "got: {reack}");
+    let new_session = reack["session_id"].as_u64().expect("session_id");
+    let fresh = exchange(&frame_line(new_session, 0));
+    assert_eq!(
+        fresh["type"], "frame_ack",
+        "a new session must start from zero: {fresh}"
+    );
+    assert_eq!(
+        fresh["frame_count"], 1,
+        "the new session's counters must not inherit the cancelled one's"
+    );
+
+    stop_daemon(b);
+}
+
+/// Cancelling one session leaves other sessions untouched.
+#[test]
+fn session_cancel_leaves_other_sessions_live() {
+    let (_a, b) = start_two_daemons();
+    let mut exchange = frame_exchange(&b.addr);
+
+    let first = exchange(INIT_LINE);
+    let first_id = first["session_id"].as_u64().expect("session_id");
+
+    let second_init = INIT_LINE.replace("teardown-client", "second-client");
+    let second = exchange(&second_init);
+    let second_id = second["session_id"].as_u64().expect("session_id");
+    assert_ne!(first_id, second_id);
+
+    exchange(&format!(
+        r#"{{"type":"session_cancel","session_id":{first_id}}}"#
+    ));
+
+    // The untouched session still carries frames.
+    let live = exchange(&frame_line(second_id, 0));
+    assert_eq!(
+        live["type"], "frame_ack",
+        "cancelling session {first_id} must not affect session {second_id}: {live}"
+    );
+    assert_eq!(live["session_id"], second_id);
+
+    stop_daemon(b);
+}

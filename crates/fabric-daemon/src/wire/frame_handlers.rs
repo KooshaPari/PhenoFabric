@@ -29,8 +29,14 @@
 use fabric_frame_transport::{Codec, FrameAck, FrameHeader, SessionAck, SessionInit};
 use serde_json::Value;
 
-use super::frame_session_state::FrameSessionState;
+use super::frame_session_state::{FrameSessionState, TeardownOutcome};
 use crate::coordinator::Coordinator;
+
+/// Idle timeout, in milliseconds, applied by [`handle_session_expiry_sweep`].
+///
+/// Mirrors [`super::frame_session_state::DEFAULT_IDLE_TIMEOUT_MS`] rather than
+/// redefining it: one documented bound, one place it can change.
+const IDLE_TIMEOUT_MS: u64 = super::frame_session_state::DEFAULT_IDLE_TIMEOUT_MS;
 
 // ---------------------------------------------------------------------------
 // Response builders
@@ -66,12 +72,52 @@ fn unknown_session_error(state: &FrameSessionState, session_id: u64) -> String {
     }))
 }
 
+/// Build the right "this session cannot carry frames" error for `session_id`.
+///
+/// Two cases, deliberately distinct:
+///
+/// * The daemon issued this id and has since torn it down (close, cancel, or
+///   idle expiry) -- `session_gone` with the reason, because the client did
+///   nothing wrong and the daemon owes it an explanation.
+/// * The daemon never issued this id -- `unknown_session`, because the client
+///   is talking about a session that does not exist here.
+///
+/// Anything that does not resolve here falls back to `unknown_session`, which
+/// is the safe reading: a stale id whose tombstone has aged out of the bounded
+/// history is indistinguishable from one that was never valid.
+fn session_lookup_error(state: &FrameSessionState, session_id: u64) -> String {
+    match state.teardown_reason(session_id) {
+        Some(reason) => session_gone_error(reason.as_str(), session_id),
+        None => unknown_session_error(state, session_id),
+    }
+}
+
 /// Build a `frame_error` response with an explicit reason.
 fn frame_error(error: &str, message: String) -> String {
     respond(serde_json::json!({
         "type": "frame_error",
         "error": error,
         "message": message,
+    }))
+}
+
+/// Build the `frame_error` for a `frame_data` / `frame_ack` that names a
+/// session which is no longer live.
+///
+/// `reason` distinguishes "the client closed it", "the client cancelled it",
+/// "the idle sweep took it", and "this daemon never had that id". A client
+/// whose stream died sees `session_gone` with the real cause rather than a
+/// generic unknown-session error that makes an expiry look like a client bug.
+fn session_gone_error(reason: &str, session_id: u64) -> String {
+    respond(serde_json::json!({
+        "type": "frame_error",
+        "error": "session_gone",
+        "reason": reason,
+        "message": format!(
+            "session {session_id} is no longer live ({reason}); \
+             open a new session with session_init"
+        ),
+        "session_id": session_id,
     }))
 }
 
@@ -160,7 +206,29 @@ pub fn handle_session_init(value: &Value, coordinator: &Coordinator) -> String {
         );
     }
 
-    let session = coordinator.frame_sessions_mut().insert_session(&init);
+    // Cap check before insertion, so the (N+1)th session is rejected rather
+    // than admitted and then failed. `session_limit_reached` is distinct from
+    // `invalid_session_init`: nothing about this request is malformed, the
+    // daemon simply has no room, and a client that backs off should be able to
+    // tell that apart from a bug in its own request.
+    let now_ms = coordinator.now_ms();
+    {
+        let state = coordinator.frame_sessions_mut();
+        if !state.has_session_capacity() {
+            return frame_error(
+                "session_limit_reached",
+                format!(
+                    "this daemon already holds the maximum of {} concurrent frame sessions; \
+                     close or cancel an existing session before opening a new one",
+                    state.session_capacity()
+                ),
+            );
+        }
+    }
+
+    let session = coordinator
+        .frame_sessions_mut()
+        .insert_session_at(&init, now_ms);
 
     // Reply with the real SessionAck type, not an ad-hoc JSON object, so the
     // response is guaranteed to match what a transport client expects.
@@ -250,17 +318,17 @@ pub fn handle_frame_data(value: &Value, coordinator: &Coordinator) -> String {
 
     let mut state = coordinator.frame_sessions_mut();
     if !state.contains(session_id) {
-        return unknown_session_error(&state, session_id);
+        return session_lookup_error(&state, session_id);
     }
 
-    let counters = state.update_session(session_id, |session| {
+    let counters = state.touch_session(session_id, coordinator.now_ms(), |session| {
         session.last_seq = Some(seq);
         session.frame_count += 1;
         session.frames_received += payload_len as u64;
     });
 
     let Some(counters) = counters else {
-        return unknown_session_error(&state, session_id);
+        return session_lookup_error(&state, session_id);
     };
 
     respond(serde_json::json!({
@@ -308,11 +376,11 @@ pub fn handle_frame_ack(value: &Value, coordinator: &Coordinator) -> String {
 
     let mut state = coordinator.frame_sessions_mut();
     if !state.contains(session_id) {
-        return unknown_session_error(&state, session_id);
+        return session_lookup_error(&state, session_id);
     }
 
     let mut acked = false;
-    let counters = state.update_session(session_id, |session| {
+    let counters = state.touch_session(session_id, coordinator.now_ms(), |session| {
         // `acked` must mean "the daemon had already received a frame with this
         // sequence number", not merely "this ack is now in the map". The
         // session's `last_seq` is the highest sequence received, so an ack at
@@ -322,7 +390,7 @@ pub fn handle_frame_ack(value: &Value, coordinator: &Coordinator) -> String {
     });
 
     let Some(counters) = counters else {
-        return unknown_session_error(&state, session_id);
+        return session_lookup_error(&state, session_id);
     };
 
     // Reported back so the client can see what the daemon recorded for it.
@@ -345,6 +413,116 @@ pub fn handle_frame_ack(value: &Value, coordinator: &Coordinator) -> String {
         "last_seq": counters.last_seq,
         "recorded_rtt_us": recorded_rtt_us,
     }))
+}
+
+// ---------------------------------------------------------------------------
+// Session teardown
+// ---------------------------------------------------------------------------
+
+/// Read the `session_id` a teardown message names, or report the missing field.
+///
+/// Shared by close, cancel, and the sweep so all three reject a malformed
+/// teardown request the same way rather than each inventing its own error.
+fn teardown_session_id(value: &Value, message_type: &str) -> Result<u64, String> {
+    match value.get("session_id").and_then(Value::as_u64) {
+        Some(id) => Ok(id),
+        None => Err(frame_error(
+            "missing_session_id",
+            format!("{message_type} must carry the session_id from its session_ack"),
+        )),
+    }
+}
+
+/// Render the response to a successful close or cancel.
+///
+/// One builder for both: the two paths have identical effects (the session
+/// leaves the map), so their responses differ only in the `reason` string the
+/// state recorded. Sharing the builder keeps the two responses impossible to
+/// drift apart field by field.
+fn teardown_response(outcome: &TeardownOutcome) -> String {
+    respond(serde_json::json!({
+        "type": "session_close_ack",
+        "status": "ok",
+        "session_id": outcome.session_id,
+        "reason": outcome.reason.as_str(),
+        "client_id": outcome.client_id,
+        "frame_count": outcome.counters.frame_count,
+        "frames_received": outcome.counters.frames_received,
+        "ack_count": outcome.counters.ack_count,
+        "last_seq": outcome.counters.last_seq,
+    }))
+}
+
+/// Handle a `session_close` message.
+///
+/// Removes the session from the coordinator's session table. After this
+/// returns, a `frame_data` naming that id is a `session_gone` error, not a
+/// silent accept and not a panic.
+///
+/// # Errors
+///
+/// Returns the missing-field error when `session_id` is absent, and
+/// `session_gone` / `unknown_session` when no live session has that id. A
+/// double-close is therefore an error rather than a second success, which is
+/// what lets a client tell "I closed it" from "someone already tore it down".
+pub fn handle_session_close(value: &Value, coordinator: &Coordinator) -> String {
+    let session_id = match teardown_session_id(value, "session_close") {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let outcome = coordinator.frame_sessions_mut().close_session(session_id);
+
+    match outcome {
+        Some(outcome) => teardown_response(&outcome),
+        None => session_lookup_error(&coordinator.frame_sessions_mut(), session_id),
+    }
+}
+
+/// Handle a `session_cancel` message.
+///
+/// Cancels a session mid-transfer. The semantics required of cancellation are
+/// met by the same removal that close performs: the session is not left in an
+/// active state (it is gone from the map), any partial state is released (the
+/// entry, its counters, and its recorded RTTs are dropped), and a subsequent
+/// `frame_data` for that id fails cleanly with `session_gone`.
+///
+/// Cancellation is a distinct message from close for the client's benefit --
+/// it records intent ("I aborted") instead of success ("I finished") -- not
+/// because the daemon treats them differently.
+///
+/// # Errors
+///
+/// Returns the missing-field error when `session_id` is absent, and
+/// `session_gone` / `unknown_session` when no live session has that id.
+pub fn handle_session_cancel(value: &Value, coordinator: &Coordinator) -> String {
+    let session_id = match teardown_session_id(value, "session_cancel") {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let outcome = coordinator.frame_sessions_mut().cancel_session(session_id);
+
+    match outcome {
+        Some(outcome) => teardown_response(&outcome),
+        None => session_lookup_error(&coordinator.frame_sessions_mut(), session_id),
+    }
+}
+
+/// Run the idle-expiry sweep and return the number of sessions removed.
+///
+/// Called by the wire server on its accept-loop tick (see `wire/mod.rs`), which
+/// is the only place that runs on a wall-clock cadence independent of client
+/// traffic. A daemon that receives no frame traffic at all still sweeps,
+/// because the sweep does not depend on a message arriving to trigger it.
+///
+/// The timeout is [`IDLE_TIMEOUT_MS`]; see
+/// [`super::frame_session_state::DEFAULT_IDLE_TIMEOUT_MS`] for why that bound.
+pub fn sweep_expired_frame_sessions(coordinator: &Coordinator) -> Vec<u64> {
+    let now_ms = coordinator.now_ms();
+    coordinator
+        .frame_sessions_mut()
+        .expire_idle_sessions(now_ms, IDLE_TIMEOUT_MS)
 }
 
 #[cfg(test)]
