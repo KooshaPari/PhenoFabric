@@ -3200,3 +3200,57 @@ constraint. No queued run is reported as green or failing.
 **Note on this push:** I am pushing this record *after* establishing the
 run is stuck, not while churn is in flight. That is a deliberate single
 commit to capture evidence, not a repeat of the churn R50 described.
+
+---
+
+## R52 — ALL GREEN: CI, E2E and Spec Validation confirmed
+
+The queue drained and the results are in. **Every workflow now passes.**
+
+| Workflow | Commit | Result |
+|---|---|---|
+| **CI** | `cacb3f1` | **success** — Clippy, Check, Format, Release build, Unit tests, Integration tests, E2E smoke tests: **all 7 success** |
+| **E2E** | `cacb3f1` | **success** |
+| **Spec Validation** | `b88566d` | **success** |
+
+### Spec Validation: from permanently red to green
+
+This is the headline. Before this session it had **failed 8 consecutive
+runs back to 2026-10-13**, and I established it was *structurally
+incapable* of passing: both manifest scripts walked the filesystem with
+a hardcoded exclude list, so `MANIFEST.sha256` listed 123 paths a clean
+checkout can never contain (including `.env` and `.infisical.json`).
+
+After `b88566d` — which derives both the generator and the validator
+from `git ls-files`, and additionally verifies each recorded digest —
+it **passes**:
+
+```
+b88566d Spec Validation: completed / success
+1fa52c3 Spec Validation: completed / failure
+```
+
+Adjacent commits, one red one green, on the same job.
+
+### The queue question, resolved empirically
+
+R49 blamed capacity, R50 blamed my push churn, R51 concluded both were
+real but separate. The queue draining confirms the practical picture:
+runs were **genuinely stalled** (16+ minutes with zero pushes), and once
+capacity became available they executed in about 90 seconds with a fully
+green result. Capacity was the binding constraint, exactly as R49 first
+suspected; R50's correction was over-applied, and R51 restored the
+evidence.
+
+### What this closes
+
+The four fixes in this arc are now **CI-verified**, not merely locally
+verified:
+
+1. Release artifact ships the real binaries and fails loudly on a miss
+2. Dockerfile builds with a working healthcheck
+3. Release `verify` checks archive **contents**, with a negative control
+4. Four previously-dead CLI commands work, live-verified
+
+Plus Spec Validation repaired, and `.env` / `.infisical.json` hashes
+removed from the committed manifest.
