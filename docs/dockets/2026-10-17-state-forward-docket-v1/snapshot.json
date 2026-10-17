@@ -230,8 +230,11 @@
     "merged": false,
     "installed_release": false,
     "user_accepted": false,
-    "pdf_opened_in_safari": null,
-    "note": "A local document, a pushed branch, an open PR, a merged change, an installed release, and an accepted product are separate outcomes. Only the first two are claimed here."
+    "pdf_opened_in_safari": true,
+    "registry_pushed": true,
+    "registry_sha": "c7957865d",
+    "pushed_sha_docket": "6f94867",
+    "note": "A local document, a pushed branch, an open PR, a merged change, an installed release, and an accepted product are separate outcomes. local_document, pushed_branch and pdf_opened_in_safari are true. pull_request, merged, installed_release and user_accepted are all false."
   },
   "unknowns": [
     "GUI live-state correctness (never launched)",
