@@ -221,7 +221,9 @@ fn parse_protocol(s: &str) -> Result<SurfaceProtocol> {
 /// failed on its own default before it ever reached the daemon. The daemon
 /// side accepts both forms too (see `fabric-daemon`'s
 /// `wire/surface_handlers.rs`), so the two now agree.
-fn parse_locality(s: &str) -> std::result::Result<fabric_capability::locality::LocalityTier, String> {
+fn parse_locality(
+    s: &str,
+) -> std::result::Result<fabric_capability::locality::LocalityTier, String> {
     use fabric_capability::locality::LocalityTier;
     use std::str::FromStr;
 

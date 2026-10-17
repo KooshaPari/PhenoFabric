@@ -313,8 +313,14 @@ mod tests {
             assert!(
                 matches!(
                     status,
-                    STATUS_OK | "available" | "connected" | "degraded" | STATUS_UNAVAILABLE
-                        | STATUS_ERROR | STATUS_DISABLED | "not_running"
+                    STATUS_OK
+                        | "available"
+                        | "connected"
+                        | "degraded"
+                        | STATUS_UNAVAILABLE
+                        | STATUS_ERROR
+                        | STATUS_DISABLED
+                        | "not_running"
                 ),
                 "unexpected {section} status: {status}"
             );

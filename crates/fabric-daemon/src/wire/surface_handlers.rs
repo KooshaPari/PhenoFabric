@@ -38,7 +38,10 @@ pub(crate) fn handle_surface_lease_request(
     parsed: &serde_json::Value,
     coordinator: &Coordinator,
 ) -> Option<String> {
-    let name = parsed.get("name").and_then(|v| v.as_str()).unwrap_or_default();
+    let name = parsed
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
     let protocol_str = parsed
         .get("protocol")
         .and_then(|v| v.as_str())
@@ -133,9 +136,7 @@ fn parse_protocol(s: &str) -> SurfaceProtocol {
 /// (`"L5Loopback"`, which is the CLI's own `default_value` in
 /// `crates/fabric-cli/src/commands/surface.rs`). Both must work here, so this
 /// falls back to matching the long names when `from_str` rejects the input.
-fn parse_locality(
-    s: &str,
-) -> Result<fabric_graph::LocalityTier, String> {
+fn parse_locality(s: &str) -> Result<fabric_graph::LocalityTier, String> {
     use fabric_graph::LocalityTier;
     use std::str::FromStr;
 
@@ -193,11 +194,9 @@ mod tests {
     #[test]
     fn creates_a_pending_lease_and_returns_handle_and_state() {
         let coord = make_coordinator();
-        let resp = handle_surface_lease_request(
-            &lease_request("primary-display", "posix", "L5"),
-            &coord,
-        )
-        .unwrap();
+        let resp =
+            handle_surface_lease_request(&lease_request("primary-display", "posix", "L5"), &coord)
+                .unwrap();
         let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
 
         // The CLI reads exactly these two keys as strings.
@@ -218,9 +217,8 @@ mod tests {
         // surface.rs ships `default_value = "L5Loopback"`; the daemon must
         // accept it even though LocalityTier::from_str only knows "L5".
         let coord = make_coordinator();
-        let resp =
-            handle_surface_lease_request(&lease_request("d", "posix", "L5Loopback"), &coord)
-                .unwrap();
+        let resp = handle_surface_lease_request(&lease_request("d", "posix", "L5Loopback"), &coord)
+            .unwrap();
         let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(v["state"], "Pending");
     }
@@ -250,11 +248,8 @@ mod tests {
     #[test]
     fn rejects_an_unparseable_locality_with_an_error_response() {
         let coord = make_coordinator();
-        let resp = handle_surface_lease_request(
-            &lease_request("d", "posix", "L99Nowhere"),
-            &coord,
-        )
-        .unwrap();
+        let resp = handle_surface_lease_request(&lease_request("d", "posix", "L99Nowhere"), &coord)
+            .unwrap();
         let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(v["error"], "invalid_locality");
     }

@@ -48,7 +48,10 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
     ("network_status_request", &[]),
     ("network_stun_request", &[]),
     ("network_tailscale_request", &[]),
-    ("surface_lease_request", &["name", "protocol", "locality_floor"]),
+    (
+        "surface_lease_request",
+        &["name", "protocol", "locality_floor"],
+    ),
     ("auth_start", &[]),
     ("auth_complete", &["code"]),
     ("auth_email", &["email"]),

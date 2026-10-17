@@ -523,7 +523,8 @@ mod tests {
 
     #[test]
     fn surface_lease_request_wrong_type_protocol_rejected() {
-        let msg = r#"{"type":"surface_lease_request","name":"d","protocol":7,"locality_floor":"L5"}"#;
+        let msg =
+            r#"{"type":"surface_lease_request","name":"d","protocol":7,"locality_floor":"L5"}"#;
         assert_eq!(validate_message(msg).unwrap_err().code, "WRONG_TYPE");
     }
 
