@@ -3106,3 +3106,50 @@ amount of further agent work will produce a CI result.
 
 **Operator action if CI stays queued:** check Settings → Billing →
 Actions spending limit / included minutes for the account.
+
+---
+
+## R50 — CORRECTION to R49: the "queue backlog" was partly self-inflicted
+
+R49 hypothesised account-level Actions capacity exhaustion. Looking at
+the full run list, **a simpler and better-evidenced explanation exists,
+and it implicates my own process.**
+
+```
+01:12 e70d1e1 CI              queued
+01:12 e70d1e1 E2E             pending
+00:51 05e35f4 CI              completed cancelled
+00:51 05e35f4 E2E             completed cancelled
+00:45 b88566d Spec Validation queued
+00:45 b88566d E2E             completed cancelled
+00:45 b88566d CI              completed cancelled
+00:22 1fa52c3 Spec Validation completed failure
+```
+
+**`ci.yml:9-11` and `e2e.yml:9-11` declare
+`cancel-in-progress: true`.** So every new push **cancels the previous
+run** on those workflows. I pushed 8 commits in about an hour; each one
+cancelled the run before it. That is why nearly every entry reads
+`cancelled` rather than `success` or `failure` — the runs never got to
+finish, because I kept replacing them.
+
+**Rapid pushing defeats CI.** The correct behaviour after a push is to
+**stop pushing and let the run complete**, not to keep committing.
+
+**`spec-validation.yml` has no `concurrency` block**, so its runs
+queue instead of cancelling — which is why the `b88566d` Spec
+Validation run has sat `queued` for ~27 minutes rather than being
+replaced. Two different mechanisms produced what looked like one
+backlog.
+
+**Revised position:**
+
+| Claim (R49) | Status |
+|---|---|
+| Workflow concurrency blocking | Ruled out *as the cause of the queue*; but `cancel-in-progress` on ci/e2e **is** the cause of the cancellations |
+| Normal queue delay unlikely | Still true for the spec-validation run specifically |
+| Account capacity exhaustion | **Downgraded** — no longer the leading hypothesis; unverified, and the cancellations now explain most of what I saw |
+
+**Action taken: stop pushing.** The next CI result will only arrive if
+no further commits land while a run is in flight. Any queued run is
+still reported as queued, never as green or failing.
