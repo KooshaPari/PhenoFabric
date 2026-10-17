@@ -120,6 +120,13 @@ pub async fn process_message(message: &str, coordinator: &Coordinator) -> Option
             &validated.value,
             coordinator,
         )),
+        // Resume. A reconnecting client re-presents its session id to continue
+        // the same session; the handler lives in its own module so
+        // `frame_handlers` stays under the project's line ceiling.
+        "session_resume" | "SessionResume" => Some(super::frame_resume::handle_session_resume(
+            &validated.value,
+            coordinator,
+        )),
         _ => Some(format!(
             r#"{{"error":"unknown_message","type":"{}"}}"#,
             msg_type
@@ -443,5 +450,41 @@ mod tests {
             .await
             .unwrap();
         assert!(resp.contains("healthy"), "got: {resp}");
+    }
+
+    #[tokio::test]
+    async fn session_resume_is_dispatched_to_a_handler() {
+        // Without a dispatch arm this would fall through to `unknown_message`
+        // even though validation accepts the type -- the exact failure mode
+        // that hid the frame path before it landed.
+        let coord = make_coordinator();
+        let resp = process_message(r#"{"type":"session_resume","session_id":1}"#, &coord)
+            .await
+            .unwrap();
+        assert!(!resp.contains("unknown_message"), "fell through: {resp}");
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "frame_error");
+        assert_eq!(v["error"], "unknown_session");
+    }
+
+    #[tokio::test]
+    async fn session_resume_pascal_case_is_dispatched() {
+        let coord = make_coordinator();
+        process_message(session_init_line(), &coord).await.unwrap();
+        let resp = process_message(r#"{"type":"SessionResume","session_id":1}"#, &coord)
+            .await
+            .unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
+        assert_eq!(v["type"], "session_resume_ack");
+        assert_eq!(v["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn session_resume_missing_session_id_is_a_validation_error() {
+        let coord = make_coordinator();
+        let resp = process_message(r#"{"type":"session_resume"}"#, &coord)
+            .await
+            .unwrap();
+        assert!(resp.contains("MISSING_FIELD"), "got: {resp}");
     }
 }

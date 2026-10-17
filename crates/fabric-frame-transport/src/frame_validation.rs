@@ -54,7 +54,11 @@ pub(super) fn validate_frame_fields(
         // rather than relying on the handler's `as_u64` because a string or a
         // negative number would otherwise read as "absent" and produce a
         // misleading `missing_session_id` instead of `WRONG_TYPE`.
-        "sessionclose" | "sessioncancel" => {
+        //
+        // `session_resume` is validated identically: it carries only the
+        // session it continues, and the same type confusion must be rejected
+        // rather than silently read as "absent".
+        "sessionclose" | "sessioncancel" | "sessionresume" => {
             u64(obj, "session_id", msg_type)?;
             Ok(())
         }

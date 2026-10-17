@@ -104,6 +104,56 @@ fn valid_session_cancel() {
 }
 
 #[test]
+fn valid_session_resume() {
+    assert!(validate_message(r#"{"type":"session_resume","session_id":3}"#).is_ok());
+}
+
+#[test]
+fn session_resume_accepts_pascal_case() {
+    assert!(validate_message(r#"{"type":"SessionResume","session_id":1}"#).is_ok());
+}
+
+#[test]
+fn session_resume_missing_session_id_rejected() {
+    let err = validate_message(r#"{"type":"session_resume"}"#)
+        .expect_err("a resume must name its session");
+    assert_eq!(err.code, "MISSING_FIELD");
+    assert!(err.message.contains("session_id"));
+}
+
+#[test]
+fn session_resume_null_session_id_rejected() {
+    let err = validate_message(r#"{"type":"session_resume","session_id":null}"#)
+        .expect_err("null rejected");
+    assert_eq!(err.code, "NULL_FIELD");
+}
+
+/// A string, float, negative, or boolean `session_id` must be `WRONG_TYPE`,
+/// exactly as for the teardown messages. Without this the handler's `as_u64`
+/// would read `"3"` as absent and report the misleading `missing_session_id`
+/// instead of naming the real problem.
+#[test]
+fn session_resume_non_integer_session_id_rejected() {
+    for bad in [r#""3""#, "1.5", "-1", "true"] {
+        let line = format!(r#"{{"type":"session_resume","session_id":{bad}}}"#);
+        let err = validate_message(&line).expect_err("must be an unsigned integer");
+        assert_eq!(err.code, "WRONG_TYPE", "for {line}: {err}");
+    }
+}
+
+#[test]
+fn session_resume_ack_is_not_a_valid_request() {
+    // The resume response is a server->client type; accepting it as a request
+    // would let a client confuse its own ack for a command.
+    let msg = r#"{"type":"session_resume_ack","session_id":1}"#;
+    assert_eq!(
+        validate_message(msg).unwrap_err().code,
+        "UNKNOWN_TYPE",
+        "session_resume_ack is a response type"
+    );
+}
+
+#[test]
 fn teardown_missing_session_id_rejected() {
     for line in [
         r#"{"type":"session_close"}"#,

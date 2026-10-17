@@ -38,6 +38,11 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     // `session_id` from a prior `session_ack` and both remove the session.
     "session_close",
     "session_cancel",
+    // Session resume. A client that lost its TCP connection re-presents the
+    // same server-assigned `session_id` to continue the same session. This is
+    // the same proof `session_close`/`session_cancel` already require -- no
+    // token, nonce, or handshake is invented for it.
+    "session_resume",
 ];
 
 /// Required fields per message type (fields that MUST be present and non-null).
@@ -78,6 +83,8 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
     // a close without one could not identify its target.
     ("session_close", &["session_id"]),
     ("session_cancel", &["session_id"]),
+    // Resume names the session it continues, for the same reason.
+    ("session_resume", &["session_id"]),
 ];
 
 /// Expected field types (field_name, expected_json_type).

@@ -43,6 +43,13 @@
 //! gets `session_gone` with `reason: "expired"`, while a client that names an
 //! id this daemon never issued gets `unknown_session`. Collapsing both into one
 //! error would make a daemon-side expiry look like a client bug.
+//!
+//! # Disconnect and resume
+//!
+//! Attachment state, the resume outcome types, and the disconnect/resume
+//! operations live in [`super::frame_session_lifecycle`], which documents the
+//! disconnect policy and the trust model a resume operates under. They are
+//! re-exported here so callers keep importing from one module.
 
 // `main.rs` declares its own `mod wire;` rather than depending on this crate's
 // library target, so the `fabric-daemon` *binary* compiles this module on its
@@ -58,6 +65,10 @@
 use std::collections::{HashMap, VecDeque};
 
 use fabric_frame_transport::{Codec, SessionInit};
+
+pub use super::frame_session_lifecycle::{
+    FrameSessionDisconnect, ResumeOutcome, ResumeRejection, SessionState,
+};
 
 /// Default idle timeout before a session is swept, in milliseconds.
 ///
@@ -89,10 +100,9 @@ pub const MAX_CONCURRENT_SESSIONS: usize = 256;
 
 /// How many recently-removed session ids to remember, and why each went.
 ///
-/// Bounded on purpose: this is a diagnostic aid, not a ledger. 64 entries is
-/// far more than a client needs to learn the fate of the session it is holding
-/// (one round trip after teardown), and a ring keeps the memory cost flat no
-/// matter how many sessions churn through the daemon over its lifetime.
+/// Bounded on purpose: a diagnostic aid, not a ledger. 64 entries is far more
+/// than a client needs to learn the fate of the session it holds, and a ring
+/// keeps the memory cost flat however much churns through the daemon.
 const TEARDOWN_HISTORY: usize = 64;
 
 /// Negotiated parameters for one streaming session, as agreed at `session_init`.
@@ -133,6 +143,9 @@ pub struct FrameSession {
     /// `frame_data` / `frame_ack`, so the idle sweep measures silence on the
     /// wire rather than session age.
     pub last_activity_ms: u64,
+    /// Whether a client is currently attached. Flipped by
+    /// `FrameSessionDisconnect`; see [`super::frame_session_lifecycle`].
+    pub state: SessionState,
 }
 
 impl FrameSession {
@@ -158,6 +171,7 @@ impl FrameSession {
             frame_count: 0,
             acks: HashMap::new(),
             last_activity_ms: now_ms,
+            state: SessionState::Active,
         }
     }
 
@@ -291,6 +305,12 @@ impl FrameSessionState {
     /// for being idle while it is actively streaming. `update_session` stays
     /// available for tests and for bookkeeping-only callers that should not
     /// count as activity.
+    ///
+    /// Passing through here also **re-attaches** a
+    /// [`SessionState::Disconnected`] session: a client that reconnects and
+    /// resumes by simply sending `frame_data` has demonstrated the session is
+    /// live. An explicit `session_resume` makes that transition observable; this
+    /// is the safety net for a client that skips it.
     pub fn touch_session<F>(
         &mut self,
         session_id: u64,
@@ -303,6 +323,7 @@ impl FrameSessionState {
         let session = self.sessions.get_mut(&session_id)?;
         f(session);
         session.last_activity_ms = now_ms;
+        session.state = SessionState::Active;
         Some(session.counters())
     }
 
@@ -402,6 +423,14 @@ impl FrameSessionState {
         self.sessions.get(&session_id)
     }
 
+    /// Mutable access to a session by id, for
+    /// [`super::frame_session_lifecycle::FrameSessionDisconnect`] which owns the
+    /// disconnect/resume transitions. Same struct, so no wider trust boundary:
+    /// the coordinator's mutex is what guards it.
+    pub(super) fn get_mut(&mut self, session_id: u64) -> Option<&mut FrameSession> {
+        self.sessions.get_mut(&session_id)
+    }
+
     /// Mutable access to a session, for tests that need to place a session at
     /// a known point in time.
     ///
@@ -462,3 +491,10 @@ impl FrameSessionState {
 #[cfg(test)]
 #[path = "frame_session_state_tests.rs"]
 mod tests;
+
+/// Disconnect and resume live in their own test module purely for file size:
+/// the tests belong to the same `FrameSessionState`, and splitting them kept
+/// both files under the project's 500-line ceiling.
+#[cfg(test)]
+#[path = "frame_disconnect_state_tests.rs"]
+mod disconnect_tests;

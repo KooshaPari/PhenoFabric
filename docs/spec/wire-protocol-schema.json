@@ -387,6 +387,29 @@
       "additionalProperties": false
     },
     {
+      "$comment": "session_resume: continue a frame session after a client disconnect. Requires no credential beyond the same server-assigned session_id that session_init already issued, which is the same proof session_close and session_cancel accept.",
+      "type": "object",
+      "required": [
+        "type",
+        "session_id"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "session_resume",
+            "SessionResume"
+          ]
+        },
+        "session_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Server-assigned session id from a prior session_ack. The session must still be live: a closed, cancelled, or expired session is refused with session_gone."
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "$comment": "network_status_request: probe UPnP, STUN, and Tailscale availability on the daemon host",
       "type": "object",
       "required": [
