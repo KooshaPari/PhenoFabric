@@ -106,7 +106,7 @@ jobs:
         run: |
           go build -o /tmp/fabric-checker .
           # Admit fixture
-          go run . testdata/admit/descriptor.json testdata/admit/manifest.yaml || true
+          go run . testdata/admit/descriptor.json testdata/admit/manifest.yaml
 
   rust-check:
     name: Rust test (workspace)

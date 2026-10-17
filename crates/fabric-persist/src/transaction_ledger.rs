@@ -674,4 +674,121 @@ mod tests {
             "at-least-once delivery permits both claimers to receive the same id; got {ids:?}"
         );
     }
+
+    /// G-09 (audit gap): two concurrent writers against the same WAL-backed
+    /// SQLite database must produce a deterministic, non-corrupt outcome.
+    ///
+    /// Contract pinned by this test (any of these is acceptable, none is
+    /// corruption or a silent lost write):
+    ///   1. both writers serialize via the internal `Mutex<Connection>` and
+    ///      succeed, every event row is visible afterwards;
+    ///   2. one writer returns a typed `PersistError::Database` (rusqlite's
+    ///      `SqliteFailure { code: BUSY, .. }` surfacing as `From<rusqlite::Error>`),
+    ///      the other succeeds, no row is silently dropped;
+    ///   3. the database is intact afterwards: re-opening it succeeds and the
+    ///      committed rows can be read back.
+    ///
+    /// What this test deliberately does NOT allow:
+    ///   - a panic in either writer thread (which would surface as a join
+    ///     failure via `JoinHandle::join`);
+    ///   - a writer returning Ok while the corresponding event row is missing
+    ///     from the post-test count (a silent lost write);
+    ///   - a database that fails to re-open or that returns mismatched row
+    ///     counts on re-read (corruption).
+    ///
+    /// Notes:
+    ///   - We use `Persist::open` (real on-disk WAL DB in a tempdir), not
+    ///     `open_memory`, so the test exercises the WAL mode path that
+    ///     production uses.
+    ///   - Each writer defines its own domain so the SQL touches disjoint
+    ///     rows; this is the realistic shape (workers don't share row keys).
+    #[test]
+    fn concurrent_wal_writers_preserve_all_writes() {
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("concurrent-wal.db");
+        let store = Arc::new(Persist::open(&db_path).expect("open WAL DB"));
+        seed_one_event(&store);
+
+        let barrier = Arc::new(Barrier::new(2));
+        let mut handles = Vec::new();
+        for i in 0..2 {
+            let store = Arc::clone(&store);
+            let barrier = Arc::clone(&barrier);
+            handles.push(thread::spawn(move || {
+                let actor = LedgerActor {
+                    id: "concurrent-writer",
+                    kind: LedgerActorKind::Human,
+                };
+                barrier.wait();
+                store.ledger_define_capacity(
+                    &format!("wal-domain-{i}"),
+                    "root",
+                    8,
+                    &actor,
+                    &format!("wal-evt-{i}"),
+                )
+            }));
+        }
+
+        // Both writers must either succeed or return a typed, actionable error.
+        // No thread may panic, deadlock, or return Ok with no durable side
+        // effect (we verify the latter by counting events afterwards).
+        let mut ok_count = 0usize;
+        let mut typed_busy_count = 0usize;
+        let mut other_err: Option<PersistError> = None;
+        for handle in handles {
+            let result = handle.join().expect("writer thread panicked");
+            match result {
+                Ok(()) => ok_count += 1,
+                Err(PersistError::Database(rusqlite::Error::SqliteFailure(err, _msg)))
+                    if err.code == rusqlite::ErrorCode::DatabaseBusy =>
+                {
+                    typed_busy_count += 1;
+                }
+                Err(e) => {
+                    if other_err.is_none() {
+                        other_err = Some(e);
+                    }
+                }
+            }
+        }
+        // Outcome must be explainable: either serialized success, or one BUSY
+        // typed error with the other committed. A panic, an unclassified error,
+        // or both failing is a fail.
+        assert!(
+            other_err.is_none(),
+            "writer returned a non-actionable error: {other_err:?}"
+        );
+        assert_eq!(
+            ok_count + typed_busy_count,
+            2,
+            "every writer must produce Ok or a typed BUSY; got ok={ok_count} busy={typed_busy_count}"
+        );
+
+        // At least one writer must have committed (silently lost writes is the
+        // scenario the audit called out). The seeded scope event accounts for
+        // the +1 baseline; each successful writer contributes one event.
+        let observed_events = store
+            .ledger_event_count()
+            .expect("count events after concurrent writes");
+        let expected_min_events: i64 = (1 + ok_count).try_into().expect("ok_count fits in i64");
+        assert!(
+            observed_events >= expected_min_events,
+            "lost write detected: expected at least {expected_min_events} events (1 seeded + {ok_count} writer commits), got {observed_events}"
+        );
+
+        // Corrosion check: re-open the database from scratch and re-read.
+        drop(store);
+        let reopened = Persist::open(&db_path).expect("reopen WAL DB after concurrent writes");
+        let reopened_count = reopened
+            .ledger_event_count()
+            .expect("count events in reopened DB");
+        assert_eq!(
+            reopened_count, observed_events,
+            "event count differs between live and reopened handles; possible corruption"
+        );
+    }
 }

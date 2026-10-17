@@ -353,4 +353,71 @@ mod tests {
         ]))
         .is_err());
     }
+
+    /// G-10 (audit gap): wire messages carry a protocol version, and the
+    /// current behaviour is that the codec does NOT refuse a version mismatch
+    /// — a `SessionInit` claiming a future version is parsed without
+    /// complaint. This test pins that absence so adding a version check later
+    /// is a deliberate, reviewable change.
+    ///
+    /// What this test asserts:
+    ///   - `SessionInit { version: u32::MAX }` round-trips through
+    ///     `encode_wire`/`parse_wire` and is returned as a
+    ///     `FrameMessage::SessionInit { .. }` whose `version` field still
+    ///     equals `u32::MAX`.
+    ///   - The codec does NOT return `Err(...)` on version mismatch. The
+    ///     handshake layer (where one exists) is what would have to do that,
+    ///     and the codec itself has no such check today.
+    ///
+    /// If you add a typed version-mismatch refusal (`Err(VersionMismatch)`
+    /// surfaced from `parse_wire` or from `recv`), update this test to
+    /// assert that instead of silently passing through. Do not silently
+    /// change behaviour — that is exactly the kind of "innocent" delta the
+    /// audit was written to catch.
+    #[test]
+    fn session_init_with_unknown_version_is_not_refused_by_codec() {
+        // Future version -- far beyond PROTOCOL_VERSION. If the codec refuses
+        // any non-current version, this assertion will fail and the test
+        // explains the change in its doc comment above.
+        let future = u32::MAX;
+        let init = SessionInit {
+            version: future,
+            preferred_codec: Codec::Hevc,
+            width: 1920,
+            height: 1080,
+            target_fps: 60,
+            max_latency_ms: 33,
+            client_id: "future-client".into(),
+        };
+        let wire = encode_wire(
+            MessageType::SessionInit,
+            &serde_json::to_vec(&init).unwrap(),
+        )
+        .expect("encode wire");
+        let parsed = parse_wire(wire.freeze()).expect("parse future-version SessionInit");
+        match parsed {
+            FrameMessage::SessionInit(value) => {
+                assert_eq!(
+                    value.version, future,
+                    "version field round-trips intact (no version check is performed by the codec)"
+                );
+                assert_eq!(value.client_id, "future-client");
+            }
+            other => panic!("expected FrameMessage::SessionInit, got {other:?}"),
+        }
+
+        // Sanity: PROTOCOL_VERSION itself also parses -- otherwise the test
+        // would pass for the wrong reason (codec rejecting everything).
+        let current = SessionInit {
+            version: PROTOCOL_VERSION,
+            ..init.clone()
+        };
+        let wire = encode_wire(
+            MessageType::SessionInit,
+            &serde_json::to_vec(&current).unwrap(),
+        )
+        .expect("encode wire");
+        let parsed = parse_wire(wire.freeze()).expect("parse current-version SessionInit");
+        assert!(matches!(parsed, FrameMessage::SessionInit(_)));
+    }
 }

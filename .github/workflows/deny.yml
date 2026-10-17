@@ -71,12 +71,12 @@ jobs:
 
       - name: Run govulncheck (capprobe)
         working-directory: cmd/capprobe
-        run: govulncheck ./... || true
+        run: govulncheck ./...
 
       - name: Run govulncheck (checker)
         working-directory: cmd/checker
-        run: govulncheck ./... || true
+        run: govulncheck ./...
 
       - name: Run govulncheck (wire)
         working-directory: cmd/wire
-        run: govulncheck ./... || true
+        run: govulncheck ./...
