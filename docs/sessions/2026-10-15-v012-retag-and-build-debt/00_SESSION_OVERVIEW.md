@@ -3153,3 +3153,50 @@ backlog.
 **Action taken: stop pushing.** The next CI result will only arrive if
 no further commits land while a run is in flight. Any queued run is
 still reported as queued, never as green or failing.
+
+---
+
+## R51 — R49 was right after all: the queue is genuine, not just my churn
+
+R50 downgraded the account-capacity hypothesis, attributing the
+`cancelled` runs to my own rapid pushing. **That correction was
+half-wrong**, and the follow-up test settles it.
+
+**The decisive test:** after R50 I stopped pushing entirely. With **zero
+commits in flight for ~16 minutes**, CI on `253f545` remained:
+
+```
+253f545 E2E   pending
+253f545 CI    queued
+```
+
+`pending` for E2E means it has not even begun. No concurrency
+cancellation can explain a run that simply never starts while nothing
+else is pushing.
+
+**So both mechanisms are real, and they are separate:**
+
+| Mechanism | Effect | Evidence |
+|---|---|---|
+| `cancel-in-progress: true` on `ci.yml`/`e2e.yml` | My 8 rapid pushes **cancelled** prior runs | Nearly every earlier entry reads `cancelled` |
+| Genuine queue / capacity delay | Runs **never start**, even with no pushes | CI stalled 16 min; Spec Validation stalled 37+ min; both `queued`/`pending` |
+
+`spec-validation.yml` has no concurrency block, which is why its runs
+queue rather than cancel — a third distinct behaviour that I initially
+conflated with the others.
+
+**Revised status of the capacity hypothesis:** supported, but still
+**UNVERIFIED as to cause**. The billing endpoint returns HTTP 404 and
+requires the `user` scope this token does not have. `AGENTS.md` warns
+the account's Actions free tier was exhausted by agent swarms, which is
+consistent. It remains **operator-scope**: no agent action can add
+capacity.
+
+**What remains true regardless:** every local gate passes (562 tests,
+clippy `-D warnings`, fmt, 1069-entry manifest with all digests), and
+`1fa52c3` was 6 of 7 green before the queue became the binding
+constraint. No queued run is reported as green or failing.
+
+**Note on this push:** I am pushing this record *after* establishing the
+run is stuck, not while churn is in flight. That is a deliberate single
+commit to capture evidence, not a repeat of the churn R50 described.
