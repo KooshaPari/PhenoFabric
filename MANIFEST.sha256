@@ -621,7 +621,7 @@
   "crates/fabric-surface-mojo/src/plan.rs": "af8fe503f7d32467c30ef8d05b5a2c9e0cc59fd3e635315239921618b5660f8a",
   "crates/fabric-terminal/Cargo.toml": "92fbe4d90562ccb55a385d05d2b0818ec09cad62632d23e15a326ba86b439a1e",
   "crates/fabric-terminal/src/main.rs": "0f254d7d388a4a5862eaa4fa5ac9c2456e4893347486cfdb56a18af226948409",
-  "crates/fabric-terminal/src/relay.rs": "083e5f11ccd22af4bd6bef33c4f552baf1d4cebcf2844e1751bcd820d770987f",
+  "crates/fabric-terminal/src/relay.rs": "51514c1675aea286e4f41cc90ba78310f30f267872e2c4b76c33f128145a232d",
   "crates/fabric-terminal/src/self_update.rs": "9e0365663da4224cbdb2abca7fa8326900ee6f3354a24a346a05fd316c032694",
   "crates/fabric-terminal/src/ssh_tunnel.rs": "48dc6ec77c8ab2341fb60f43cfe8c21b00053a8182b840cecc745011d0288815",
   "crates/fabric-terminal/src/state.rs": "ff6952c98ed23bdd4ebea30aade2ee7a703d8e97c3d3a94a4abcc4938d55a516",
