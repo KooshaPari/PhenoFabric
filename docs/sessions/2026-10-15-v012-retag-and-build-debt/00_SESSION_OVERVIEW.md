@@ -3254,3 +3254,67 @@ verified:
 
 Plus Spec Validation repaired, and `.env` / `.infisical.json` hashes
 removed from the committed manifest.
+
+---
+
+## R53 — A2's code blocker closed and CI-verified
+
+The frame dispatch landed as `b4ebffb` and CI confirms it.
+
+| Workflow | Commit | Result |
+|---|---|---|
+| **CI** | `b4ebffb` | **success** — Check, Format, Clippy, Release build, Integration tests, Unit tests, E2E smoke: all 7 |
+| **Spec Validation** | `b4ebffb` | **success** |
+
+### What was blocking A2, and what changed
+
+Two independent audit passes converged on the same finding: A2 was not
+blocked by missing capability, but by **one missing dispatcher arm**.
+The frame transport was real and tested; `session_init`, `frame_data`
+and `frame_ack` simply fell through to `_ => unknown_message`, and the
+integration harness documented that in its own comments.
+
+`b4ebffb` adds those three arms, plus:
+
+- `wire/frame_handlers.rs` — the adapter between the daemon's
+  **line-delimited JSON** wire format and the frame transport's
+  **length-prefixed binary** format. That mismatch is why the wiring
+  could not be a one-line change.
+- `wire/frame_session_state.rs` — coordinator-held per-session state, so
+  frames are attributed to the session that opened them. A frame for an
+  unknown session returns a clear error rather than being dropped.
+- 49 new unit tests and 2 integration tests proving a **real frame
+  round-trip through a real daemon on a real TcpListener**.
+
+### Independently re-verified before commit
+
+I re-ran the gates myself rather than accepting the worker's report:
+
+| Gate | Result |
+|---|---|
+| `cargo fmt --all -- --check` | exit 0 |
+| `cargo test --workspace --lib` | **627 passed, 0 failed** (was 562) |
+| `cargo clippy --workspace --all-targets -- -D warnings` | exit 0, **0 errors** |
+| `cargo test -p fabric-integration-tests` | **51 passed, 0 failed** |
+| `check_manifest.py` | 1077 files, digests verified |
+
+No existing test was removed, weakened, or ignored — checked by diffing
+removed `#[test]`/`#[ignore]` lines.
+
+### A2 is closer, but NOT accepted
+
+Closing the dispatcher gap removes the structural blocker. A2's written
+acceptance still requires more, none of it done:
+
+- **cancellation**
+- **disconnect/reconnect** (session state surviving a reconnect is
+  proven; there is no resume logic)
+- **focus / input / output ownership**
+- payload decoding — the server accounts frame headers, it does not
+  decode encoded payloads
+- session teardown/expiry and an eviction cap; sessions currently live
+  until daemon shutdown
+- **two real devices** — the desk is reachable
+
+So A2 remains NO. What changed is that the remaining work is now
+additive features rather than a missing wire.
