@@ -105,8 +105,19 @@ jobs:
         working-directory: cmd/checker
         run: |
           go build -o /tmp/fabric-checker .
-          # Admit fixture
-          go run . testdata/admit/descriptor.json testdata/admit/manifest.yaml
+          # Admit fixture.
+          #
+          # This previously read:
+          #   go run . testdata/admit/descriptor.json testdata/admit/manifest.yaml
+          # which was wrong twice over: the checker takes FLAGS, not positional
+          # paths (it printed its usage and exited 2), and testdata/admit/ does
+          # not exist in this repository at all. So this step could never pass,
+          # and `|| true` was concealing that rather than reporting it.
+          #
+          # It now uses a real fixture pair and the checker's actual interface.
+          # gpu_descriptor_minimal + gpu_manifest_minimal is a genuine admit
+          # case: it returns {"decision":"Admit","findings":null}.
+          go run . -descriptor testdata/gpu_descriptor_minimal.json -manifest testdata/gpu_manifest_minimal.json
 
   rust-check:
     name: Rust test (workspace)
