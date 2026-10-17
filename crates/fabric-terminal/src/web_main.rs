@@ -284,8 +284,22 @@ async fn send_keys(
         req.text
     );
 
-    // In production: execute tmux send-keys via subprocess
-    // For now: just log and broadcast to connected WebSockets
+    // Attempt the real tmux send-keys invocation against the local socket.
+    // Returns Err if the tmux binary is unavailable OR if the tmux command
+    // itself fails (no such pane, socket not running, permission denied).
+    if let Err(e) = invoke_tmux_send_keys(&state.socket_path, &pane_id, &req.text).await {
+        tracing::warn!(
+            pane_id = %pane_id,
+            agent = %agent,
+            error = %e,
+            "send_keys: tmux invocation failed; returning 502"
+        );
+        return Err(StatusCode::BAD_GATEWAY);
+    }
+
+    // Only after a successful tmux send-keys do we fan out to connected
+    // WebSocket viewers. Previously this broadcast ran unconditionally even
+    // when no keys were ever typed, which is the silent-success bug.
     let connections = state.connections.read().await;
     if let Some(senders) = connections.get(&pane_id) {
         let msg = serde_json::json!({
@@ -304,6 +318,75 @@ async fn send_keys(
         data: Some(format!("Sent to pane {}", pane_id)),
         error: None,
     }))
+}
+
+/// Resolve the path to the system `tmux` binary, honoring `TMUX_BIN`
+/// for tests and `which tmux` for production.
+fn resolve_tmux_binary() -> Option<std::path::PathBuf> {
+    if let Ok(val) = std::env::var("TMUX_BIN") {
+        let p = std::path::PathBuf::from(&val);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    if let Ok(output) = std::process::Command::new("which").arg("tmux").output()
+        && output.status.success()
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let path = std::path::PathBuf::from(stdout.trim());
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    None
+}
+
+/// Run `tmux -S <socket_path> send-keys -t <pane_id> -- <text>` and return
+/// Err if the binary is missing or the invocation fails.
+///
+/// This is the real side effect: previously the `send_keys` HTTP handler
+/// logged and broadcast to WebSocket subscribers but never invoked tmux,
+/// so keystrokes were silently dropped while the API returned HTTP 200.
+async fn invoke_tmux_send_keys(socket_path: &str, pane_id: &str, text: &str) -> Result<()> {
+    let bin = resolve_tmux_binary().ok_or_else(|| {
+        anyhow::anyhow!(
+            "tmux binary not found in PATH and TMUX_BIN unset/invalid; \
+             cannot deliver keystrokes to pane '{}'",
+            pane_id
+        )
+    })?;
+
+    // `send-keys` arguments: `-t <pane_id> -- <text>`. The `--` ensures that
+    // a leading `-` in `text` is not parsed as a tmux flag.
+    let output = tokio::process::Command::new(&bin)
+        .arg("-S")
+        .arg(socket_path)
+        .arg("send-keys")
+        .arg("-t")
+        .arg(pane_id)
+        .arg("--")
+        .arg(text)
+        .output()
+        .await
+        .with_context(|| {
+            format!(
+                "failed to execute tmux binary {:?} for pane '{}'",
+                bin, pane_id
+            )
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        anyhow::bail!(
+            "tmux send-keys failed for pane '{}' (exit {:?}): stderr={} stdout={}",
+            pane_id,
+            output.status.code(),
+            stderr.trim(),
+            stdout.trim()
+        );
+    }
+    Ok(())
 }
 // === Handler: Ingest Panes ===
 async fn ingest_panes(
@@ -937,5 +1020,378 @@ mod tests {
         assert_eq!(cache.len(), 1, "only fresh pane should remain");
         assert!(cache.contains_key("fresh-pane"));
         assert!(!cache.contains_key("stale-pane"));
+    }
+
+    // === B1: send_keys honest-behavior tests ===
+    //
+    // The original handler at web_main.rs:272-303 returned HTTP 200 while
+    // doing nothing (it only logged and broadcast to WebSocket subscribers).
+    // These tests assert the new contract:
+    //   - tmux binary missing OR tmux invocation failing => Err/502
+    //   - tmux invocation succeeds with a real session => Ok/200
+    //   - WebSocket broadcast only happens after tmux actually succeeded
+
+    /// Run a shell command and return its trimmed stdout. Test-only helper.
+    fn run_cmd_stdout(args: &[&str]) -> Option<String> {
+        let out = std::process::Command::new(args[0])
+            .args(&args[1..])
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    }
+
+    /// Set up an ephemeral tmux server on a private socket, returning the
+    /// socket path. Caller is responsible for killing the server.
+    fn ephemeral_tmux_server() -> Option<String> {
+        // Use a unique socket path per call so parallel tests don't collide.
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()?
+            .as_nanos();
+        let sock = format!("/tmp/tf-test-tmux-{nanos}.sock");
+        let _ = std::fs::remove_file(&sock);
+        let started = std::process::Command::new("tmux")
+            .args([
+                "-S",
+                &sock,
+                "new-session",
+                "-d",
+                "-s",
+                "tf-test",
+                "-x",
+                "80",
+                "-y",
+                "24",
+            ])
+            .status()
+            .ok()?
+            .success();
+        if !started {
+            return None;
+        }
+        Some(sock)
+    }
+
+    fn kill_tmux_server(sock: &str) {
+        let _ = std::process::Command::new("tmux")
+            .args(["-S", sock, "kill-server"])
+            .status();
+        let _ = std::fs::remove_file(sock);
+    }
+
+    /// Serial mutex: env-var-driven tests in this module touch `TMUX_BIN`
+    /// and shared tmux server state. tokio::sync::Mutex would be cleaner but
+    /// std::sync::Mutex works because the tests are short-lived and never
+    /// hold the lock across an .await.
+    static SEND_KEYS_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn test_invoke_tmux_send_keys_errors_when_binary_missing() {
+        let _guard = SEND_KEYS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        // SAFETY: tests in this module take SEND_KEYS_TEST_LOCK before
+        // touching TMUX_BIN, so concurrent env-var access is prevented.
+        unsafe {
+            std::env::set_var("TMUX_BIN", "/nonexistent/path/tmux-for-test");
+        }
+        let result = invoke_tmux_send_keys("/tmp/nonexistent", "%0", "ls").await;
+        unsafe {
+            std::env::remove_var("TMUX_BIN");
+        }
+        assert!(
+            result.is_err(),
+            "invoke_tmux_send_keys must return Err when the tmux binary \
+             cannot be found; silently succeeding is the bug we are fixing"
+        );
+        let msg = format!("{}", result.unwrap_err());
+        assert!(
+            msg.contains("tmux") || msg.contains("TMUX_BIN"),
+            "error should mention tmux; got: {msg}"
+        );
+    }
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn test_invoke_tmux_send_keys_errors_when_pane_missing() {
+        let _guard = SEND_KEYS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        // Skip if the system has no tmux binary; we cannot exercise the
+        // real failure path in that case.
+        let tmux_path = match run_cmd_stdout(&["which", "tmux"]) {
+            Some(p) if !p.is_empty() => p,
+            _ => {
+                eprintln!("skipping: no system tmux available");
+                return;
+            }
+        };
+        unsafe {
+            std::env::set_var("TMUX_BIN", &tmux_path);
+        }
+        // Ask tmux to send to a pane that almost certainly does not exist
+        // in an empty session.
+        let result = invoke_tmux_send_keys("/tmp/tf-test-no-session", "%nonexistent", "x").await;
+        unsafe {
+            std::env::remove_var("TMUX_BIN");
+        }
+        assert!(
+            result.is_err(),
+            "invoke_tmux_send_keys must return Err when tmux itself fails \
+             (e.g. socket not running or pane does not exist)"
+        );
+        let msg = format!("{}", result.unwrap_err());
+        assert!(
+            msg.contains("send-keys failed") || msg.contains("failed to execute"),
+            "error should describe the tmux failure; got: {msg}"
+        );
+    }
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn test_invoke_tmux_send_keys_succeeds_with_real_session() {
+        let _guard = SEND_KEYS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        let tmux_path = match run_cmd_stdout(&["which", "tmux"]) {
+            Some(p) if !p.is_empty() => p,
+            _ => {
+                eprintln!("skipping: no system tmux available");
+                return;
+            }
+        };
+        let sock = match ephemeral_tmux_server() {
+            Some(s) => s,
+            None => {
+                eprintln!("skipping: could not start ephemeral tmux server");
+                return;
+            }
+        };
+        unsafe {
+            std::env::set_var("TMUX_BIN", &tmux_path);
+        }
+        let result = invoke_tmux_send_keys(&sock, "%0", "echo HELLO_FROM_SEND_KEYS_TEST").await;
+        unsafe {
+            std::env::remove_var("TMUX_BIN");
+        }
+        kill_tmux_server(&sock);
+
+        // The send-keys call itself must succeed; the typed text may not
+        // have been executed by the pane (it's a shell prompt), but tmux
+        // accepted the input.
+        assert!(
+            result.is_ok(),
+            "invoke_tmux_send_keys must succeed against a live tmux server \
+             and a real pane; got: {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn test_send_keys_handler_returns_502_when_tmux_missing() {
+        let _guard = SEND_KEYS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        unsafe {
+            std::env::set_var("TMUX_BIN", "/nonexistent/path/tmux-for-test");
+        }
+
+        let state = test_state();
+        // Register an agent and capture the API key.
+        let reg_resp = register_agent(
+            State(state.clone()),
+            Json(RegisterAgentRequest {
+                name: "send-keys-test".to_string(),
+            }),
+        )
+        .await
+        .unwrap();
+        let api_key = reg_resp.0.data.unwrap().api_key;
+
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            "authorization",
+            format!("Bearer {}", api_key).parse().unwrap(),
+        );
+
+        let resp = send_keys(
+            State(state.clone()),
+            Path("%0".to_string()),
+            headers,
+            Json(SendMessageRequest {
+                text: "echo hi".to_string(),
+            }),
+        )
+        .await;
+        unsafe {
+            std::env::remove_var("TMUX_BIN");
+        }
+
+        // Previously: Ok(Json(ApiResponse{ success: true, ... }))
+        // Now: must be an Err carrying an HTTP error status.
+        assert!(
+            resp.is_err(),
+            "send_keys must return Err (HTTP error) when tmux is unavailable; \
+             previously it returned Ok with a fake success message"
+        );
+        // Verify the status code is not 200/2xx by mapping it to a code.
+        let status = resp.err().unwrap();
+        assert!(
+            status.as_u16() >= 400,
+            "send_keys must return a 4xx/5xx status when tmux is unavailable; \
+             got status {}",
+            status.as_u16()
+        );
+    }
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn test_send_keys_handler_does_not_broadcast_when_tmux_fails() {
+        // Critical invariant of the fix: when tmux fails, we MUST NOT
+        // broadcast a fake "input" event to WebSocket subscribers. The
+        // old code broadcast unconditionally, including for the no-op path.
+        let _guard = SEND_KEYS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        unsafe {
+            std::env::set_var("TMUX_BIN", "/nonexistent/path/tmux-for-test");
+        }
+
+        let state = test_state();
+        let reg_resp = register_agent(
+            State(state.clone()),
+            Json(RegisterAgentRequest {
+                name: "send-keys-no-broadcast-test".to_string(),
+            }),
+        )
+        .await
+        .unwrap();
+        let api_key = reg_resp.0.data.unwrap().api_key;
+
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            "authorization",
+            format!("Bearer {}", api_key).parse().unwrap(),
+        );
+
+        // Pre-register a WebSocket subscriber for pane %0.
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+        {
+            let mut conns = state.connections.write().await;
+            conns.insert("%0".to_string(), vec![tx]);
+        }
+
+        let resp = send_keys(
+            State(state.clone()),
+            Path("%0".to_string()),
+            headers,
+            Json(SendMessageRequest {
+                text: "echo should-not-arrive".to_string(),
+            }),
+        )
+        .await;
+        unsafe {
+            std::env::remove_var("TMUX_BIN");
+        }
+
+        assert!(
+            resp.is_err(),
+            "send_keys must fail when tmux is unavailable"
+        );
+        // Give the receiver task a chance to (incorrectly) wake up.
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let broadcast_msg = rx.try_recv().ok();
+        assert!(
+            broadcast_msg.is_none(),
+            "no WebSocket broadcast must occur when tmux send-keys fails; \
+             previously the old stub broadcast unconditionally even when \
+             no keys were ever typed. got: {:?}",
+            broadcast_msg
+        );
+    }
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn test_send_keys_handler_succeeds_with_real_tmux_session() {
+        let _guard = SEND_KEYS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        let tmux_path = match run_cmd_stdout(&["which", "tmux"]) {
+            Some(p) if !p.is_empty() => p,
+            _ => {
+                eprintln!("skipping: no system tmux available");
+                return;
+            }
+        };
+        let sock = match ephemeral_tmux_server() {
+            Some(s) => s,
+            None => {
+                eprintln!("skipping: could not start ephemeral tmux server");
+                return;
+            }
+        };
+        unsafe {
+            std::env::set_var("TMUX_BIN", &tmux_path);
+        }
+
+        // Build a state pointing at our ephemeral socket.
+        let (broadcast_tx, _) = tokio::sync::broadcast::channel::<String>(256);
+        let state = Arc::new(AppState {
+            agents: TokioRwLock::new(HashMap::new()),
+            connections: TokioRwLock::new(HashMap::new()),
+            pane_cache: RwLock::new(HashMap::new()),
+            broadcast_tx,
+            socket_path: sock.clone(),
+            tmux_bin: PathBuf::from("/nonexistent/tf-mux"),
+            pane_cache_path: std::env::temp_dir().join("tf-test-panes.json"),
+        });
+        let reg_resp = register_agent(
+            State(state.clone()),
+            Json(RegisterAgentRequest {
+                name: "send-keys-ok-test".to_string(),
+            }),
+        )
+        .await
+        .unwrap();
+        let api_key = reg_resp.0.data.unwrap().api_key;
+
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            "authorization",
+            format!("Bearer {}", api_key).parse().unwrap(),
+        );
+
+        let resp = send_keys(
+            State(state.clone()),
+            Path("%0".to_string()),
+            headers,
+            Json(SendMessageRequest {
+                text: "echo OK_FROM_SEND_KEYS_OK_TEST".to_string(),
+            }),
+        )
+        .await;
+        unsafe {
+            std::env::remove_var("TMUX_BIN");
+        }
+        kill_tmux_server(&sock);
+
+        // With a real tmux server and a real pane, the handler must
+        // return Ok(ApiResponse { success: true, ... }) — not the silent
+        // stub behavior, but an actual success that proves tmux ran.
+        assert!(
+            resp.is_ok(),
+            "send_keys must return Ok against a live tmux server; got: {:?}",
+            resp.err()
+        );
+        let body = resp.unwrap().0;
+        assert!(
+            body.success,
+            "ApiResponse.success must be true after a real tmux invocation"
+        );
     }
 }

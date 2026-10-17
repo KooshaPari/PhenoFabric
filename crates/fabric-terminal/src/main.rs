@@ -169,8 +169,19 @@ async fn cmd_sync(cli: &Cli, session: Option<&str>, panes: &str, poll_ms: u64) -
 
                 if changed {
                     tracing::info!("Pane 0.0 changed ({} lines)", content.lines.len());
-                    // Broadcast to local tmux
-                    relay::broadcast_local(&content).await?;
+                    // Broadcast to local tmux. broadcast_local performs
+                    // real work (tmux set-buffer + paste-buffer) — it
+                    // returns an explicit error if no local socket is
+                    // configured or tmux is unavailable, instead of
+                    // silently succeeding.
+                    let local_socket = cli.local_socket.as_ref().ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "tf-sync sync: --local-socket is required to \
+                             broadcast pane changes into a local tmux session. \
+                             Re-run with `--local-socket /path/to/local/tmux.sock`."
+                        )
+                    })?;
+                    relay::broadcast_local(&content, &local_socket.to_string_lossy(), "%0").await?;
                 }
             }
             Err(e) => {

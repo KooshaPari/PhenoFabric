@@ -4,11 +4,13 @@
 //! selecting appropriate transport stages at each hop.
 
 pub mod cost;
+pub mod executor;
 pub mod fallback;
 pub mod stages;
 pub mod validate;
 
 pub use cost::{compute_route_cost, RouteCost};
+pub use executor::{ExecError, ExecOutcome, RouteExecutor, TcpExecutor};
 pub use stages::{builtin_stages, TransportStage};
 pub use validate::{validate_multihop, RouteValidationError};
 
@@ -193,7 +195,11 @@ fn find_edge_between<'a>(
 }
 
 /// Select transport stages for a hop given the locality tier.
-fn select_stages(tier: LocalityTier, catalog: &[TransportStage]) -> Vec<TransportStage> {
+///
+/// `pub(crate)` rather than private so that `multihop::executor::tests`
+/// can compose a tier → stages → executor pipeline and prove the seam
+/// is end-to-end observable. The semantic here is unchanged.
+pub(crate) fn select_stages(tier: LocalityTier, catalog: &[TransportStage]) -> Vec<TransportStage> {
     let mut selected = Vec::new();
 
     // Identity stage is always available.

@@ -43,8 +43,7 @@ async fn main() -> Result<()> {
         if args.len() > 1 {
             match args[1].as_str() {
                 "self-update" => {
-                    #[cfg(feature = "self-update")]
-                    self_update::run("tf-win-capture")?;
+                    run_self_update_subcommand("tf-win-capture")?;
                     return Ok(());
                 }
                 "--version" | "-V" => {
@@ -91,6 +90,74 @@ async fn main() -> Result<()> {
     #[cfg(target_os = "windows")]
     {
         run_capture_loop(&args).await
+    }
+}
+
+/// Dispatch the `self-update` subcommand.
+///
+/// When the `self-update` feature is compiled in, this delegates to the real
+/// updater (which hits GitHub, downloads a new exe, atomically swaps the binary).
+///
+/// When the feature is NOT compiled in (the default for this crate), this
+/// returns an explicit error rather than silently succeeding. The previous
+/// behavior -- a `#[cfg(feature = "self-update")]` that gated only the
+/// `self_update::run(...)` call and then fell through to `return Ok(())` --
+/// caused `tf-win-capture self-update` to exit 0 having done nothing, which
+/// is the most dangerous defect class in this repo because cargo check,
+/// clippy, and the test suite all passed.
+#[cfg(feature = "self-update")]
+fn run_self_update_subcommand(binary_name: &str) -> Result<()> {
+    self_update::run(binary_name)
+}
+
+#[cfg(not(feature = "self-update"))]
+fn run_self_update_subcommand(binary_name: &str) -> Result<()> {
+    anyhow::bail!(
+        "'{binary_name} self-update' is not available in this build: \
+         the `self-update` feature is not enabled. Rebuild with \
+         `cargo build --features self-update` to enable automatic updates."
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_self_update_returns_error_when_feature_disabled() {
+        // In the default build (no `self-update` feature), the dispatch
+        // helper must fail loudly with a message that mentions the binary
+        // name. Previously this path silently returned Ok(()), which is
+        // exactly the silent-success defect class this commit fixes.
+        let result = run_self_update_subcommand("tf-win-capture");
+        assert!(
+            result.is_err(),
+            "run_self_update_subcommand must return Err when feature is disabled; \
+             silently succeeding Ok(()) is the bug we are fixing"
+        );
+        let msg = format!("{}", result.unwrap_err());
+        assert!(
+            msg.contains("tf-win-capture"),
+            "error message should identify the binary that failed to update; got: {msg}"
+        );
+        assert!(
+            msg.contains("self-update"),
+            "error message should mention the subcommand; got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_self_update_error_for_arbitrary_binary_name() {
+        // The helper should also surface the binary name in the error for any
+        // caller, not just tf-win-capture. This guards against a future
+        // refactor that hardcodes a single name.
+        let result = run_self_update_subcommand("some-other-binary");
+        assert!(result.is_err());
+        let msg = format!("{}", result.unwrap_err());
+        assert!(
+            msg.contains("some-other-binary"),
+            "error message should include the binary name it was asked to update; got: {msg}"
+        );
     }
 }
 

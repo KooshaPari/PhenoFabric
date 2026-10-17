@@ -23,6 +23,10 @@ url = "2.5"
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1"
+# `tokio` is required only by the executor-seam integration tests
+# (`#[tokio::test]`); the trait is runtime-agnostic, but the test
+# harness drives it through a tokio runtime.
+tokio = { version = "1", features = ["macros", "rt"] }
 
 [[bench]]
 name = "compiler"
