@@ -19,3 +19,29 @@ listen_addr = "127.0.0.1:9400"
 # `listen_addr` because the wire server already binds 9400 for newline-
 # delimited JSON. The callback serves plain HTTP `GET /auth/callback` only.
 callback_listen_addr = "127.0.0.1:9401"
+
+# Federation (multi-node topology sharing). When `enabled = true` and
+# `static_peers` is non-empty, the wire server triggers a one-shot
+# pairing exchange with each peer at startup; the daemon opens a TCP
+# connection to every entry in `static_peers`, sends its own topology
+# snapshot as a `federation_sync_request`, and receives the merged view
+# as a `federation_sync_response`. The exchange is logged; the merged
+# view is NOT cached on this daemon -- it is reported back through the
+# `federation_pair_request` wire message and used by upstream tooling.
+#
+# Defaults below preserve existing single-node behaviour: no auto-pair.
+#
+# Pairing can also be triggered at runtime by sending a
+# `federation_pair_request` to the daemon over the wire protocol
+# (see `docs/acceptance/A2-TWO-DEVICE-PAIRING.md`).
+[federation]
+enabled = false
+# Local federation_id used when this daemon ships its own snapshot to a
+# peer. Peer nodes returned in the merged view are prefixed with this id.
+federation_id = "node-local"
+# Peer daemon addresses in `host:port` form, e.g. ["192.168.1.20:9400"].
+# Loopback is fine for local testing.
+static_peers = []
+# Merge strategy applied to federation_sync_response results: one of
+# "MergeAll", "LocalPrimary", "PeerPrimary".
+merge_strategy = "MergeAll"

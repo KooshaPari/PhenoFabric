@@ -25,11 +25,13 @@
 
 mod discovery;
 mod merge;
+pub mod pairing;
 mod state;
 pub mod types;
 
 pub use discovery::{spawn_sync_thread, sync_topology};
 pub use merge::merge_topologies_from_json;
+pub use pairing::{pair_with_peers, write_pair_response, PairOutcome};
 pub use state::FederationState;
 pub use types::{
     EdgeEntry, FederationError, FederationStatus, MergeStrategy, MergedTopology, NodeEntry,

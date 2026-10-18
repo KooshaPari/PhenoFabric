@@ -80,6 +80,14 @@ pub async fn process_message(message: &str, coordinator: &Coordinator) -> Option
         "federation_sync_request" | "FederationSyncRequest" => {
             handlers::handle_federation_sync_request(&validated.value, coordinator)
         }
+        // Two-daemon pairing. Caller supplies a list of peer addresses; the
+        // local daemon dials each, ships a `federation_sync_request`
+        // carrying its own snapshot, and reports the merged view per peer.
+        // See `fabric-daemon::federation::pairing` and the doc at
+        // `docs/acceptance/A2-TWO-DEVICE-PAIRING.md`.
+        "federation_pair_request" | "FederationPairRequest" => {
+            handlers::handle_federation_pair_request(&validated.value, coordinator).await
+        }
         // --- Surface plane ---
         "surface_lease_request" | "SurfaceLeaseRequest" => {
             super::surface_handlers::handle_surface_lease_request(&validated.value, coordinator)

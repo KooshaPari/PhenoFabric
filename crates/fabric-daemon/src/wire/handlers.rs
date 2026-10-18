@@ -233,6 +233,102 @@ pub(crate) fn handle_federation_sync_request(
     Some(serde_json::Value::Object(response).to_string())
 }
 
+/// Handle a `federation_pair_request` message.
+///
+/// The caller supplies a list of peer addresses; the local daemon dials
+/// each in turn, ships its current topology as a `federation_sync_request`,
+/// and reports the merged view per peer. The `federation_id` and
+/// `merge_strategy` fields are optional and fall back to the daemon's
+/// configured defaults (`coordinator.config().federation.federation_id`
+/// and `.merge_strategy`).
+///
+/// Failure of a single peer never aborts the whole call: each peer gets
+/// its own `PairOutcome` and the rest are still attempted. The function
+/// is `async` because every other handler is, but the body is
+/// synchronous; we mark it `async` to match the dispatcher's
+/// `process_message` signature.
+pub(crate) async fn handle_federation_pair_request(
+    parsed: &serde_json::Value,
+    coordinator: &Coordinator,
+) -> Option<String> {
+    // peers is required and must be a non-empty array of host:port strings.
+    let peers: Vec<String> = match parsed.get("peers").and_then(|v| v.as_array()) {
+        Some(arr) if !arr.is_empty() => {
+            let mut out = Vec::with_capacity(arr.len());
+            for p in arr {
+                match p.as_str() {
+                    Some(s) if !s.is_empty() => out.push(s.to_string()),
+                    _ => {
+                        return Some(
+                            r#"{"type":"federation_pair_error","error":"invalid_peer","message":"peers must be a non-empty array of host:port strings"}"#.to_string(),
+                        );
+                    }
+                }
+            }
+            out
+        }
+        _ => {
+            return Some(
+                r#"{"type":"federation_pair_error","error":"missing_peers","message":"peers must be a non-empty array of host:port strings"}"#.into(),
+            );
+        }
+    };
+
+    // Optional fields with daemon-config fallbacks. We hold the config
+    // lock only long enough to clone the two values we actually need;
+    // the rest of the call runs without the lock so a slow TCP peer
+    // cannot stall unrelated config access.
+    let (default_federation_id, default_merge_strategy) = {
+        let cfg = coordinator.config.lock().unwrap_or_else(|e| e.into_inner());
+        (
+            cfg.federation.federation_id.clone(),
+            cfg.federation.merge_strategy.clone(),
+        )
+    };
+    let federation_id = parsed
+        .get("federation_id")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .unwrap_or(default_federation_id);
+
+    let merge_strategy: crate::federation::MergeStrategy = match parsed.get("merge_strategy") {
+        Some(v) if !v.is_null() => match serde_json::from_value(v.clone()) {
+            Ok(s) => s,
+            Err(_) => {
+                return Some(
+                    r#"{"type":"federation_pair_error","error":"invalid_merge_strategy","message":"merge_strategy must be MergeAll, LocalPrimary, or PeerPrimary"}"#.into(),
+                );
+            }
+        },
+        _ => match default_merge_strategy.as_str() {
+            "LocalPrimary" => crate::federation::MergeStrategy::LocalPrimary,
+            "PeerPrimary" => crate::federation::MergeStrategy::PeerPrimary,
+            _ => crate::federation::MergeStrategy::MergeAll,
+        },
+    };
+
+    // Per-peer operation timeout: 5 seconds. Short enough that a single
+    // dead peer does not stall a long peer list, long enough for a
+    // loopback round-trip to complete on a quiet machine.
+    let timeout = std::time::Duration::from_secs(5);
+
+    // Local snapshot for the request body. Coordinator snapshot is a
+    // probe_response JSON; the pairing driver parses it to build the
+    // TopologySnapshot it ships to each peer.
+    let local_snapshot = coordinator.topology_snapshot();
+
+    let outcomes = crate::federation::pair_with_peers(
+        &local_snapshot,
+        &peers,
+        &federation_id,
+        &merge_strategy,
+        timeout,
+    );
+
+    Some(crate::federation::write_pair_response(&outcomes))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

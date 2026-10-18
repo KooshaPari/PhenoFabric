@@ -165,7 +165,7 @@ pub fn spawn_sync_thread(state: Arc<FederationState>, config: FederationConfig) 
     thread::spawn(move || {
         info!(
             interval_s = config.sync_interval_s,
-            peers = config.peers.len(),
+            peers = config.static_peers.len(),
             "federation sync thread started"
         );
 
@@ -175,7 +175,7 @@ pub fn spawn_sync_thread(state: Arc<FederationState>, config: FederationConfig) 
                 break;
             }
 
-            for peer_addr in &config.peers {
+            for peer_addr in &config.static_peers {
                 match sync_topology(peer_addr) {
                     Ok(mut snapshot) => {
                         snapshot.federation_id = state.federation_id.clone();

@@ -53,6 +53,12 @@ pub const REQUEST_MESSAGE_TYPES: &[&str] = &[
     // handler responds with the merged view. See the wire handler in
     // `fabric-daemon::wire::handlers::handle_federation_sync_request`.
     "federation_sync_request",
+    // Two-daemon pairing. The caller supplies a list of peer addresses; the
+    // local daemon dials each in turn, sends its own `federation_sync_request`
+    // carrying the local snapshot, and reports the merged view per peer. The
+    // `federation_id` and `merge_strategy` fields are optional and fall back
+    // to the daemon's configured defaults when absent.
+    "federation_pair_request",
 ];
 
 /// Required fields per message type (fields that MUST be present and non-null).
@@ -113,6 +119,10 @@ const REQUIRED_FIELDS: &[(&str, &[&str])] = &[
     // and is parsed by serde into the typed `MergeStrategy` enum on the
     // handler side; the schema only checks the wire-level string-ness.
     ("federation_sync_request", &["peer_snapshot", "strategy"]),
+    // Pairing requires the peer list so the handler has something to dial;
+    // `federation_id` and `merge_strategy` are optional and fall back to
+    // daemon defaults.
+    ("federation_pair_request", &["peers"]),
 ];
 
 /// Expected field types (field_name, expected_json_type).
@@ -158,6 +168,11 @@ const FIELD_TYPES: &[(&str, &str, &str)] = &[
     // handler. The schema only enforces the wire-level types.
     ("peer_snapshot", "object", "federation_sync_request"),
     ("strategy", "string", "federation_sync_request"),
+    // Pairing: peers is an array of host:port strings; federation_id and
+    // merge_strategy mirror the federation_sync_request types.
+    ("peers", "array", "federation_pair_request"),
+    ("federation_id", "string", "federation_pair_request"),
+    ("merge_strategy", "string", "federation_pair_request"),
 ];
 
 /// Error type for schema validation failures.

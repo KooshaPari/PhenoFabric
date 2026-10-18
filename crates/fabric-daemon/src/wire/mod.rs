@@ -59,6 +59,62 @@ pub fn run_wire_server(
         "wire server started"
     );
 
+    // Auto-pair at startup. If federation is enabled and the configured
+    // `static_peers` is non-empty, run a one-shot pairing pass in a
+    // detached thread so a slow or unreachable peer never blocks the
+    // accept loop. The exchange is logged at info level; outcomes are
+    // not cached on this side, so subsequent queries see the local
+    // snapshot only. Runtime pairing via `federation_pair_request` is
+    // always available regardless of this block.
+    {
+        let (enabled, federation_id, static_peers, merge_strategy_str) = {
+            let cfg = coordinator.config.lock().unwrap_or_else(|e| e.into_inner());
+            (
+                cfg.federation.enabled,
+                cfg.federation.federation_id.clone(),
+                cfg.federation.static_peers.clone(),
+                cfg.federation.merge_strategy.clone(),
+            )
+        };
+        if enabled && !static_peers.is_empty() {
+            let merge_strategy = match merge_strategy_str.as_str() {
+                "LocalPrimary" => crate::federation::MergeStrategy::LocalPrimary,
+                "PeerPrimary" => crate::federation::MergeStrategy::PeerPrimary,
+                _ => crate::federation::MergeStrategy::MergeAll,
+            };
+            let coord = coordinator.clone();
+            std::thread::Builder::new()
+                .name("federation-auto-pair".into())
+                .spawn(move || {
+                    let local_snapshot = coord.topology_snapshot();
+                    let outcomes = crate::federation::pair_with_peers(
+                        &local_snapshot,
+                        &static_peers,
+                        &federation_id,
+                        &merge_strategy,
+                        Duration::from_secs(5),
+                    );
+                    for outcome in &outcomes {
+                        if outcome.reachable {
+                            info!(
+                                peer = %outcome.peer,
+                                peer_count = ?outcome.peer_count,
+                                max_epoch = ?outcome.max_epoch,
+                                federation_ids = ?outcome.federation_ids,
+                                "federation auto-pair succeeded"
+                            );
+                        } else {
+                            warn!(
+                                peer = %outcome.peer,
+                                error = ?outcome.error,
+                                "federation auto-pair failed"
+                            );
+                        }
+                    }
+                })
+                .ok();
+        }
+    }
     loop {
         if coordinator.is_shutting_down() {
             info!("wire server shutting down, rejecting new connections");

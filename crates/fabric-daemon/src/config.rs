@@ -33,6 +33,13 @@ pub struct DaemonConfig {
     pub leases: LeaseConfig,
     pub logging: LoggingConfig,
     pub auth: AuthConfig,
+    /// Federation (multi-node topology sharing) settings. When
+    /// `federation.enabled` is true and `static_peers` is non-empty, the
+    /// wire server triggers a one-shot pairing exchange with each peer at
+    /// startup (see `wire::run_wire_server` and `federation::pairing`).
+    /// The default is disabled so existing single-node daemons are
+    /// unaffected.
+    pub federation: FederationConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -236,27 +243,37 @@ impl From<AuthConfig> for auth::AuthMiddlewareConfig {
 }
 
 /// Configuration for federation (multi-node topology sharing).
-#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct FederationConfig {
     /// Whether federation is enabled.
     pub enabled: bool,
-    /// Sync interval in seconds.
+    /// Sync interval in seconds. Reserved for a future background sync
+    /// loop; not yet consumed.
     pub sync_interval_s: u64,
-    /// List of peer daemon addresses (e.g. ["10.0.0.2:9400"]).
-    pub peers: Vec<String>,
-    /// Merge strategy name.
+    /// This daemon's federation_id prefix. Carried in the local
+    /// `TopologySnapshot` it ships to peers in `federation_sync_request`
+    /// / `federation_pair_request`, so the peer can disambiguate this
+    /// daemon's nodes from its own.
+    pub federation_id: String,
+    /// Static peer daemon addresses, in `host:port` form. When
+    /// `enabled = true` and this list is non-empty, the wire server
+    /// triggers a one-shot pairing exchange with each peer at startup
+    /// (see `wire::run_wire_server` and `federation::pairing`).
+    pub static_peers: Vec<String>,
+    /// Merge strategy name. One of "MergeAll", "LocalPrimary",
+    /// "PeerPrimary". Used by the auto-pair path and as the default
+    /// fallback for `federation_pair_request.merge_strategy`.
     pub merge_strategy: String,
 }
 
-#[allow(dead_code)]
 impl Default for FederationConfig {
     fn default() -> Self {
         Self {
             enabled: false,
             sync_interval_s: 30,
-            peers: Vec::new(),
+            federation_id: "node-local".into(),
+            static_peers: Vec::new(),
             merge_strategy: "MergeAll".into(),
         }
     }
