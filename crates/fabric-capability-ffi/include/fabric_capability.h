@@ -7,8 +7,9 @@
  * Conventions:
  *  - All pointer parameters must be non-null unless documented otherwise.
  *  - Returned strings are UTF-8, NUL-terminated, and must be released with
- *    `fabric_capability_free_string` (or `fabric_capability_free_key` for
- *    raw byte buffers).
+ *    `fabric_capability_free_string`.
+ *  - `fabric_capability_generate_key` writes the 32-byte seed directly into
+ *    the caller's buffer; there is nothing to free.
  *  - Error codes are `FabricError` (see enum below).
  *
  * Thread safety: all functions are safe to call from any thread.
@@ -46,9 +47,6 @@ const char *fabric_capability_error_message(FabricError code);
 /* Free a string returned by this library. Safe to call with NULL. */
 void fabric_capability_free_string(char *s);
 
-/* Free a raw key buffer returned by this library. Safe to call with NULL. */
-void fabric_capability_free_key(unsigned char *p);
-
 /* --- Capability descriptor JSON round-trip ----------------------------- */
 
 /* Re-serialize a JSON descriptor (validates JSON, canonicalizes ordering).
@@ -67,18 +65,22 @@ FabricError fabric_capability_sign_json(const char *descriptor_json,
                                        const unsigned char *key_bytes,
                                        char **out_signed);
 
-/* Verify a signed capability descriptor against a verification key.
+/* Verify a signed capability descriptor against a signing key.
  * `descriptor_json` must be a valid, null-terminated C string.
- * `vk_bytes` must point to 32 bytes of Ed25519 public key.
+ * `seed_bytes` must point to 32 bytes of Ed25519 seed — the same bytes
+ * returned by `fabric_capability_generate_key`. The library derives the
+ * public key from the seed internally; C consumers do not need to know the
+ * distinction between seed and public key.
  * Returns FABRIC_OK if the signature is valid, otherwise an error code. */
 FabricError fabric_capability_verify_json(const char *descriptor_json,
-                                          const unsigned char *vk_bytes);
+                                          const unsigned char *seed_bytes);
 
 /* --- Key management ----------------------------------------------------- */
 
 /* Generate a new random Ed25519 signing key (32 bytes of seed).
  * On success, `out_key[32]` is filled with the key seed.
- * Free raw key memory with `fabric_capability_free_key`. */
+ * The caller owns the buffer; nothing is allocated by this library and
+ * nothing needs to be freed. */
 FabricError fabric_capability_generate_key(unsigned char out_key[32]);
 
 /* Returns the key fingerprint (blake3 hex) for a given key.

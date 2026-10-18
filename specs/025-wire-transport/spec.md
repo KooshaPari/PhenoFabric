@@ -1,6 +1,14 @@
 # Spec 025 — Wire transport contract (PF-WP-040, R2 wedge #4)
 
-**WP**: PF-WP-040 · **Release gate**: R2-wedge-contract · **Status**: draft
+> **STATUS (annotation added 2026-10-17):** This spec is a **DRAFT CONTRACT** as written. The message-set definitions, JSON shapes, and codec contracts in §3–§5 below are still the intended wire surface, but several line-level claims here do not match the code at `08951a2`. A 2026-10-17 audit found this spec's test-count claim materially stale. Read it as a *contract to implement against*, not as evidence the wire transport layer exists in the form described. For current state see [`docs/dockets/2026-10-17-state-forward-docket-v1/DOCKET.md`](../../docs/dockets/2026-10-17-state-forward-docket-v1/DOCKET.md) (G-13: "describe undelivered capability; stakeholder misreads progress; annotate as planning records"). Specific drift observed:
+>
+> - §2.1 / §6 claims a single ~300 LoC `cmd/wire/wire.go` package with **13 unit tests** in `wire_test.go` and 5 JSON fixtures. Actual at `08951a2`: `cmd/wire/wire.go` is **558 LoC**, `cmd/wire/wire_test.go` has **20 tests** (not 13), and the package now also ships `cmd/wire/transport_tcp.go` (371 LoC, **6 tests** in `transport_tcp_test.go`) and `cmd/wire/transport_memory.go` (109 LoC, **9 tests** in `transport_memory_test.go`). The spec deliberately excluded the actual transport layer in §2.2 ("no actual sockets, no net/http, no gRPC"); the actual code now includes a TCP transport, which this contract section does not describe.
+> - §6 Acceptance criterion 1 (`go build ./cmd/wire/`) and criteria 3–5 (zero regressions in capprobe, checker, cargo test) are met at `08951a2`. Criterion 2 (13 tests in `wire_test.go`) is not — see drift note above.
+> - §9 "Why this is a stub and not an implementation" claims a stub-only wire package. The actual code now has a TCP transport impl and a memory transport impl, so the table in §9 ("memory:// ❌ — R3 test helper", "http:// ❌", etc.) is materially out of date.
+>
+> **Do not patch the contract in place.** The intended wire shape (envelope, message types, codec rules) is still what consumers should target. Test-count and LoC claims are historical.
+
+**WP**: PF-WP-040 · **Release gate**: R2-wedge-contract · **Status**: draft (contract; see status note above)
 
 ## 1. Background
 

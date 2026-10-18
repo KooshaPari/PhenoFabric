@@ -1,6 +1,16 @@
 # Spec 024 ↔ 025 Wire Mapping
 
-**Status:** R2 Implementation Reference
+> **STATUS (annotation added 2026-10-17):** This document is a **historical planning artifact** that mapped how spec 024 (Rust surface runtime) and spec 025 (Go wire constructors) were intended to compose. It is NOT a current description of the wire surface. A 2026-10-17 audit found its test-count and file-structure claims materially out of date against the code at `08951a2`. Read it as a *historical mapping*, not as evidence of the implemented pipeline. For current state see [`docs/dockets/2026-10-17-state-forward-docket-v1/DOCKET.md`](../docs/dockets/2026-10-17-state-forward-docket-v1/DOCKET.md) and the surface runtime at [`crates/fabric-graph/src/surface_runtime/`](../../crates/fabric-graph/src/surface_runtime/). Specific drift observed:
+>
+> - "tested in `crates/fabric-graph/src/surface_runtime.rs` (Rust, 11 tests)" — actual at `08951a2`: `crates/fabric-graph/src/surface_runtime.rs` is now a *directory* (`mod.rs`=21 LoC, `registry.rs`=597 LoC, `types.rs`=94 LoC; total 712 LoC). The integration coverage is in `crates/fabric-graph/tests/surface_runtime_integration.rs` (5 tests), not in-file.
+> - "tested in `cmd/wire/wire.go` (Go wire constructors, 18 tests)" — actual: `cmd/wire/wire.go`=558 LoC, `cmd/wire/wire_test.go`=20 tests; the wire package also now ships `transport_tcp.go` (371 LoC, 6 tests) and `transport_memory.go` (109 LoC, 9 tests). Total wire-package tests: **35**, not 18.
+> - "Test Coverage" table totals to **56** — actual per-layer counts at `08951a2` are higher across the board (see drift above and the audit report).
+> - "Trust Root Verification (Go)" subsection describes Go-side trust verification as if it is wired into `cmd/checker`. The current `cmd/checker/trust.go` exists and has 7 tests in `cmd/checker/trust_test.go`, but the wiring described here (trust loaded before placement checks on every invocation) is not what the code does; this is consistent with R1's "the trust-root model is in place but not yet wired into the Go checker" note in `docs/releases/2026-09-08-R1.md`.
+> - The ASCII pipeline diagram and "Data flow" sequence still match the *intended* flow but the Go checker does not actually invoke the Rust binary at runtime — the R1 deferred `-checker-replan` flag remained R2 work; this document was written when that wiring was assumed imminent.
+>
+> **Do not patch this mapping in place.** History is preserved.
+
+**Status (historical):** R2 Implementation Reference
 **Date:** 2026-09-12
 **Specs:** PF-WP-024 (surface-plane runtime) → PF-WP-025 (wire transport)
 

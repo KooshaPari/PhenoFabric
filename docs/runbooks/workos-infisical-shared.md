@@ -1,5 +1,13 @@
 # WorkOS + Infisical shared-credentials runbook
 
+> **STATUS (annotation added 2026-10-17, refreshed against `08951a2`):** This runbook describes the WorkOS/Infisical workflow. Three things changed since it was originally written that this annotation makes plain so a reader does not follow a dead end:
+>
+> 1. **Callback listener now exists and is verified working at `http://localhost:9401/auth/callback`.** The wire server owns `127.0.0.1:9400` for newline-delimited JSON; the OAuth callback was moved to a separate HTTP listener bound via `[server] callback_listen_addr` in `config/settings.toml` (default `127.0.0.1:9401`). The handler lives at `crates/fabric-daemon/src/auth/callback.rs` and the wire-up is in `crates/fabric-daemon/src/main.rs:232`. The originally documented `http://localhost:5173/auth/callback` (line 57 below) and the original `9400/auth/callback` in `config/settings.toml` are stale — the live redirect URI is **9401**, not 5173 or 9400. Do not register a new WorkOS redirect URI against 5173/9400.
+> 2. **`WORKOS_CLIENT_SECRET` is the remaining blocker for the authenticated path.** It is not present in this machine's environment. Without it the daemon still starts in authenticated mode (because `config/settings.toml` ships with `[auth] enabled = true`), but the WorkOS confidential-client exchange fails and the authenticated journey cannot complete. The unauthenticated local path is independent and works today — see [`docs/quickstart/FIRST-RUN.md`](../quickstart/FIRST-RUN.md) Section 1.
+> 3. **The two seed paths (Path A: dashboard click, Path B: AuthKit for Platforms) are the only paths that produce the secret.** Both are described below; neither is "one command" and neither has been run end-to-end on this machine. The seeded `/shared/workos` entries below include the placeholders (`WORKOS_CLIENT_SECRET=...`) — those placeholders are not yet real.
+>
+> For the verified first-run path that ships today (the unauthenticated mode that binds 9400 and answers wire/CLI traffic), read [`docs/quickstart/FIRST-RUN.md`](../quickstart/FIRST-RUN.md) and stop at Section 1. Do not attempt Section 2 unless you have a real `WORKOS_CLIENT_SECRET`.
+
 Goal: store one copy of the WorkOS AuthKit credential set in Infisical, and let any Phenotype project consume it trivially.
 
 ## What lives where
@@ -54,7 +62,7 @@ The org's Phenotype project has these keys staged in dev/staging/prod:
 ```bash
 infisical secrets set \
   "WORKOS_CLIENT_ID=client_01K4KYZR40RK7R9X3PPB5SEJ66" \
-  "WORKOS_REDIRECT_URI=http://localhost:5173/auth/callback" \
+  "WORKOS_REDIRECT_URI=http://localhost:9401/auth/callback" \
   "WORKOS_AUTHKIT_DOMAIN=significant-vessel-93-staging.authkit.app" \
   --projectId=8efe392e-56a6-4c3c-89f9-8141183dd7e8 \
   --env=dev --path=/shared/workos
@@ -197,7 +205,7 @@ API_KEY=$(curl -s -X POST "https://api.workos.com/platform/teams/$TEAM/environme
 # 5. Register the redirect URI for the app
 curl -s -X POST "https://api.workos.com/user_management/redirect_uris" \
   -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
-  -d '{"uri":"http://localhost:5173/auth/callback"}'
+  -d '{"uri":"http://localhost:9401/auth/callback"}'
 ```
 
 Note: this creates a NEW AuthKit instance. It does NOT retrieve or rotate
@@ -349,9 +357,10 @@ serializable as usual.
 
 ### Authenticated end-to-end status (externally blocked, precise cause)
 
+> **2026-10-17 update against `08951a2`:** the **sole remaining blocker for the authenticated path is `WORKOS_CLIENT_SECRET`** (must be present in the daemon process environment or in Infisical at `/shared/workos`). It is not present in this machine's environment as of `08951a2`. The callback listener itself is implemented and verified working at `http://localhost:9401/auth/callback` (see STATUS header at top of file). The unauthenticated first-run path on 9400 is independent and works today — see [`docs/quickstart/FIRST-RUN.md`](../quickstart/FIRST-RUN.md) Section 1. Do not attempt to fix the authenticated path without the secret.
+
 A real authenticated fetch through the daemon path was **not** executed.
 Evidence for the block (all observed 2026-09-27):
-
 - No `INFISICAL_*` environment variables exist in the shell.
 - `config/settings.toml` `[auth]` carries no `infisical_client_id` and no
   `infisical_project_id` keys; `infisical_client_secret` appears only in a

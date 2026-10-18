@@ -6,6 +6,12 @@ license = "MIT OR Apache-2.0"
 description = "C FFI bindings for fabric-capability"
 repository = "https://github.com/phenotype-dev/phenotype-fabric"
 
+# Emit both an rlib (for the Rust workspace) and a static C library (so the
+# true cross-language link smoke test in tests/c_link_smoke.rs can `cc` the
+# archive). Keeping the default `rlib` preserves the existing Rust consumers.
+[lib]
+crate-type = ["rlib", "staticlib"]
+
 [dependencies]
 fabric-capability = { path = "../fabric-capability", version = "0.1.0" }
 serde = "1.0"
