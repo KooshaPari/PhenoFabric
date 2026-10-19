@@ -299,7 +299,15 @@ fn build_staticlib_and_native_libs(scratch_target_dir: &Path) -> (PathBuf, Vec<S
 
     // `--message-format=short` keeps the compile log terse. Note that it does
     // NOT suppress the `native-static-libs` note, which we read off stderr.
+    // Force plain output from the child cargo. CI sets CARGO_TERM_COLOR=always
+    // (ci.yml), which wraps the `note: native-static-libs:` line in ANSI escape
+    // codes; the parser below intentionally matches rustc's exact text and
+    // cannot see through the color bytes, so the note read as "absent" and the
+    // test hard-failed on CI only. The child inherits our env, so override it
+    // here rather than weakening the parser.
     let out = Command::new(&cargo)
+        .env("CARGO_TERM_COLOR", "never")
+        .env("TERM", "dumb")
         .arg("rustc")
         .arg("--manifest-path")
         .arg(manifest_path())
