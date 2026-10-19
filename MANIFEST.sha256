@@ -151,7 +151,6 @@
   "crates/fabric-capability-ffi/tests/abi_null_safety.rs": "b63b7178a4e0088fd152e933df2489876d53977e958a0c7afb1f718b3bf8e06b",
   "crates/fabric-capability-ffi/tests/abi_round_trip.rs": "cf85d78785a5dafc48fcb72fbf03915398aa7c73b4dd1f9dd8f8a4aa048d707b",
   "crates/fabric-capability-ffi/tests/abi_surface.rs": "3e7e89045e99d0f461770c914dc4cb4c28c1e6a707294dacd02eda16e32cb2f1",
-  "crates/fabric-capability-ffi/tests/c_link_smoke.rs": "2422f8a5ebca37051a19fafab9b0d51e352a59f41dc8749a9219014a82fcfefc",
   "crates/fabric-capability-ffi/tests/common/mod.rs": "6a54b13750294cf3ee8068b66f4e6314ce4d19cdd3d48135f0b35b9f9a84cd82",
   "crates/fabric-capability/Cargo.toml": "11b49496edc727ee4806b22f4bbfa785b69a0f16210593fc8e855dc546d2be09",
   "crates/fabric-capability/examples/verify_fixtures.rs": "012108948b24461dbff527f012cc2ea6db0d285a9093255ba8a4bc1f35f7e66c",
