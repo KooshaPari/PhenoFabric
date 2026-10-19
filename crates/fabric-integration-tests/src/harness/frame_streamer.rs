@@ -305,26 +305,30 @@ fn make_synthetic_payload(width: u32, height: u32) -> Vec<u8> {
 fn base64_encode(input: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
-    let mut chunks = input.chunks_exact(3);
-    for c in &mut chunks {
-        let n = ((c[0] as u32) << 16) | ((c[1] as u32) << 8) | (c[2] as u32);
+    // Index-driven rather than `chunks_exact(3)`: newer clippy releases flag
+    // `chunks_exact` with a constant size and suggest `as_chunks`, which is
+    // still unstable. A plain index walk is stable on every toolchain and
+    // makes the tail handling explicit.
+    let mut i = 0;
+    while i + 2 < input.len() {
+        let n = ((input[i] as u32) << 16) | ((input[i + 1] as u32) << 8) | (input[i + 2] as u32);
         out.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
         out.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
         out.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
         out.push(ALPHABET[(n & 0x3F) as usize] as char);
+        i += 3;
     }
-    let rem = chunks.remainder();
-    match rem.len() {
+    match input.len() - i {
         0 => {}
         1 => {
-            let n = (rem[0] as u32) << 16;
+            let n = (input[i] as u32) << 16;
             out.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
             out.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
             out.push('=');
             out.push('=');
         }
         2 => {
-            let n = ((rem[0] as u32) << 16) | ((rem[1] as u32) << 8);
+            let n = ((input[i] as u32) << 16) | ((input[i + 1] as u32) << 8);
             out.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
             out.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
             out.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
@@ -355,6 +359,35 @@ mod tests {
             elapsed: Duration::ZERO,
         };
         assert_eq!(result.frames_sent, 0);
+    }
+
+    #[test]
+    fn base64_encode_matches_rfc4648_vectors() {
+        // Section 10 test vectors, covering all three padding cases.
+        // A wrong tail here would corrupt every `FrameBody::Embedded` frame,
+        // so the encoder is pinned directly rather than only through the
+        // decoder's acceptance of large synthetic bodies.
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b"foob"), "Zm9vYg==");
+        assert_eq!(base64_encode(b"fooba"), "Zm9vYmE=");
+        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
+    }
+
+    #[test]
+    fn base64_encode_handles_a_full_frame_body() {
+        // The real fixture path: 64x48 RGBA is 12,288 bytes, a multiple of
+        // three, so it must encode with no padding at all.
+        let body = make_synthetic_payload(64, 48);
+        assert_eq!(body.len(), 12_288);
+        let encoded = base64_encode(&body);
+        assert_eq!(encoded.len(), 16_384);
+        assert!(
+            !encoded.contains('='),
+            "a 3-byte-aligned body needs no padding"
+        );
     }
 
     #[test]

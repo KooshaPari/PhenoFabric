@@ -598,7 +598,7 @@
   "crates/fabric-gui/tests/gui_contract.rs": "9ca2f77e8c5faad47416a7549e76af8367a4b901005f3f558a7716ee585e8ff3",
   "crates/fabric-integration-tests/Cargo.toml": "d332d8bf758f98b4fdd892bdaadcf1421654cd5b5733deb8dde6a9d99489e69e",
   "crates/fabric-integration-tests/src/harness/federation.rs": "4982ad7a74e3cebfe3f1a77831d8c313e82affb9a5e7be0a88d286630c8a2f22",
-  "crates/fabric-integration-tests/src/harness/frame_streamer.rs": "15b9018c32732fa8305cd74d976fa72cc8228d679b3436b427ad8c66db56ac0d",
+  "crates/fabric-integration-tests/src/harness/frame_streamer.rs": "81309d2e017705c4f9f1016e5c0b09956b83a90be0d9adb06039bd0f4ce2a53e",
   "crates/fabric-integration-tests/src/harness/mod.rs": "a6236f62a51c0798f7acccab5052a09c91bdab9dbb8468baed289b629de749dc",
   "crates/fabric-integration-tests/src/lib.rs": "658c741dbbcd68ed8d972144f179ec6936b9ae1d281f407ff1f5368891cee294",
   "crates/fabric-integration-tests/tests/capability_revocation.rs": "a409f46f628cae9b1fa3ff9f8b88c51c35d9d73d87920bf3d7c886de8eedc10c",
