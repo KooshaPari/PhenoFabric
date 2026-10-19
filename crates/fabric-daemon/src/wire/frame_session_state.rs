@@ -105,6 +105,22 @@ pub const MAX_CONCURRENT_SESSIONS: usize = 256;
 /// keeps the memory cost flat however much churns through the daemon.
 const TEARDOWN_HISTORY: usize = 64;
 
+/// Maximum decoded payload frames retained per session in
+/// [`FrameSession::received_payloads`].
+///
+/// The sink is what proves the receiver reconstructed the bytes the sender
+/// transmitted: the integration test in
+/// `crates/fabric-integration-tests/tests/frame_payload_decode_wire.rs`
+/// drives the real daemon wire server and drains this vector to assert the
+/// exact bytes round-tripped through the live handler. The cap is the same
+/// order of magnitude as the rest of the session's per-message bookkeeping
+/// (the ack map, the rtt map) and is a deliberately fixed ceiling: a
+/// long-running stream is supposed to be reaped by the drain at
+/// observation time, not grown without bound. When the cap is reached the
+/// oldest entry is dropped (FIFO) so the most recent frames -- the ones
+/// most likely to be the ones a client cares about -- stay available.
+pub const MAX_RECEIVED_PAYLOADS_PER_SESSION: usize = 1024;
+
 /// Negotiated parameters for one streaming session, as agreed at `session_init`.
 ///
 /// Field names and types come from `fabric_frame_transport::SessionInit`
@@ -136,6 +152,16 @@ pub struct FrameSession {
     pub frame_count: u64,
     /// Sequence numbers acknowledged by the client, mapped to reported RTT.
     pub acks: HashMap<u64, u64>,
+    /// Decoded payload bytes from each accepted `frame_data`, in arrival order.
+    ///
+    /// The frame plane only ever inspects the bytes -- it does not consume
+    /// them, because the daemon's job is to record what arrived -- but a
+    /// future change (YUV conversion, codec demuxing, keyframe indexing)
+    /// has a place to attach the actual payload without re-parsing the
+    /// wire envelope. Bounded on the daemon side by
+    /// [`MAX_RECEIVED_PAYLOADS_PER_SESSION`] so a long-running session
+    /// cannot grow this buffer without bound.
+    pub received_payloads: Vec<Vec<u8>>,
     /// Clock reading (ms, same domain as [`FrameSessionState::expire_idle_sessions`])
     /// of the most recent activity on this session.
     ///
@@ -193,6 +219,7 @@ impl FrameSession {
             frames_received: 0,
             frame_count: 0,
             acks: HashMap::new(),
+            received_payloads: Vec::new(),
             last_activity_ms: now_ms,
             state: SessionState::Active,
             input_owner: owner.clone(),
@@ -209,6 +236,22 @@ impl FrameSession {
             ack_count: self.acks.len() as u64,
             last_seq: self.last_seq,
         }
+    }
+
+    /// Append a decoded payload to the session's sink, evicting the oldest
+    /// entry when the cap is reached.
+    ///
+    /// Called only on a successful decode in
+    /// [`crate::wire::frame_handlers::handle_frame_data`]: a refused
+    /// decode never reaches the sink, so the sink is the truth about what
+    /// the receiver actually reconstructed. FIFO eviction means the
+    /// sink always holds the most recent `MAX_RECEIVED_PAYLOADS_PER_SESSION`
+    /// frames, not the oldest ones.
+    pub fn push_received_payload(&mut self, bytes: Vec<u8>) {
+        if self.received_payloads.len() >= MAX_RECEIVED_PAYLOADS_PER_SESSION {
+            self.received_payloads.remove(0);
+        }
+        self.received_payloads.push(bytes);
     }
 }
 
@@ -597,6 +640,42 @@ impl FrameSessionState {
             output_owner: session.output_owner.clone(),
             focus_owner: session.focus_owner.clone(),
         })
+    }
+
+    /// Drain the decoded payloads that have been accumulated for `session_id`.
+    ///
+    /// Returns the bytes the receiver reconstructed, in arrival order, and
+    /// leaves the session with an empty sink. Returns `None` only when
+    /// `session_id` names no live session, in which case the sink is
+    /// unreachable. An empty `Vec` from a live session is a normal result:
+    /// a session that opened, was configured, and has not yet seen a
+    /// `frame_data` accepted by [`super::frame_handlers::handle_frame_data`]
+    /// has an empty sink.
+    ///
+    /// The reachability test
+    /// `crates/fabric-integration-tests/tests/frame_payload_decode_wire.rs`
+    /// drains this vector after driving the real daemon wire server with a
+    /// base64-encoded payload. The drain returns the exact bytes the sender
+    /// transmitted -- that round-trip is the proof the decoder is wired
+    /// into the live handler and not dead code.
+    #[allow(dead_code)] // exercised by `frame_payload_decode_wire.rs`; not by daemon-internal tests
+    pub fn drain_received_payloads(&mut self, session_id: u64) -> Option<Vec<Vec<u8>>> {
+        let session = self.sessions.get_mut(&session_id)?;
+        Some(std::mem::take(&mut session.received_payloads))
+    }
+
+    /// Read a snapshot of the decoded payloads that have been accumulated
+    /// for `session_id`, without removing them.
+    ///
+    /// Companion to [`Self::drain_received_payloads`] for callers that
+    /// only need to observe (not consume) what was decoded. Returns `None`
+    /// only when `session_id` names no live session; an empty `Vec` is
+    /// otherwise a normal result.
+    #[allow(dead_code)] // companion to `drain_received_payloads`; used by future observers (e.g. keyframe indexer)
+    pub fn received_payloads(&self, session_id: u64) -> Option<Vec<Vec<u8>>> {
+        self.sessions
+            .get(&session_id)
+            .map(|s| s.received_payloads.clone())
     }
 
     /// Explicit ownership transition: hand the input / output / focus seats

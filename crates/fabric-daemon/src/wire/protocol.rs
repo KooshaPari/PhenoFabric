@@ -394,8 +394,26 @@ mod tests {
         let coord = make_coordinator();
         process_message(session_init_line(), &coord).await.unwrap();
 
-        let frame = r#"{"type":"frame_data","session_id":1,"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"protocol-test"}"#;
-        let resp = process_message(frame, &coord).await.unwrap();
+        // The body is the codec-derived 12,288 bytes for 64x48 Rgba
+        // (16384 'A' characters in base64). Built via `serde_json::json!`
+        // so the long payload_b64 string is a single literal rather than
+        // a hand-rolled JSON escape in a `r#"..."#` raw string.
+        let frame = serde_json::json!({
+            "type": "frame_data",
+            "session_id": 1,
+            "seq": 0,
+            "pts_us": 0,
+            "dts_us": 0,
+            "is_keyframe": true,
+            "codec": "Rgba",
+            "width": 64,
+            "height": 48,
+            "payload_len": 12288,
+            "duration_us": 16667,
+            "sender_id": "protocol-test",
+            "payload_b64": "A".repeat(16_384),
+        });
+        let resp = process_message(&frame.to_string(), &coord).await.unwrap();
         assert!(!resp.contains("UNKNOWN_TYPE"), "fell through: {resp}");
         let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(v["type"], "frame_ack");
@@ -420,8 +438,20 @@ mod tests {
     async fn frame_ack_is_dispatched_for_a_known_session() {
         let coord = make_coordinator();
         process_message(session_init_line(), &coord).await.unwrap();
-        let frame = r#"{"type":"frame_data","session_id":1,"seq":1,"codec":"Rgba","payload_len":32,"sender_id":"protocol-test"}"#;
-        process_message(frame, &coord).await.unwrap();
+        // A real 12,288-byte Rgba body so the wire decoder accepts the
+        // frame and the session can record the ack that follows.
+        let frame = serde_json::json!({
+            "type": "frame_data",
+            "session_id": 1,
+            "seq": 1,
+            "codec": "Rgba",
+            "width": 64,
+            "height": 48,
+            "payload_len": 12288,
+            "sender_id": "protocol-test",
+            "payload_b64": "A".repeat(16_384),
+        });
+        process_message(&frame.to_string(), &coord).await.unwrap();
 
         let ack = r#"{"type":"frame_ack","session_id":1,"seq":1,"rtt_us":4200,"recv_pts_us":16667,"sender_id":"protocol-test"}"#;
         let resp = process_message(ack, &coord).await.unwrap();
@@ -480,8 +510,24 @@ mod tests {
         assert_eq!(v["focus_owner"], "new-input");
 
         // The new owner can drive frames; the old one is rejected.
-        let new_frame = r#"{"type":"frame_data","session_id":1,"seq":1,"codec":"Rgba","payload_len":8,"sender_id":"new-input"}"#;
-        let resp = process_message(new_frame, &coord).await.unwrap();
+        // The body is the codec-derived 12,288 bytes for 64x48 Rgba
+        // (16,384 'A' characters in base64). Built via `serde_json::json!`
+        // so the long payload_b64 string is one literal rather than a
+        // hand-rolled escape in a raw `r#"..."#` string.
+        let new_frame = serde_json::json!({
+            "type": "frame_data",
+            "session_id": 1,
+            "seq": 1,
+            "codec": "Rgba",
+            "width": 64,
+            "height": 48,
+            "payload_len": 12288,
+            "sender_id": "new-input",
+            "payload_b64": "A".repeat(16_384),
+        });
+        let resp = process_message(&new_frame.to_string(), &coord)
+            .await
+            .unwrap();
         let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert_eq!(v["type"], "frame_ack");
 

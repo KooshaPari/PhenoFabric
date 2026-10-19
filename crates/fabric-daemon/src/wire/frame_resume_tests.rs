@@ -50,10 +50,22 @@ fn frame_value(session_id: u64, seq: u64, payload_len: u32) -> Value {
     // sender here is the same id that the tests pass to `init_value`.
     // Tests that need to drive a different peer should construct a frame
     // by hand.
-    frame_value_with_sender(session_id, seq, payload_len, "client-a")
+    frame_value_with_sender(
+        session_id,
+        seq,
+        payload_len,
+        "client-a",
+        payload_b64_for(payload_len),
+    )
 }
 
-fn frame_value_with_sender(session_id: u64, seq: u64, payload_len: u32, sender_id: &str) -> Value {
+fn frame_value_with_sender(
+    session_id: u64,
+    seq: u64,
+    payload_len: u32,
+    sender_id: &str,
+    payload_b64: &str,
+) -> Value {
     serde_json::json!({
         "type": "frame_data",
         "session_id": session_id,
@@ -67,7 +79,41 @@ fn frame_value_with_sender(session_id: u64, seq: u64, payload_len: u32, sender_i
         "payload_len": payload_len,
         "duration_us": 16_667,
         "sender_id": sender_id,
+        "payload_b64": payload_b64,
     })
+}
+
+/// Base64-encode `payload_len` zero bytes. See the same-name helper in
+/// `frame_handlers_tests.rs` for the rationale. Duplicated here so the
+/// resume tests can drive the wire without a `base64` dependency.
+fn payload_b64_for(payload_len: u32) -> &'static str {
+    match payload_len {
+        0 => "",
+        12288 => rgba_64x48_zero_b64(),
+        _ => {
+            let n = payload_len as usize;
+            let full = n / 3;
+            let rem = n % 3;
+            let mut s = String::with_capacity((full + (rem != 0) as usize) * 4);
+            for _ in 0..full {
+                s.push_str("AAAA");
+            }
+            match rem {
+                0 => {}
+                1 => s.push_str("AA=="),
+                2 => s.push_str("AAA="),
+                _ => unreachable!(),
+            }
+            Box::leak(s.into_boxed_str())
+        }
+    }
+}
+
+fn rgba_64x48_zero_b64() -> &'static str {
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<String> = OnceLock::new();
+    let s = CACHE.get_or_init(|| "A".repeat(16_384));
+    s.as_str()
 }
 
 fn resume_value(session_id: u64) -> Value {
@@ -90,7 +136,7 @@ fn stream_then_disconnect(coord: &Arc<Coordinator>, client: &str, frames: u64) -
 
     for seq in 0..frames {
         let f = parse(&super::super::frame_handlers::handle_frame_data(
-            &frame_value(session_id, seq, 100),
+            &frame_value(session_id, seq, 12288),
             coord,
         ));
         assert_eq!(f["status"], "ok", "frame {seq} should land: {f}");
@@ -120,7 +166,11 @@ fn resume_of_a_disconnected_session_succeeds() {
     assert_eq!(v["state"], "active");
     assert_eq!(v["was_disconnected"], true);
     assert_eq!(v["frame_count"], 3);
-    assert_eq!(v["frames_received"], 300);
+    // 3 * 12,288 = 36,864: the three decoded frame bodies the session
+    // accumulated before being marked disconnected, not the 100 * 3 = 300
+    // the client would have sent before the wire enforced the codec
+    // shape.
+    assert_eq!(v["frames_received"], 36864);
     assert_eq!(v["last_seq"], 2);
 }
 
@@ -138,7 +188,7 @@ fn disconnect_then_reconnect_and_resume_continues_the_sequence() {
 
     // --- Keep streaming from where it left off, not from zero ---
     let next = parse(&super::super::frame_handlers::handle_frame_data(
-        &frame_value(session_id, 3, 250),
+        &frame_value(session_id, 3, 12288),
         &coord,
     ));
     assert_eq!(next["type"], "frame_ack", "got: {next}");
@@ -149,7 +199,7 @@ fn disconnect_then_reconnect_and_resume_continues_the_sequence() {
         "accounting continued across the resume: {next}"
     );
     assert_eq!(
-        next["frames_received"], 550,
+        next["frames_received"], 49152,
         "byte accounting continued too: {next}"
     );
     assert_eq!(next["last_seq"], 3);
@@ -334,7 +384,7 @@ fn refused_resume_does_not_disturb_a_live_session() {
 
     assert_eq!(coord.frame_sessions_mut().len(), 1);
     let live = parse(&super::super::frame_handlers::handle_frame_data(
-        &frame_value(session_id, 3, 10),
+        &frame_value(session_id, 3, 12288),
         &coord,
     ));
     assert_eq!(
@@ -354,7 +404,7 @@ fn a_wrong_id_cannot_touch_the_real_session() {
 
     handle_session_resume(&resume_value(9999), &coord);
     let stray = parse(&super::super::frame_handlers::handle_frame_data(
-        &frame_value(9999, 0, 10),
+        &frame_value(9999, 0, 12288),
         &coord,
     ));
     assert_eq!(stray["error"], "unknown_session");

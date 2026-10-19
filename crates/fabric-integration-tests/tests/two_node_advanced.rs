@@ -15,7 +15,7 @@ use fabric_graph::multihop::builtin_stages;
 use fabric_integration_tests::harness::federation::{
     assert_federation_ids, assert_merged_topology, assert_min_epoch, exchange_and_merge,
 };
-use fabric_integration_tests::harness::frame_streamer::stream_frames_between;
+use fabric_integration_tests::harness::frame_streamer::{stream_frames_between, FrameBody};
 use fabric_integration_tests::harness::{
     build_2node_topology, send_and_receive, start_daemon, start_two_daemons, stop_daemon,
 };
@@ -311,9 +311,16 @@ fn two_node_full_pipeline() {
 
     // --- Step 2: Stream frames to B ---
     let frame_count = 5;
-    let stream_result =
-        stream_frames_between(&b.addr, "pipeline-client", 64, 48, frame_count, Codec::Rgba)
-            .expect("stream_frames_between should succeed");
+    let stream_result = stream_frames_between(
+        &b.addr,
+        "pipeline-client",
+        64,
+        48,
+        frame_count,
+        Codec::Rgba,
+        FrameBody::Embedded,
+    )
+    .expect("stream_frames_between should succeed");
 
     assert_eq!(
         stream_result.frames_sent, frame_count,

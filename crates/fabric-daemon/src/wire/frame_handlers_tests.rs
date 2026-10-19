@@ -6,7 +6,7 @@
 use super::super::frame_session_state::MAX_CONCURRENT_SESSIONS;
 use super::*;
 use fabric_frame_transport::PROTOCOL_VERSION;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 fn make_coordinator() -> Arc<Coordinator> {
     let dir = tempfile::tempdir().unwrap();
@@ -44,13 +44,38 @@ fn init_value(client: &str) -> Value {
 /// drive a different peer can pass an explicit `sender_id` and pair it with
 /// a session opened by that peer (or a `session_transfer` that hands input
 /// to them).
+///
+/// `payload_b64` is the base64 encoding of the body bytes; the wire server
+/// refuses a `frame_data` whose `payload_len` is non-zero without it. The
+/// default of `&""` covers the `payload_len == 0` case (an empty payload
+/// is allowed), and any test that wants a real payload passes the
+/// base64-encoded bytes directly. Tests that previously asserted
+/// counter accumulation against an arbitrary `payload_len` have been
+/// rewritten to use a length that matches the codec-derived expectation
+/// for 64x48 Rgba (12,288 bytes), because the wire now refuses a frame
+/// whose declared length does not match the bytes.
 fn frame_value(session_id: u64, seq: u64, payload_len: u32) -> Value {
-    frame_value_with_sender(session_id, seq, payload_len, "client-a")
+    frame_value_with_sender(
+        session_id,
+        seq,
+        payload_len,
+        "client-a",
+        payload_b64_for(payload_len),
+    )
 }
 
-/// Like [`frame_value`], but lets the caller pick the `sender_id`. Used by
-/// the ownership-enforcement tests below.
-fn frame_value_with_sender(session_id: u64, seq: u64, payload_len: u32, sender_id: &str) -> Value {
+/// Like [`frame_value`], but lets the caller pick the `sender_id` and
+/// the base64-encoded body. Used by the ownership-enforcement tests below
+/// and by tests that want to drive a specific decoded-byte length that
+/// does not match the codec-derived expectation (e.g. a deliberate
+/// `payload_length_mismatch` from the test).
+fn frame_value_with_sender(
+    session_id: u64,
+    seq: u64,
+    payload_len: u32,
+    sender_id: &str,
+    payload_b64: &str,
+) -> Value {
     serde_json::json!({
         "type": "frame_data",
         "session_id": session_id,
@@ -64,7 +89,64 @@ fn frame_value_with_sender(session_id: u64, seq: u64, payload_len: u32, sender_i
         "payload_len": payload_len,
         "duration_us": 16_667,
         "sender_id": sender_id,
+        "payload_b64": payload_b64,
     })
+}
+
+/// Base64-encode `payload_len` zero bytes.
+///
+/// A frame with `payload_len > 0` requires a `payload_b64` of the same
+/// byte count, so the test helpers supply a payload of zero bytes when
+/// the test's intent is "the wire accepted a frame" rather than "the
+/// wire decoded a specific payload". Tests that care about the bytes
+/// (the integration test, and any unit test that checks the sink) pass
+/// their own `payload_b64` via [`frame_value_with_sender`].
+///
+/// The base64 encoding of N zero bytes is `ceil(N/3) * 4` characters
+/// from the alphabet `{A, =}`: full triples of zeros encode to `"AAAA"`,
+/// trailing single zeros to `"AA=="`, trailing doubles to `"AAA="`. The
+/// `base64` crate is not a dependency of `fabric-daemon`, so this helper
+/// builds the string directly. The cached 12,288-byte case is the
+/// 64x48 Rgba frame, which is what most tests in this file use; the
+/// general case is built on first call and leaked (tests are
+/// short-lived processes).
+fn payload_b64_for(payload_len: u32) -> &'static str {
+    match payload_len {
+        0 => "",
+        // 12288 = 64 * 48 * 4 (Rgba 64x48). 12288 / 3 = 4096 with no
+        // remainder, so the encoding is exactly 16,384 'A' characters.
+        // Cached because every other length forces a fresh allocation.
+        12288 => rgba_64x48_zero_b64(),
+        _ => {
+            // `ceil(N/3) * 4` characters; the trailing 1-2 bytes pad
+            // with `=` to a multiple of 4.
+            let n = payload_len as usize;
+            let full = n / 3;
+            let rem = n % 3;
+            let mut s = String::with_capacity((full + (rem != 0) as usize) * 4);
+            for _ in 0..full {
+                s.push_str("AAAA");
+            }
+            match rem {
+                0 => {}
+                1 => s.push_str("AA=="),
+                2 => s.push_str("AAA="),
+                _ => unreachable!(),
+            }
+            Box::leak(s.into_boxed_str())
+        }
+    }
+}
+
+/// The base64 encoding of 12,288 zero bytes (a 64x48 Rgba frame of
+/// zeros). Computed once via [`OnceLock`] and returned as `&'static str`
+/// so the helpers can pass it to `serde_json::json!` without lifetime
+/// annotations. The value is a property of the base64 alphabet, not of
+/// any test, so memoizing is purely a perf concern.
+fn rgba_64x48_zero_b64() -> &'static str {
+    static CACHE: OnceLock<String> = OnceLock::new();
+    let s = CACHE.get_or_init(|| "A".repeat(16_384));
+    s.as_str()
 }
 
 /// Parse a handler response as a map, asserting it is valid JSON.
@@ -146,7 +228,7 @@ fn session_init_missing_client_id_rejected() {
 #[test]
 fn frame_data_for_unknown_session_is_an_error() {
     let coord = make_coordinator();
-    let resp = handle_frame_data(&frame_value(42, 0, 1024), &coord);
+    let resp = handle_frame_data(&frame_value(42, 0, 12288), &coord);
     let v = parse(&resp);
     assert_eq!(v["type"], "frame_error");
     assert_eq!(v["error"], "unknown_session");
@@ -157,7 +239,7 @@ fn frame_data_for_unknown_session_is_an_error() {
 fn unknown_session_error_names_established_sessions() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    let resp = handle_frame_data(&frame_value(99, 0, 1024), &coord);
+    let resp = handle_frame_data(&frame_value(99, 0, 12288), &coord);
     let v = parse(&resp);
     let message = v["message"].as_str().unwrap();
     assert!(
@@ -171,7 +253,7 @@ fn unknown_session_error_distinguishes_no_sessions_from_wrong_id() {
     // "no sessions at all" and "wrong id" are different client bugs, so
     // the diagnostic must read differently in the two cases.
     let coord = make_coordinator();
-    let empty = parse(&handle_frame_data(&frame_value(5, 0, 8), &coord));
+    let empty = parse(&handle_frame_data(&frame_value(5, 0, 12288), &coord));
     assert!(
         empty["message"].as_str().unwrap().contains("none"),
         "with no sessions the error should say none: {empty}"
@@ -179,7 +261,7 @@ fn unknown_session_error_distinguishes_no_sessions_from_wrong_id() {
     assert_eq!(empty["active_sessions"].as_array().unwrap().len(), 0);
 
     handle_session_init(&init_value("client-a"), &coord);
-    let wrong_id = parse(&handle_frame_data(&frame_value(5, 0, 8), &coord));
+    let wrong_id = parse(&handle_frame_data(&frame_value(5, 0, 12288), &coord));
     assert!(
         !wrong_id["message"].as_str().unwrap().contains("none"),
         "with a live session the error should name it, not say none: {wrong_id}"
@@ -193,17 +275,21 @@ fn frame_data_roundtrip_accumulates_counters() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
 
-    let first = parse(&handle_frame_data(&frame_value(1, 0, 100), &coord));
+    let first = parse(&handle_frame_data(&frame_value(1, 0, 12288), &coord));
     assert_eq!(first["type"], "frame_ack");
     assert_eq!(first["status"], "ok");
     assert_eq!(first["seq"], 0);
     assert_eq!(first["frame_count"], 1);
-    assert_eq!(first["frames_received"], 100);
+    // The decoder enforces the codec-derived length for 64x48 Rgba
+    // (64*48*4 = 12,288 bytes). The wire refuses a frame whose declared
+    // length does not match, so `frames_received` reflects the actual
+    // decoded byte count, not whatever the client asked for.
+    assert_eq!(first["frames_received"], 12288);
     assert_eq!(first["last_seq"], 0);
 
-    let second = parse(&handle_frame_data(&frame_value(1, 1, 250), &coord));
+    let second = parse(&handle_frame_data(&frame_value(1, 1, 12288), &coord));
     assert_eq!(second["frame_count"], 2);
-    assert_eq!(second["frames_received"], 350);
+    assert_eq!(second["frames_received"], 24576);
     assert_eq!(second["last_seq"], 1);
 }
 
@@ -211,7 +297,7 @@ fn frame_data_roundtrip_accumulates_counters() {
 fn frame_data_without_session_id_is_an_error() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    let mut v = frame_value(1, 0, 10);
+    let mut v = frame_value(1, 0, 12288);
     v.as_object_mut().unwrap().remove("session_id");
     let resp = handle_frame_data(&v, &coord);
     assert_eq!(parse(&resp)["error"], "missing_session_id");
@@ -221,7 +307,7 @@ fn frame_data_without_session_id_is_an_error() {
 fn frame_data_without_codec_is_an_error() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    let mut v = frame_value(1, 0, 10);
+    let mut v = frame_value(1, 0, 12288);
     v.as_object_mut().unwrap().remove("codec");
     let resp = handle_frame_data(&v, &coord);
     assert_eq!(parse(&resp)["error"], "missing_codec");
@@ -231,7 +317,7 @@ fn frame_data_without_codec_is_an_error() {
 fn frame_data_with_unknown_codec_is_an_error() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    let mut v = frame_value(1, 0, 10);
+    let mut v = frame_value(1, 0, 12288);
     v["codec"] = serde_json::json!("Vp9");
     let resp = handle_frame_data(&v, &coord);
     let parsed = parse(&resp);
@@ -262,7 +348,7 @@ fn frame_ack_for_unknown_session_is_an_error() {
 fn frame_ack_records_rtt() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    handle_frame_data(&frame_value(1, 3, 64), &coord);
+    handle_frame_data(&frame_value(1, 3, 12288), &coord);
 
     let ack = serde_json::json!({
         "type": "frame_ack",
@@ -311,7 +397,7 @@ fn frame_ack_before_any_frame_is_not_acked() {
 fn frame_ack_for_seq_beyond_last_frame_is_not_acked() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    handle_frame_data(&frame_value(1, 2, 64), &coord);
+    handle_frame_data(&frame_value(1, 2, 12288), &coord);
 
     let ack = serde_json::json!({"type":"frame_ack","session_id":1,"seq":9,"rtt_us":1,"sender_id":"client-a"});
     let v = parse(&handle_frame_ack(&ack, &coord));
@@ -350,18 +436,30 @@ fn session_state_tracks_two_independent_sessions() {
     // because the default sender id (`"client-a"`) does not match the
     // owners of these sessions (`"a"` and `"b"`). The ownership gate
     // would otherwise refuse the frames as `input_owner_mismatch`.
-    handle_frame_data(&frame_value_with_sender(1, 0, 10, "a"), &coord);
-    handle_frame_data(&frame_value_with_sender(1, 1, 10, "a"), &coord);
-    handle_frame_data(&frame_value_with_sender(2, 0, 99, "b"), &coord);
+    // The payload length is the codec-derived 12,288 bytes for 64x48
+    // Rgba, so the decoder accepts the frame and the counter accumulates
+    // the real byte count, not whatever the test asked for.
+    handle_frame_data(
+        &frame_value_with_sender(1, 0, 12288, "a", payload_b64_for(12288)),
+        &coord,
+    );
+    handle_frame_data(
+        &frame_value_with_sender(1, 1, 12288, "a", payload_b64_for(12288)),
+        &coord,
+    );
+    handle_frame_data(
+        &frame_value_with_sender(2, 0, 12288, "b", payload_b64_for(12288)),
+        &coord,
+    );
 
     let state = coord.frame_sessions_mut();
     let s1 = state.get(1).unwrap();
     let s2 = state.get(2).unwrap();
     assert_eq!(s1.frame_count, 2);
-    assert_eq!(s1.frames_received, 20);
+    assert_eq!(s1.frames_received, 24576);
     assert_eq!(s1.client_id, "a");
     assert_eq!(s2.frame_count, 1);
-    assert_eq!(s2.frames_received, 99);
+    assert_eq!(s2.frames_received, 12288);
     assert_eq!(s2.client_id, "b");
 }
 
@@ -384,7 +482,7 @@ fn frame_ack_response_matches_transport_frame_ack_fields() {
     // transport names, so a client reading them needs no translation.
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    handle_frame_data(&frame_value(1, 5, 32), &coord);
+    handle_frame_data(&frame_value(1, 5, 12288), &coord);
 
     let ack = serde_json::json!({
         "type": "frame_ack",
@@ -455,12 +553,15 @@ fn session_close_removes_the_session() {
 fn session_close_reports_final_counters() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    handle_frame_data(&frame_value(1, 0, 100), &coord);
-    handle_frame_data(&frame_value(1, 1, 250), &coord);
+    handle_frame_data(&frame_value(1, 0, 12288), &coord);
+    handle_frame_data(&frame_value(1, 1, 12288), &coord);
 
     let v = parse(&handle_session_close(&close_value(1), &coord));
     assert_eq!(v["frame_count"], 2);
-    assert_eq!(v["frames_received"], 350);
+    // 12,288 + 12,288 = 24,576: the two decoded frame bodies, not the
+    // 100 + 250 the client would have sent before the wire enforced the
+    // codec-derived length.
+    assert_eq!(v["frames_received"], 24576);
     assert_eq!(v["last_seq"], 1);
 }
 
@@ -472,7 +573,7 @@ fn frame_data_after_close_fails_cleanly() {
     handle_session_init(&init_value("client-a"), &coord);
     handle_session_close(&close_value(1), &coord);
 
-    let v = parse(&handle_frame_data(&frame_value(1, 0, 1024), &coord));
+    let v = parse(&handle_frame_data(&frame_value(1, 0, 12288), &coord));
     assert_eq!(v["type"], "frame_error");
     assert_eq!(v["error"], "session_gone");
     assert_eq!(v["reason"], "closed");
@@ -547,7 +648,7 @@ fn session_close_leaves_other_sessions_live() {
     // Session 2 was opened with `client_id = "b"`, so its input owner is
     // "b"; the default `frame_value` would not match.
     let live = parse(&handle_frame_data(
-        &frame_value_with_sender(2, 0, 64, "b"),
+        &frame_value_with_sender(2, 0, 12288, "b", payload_b64_for(12288)),
         &coord,
     ));
     assert_eq!(
@@ -570,8 +671,8 @@ fn session_cancel_removes_the_session() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
     // Mid-transfer: some frames already landed.
-    handle_frame_data(&frame_value(1, 0, 100), &coord);
-    handle_frame_data(&frame_value(1, 1, 100), &coord);
+    handle_frame_data(&frame_value(1, 0, 12288), &coord);
+    handle_frame_data(&frame_value(1, 1, 12288), &coord);
 
     let v = parse(&handle_session_cancel(&cancel_value(1), &coord));
     assert_eq!(v["type"], "session_close_ack");
@@ -592,7 +693,7 @@ fn session_cancel_removes_the_session() {
 fn session_cancel_releases_partial_state() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    handle_frame_data(&frame_value(1, 0, 100), &coord);
+    handle_frame_data(&frame_value(1, 0, 12288), &coord);
     let ack = serde_json::json!({"type":"frame_ack","session_id":1,"seq":0,"rtt_us":900,"sender_id":"client-a"});
     handle_frame_ack(&ack, &coord);
 
@@ -616,10 +717,10 @@ fn session_cancel_releases_partial_state() {
 fn frame_data_after_cancel_fails_cleanly() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    handle_frame_data(&frame_value(1, 0, 100), &coord);
+    handle_frame_data(&frame_value(1, 0, 12288), &coord);
     handle_session_cancel(&cancel_value(1), &coord);
 
-    let v = parse(&handle_frame_data(&frame_value(1, 1, 1024), &coord));
+    let v = parse(&handle_frame_data(&frame_value(1, 1, 12288), &coord));
     assert_eq!(v["type"], "frame_error");
     assert_eq!(v["error"], "session_gone");
     assert_eq!(v["reason"], "cancelled");
@@ -689,11 +790,11 @@ fn sweep_removes_an_idle_session() {
 fn frame_data_after_expiry_fails_cleanly() {
     let coord = make_coordinator();
     handle_session_init(&init_value("client-a"), &coord);
-    handle_frame_data(&frame_value(1, 0, 100), &coord);
+    handle_frame_data(&frame_value(1, 0, 12288), &coord);
     age_session_past_idle_timeout(&coord, 1);
     assert_eq!(sweep_expired_frame_sessions(&coord), vec![1]);
 
-    let v = parse(&handle_frame_data(&frame_value(1, 1, 1024), &coord));
+    let v = parse(&handle_frame_data(&frame_value(1, 1, 12288), &coord));
     assert_eq!(v["type"], "frame_error");
     assert_eq!(v["error"], "session_gone");
     assert_eq!(v["reason"], "expired");
@@ -722,7 +823,7 @@ fn sweep_keeps_sessions_that_are_still_active() {
     // Session 2 is aged; session 1 keeps streaming, refreshing its clock.
     age_session_past_idle_timeout(&coord, 2);
     for _ in 0..3 {
-        handle_frame_data(&frame_value(1, 0, 64), &coord);
+        handle_frame_data(&frame_value(1, 0, 12288), &coord);
     }
 
     let expired = sweep_expired_frame_sessions(&coord);

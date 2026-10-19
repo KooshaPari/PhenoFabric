@@ -25,8 +25,15 @@ const INIT_LINE: &str = r#"{"type":"session_init","version":1,"preferred_codec":
 /// whose declared sender is not the session's current input owner, so a
 /// matching id is required for the frame to land.
 fn frame_line(session_id: u64, seq: u64) -> String {
+    // The body is the codec-derived 12,288 zero bytes for 64x48 Rgba,
+    // base64-encoded as 16,384 'A' characters. The wire server refuses
+    // a `frame_data` whose declared `payload_len` does not have a
+    // matching `payload_b64` to decode into those exact bytes, so the
+    // body has to be in the envelope rather than a separate
+    // length-prefixed frame.
     format!(
-        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"teardown-client"}}"#
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"teardown-client","payload_b64":"{a16k}"}}"#,
+        a16k = "A".repeat(16_384)
     )
 }
 

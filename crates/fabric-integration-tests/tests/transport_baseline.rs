@@ -20,7 +20,7 @@
 //!     --test transport_baseline -- --test-threads=1 --nocapture`
 
 use fabric_frame_transport::Codec;
-use fabric_integration_tests::harness::frame_streamer::stream_frames_between;
+use fabric_integration_tests::harness::frame_streamer::{stream_frames_between, FrameBody};
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::thread::{self, JoinHandle};
@@ -143,9 +143,16 @@ fn transport_baseline_three_sizes() {
     let run = std::env::var("BASELINE_RUN").unwrap_or_else(|_| "0".to_string());
 
     for n in SIZES {
-        let result =
-            stream_frames_between(&stub.addr, "baseline-client", WIDTH, HEIGHT, n, Codec::Hevc)
-                .expect("stream_frames_between");
+        let result = stream_frames_between(
+            &stub.addr,
+            "baseline-client",
+            WIDTH,
+            HEIGHT,
+            n,
+            Codec::Hevc,
+            FrameBody::Omitted,
+        )
+        .expect("stream_frames_between");
 
         let elapsed_s = result.elapsed.as_secs_f64();
         let throughput_fps = if elapsed_s > 0.0 {

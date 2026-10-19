@@ -383,13 +383,80 @@ pub fn handle_frame_data(value: &Value, coordinator: &Coordinator) -> String {
         return input_owner_mismatch(session_id, &current_input_owner, &sender_id);
     }
 
-    // The frame is now accepted. The focus seat moves to the sender so a
-    // silent peer cannot keep focus once another peer takes over input.
+    // Decode the body bytes. Runs *after* the ownership gate so a foreign
+    // sender's bytes are never inspected, and *before* the session is
+    // touched, so a refused decode leaves the session's accounting
+    // byte-identical to what it was before the refused frame. The four
+    // failure modes (truncated, length mismatch, invalid payload type,
+    // invalid base64) each render as a distinct wire `error` code so a
+    // client can distinguish "your bytes were cut off" from "your bytes
+    // were the right count but the wrong shape" from "your codec is fine
+    // but you sent an empty encoded frame".
+    let payload_b64 = match value.get("payload_b64").and_then(Value::as_str) {
+        Some(b64) => b64.to_string(),
+        None if payload_len == 0 => String::new(),
+        None => {
+            return frame_error(
+                "missing_payload_b64",
+                "frame_data with payload_len > 0 must carry payload_b64 (base64)".to_string(),
+            );
+        }
+    };
+    let decoded = match fabric_frame_transport::frame_payload::decode_payload(
+        codec,
+        header.width,
+        header.height,
+        payload_len,
+        &payload_b64,
+    ) {
+        Ok(decoded) => decoded,
+        Err(err) => {
+            // Include `session_id` in the decoder refusal so a client that
+            // sees the error knows which session the daemon was working
+            // against. The generic `frame_error` helper omits it because
+            // some pre-decode error paths (missing `session_id` itself,
+            // unknown codec) have no session to name; the decoder runs
+            // *after* the session lookup, so a session is always in scope.
+            return respond(serde_json::json!({
+                "type": "frame_error",
+                "error": err.code(),
+                "session_id": session_id,
+                "message": err.message(),
+            }));
+        }
+    };
+
+    // Verification fingerprint: the base64 of the first 8 bytes of the
+    // decoded body. An empty body produces an empty string. The integration
+    // test `frame_payload_decode_wire.rs` round-trips this field to
+    // prove the live handler is running the decoder on the bytes the
+    // sender transmitted, not silently passing the envelope through. A
+    // stubbed-out decoder (or a bypass that skips the decode step) would
+    // either omit the field or echo a different prefix, and the test
+    // would fail.
+    //
+    // The fingerprint must be captured *before* the closure that hands
+    // the bytes to `push_received_payload`, because that closure moves
+    // `decoded.bytes`. A borrowed `&[u8]` slice of the first 8 bytes is
+    // enough for the helper.
+    let preview_bytes: [u8; 8] = {
+        let src = decoded.bytes.get(..8).unwrap_or(&decoded.bytes);
+        let mut buf = [0u8; 8];
+        buf[..src.len()].copy_from_slice(src);
+        buf
+    };
+    let payload_first8_b64: String =
+        base64_encode_first8(&preview_bytes[..decoded.bytes.len().min(8)]);
+
     let counters = state.touch_session(session_id, coordinator.now_ms(), |session| {
         session.last_seq = Some(seq);
         session.frame_count += 1;
         session.frames_received += payload_len as u64;
         session.focus_owner = sender_id.clone();
+        // The sink is the truth about what the receiver reconstructed.
+        // Pushing only on a successful decode means a refused frame
+        // does not pollute the integration test's view of the wire.
+        session.push_received_payload(decoded.bytes);
     });
 
     let Some(counters) = counters else {
@@ -411,7 +478,60 @@ pub fn handle_frame_data(value: &Value, coordinator: &Coordinator) -> String {
         // session start.
         "input_owner": current_input_owner,
         "focus_owner": sender_id,
+        // The verification fingerprint described above. `""` for an empty
+        // body, 12 base64 characters (8 bytes + padding) otherwise. The
+        // field is additive and ignored by clients that only care about
+        // the standard `frame_ack` shape.
+        "payload_first8_b64": payload_first8_b64,
     }))
+}
+
+/// Base64-encode the first 8 bytes (or fewer) of a decoded body.
+///
+/// `fabric-daemon` is not supposed to grow a new top-level dependency on
+/// `base64` for one 12-character field, so this hand-rolls the standard
+/// alphabet for the eight-byte-or-fewer case the wire exposes. The
+/// alphabet is the same one the decoder uses, so an integration test
+/// that hand-rolls the same encoding gets an exact byte-for-byte match.
+///
+/// `bytes.len()` is guaranteed to be `<= 8` by the caller. The function
+/// is private to `handle_frame_data` and is not part of the public API.
+fn base64_encode_first8(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    debug_assert!(bytes.len() <= 8, "first8 helper expects <= 8 bytes");
+    if bytes.is_empty() {
+        return String::new();
+    }
+    let mut out = String::with_capacity(12);
+    // 8 bytes -> 6 full triples (18 chars) + 1 trailing pair (3 chars) + 1
+    // padding char = 12 chars, matching base64 of an 8-byte input.
+    let mut i = 0;
+    while i + 3 <= bytes.len() {
+        let b0 = bytes[i];
+        let b1 = bytes[i + 1];
+        let b2 = bytes[i + 2];
+        out.push(ALPHABET[(b0 >> 2) as usize] as char);
+        out.push(ALPHABET[((b0 & 0x03) << 4 | (b1 >> 4)) as usize] as char);
+        out.push(ALPHABET[((b1 & 0x0f) << 2 | (b2 >> 6)) as usize] as char);
+        out.push(ALPHABET[(b2 & 0x3f) as usize] as char);
+        i += 3;
+    }
+    let rem = bytes.len() - i;
+    if rem == 1 {
+        let b0 = bytes[i];
+        out.push(ALPHABET[(b0 >> 2) as usize] as char);
+        out.push(ALPHABET[((b0 & 0x03) << 4) as usize] as char);
+        out.push('=');
+        out.push('=');
+    } else if rem == 2 {
+        let b0 = bytes[i];
+        let b1 = bytes[i + 1];
+        out.push(ALPHABET[(b0 >> 2) as usize] as char);
+        out.push(ALPHABET[((b0 & 0x03) << 4 | (b1 >> 4)) as usize] as char);
+        out.push(ALPHABET[((b1 & 0x0f) << 2) as usize] as char);
+        out.push('=');
+    }
+    out
 }
 
 /// Handle a `frame_ack` message.

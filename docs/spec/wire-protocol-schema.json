@@ -735,12 +735,13 @@
       "additionalProperties": true
     },
     {
-      "$comment": "frame_data: deliver one frame for an established session. Fields mirror fabric_frame_transport::FrameHeader; session_id is the id from session_ack. A frame for an unknown session returns frame_error with error=unknown_session. sender_id is the ownership field: it must match the session's current input_owner, otherwise the frame is rejected with input_owner_mismatch.",
+      "$comment": "frame_data: deliver one frame for an established session. Fields mirror fabric_frame_transport::FrameHeader; session_id is the id from session_ack. A frame for an unknown session returns frame_error with error=unknown_session. sender_id is the ownership field: it must match the session's current input_owner, otherwise the frame is rejected with input_owner_mismatch. payload_b64 carries the wire-side body: base64 (RFC 4648, padded) of the encoded pixel buffer or compression-safe bitstream. payload_len is the decoded byte count. The daemon decodes payload_b64 into a Vec<u8>; any of: invalid base64, payload_len mismatch, truncated body, or a payload whose codec shape is empty/invalid returns frame_error with a payload_* error code.",
       "type": "object",
       "required": [
         "type",
         "seq",
-        "sender_id"
+        "sender_id",
+        "payload_b64"
       ],
       "properties": {
         "type": {
@@ -797,12 +798,18 @@
         "duration_us": {
           "type": "integer",
           "minimum": 0
+        },
+        "payload_b64": {
+          "$comment": "Base64 (RFC 4648, padded) of the encoded body. Empty string is valid only when the negotiated codec and payload_len both warrant it (e.g. an Av1/Hevc IDR frame still requires 1+ bytes). Decoded byte count must equal payload_len; otherwise the daemon rejects the frame with payload_length_mismatch. Whitespace is forbidden.",
+          "type": "string",
+          "minLength": 0,
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$"
         }
       },
       "additionalProperties": true
     },
     {
-      "$comment": "frame_ack: acknowledge a received frame. Fields mirror fabric_frame_transport::FrameAck. The daemon replies with frame_ack_response, whose acked field is true only when it had received a frame at or past seq. sender_id is the ownership field; it must match the session's current input_owner.",
+      "$comment": "frame_ack: acknowledge a received frame. Fields mirror fabric_frame_transport::FrameAck. The daemon replies with frame_ack_response, whose acked field is true only when it had received a frame at or past seq. sender_id is the ownership field; it must match the session's current input_owner. payload_first8_b64 is the verification fingerprint of the decoded payload: the base64 (RFC 4648, padded) of the first 8 decoded body bytes after a successful frame_data. Clients use this to confirm the decoder ran on the live handler (the round-trip proves reachability -- unit tests that call decode_payload directly are insufficient evidence).",
       "type": "object",
       "required": [
         "type",
@@ -836,6 +843,13 @@
         "recv_pts_us": {
           "type": "integer",
           "minimum": 0
+        },
+        "payload_first8_b64": {
+          "$comment": "Optional verification fingerprint: base64 (RFC 4648, padded) of the first 8 bytes of the most recently decoded payload for the session. Present only after a successful frame_data; absent on error. Encoded shape is always 12 chars (8 bytes -> ceiling(8/3)*4 = 12) including the '=' pad for byte counts not divisible by 3.",
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 12,
+          "pattern": "^[A-Za-z0-9+/]{11}=$"
         }
       },
       "additionalProperties": true

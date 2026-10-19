@@ -40,8 +40,13 @@ const INIT_LINE: &str = r#"{"type":"session_init","version":1,"preferred_codec":
 /// One `frame_data` line carrying `sender_id = opener`. Matches the input
 /// owner recorded at `session_init`, so the ownership gate accepts it.
 fn frame_with_sender(session_id: u64, seq: u64, sender: &str) -> String {
+    // 12,288 zero bytes (Rgba 64x48) base64-encoded as 16,384 'A'
+    // characters. The body has to be in the envelope because the wire
+    // server's decoder now refuses a `frame_data` whose declared
+    // `payload_len` is non-zero without a matching `payload_b64`.
     format!(
-        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"{sender}"}}"#
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"{sender}","payload_b64":"{a16k}"}}"#,
+        a16k = "A".repeat(16_384)
     )
 }
 

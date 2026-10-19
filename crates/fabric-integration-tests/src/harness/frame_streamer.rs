@@ -84,6 +84,32 @@ fn codec_name(codec: Codec) -> &'static str {
 }
 
 // ---------------------------------------------------------------------------
+// FrameBody
+// ---------------------------------------------------------------------------
+
+/// Whether [`stream_frames_between`] embeds the frame body on the wire.
+///
+/// The wire server's decoder requires a body whose decoded length matches the
+/// declared `payload_len`, so any peer running the production handler needs
+/// [`FrameBody::Embedded`]. A stub peer that only counts headers takes
+/// [`FrameBody::Omitted`]; embedding a full body there adds no coverage and
+/// turns a framing-throughput measurement into a base64-cost measurement.
+///
+/// Base64 inflates the body by roughly 4/3, so a 1280x720 RGBA frame is
+/// ~4.9 MB on the wire. A baseline that streams thousands of such frames in a
+/// debug build runs for hours; that is why omission is explicit rather than
+/// assumed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrameBody {
+    /// Embed the synthetic body, base64-encoded, so the production decoder
+    /// accepts the frame.
+    Embedded,
+    /// Send the header only. Valid **only** against a stub that ignores the
+    /// body; the production handler rejects this as `payload_truncated`.
+    Omitted,
+}
+
+// ---------------------------------------------------------------------------
 // stream_frames_between
 // ---------------------------------------------------------------------------
 
@@ -100,6 +126,7 @@ fn codec_name(codec: Codec) -> &'static str {
 /// * `width`, `height` -- frame dimensions in pixels.
 /// * `frame_count` -- number of frames to stream.
 /// * `codec` -- codec to negotiate in SessionInit.
+/// * `body` -- whether to embed the frame body on the wire; see [`FrameBody`].
 ///
 /// # Errors
 ///
@@ -113,6 +140,7 @@ pub fn stream_frames_between(
     height: u32,
     frame_count: u32,
     codec: Codec,
+    body: FrameBody,
 ) -> Result<StreamResult> {
     let stream =
         TcpStream::connect(server_addr).with_context(|| format!("connect to {server_addr}"))?;
@@ -168,9 +196,10 @@ pub fn stream_frames_between(
         let send_time = Instant::now();
 
         // The frame header travels as JSON, mirroring
-        // `fabric_frame_transport::FrameHeader` field for field. The encoded
-        // payload itself is not streamed: the wire server accounts frames, it
-        // does not decode them.
+        // `fabric_frame_transport::FrameHeader` field for field. Whether the
+        // body travels with it is the caller's explicit choice (`FrameBody`):
+        // the production wire server decodes the body, while the baseline's
+        // stub peer only counts headers.
         //
         // `sender_id` is the wire protocol's ownership gate: the daemon
         // refuses `frame_data` whose declared sender is not the session's
@@ -179,7 +208,7 @@ pub fn stream_frames_between(
         // ownership hand-off tests open a fresh session and then issue a
         // `session_transfer` before sending their frames under the new
         // owner.
-        let frame_msg = serde_json::json!({
+        let mut frame_msg = serde_json::json!({
             "type": "frame_data",
             "session_id": session_id,
             "seq": seq,
@@ -193,6 +222,13 @@ pub fn stream_frames_between(
             "duration_us": 16_667,
             "sender_id": client_id,
         });
+        // Embedded only when the peer runs the production decoder, which
+        // refuses a `frame_data` with non-zero `payload_len` and no body. The
+        // body's decoded length must equal `payload_len` exactly; a stub peer
+        // takes `Omitted` so it does not pay base64 cost per frame.
+        if body == FrameBody::Embedded {
+            frame_msg["payload_b64"] = serde_json::Value::String(base64_encode(&frame_payload));
+        }
         let frame_ack = exchange(&mut writer, &mut reader, &frame_msg)?;
         if frame_ack["type"] != "frame_ack" {
             bail!("expected frame_ack for seq {seq}, got: {frame_ack}");
@@ -258,6 +294,45 @@ fn make_synthetic_payload(width: u32, height: u32) -> Vec<u8> {
         data.push(255u8);
     }
     data
+}
+
+/// Standard-alphabet base64 encoder.
+///
+/// Local copy of the RFC 4648 §4 encoder so the harness does not
+/// pull in the `base64` crate for one call. Only used on the test
+/// fixture body; the wire server's decoder is the production-grade
+/// impl, tested separately in `fabric-frame-transport::frame_payload`.
+fn base64_encode(input: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
+    let mut chunks = input.chunks_exact(3);
+    for c in &mut chunks {
+        let n = ((c[0] as u32) << 16) | ((c[1] as u32) << 8) | (c[2] as u32);
+        out.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
+        out.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
+        out.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
+        out.push(ALPHABET[(n & 0x3F) as usize] as char);
+    }
+    let rem = chunks.remainder();
+    match rem.len() {
+        0 => {}
+        1 => {
+            let n = (rem[0] as u32) << 16;
+            out.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
+            out.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
+            out.push('=');
+            out.push('=');
+        }
+        2 => {
+            let n = ((rem[0] as u32) << 16) | ((rem[1] as u32) << 8);
+            out.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
+            out.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
+            out.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
+            out.push('=');
+        }
+        _ => unreachable!(),
+    }
+    out
 }
 
 #[cfg(test)]

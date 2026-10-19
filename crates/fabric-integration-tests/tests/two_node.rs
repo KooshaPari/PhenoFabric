@@ -18,7 +18,7 @@ use std::time::Duration;
 use fabric_integration_tests::harness::federation::{
     assert_federation_ids, assert_merged_topology, assert_min_epoch, exchange_and_merge,
 };
-use fabric_integration_tests::harness::frame_streamer::stream_frames_between;
+use fabric_integration_tests::harness::frame_streamer::{stream_frames_between, FrameBody};
 use fabric_integration_tests::harness::{
     build_2node_topology, send_and_receive, start_two_daemons, stop_daemon,
 };
@@ -182,6 +182,7 @@ fn two_node_frame_streaming() {
         height,
         frame_count,
         Codec::Rgba,
+        FrameBody::Embedded,
     )
     .expect("stream_frames_between should succeed");
 
@@ -319,7 +320,8 @@ fn frame_round_trip_through_real_daemon() {
     // session's input owner (the opener) so the ownership gate accepts
     // the frame rather than rejecting it as `input_owner_mismatch`.
     let frame = exchange(&format!(
-        r#"{{"type":"frame_data","session_id":{session_id},"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"round-trip-client"}}"#
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"round-trip-client","payload_b64":"{a16k}"}}"#,
+        a16k = "A".repeat(16_384)
     ));
     assert_eq!(frame["type"], "frame_ack", "got: {frame}");
     assert_eq!(frame["status"], "ok", "daemon rejected the frame: {frame}");
@@ -425,7 +427,14 @@ fn exchange_frame(
     seq: u64,
 ) -> serde_json::Value {
     let request = format!(
-        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"codec":"Av1","width":32,"height":32,"payload_len":4096,"sender_id":"reconnect"}}"#
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"codec":"Av1","width":32,"height":32,"payload_len":4096,"sender_id":"reconnect","payload_b64":"{}"}}"#,
+        // Av1 is an encoded codec: the body is just a non-empty bitstream.
+        // 4096 zero bytes base64-encodes to 5464 characters (4096 / 3 == 1365
+        // full groups of 4 'A' chars + one trailing "AA==" group for the
+        // single leftover byte). The padding matters: an unpadded string of
+        // 5464 'A's decodes to 4098 bytes, not 4096, and the decoder would
+        // reject the frame as a length mismatch.
+        format_args!("{}AA==", "A".repeat((4096 / 3) * 4))
     );
     stream
         .write_all(request.as_bytes())
@@ -474,8 +483,12 @@ const INIT_LINE: &str = r#"{"type":"session_init","version":1,"preferred_codec":
 /// sender is not the session's current input owner, so the helper hard
 /// codes the matching id rather than letting each caller choose.
 fn frame_line(session_id: u64, seq: u64) -> String {
+    // 12,288 zero bytes (64x48 Rgba) base64-encoded as 16,384 'A'.
+    // Body has to be in the envelope because the decoder refuses
+    // `frame_data` with non-zero `payload_len` and no `payload_b64`.
     format!(
-        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"teardown-client"}}"#
+        r#"{{"type":"frame_data","session_id":{session_id},"seq":{seq},"pts_us":{seq},"dts_us":{seq},"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"teardown-client","payload_b64":"{a16k}"}}"#,
+        a16k = "A".repeat(16_384)
     )
 }
 
@@ -636,7 +649,8 @@ fn session_cancel_leaves_other_sessions_live() {
     // (`teardown-client`), because the ownership gate checks
     // per-session.
     let live = exchange(&format!(
-        r#"{{"type":"frame_data","session_id":{second_id},"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"second-client"}}"#
+        r#"{{"type":"frame_data","session_id":{second_id},"seq":0,"pts_us":0,"dts_us":0,"is_keyframe":true,"codec":"Rgba","width":64,"height":48,"payload_len":12288,"duration_us":16667,"sender_id":"second-client","payload_b64":"{a16k}"}}"#,
+        a16k = "A".repeat(16_384)
     ));
     assert_eq!(
         live["type"], "frame_ack",
