@@ -18,7 +18,10 @@
 //!    HTML escaper. These pin small but easy-to-regress contracts.
 
 use super::dispatch::{html_escape, render_error_page};
-use super::registry::{clear_registry_for_tests, record_state, take_state};
+use super::registry::{
+    clear_registry_for_tests, record_state, record_state_with_verifier, take_state,
+    take_state_with_verifier, IssuedVerifier,
+};
 use super::server::run_callback_server;
 use crate::coordinator::Coordinator;
 use std::io::{Read, Write};
@@ -238,6 +241,62 @@ fn record_empty_is_a_noop() {
     assert!(!take_state(""));
 }
 
+// -- PKCE binding tests (no socket) --------------------------------
+
+/// The verifier minted for state A must not be returned when state B
+/// is redeemed. This is the core of the PKCE binding: an attacker
+/// who only knows state A (and not its verifier) cannot mount a
+/// cross-state code-swap.
+#[test]
+fn verifier_is_bound_to_state() {
+    let _serial = serial();
+    clear_registry_for_tests();
+    record_state_with_verifier("state-A", Some("verifier-for-A".to_string()));
+    record_state_with_verifier("state-B", Some("verifier-for-B".to_string()));
+
+    let taken = take_state_with_verifier("state-B");
+    assert_eq!(
+        taken,
+        Some(IssuedVerifier::With("verifier-for-B".to_string()))
+    );
+
+    // State A is still redeemable, and its verifier is still A's,
+    // not B's and not None.
+    let taken_a = take_state_with_verifier("state-A");
+    assert_eq!(
+        taken_a,
+        Some(IssuedVerifier::With("verifier-for-A".to_string()))
+    );
+}
+
+/// A state recorded with `None` verifier (legacy `record_state` path)
+/// must round-trip through `take_state_with_verifier` as
+/// `Some(IssuedVerifier::None)`, distinct from `None` (state not found).
+#[test]
+fn legacy_record_state_returns_none_verifier() {
+    let _serial = serial();
+    clear_registry_for_tests();
+    record_state("legacy-state");
+    let taken = take_state_with_verifier("legacy-state");
+    assert_eq!(taken, Some(IssuedVerifier::None));
+}
+
+/// `take_state` (the bool wrapper) keeps working: a missing entry
+/// is `false`, a present entry is `true`, regardless of whether it
+/// has a verifier. This pins the backwards-compat contract.
+#[test]
+fn take_state_bool_wrapper_independent_of_verifier() {
+    let _serial = serial();
+    clear_registry_for_tests();
+    record_state("with-v");
+    record_state_with_verifier("without-v", None);
+    record_state_with_verifier("with-v-2", Some("v".to_string()));
+    assert!(take_state("with-v"));
+    assert!(take_state("without-v"));
+    assert!(take_state("with-v-2"));
+    assert!(!take_state("never-was"));
+}
+
 // -- HTTP-level tests (real loopback sockets) ------------------------
 
 /// A callback with the recorded state and a code reaches the auth-
@@ -392,4 +451,158 @@ fn unknown_path_returns_404() {
     let (status, _body) = get(&addr, "/something-else");
     shutdown.store(true, Ordering::Relaxed);
     assert_eq!(status, 404);
+}
+
+// -- PKCE callback mismatch tests (no socket) ----------------------
+
+/// Drive `process_callback` directly with a caller-supplied verifier
+/// that does NOT match the one the daemon minted. The dispatch must
+/// return 400 with a PKCE mismatch error, not silently pass the
+/// mismatched verifier through to `auth_complete`.
+#[test]
+fn callback_rejects_mismatched_caller_verifier() {
+    use super::dispatch::process_callback;
+
+    let _serial = serial();
+    clear_registry_for_tests();
+    let coord = make_coordinator();
+
+    let minted = "verifier-minted-by-daemon-XXXXXXXXXX";
+    let supplied = "verifier-supplied-by-attacker-YYYY";
+    record_state_with_verifier("pkce-state", Some(minted.to_string()));
+
+    // Caller supplies a different verifier than the daemon minted.
+    let response = tokio_test_block_on(process_callback(
+        &coord,
+        Some("auth-code"),
+        Some("pkce-state"),
+        Some(supplied),
+    ));
+
+    assert_eq!(
+        response.status, 400,
+        "PKCE mismatch must yield 400: body={}",
+        response.body
+    );
+    assert!(
+        response.body.contains("PKCE verifier mismatch"),
+        "expected mismatch copy; body was: {}",
+        response.body
+    );
+    // The state must NOT have been consumed: a second callback with
+    // the matching verifier must still succeed.
+    let second = take_state_with_verifier("pkce-state");
+    assert_eq!(
+        second,
+        Some(IssuedVerifier::With(minted.to_string())),
+        "state must be retained on mismatch; consumed would be None"
+    );
+}
+
+/// Drive `process_callback` with no caller-supplied verifier (the
+/// browser-driven path): the daemon must use the minted verifier and
+/// reach `auth_complete` (we observe the diagnostic that proves the
+/// wire handler was reached).
+#[test]
+fn callback_uses_minted_verifier_when_none_supplied() {
+    use super::dispatch::process_callback;
+
+    let _serial = serial();
+    clear_registry_for_tests();
+    let coord = make_coordinator();
+
+    let minted = "verifier-minted-by-daemon-PPPPPPPPPP";
+    record_state_with_verifier("pkce-minted-only", Some(minted.to_string()));
+
+    let response = tokio_test_block_on(process_callback(
+        &coord,
+        Some("auth-code"),
+        Some("pkce-minted-only"),
+        None, // browser-driven: no caller verifier
+    ));
+
+    // The coordinator has no WorkOS configured, so auth-complete
+    // returns an `auth_error` whose body is the 500 exchange-fail
+    // page. The marker that proves we got PAST the verifier check
+    // is "workos_client_id" in the body (only present in the
+    // no-workos branch, never in any state-rejection page).
+    assert_eq!(
+        response.status, 500,
+        "no-WorkOS coordinator must surface exchange error; body={}",
+        response.body
+    );
+    assert!(
+        response.body.contains("workos_client_id"),
+        "auth-complete must have been reached; body was: {}",
+        response.body
+    );
+    assert!(
+        !response.body.contains("Invalid or expired state"),
+        "state must validate; body was: {}",
+        response.body
+    );
+    assert!(
+        !response.body.contains("PKCE verifier mismatch"),
+        "no mismatch must occur; body was: {}",
+        response.body
+    );
+}
+
+/// A caller-supplied verifier that MATCHES the minted one is
+/// accepted (preserves the existing wire-protocol contract for
+/// clients that send a verifier themselves). State is consumed
+/// one-shot.
+#[test]
+fn callback_accepts_matching_caller_verifier() {
+    use super::dispatch::process_callback;
+
+    let _serial = serial();
+    clear_registry_for_tests();
+    let coord = make_coordinator();
+
+    let verifier = "verifier-matches-QQQQQQQQQQQQQ";
+    record_state_with_verifier("pkce-match", Some(verifier.to_string()));
+
+    let response = tokio_test_block_on(process_callback(
+        &coord,
+        Some("auth-code"),
+        Some("pkce-match"),
+        Some(verifier),
+    ));
+
+    // No WorkOS configured -> 500 exchange-fail page, with
+    // "workos_client_id" diagnostic proving we reached the wire
+    // handler.
+    assert_eq!(
+        response.status, 500,
+        "no-WorkOS coordinator must surface exchange error; body={}",
+        response.body
+    );
+    assert!(
+        response.body.contains("workos_client_id"),
+        "auth-complete must have been reached; body was: {}",
+        response.body
+    );
+    // State must be consumed (one-shot).
+    assert!(
+        take_state_with_verifier("pkce-match").is_none(),
+        "state must be consumed after one-shot redemption"
+    );
+}
+
+/// Run a future on the same runtime the daemon uses, so we can
+/// drive the `async` `process_callback` from a synchronous test.
+///
+/// We use `tokio::runtime::Builder::new_current_thread().enable_all().build()`
+/// because the production daemon's callback listener uses the same
+/// kind of runtime. If we used a multi-thread runtime here, the
+/// test would still pass but the futures-spawned-on-the-test-thread
+/// path would diverge from production. Keeping it identical keeps
+/// the regression net tight.
+fn tokio_test_block_on<F: std::future::Future>(f: F) -> F::Output {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(f)
 }

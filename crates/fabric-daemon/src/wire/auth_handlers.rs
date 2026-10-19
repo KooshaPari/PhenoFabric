@@ -20,10 +20,15 @@ pub(crate) async fn handle_auth_start(coordinator: &Coordinator) -> Option<Strin
     };
 
     let request = provider.generate_auth_url();
-    // Register the issued state with the OAuth/HTTP callback listener so
-    // the matching `/auth/callback` request can validate it. One-shot
-    // semantics live in `auth::callback::take_state`.
-    crate::auth::callback::record_state(&request.state);
+    // Bind the freshly minted PKCE verifier to the state so the matching
+    // `/auth/callback` request can pull it back out via
+    // `take_state_with_verifier`. The verifier never leaves the daemon;
+    // only the matching `code_challenge` (in `request.url`) crosses the
+    // network to WorkOS via the browser.
+    crate::auth::callback::record_state_with_verifier(
+        &request.state,
+        Some(request.verifier.clone()),
+    );
 
     Some(format!(
         r#"{{"type":"auth_start_response","status":"ok","url":{},"state":{},"redirect_uri":{}}}"#,

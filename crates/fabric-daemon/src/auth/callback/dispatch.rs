@@ -10,7 +10,7 @@
 //! 3. Renders a small HTML page back to the browser so the user sees
 //!    something interpretable instead of a raw JSON body.
 
-use super::registry::take_state;
+use super::registry::{take_state_with_verifier, IssuedVerifier};
 use crate::coordinator::Coordinator;
 
 /// Response to send back to the browser.
@@ -33,10 +33,23 @@ impl HttpResponse {
 /// Build the JSON message the existing wire `handle_auth_complete`
 /// understands and call it on the coordinator. Reuses the wire handler so
 /// the token-exchange path stays in exactly one place.
+///
+/// `verifier` is the PKCE verifier the daemon minted for `state`. It is
+/// attached to the wire message as `code_verifier` so the WorkOS token
+/// exchange goes through as a public client (no `client_secret`).
+///
+/// If `caller_supplied_verifier` is `Some(v)`, the daemon compares `v`
+/// against the minted one and rejects the callback on mismatch. This
+/// preserves the older "trust a caller-supplied verifier if it matches"
+/// behaviour so the wire protocol keeps working for clients that send a
+/// verifier (e.g. integration tests that exercise the daemon directly).
+/// A `None` means the caller did not supply one (the browser-driven
+/// callback path), so the daemon uses the minted verifier directly.
 pub(crate) async fn process_callback(
     coordinator: &Coordinator,
     code: Option<&str>,
     state: Option<&str>,
+    caller_supplied_verifier: Option<&str>,
 ) -> HttpResponse {
     let Some(state) = state else {
         return HttpResponse::html(
@@ -64,22 +77,73 @@ pub(crate) async fn process_callback(
         );
     };
 
-    if !take_state(state) {
-        return HttpResponse::html(
-            400,
-            "Bad Request",
-            render_error_page(
-                "Invalid or expired state",
-                "The state parameter did not match any in-flight login this daemon \
-             issued, or it was already redeemed, or it expired. Restart the sign-in \
-             flow from the application.",
-            ),
-        );
-    }
+    let verifier = match take_state_with_verifier(state) {
+        Some(v) => v,
+        None => {
+            return HttpResponse::html(
+                400,
+                "Bad Request",
+                render_error_page(
+                    "Invalid or expired state",
+                    "The state parameter did not match any in-flight login this daemon \
+                 issued, or it was already redeemed, or it expired. Restart the sign-in \
+                 flow from the application.",
+                ),
+            );
+        }
+    };
+
+    // Resolve which verifier to send on the exchange.
+    //
+    // - If the daemon minted a verifier (`IssuedVerifier::With`), the
+    //   exchange MUST use it. A caller-supplied verifier is accepted
+    //   only when it matches the minted one -- if the caller claimed to
+    //   send a verifier but it does not match, we reject the request
+    //   rather than proceeding with an unverifiable code. This is the
+    //   safety net for tamper attempts. The state is re-recorded on
+    //   mismatch so a legitimate user with a transport-level verifier
+    //   corruption can retry the same callback URL.
+    // - If the daemon did NOT mint a verifier (`IssuedVerifier::None`),
+    //   the caller-supplied verifier, if any, flows through unchanged.
+    //   This preserves the pre-PKCE wire-protocol contract for callers
+    //   that drive the daemon directly.
+    let effective_verifier: Option<String> = match (verifier, caller_supplied_verifier) {
+        (IssuedVerifier::With(minted), Some(supplied)) if minted != supplied => {
+            // Re-bind the verifier to the same state so the user can
+            // retry. `take_state_with_verifier` already removed the
+            // entry; the missing-verifier path is unreachable because
+            // we just took it. A racing callback on the same state
+            // would consume the re-recorded entry, but a racing callback
+            // that did not have the right minted verifier would be
+            // rejected by the same mismatch check.
+            super::registry::record_state_with_verifier(state, Some(minted.clone()));
+            return HttpResponse::html(
+                400,
+                "Bad Request",
+                render_error_page(
+                    "PKCE verifier mismatch",
+                    "The callback supplied a `code_verifier` that does not match the one \
+                 the daemon minted for this state. PKCE rejects the request rather \
+                 than exchanging the code. Restart sign-in from the application.",
+                ),
+            );
+        }
+        (IssuedVerifier::With(minted), _) => Some(minted),
+        (IssuedVerifier::None, supplied) => supplied.map(str::to_string),
+    };
 
     // State is valid. Reuse the wire `process_message` router so the
-    // token-exchange path stays in exactly one place.
-    let message = format!(r#"{{"type":"auth_complete","code":{}}}"#, json_string(code));
+    // token-exchange path stays in exactly one place. The verifier is
+    // attached as `code_verifier`; the wire handler reads it from the
+    // parsed JSON and passes it to `authenticate_with_authorization_code`.
+    let message = match &effective_verifier {
+        Some(v) => format!(
+            r#"{{"type":"auth_complete","code":{},"code_verifier":{}}}"#,
+            json_string(code),
+            json_string(v)
+        ),
+        None => format!(r#"{{"type":"auth_complete","code":{}}}"#, json_string(code)),
+    };
 
     let response = crate::wire::protocol::process_message(&message, coordinator).await;
 
@@ -97,7 +161,7 @@ pub(crate) async fn process_callback(
                     &format!(
                         "The daemon received the callback but WorkOS rejected the \
                      authorization code. {err}\n\nYou can close this tab and retry \
-                     sign-in from the application."
+                     sign-in from the application.",
                     ),
                 ),
             )

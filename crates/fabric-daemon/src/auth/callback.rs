@@ -52,9 +52,11 @@ mod server;
 #[cfg(test)]
 mod tests;
 
-// `record_state` is the one item the wire server needs to call from
-// `auth_handlers::handle_auth_start`. Tests and sibling submodules
-// inside `auth::callback` import the rest directly from `super::registry`
-// or `super::dispatch`, so no further re-exports are needed.
-pub use registry::record_state;
+// `record_state` and `record_state_with_verifier` are the two items the
+// wire server needs to call from `auth_handlers::handle_auth_start`.
+// Tests and sibling submodules inside `auth::callback` import the rest
+// directly from `super::registry` or `super::dispatch`, so no further
+// re-exports are needed.
+#[allow(unused_imports)] // `record_state` is re-exported for the public API.
+pub use registry::{record_state, record_state_with_verifier};
 pub use server::run_callback_server;

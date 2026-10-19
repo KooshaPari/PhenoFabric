@@ -13,7 +13,7 @@ pub mod secrets;
 pub use middleware::{AuthError, AuthMiddleware, AuthMiddlewareConfig, AuthenticatedUser};
 #[allow(unused_imports)]
 pub use oauth::{
-    AccessTokenClaims, AuthorizationRequest, MagicAuthCode, OAuthConfig, TokenResponse,
+    AccessTokenClaims, AuthorizationRequest, MagicAuthCode, OAuthConfig, PkcePair, TokenResponse,
     WorkOsConfig, WorkOsProvider, WorkOsUser, MAGIC_AUTH_GRANT_TYPE,
 };
 #[allow(unused_imports)]

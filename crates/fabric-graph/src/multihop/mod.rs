@@ -6,11 +6,17 @@
 pub mod cost;
 pub mod executor;
 pub mod fallback;
+pub mod selection;
 pub mod stages;
 pub mod validate;
 
 pub use cost::{compute_route_cost, RouteCost};
-pub use executor::{ExecError, ExecOutcome, RouteExecutor, TcpExecutor, UnixSocketExecutor};
+pub use executor::{
+    best_implemented_transport, execute_with_selection, ideal_transport_for_tier,
+    implemented_adapters, is_implemented, ExecError, ExecOutcome, RouteExecutor, TcpExecutor,
+    UnixSocketExecutor,
+};
+pub use selection::{select_stages_with_options, SelectionOptions, StageSelection};
 pub use stages::{builtin_stages, TransportStage};
 pub use validate::{validate_multihop, RouteValidationError};
 

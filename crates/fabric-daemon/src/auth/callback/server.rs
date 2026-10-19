@@ -140,8 +140,15 @@ fn handle_http_connection(
     let params = parse_query(query);
     let code = params.get("code").map(String::as_str);
     let state = params.get("state").map(String::as_str);
+    // The browser-driven callback does not include `code_verifier` (the
+    // daemon minted it server-side at `auth_start` and bound it to the
+    // state). We pass `None` so the dispatch uses the minted verifier.
+    // A caller-supplied verifier here would mean the caller already
+    // knows the daemon's secret, which would let them spoof any login --
+    // see dispatch::process_callback for the matching-mismatch guard.
+    let code_verifier: Option<&str> = None;
 
-    let response = runtime.block_on(process_callback(&coordinator, code, state));
+    let response = runtime.block_on(process_callback(&coordinator, code, state, code_verifier));
 
     write_html_response(&mut writer, &response)
 }

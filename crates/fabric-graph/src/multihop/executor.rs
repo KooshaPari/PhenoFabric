@@ -32,18 +32,126 @@
 //! that the caller can now *observe* that fact.
 
 use super::stages::TransportStage;
+use crate::LocalityTier;
 use thiserror::Error;
+
+// -- Implemented-transport registry ---------------------------------------
+//
+// The registry below is the source of truth for "what is implemented".
+// Degradation-aware selection consults it; the drift-guard test pins
+// the invariant that the registry matches what executors actually serve.
+//
+// `tcp_transport` and `unix_socket` are the only fully-implemented
+// adapters today: `TcpExecutor` serves `tcp_transport` and
+// `UnixSocketExecutor` serves `unix_socket`. Everything else in the
+// catalog (`quic_transport`, `shm_copy`, encode/decode stages, and the
+// tier-ideal names like `rdma`, `pcie_p2p`, `oob`) is NOT implemented.
+// Selection treats those as "degrade or refuse" depending on mode.
+
+/// The canonical list of adapter ids that `RouteExecutor`
+/// implementations actually serve today.
+///
+/// This is the source of truth for "what is implemented". Degradation-
+/// aware selection consults it to know whether a tier-mapped transport
+/// can be honored directly or must degrade to a fallback. The runtime
+/// executors in this module are responsible for staying in sync with
+/// this list: every adapter id returned here MUST be served by at least
+/// one `RouteExecutor` impl in this module, and every adapter id
+/// served by an executor MUST appear here.
+///
+/// The drift-guard test in `selection.rs`
+/// (`implemented_adapters_match_executor_capabilities`) is the only
+/// thing that pins this invariant — without it, the map-vs-reality
+/// drift that produced the original bug can return silently.
+pub fn implemented_adapters() -> &'static [&'static str] {
+    const ADAPTERS: &[&str] = &["tcp_transport", "unix_socket"];
+    ADAPTERS
+}
+
+/// Predicate form: returns true iff `adapter` appears in
+/// [`implemented_adapters`].
+pub fn is_implemented(adapter: &str) -> bool {
+    implemented_adapters().contains(&adapter)
+}
+
+/// The conceptual ideal transport per locality tier, irrespective of
+/// whether an executor implements it. Selection uses this to know what
+/// the tier "wants"; the degradation-aware selection function then
+/// consults [`is_implemented`] to decide whether to honor the request
+/// or fall back to a default transport.
+///
+/// The mapping names transports that have NO implementation today —
+/// `pcie_p2p`, `rdma`, `oob`, `quic_transport` — so the registry /
+/// executor pair can never silently substitute a name for an
+/// implementation. When new executors land, update this map to point
+/// at the new adapter id (and update `implemented_adapters()` to
+/// include it); the drift-guard test will fail loudly if the two are
+/// updated asymmetrically.
+pub fn ideal_transport_for_tier(tier: LocalityTier) -> &'static str {
+    match tier {
+        LocalityTier::L0SameProcess | LocalityTier::L1SameNuma | LocalityTier::L2CrossNumaShm => {
+            "unix_socket"
+        }
+        LocalityTier::L3PcieP2P => "pcie_p2p",
+        LocalityTier::L4Rdma => "rdma",
+        LocalityTier::L5Loopback => "unix_socket",
+        LocalityTier::L6Lan | LocalityTier::L7Wan => "quic_transport",
+        LocalityTier::L8Oob => "oob",
+    }
+}
+
+/// The default fallback transport used by degradation-aware selection
+/// when the tier's ideal is unimplemented.
+///
+/// Today: `tcp_transport` is the only implemented baseline transport
+/// and runs on every target. When other implementations land (e.g.
+/// `quic_transport`), this function should be revisited to prefer the
+/// closest fit; the drift-guard test will keep the registry honest.
+pub fn best_implemented_transport() -> &'static str {
+    "tcp_transport"
+}
 
 /// Result of a successful route execution.
 ///
-/// `transport` is the **actual** transport that served the request, not
-/// the one the plan named. When the two differ, this struct is the
-/// mechanism by which the difference becomes observable.
+/// `transport` is the **actual** transport that served the request,
+/// not the one the plan named. The degradation-aware selection path
+/// (`execute_with_selection`) populates the remaining fields so the
+/// difference between "the tier wanted X" and "the executor served Y"
+/// becomes observable in the outcome itself, not just in a log line.
+///
+/// The fields break down as follows:
+///
+/// - `transport`: adapter id of the executor that served the request
+///   (e.g. `"tcp_transport"`).
+/// - `requested`: adapter id the **plan** asked for. For the legacy
+///   `execute(stages, payload)` path this equals the last non-identity
+///   stage's adapter; for `execute_with_selection(exec, selection, payload)`
+///   this is the selection's `requested` field — i.e. the tier's
+///   conceptual ideal.
+/// - `degraded_from`: `Some(<adapter>)` when selection degraded the
+///   tier's ideal to an implemented fallback; `None` when no
+///   degradation happened.
+/// - `degradation_reason`: non-empty machine-readable reason when
+///   `degraded_from.is_some()`; `None` otherwise.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExecOutcome {
     /// Adapter id of the transport that actually served the request
     /// (e.g. `"tcp_transport"`).
     pub transport: String,
+    /// Adapter id the plan (or selection) requested. When the legacy
+    /// `execute(stages, payload)` path is used this is inferred from
+    /// the last non-identity stage; when `execute_with_selection` is
+    /// used this carries the tier's conceptual ideal.
+    pub requested: String,
+    /// `Some(<adapter>)` when the served transport differs from the
+    /// requested one (selection degraded). `None` when no
+    /// degradation happened.
+    pub degraded_from: Option<String>,
+    /// Non-empty machine-readable reason when `degraded_from` is
+    /// `Some`. `None` otherwise. This is intentionally a `String`
+    /// rather than a `log::warn!` line so callers can assert on it
+    /// from tests and ship it in their own telemetry.
+    pub degradation_reason: Option<String>,
     /// Logical bytes "sent" through the seam. The seam does not open a
     /// socket; this is the payload length reported for observability.
     pub bytes_sent: usize,
@@ -160,12 +268,24 @@ impl RouteExecutor for TcpExecutor {
                 });
 
             match transport {
-                Ok(stage) if stage.adapter == "tcp_transport" => Ok(ExecOutcome {
-                    transport: stage.adapter.clone(),
-                    bytes_sent: payload.len(),
-                    bytes_received: Vec::new(),
-                    stages_executed: stages.iter().map(|s| s.id.0.clone()).collect(),
-                }),
+                Ok(stage) if stage.adapter == "tcp_transport" => {
+                    let adapter = stage.adapter.clone();
+                    Ok(ExecOutcome {
+                        transport: adapter.clone(),
+                        // Legacy path: requested = the adapter the
+                        // executor actually observed. The executor
+                        // does not know whether the selection wanted
+                        // something different; the degradation-aware
+                        // path (`execute_with_selection`) overrides
+                        // this with the selection's requested field.
+                        requested: adapter,
+                        degraded_from: None,
+                        degradation_reason: None,
+                        bytes_sent: payload.len(),
+                        bytes_received: Vec::new(),
+                        stages_executed: stages.iter().map(|s| s.id.0.clone()).collect(),
+                    })
+                }
                 Ok(stage) => Err(ExecError::UnsupportedTransport {
                     requested: stage.adapter.clone(),
                 }),
@@ -359,6 +479,15 @@ impl RouteExecutor for UnixSocketExecutor {
             match pre_check {
                 Ok(()) => self.round_trip(payload).await.map(|received| ExecOutcome {
                     transport: "unix_socket".to_string(),
+                    // Legacy path: requested = the adapter the executor
+                    // actually observed (unix_socket). The executor does
+                    // not know whether the selection wanted something
+                    // different; the degradation-aware path
+                    // (`execute_with_selection`) overrides this with the
+                    // selection's requested field.
+                    requested: "unix_socket".to_string(),
+                    degraded_from: None,
+                    degradation_reason: None,
                     bytes_sent: payload.len(),
                     bytes_received: received,
                     stages_executed: stages.iter().map(|s| s.id.0.clone()).collect(),
@@ -401,6 +530,60 @@ impl RouteExecutor for UnixSocketExecutor {
             }
         }
     }
+}
+
+// -- Degradation-aware execution -----------------------------------------
+
+/// Execute a `StageSelection` with degradation metadata merged into the
+/// returned [`ExecOutcome`].
+///
+/// This is the structural counterpart of
+/// `selection::select_stages_with_options`: where selection decides
+/// WHAT the executor will run, this function runs it and attaches the
+/// decision's outcome to the result so the difference between "the
+/// tier wanted X" and "the executor served Y" is observable in the
+/// returned struct, not in a log line.
+///
+/// The merge rules:
+///
+/// - `requested` on the outcome comes from `selection.requested` —
+///   the tier's conceptual ideal, not the adapter the executor
+///   actually observed. This is the ONLY place the outcome can know
+///   the difference.
+/// - `degraded_from` and `degradation_reason` come from the
+///   selection verbatim. They are non-`None` iff the selection
+///   degraded; this function does not second-guess the selection.
+/// - `transport`, `bytes_sent`, `bytes_received`, `stages_executed`
+///   come from the executor verbatim.
+///
+/// The function is generic over `E: RouteExecutor + ?Sized` so callers
+/// can pass either a concrete executor (`TcpExecutor`,
+/// `UnixSocketExecutor`) or a trait object (`Box<dyn RouteExecutor>`).
+/// Selection is a free function over the catalog, not a method on the
+/// executor; combining the two is the caller's job, and this helper
+/// makes the common path one line.
+pub async fn execute_with_selection<E>(
+    executor: &E,
+    selection: &super::selection::StageSelection,
+    payload: &[u8],
+) -> Result<ExecOutcome, ExecError>
+where
+    E: RouteExecutor + ?Sized,
+{
+    let mut outcome = executor.execute(&selection.stages, payload).await?;
+    // Override `requested` with the selection's requested field so
+    // the outcome can answer "what was the plan trying to use?".
+    // The executor could only infer the served adapter; the
+    // selection is the only source of truth for the tier's
+    // conceptual ideal.
+    outcome.requested = selection.requested.clone();
+    // Forward the degradation metadata verbatim. Selection decided
+    // whether to degrade; the executor just served what it was
+    // given. This is the only place the two halves of the
+    // degradation contract are stitched together.
+    outcome.degraded_from = selection.degraded_from.clone();
+    outcome.degradation_reason = selection.degradation_reason.clone();
+    Ok(outcome)
 }
 
 #[cfg(test)]
@@ -893,5 +1076,180 @@ mod tests {
             ok_runs, ITERATIONS,
             "every iteration must round-trip cleanly (err_runs={err_runs})"
         );
+    }
+
+    // -- Degradation-aware execution tests ------------------------------
+    //
+    // These tests are the behavioral contract for the new
+    // `execute_with_selection` helper and the degradation metadata
+    // fields on `ExecOutcome`. They are the only way to prove the
+    // legacy `select_stages` silent-substitution path is now
+    // observable. The shape: each test pairs a `StageSelection`
+    // built by `select_stages_with_options` with an executor, runs
+    // `execute_with_selection`, and asserts on the merged
+    // `ExecOutcome`.
+
+    /// Default-mode end-to-end: L4 wants RDMA, selection degrades to
+    /// TCP, the executor runs, and the merged `ExecOutcome` carries
+    /// the full degradation trace. This is the bug-class test: had
+    /// the legacy `select_stages` been used, the outcome would have
+    /// said `"transport": "tcp_transport"` with no way to know
+    /// anything was lost. With the new path, the outcome says
+    /// `requested = "rdma"`, `degraded_from = "rdma"`, and
+    /// `degradation_reason` is non-empty.
+    #[tokio::test(flavor = "current_thread")]
+    async fn l4_rdma_default_mode_degrades_with_metadata() {
+        use super::super::selection::{select_stages_with_options, SelectionOptions};
+
+        let catalog = builtin_stages();
+        let selection =
+            select_stages_with_options(LocalityTier::L4Rdma, &catalog, SelectionOptions::default())
+                .expect("default mode must NOT error; it should degrade");
+
+        let exec = TcpExecutor;
+        let payload = b"rdma-fallback-payload";
+        let outcome = execute_with_selection(&exec, &selection, payload)
+            .await
+            .expect("TCP executor must serve the degraded stage");
+
+        // transport = what actually served (TCP, the implemented fallback)
+        assert_eq!(outcome.transport, "tcp_transport");
+        // requested = what the tier wanted (the unimplemented ideal)
+        assert_eq!(outcome.requested, "rdma");
+        // degraded_from = the original ideal; reason = non-empty
+        assert_eq!(outcome.degraded_from, Some("rdma".to_string()));
+        let reason = outcome
+            .degradation_reason
+            .as_deref()
+            .expect("degradation_reason must be Some when degraded_from is Some");
+        assert!(!reason.is_empty(), "degradation_reason must be non-empty");
+        assert!(
+            reason.contains("rdma") && reason.contains("tcp_transport"),
+            "degradation_reason must name both the ideal and the actual: {reason:?}"
+        );
+        // Stages carry the DEGRADED transport, not the ideal. This
+        // is what made the bug visible in the first place: the plan
+        // actually executed by the seam is the implemented one.
+        let adapters: Vec<&str> = outcome.stages_executed.iter().map(|s| s.as_str()).collect();
+        assert!(
+            !adapters.contains(&"rdma"),
+            "stages_executed must NOT contain 'rdma'; got {adapters:?}"
+        );
+        assert!(
+            adapters.contains(&"tcp_transport"),
+            "stages_executed must contain the actual served transport; got {adapters:?}"
+        );
+        // Bytes accounting stays the same: payload round-tripped
+        // through the seam with the same observability as before.
+        assert_eq!(outcome.bytes_sent, payload.len());
+    }
+
+    /// Strict-mode end-to-end: L4 wants RDMA, strict mode refuses
+    /// to degrade, and `execute_with_selection` was never reached
+    /// because the selection itself errored. The test pins that
+    /// the function pair — selection-then-execute — is
+    /// short-circuiting: there is no "TCP round-trip happens
+    /// anyway" path.
+    #[tokio::test(flavor = "current_thread")]
+    async fn l4_rdma_strict_mode_returns_unsupported() {
+        use super::super::selection::{select_stages_with_options, SelectionOptions};
+
+        let catalog = builtin_stages();
+        let result =
+            select_stages_with_options(LocalityTier::L4Rdma, &catalog, SelectionOptions::strict());
+
+        assert_eq!(
+            result,
+            Err(ExecError::UnsupportedTransport {
+                requested: "rdma".to_string()
+            }),
+            "strict mode must surface the unimplemented ideal at selection time"
+        );
+    }
+
+    /// Default-mode end-to-end, implemented tier: L5 wants
+    /// unix_socket, the selection is a no-op, the executor runs
+    /// unix_socket, and the merged `ExecOutcome` carries the
+    /// same-transport confirmation (no degradation).
+    #[cfg(unix)]
+    #[tokio::test(flavor = "current_thread")]
+    async fn l5_loopback_default_mode_no_degradation() {
+        use super::super::selection::{select_stages_with_options, SelectionOptions};
+
+        let catalog = builtin_stages();
+        let selection = select_stages_with_options(
+            LocalityTier::L5Loopback,
+            &catalog,
+            SelectionOptions::default(),
+        )
+        .expect("L5 ideal is implemented; default mode must NOT error");
+
+        let exec = UnixSocketExecutor;
+        let payload = b"loopback-payload";
+        let outcome = execute_with_selection(&exec, &selection, payload)
+            .await
+            .expect("UnixSocketExecutor must serve the unix_socket stage");
+
+        assert_eq!(outcome.transport, "unix_socket");
+        assert_eq!(outcome.requested, "unix_socket");
+        assert_eq!(outcome.degraded_from, None);
+        assert_eq!(outcome.degradation_reason, None);
+        assert_eq!(outcome.bytes_sent, payload.len());
+        // Round-trip identity: UnixSocketExecutor performs a real
+        // byte round-trip, so the bytes received must equal the
+        // payload byte-for-byte. This is the same property the
+        // existing round-trip tests pin, just exercised through the
+        // selection-aware path.
+        assert_eq!(
+            outcome.bytes_received, payload,
+            "round-trip must be byte-identical through the selection-aware path"
+        );
+    }
+
+    /// Drift-guard test for the registry <-> executor invariant.
+    /// This is the same shape as the one in `selection.rs` but
+    /// expressed in terms of the executors in this module: the
+    /// static lists of "what each executor serves" must match the
+    /// runtime registry. The two tests (this one and
+    /// `selection::tests::implemented_adapters_match_executor_capabilities`)
+    /// are independently meaningful: this one lives next to the
+    /// executors and will fail if a future refactor drops
+    /// `implemented_adapters()` or shortens the registry without
+    /// touching the executors.
+    #[test]
+    fn implemented_adapters_match_executor_capabilities() {
+        // Compile-time declaration of what each executor in this
+        // crate actually serves. Update this whenever a new
+        // executor lands or an existing executor grows a new
+        // adapter id.
+        let mut served: Vec<&'static str> = Vec::new();
+        served.push("tcp_transport"); // TcpExecutor serves this
+        #[cfg(unix)]
+        served.push("unix_socket"); // UnixSocketExecutor serves this
+        served.sort();
+        served.dedup();
+
+        let mut registry: Vec<&'static str> = implemented_adapters().to_vec();
+        registry.sort();
+
+        assert_eq!(
+            registry, served,
+            "implemented_adapters() drifted from what the executors actually serve: \
+             registry={registry:?} served={served:?}. Update both sides in the same change."
+        );
+
+        // Sanity: no orphan declarations in either direction.
+        for adapter in &registry {
+            assert!(
+                served.contains(adapter),
+                "implemented_adapters() lists {adapter} but no executor serves it"
+            );
+        }
+        for adapter in &served {
+            assert!(
+                registry.contains(adapter),
+                "executor serves {adapter} but it is not in implemented_adapters()"
+            );
+        }
     }
 }
