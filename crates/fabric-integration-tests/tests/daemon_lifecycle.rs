@@ -181,7 +181,22 @@ fn daemon_exits_promptly_on_sigterm() {
     // `run_wire_server` in other tests), so we have to locate the binary
     // ourselves via well-known paths in the workspace target dir.
     let bin = locate_daemon_binary()
-        .expect("could not find fabric-daemon binary; tried $CARGO_BIN_EXE_fabric-daemon, $CARGO_TARGET_DIR, and ../../target/{debug,release}/fabric-daemon");
+        .or_else(|| {
+            // The binary may not exist yet. `cargo test -p
+            // fabric-integration-tests` builds this test crate and its
+            // dependencies, but it does NOT build fabric-daemon's [[bin]]
+            // target. This test previously passed only because a warm target
+            // directory happened to contain the binary from an earlier
+            // `cargo build`; after `cargo clean` it failed with "could not
+            // find fabric-daemon binary". That is the same latent defect as
+            // depending on a stale artefact, so build it explicitly rather
+            // than assuming it is there.
+            let _ = std::process::Command::new(env!("CARGO"))
+                .args(["build", "-p", "fabric-daemon", "--bin", "fabric-daemon"])
+                .status();
+            locate_daemon_binary()
+        })
+        .expect("could not find fabric-daemon binary even after building it; tried $CARGO_BIN_EXE_fabric-daemon, $CARGO_TARGET_DIR, and ../../target/{debug,release}/fabric-daemon");
 
     // Pick a free port for the daemon. Tiny race on close → spawn, accepted
     // because integration tests get their own process group and ephemeral
