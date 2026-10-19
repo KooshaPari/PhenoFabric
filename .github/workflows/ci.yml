@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A release is the only event after which a new archive is publicly live,
+  # so it is the only event on which a check against the PUBLISHED release can
+  # say something meaningful about the tag just cut. release.yml's `verify`
+  # job already hard-fails on the tag push itself; this runs after publication
+  # and confirms what users can actually download. See the
+  # `release-archive` job comments.
+  release:
+    types: [published]
 
 # Cancel in-progress runs for the same branch/PR.
 concurrency:
@@ -376,3 +384,244 @@ jobs:
 
       - name: Build release binaries
         run: cargo build --workspace --release --bins
+
+  # ── Release archive contents ────────────────────────────────────────
+  # The v0.1.2 archive (2026-10-15) shipped only 3 of the 5 binaries
+  # install.sh requires, and nobody noticed until install.sh was exercised
+  # end-to-end. The guard in release.yml (235dc18 / 9bf620e, both 2026-10-16)
+  # landed AFTER that tag and has never run against a published release, so
+  # it has never actually bitten. This job makes the guard bite on ordinary
+  # pushes, against the archive this commit would produce.
+  #
+  # Two independent halves:
+  #
+  #   A. The archive THIS COMMIT produces. Release-shaped and therefore a hard
+  #      failure on every run: build the linux-x86_64 release binaries, package
+  #      them exactly the way release.yml does, then assert the tarball really
+  #      contains all five required binaries. This is the half that prevents a
+  #      repeat -- it fails on a rename of any [[bin]] target the release bin
+  #      list depends on, long before a tag is cut.
+  #
+  #   B. The archive ALREADY PUBLISHED, i.e. what a user installing today gets.
+  #      This is a property of the past, not of this commit: v0.1.2 is
+  #      incomplete and no PR can fix that, only a new release can. So it is a
+  #      hard failure on `release: published` (the moment a new archive went
+  #      live, where a partial one is a genuine regression) and a loud
+  #      ::warning annotation on every ordinary push/PR, where red would only
+  #      train everyone to ignore it.
+  release-archive:
+    name: Release archive contents
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: [fmt, clippy]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Cache cargo registry & target
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-release-archive-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-release-archive-
+
+      - name: Install Linux build dependencies (x86_64)
+        uses: ./.github/actions/linux-build-deps
+        with:
+          arch: host
+
+      # ── A: the archive this commit would ship ─────────────────────────
+      - name: Build release binaries (linux-x86_64)
+        run: cargo build --workspace --release --bins --target x86_64-unknown-linux-gnu
+
+      - name: Assert expected release binaries exist
+        shell: bash
+        env:
+          # Must stay byte-identical to EXPECTED_RELEASE_BINS in
+          # release.yml's `build` job and to install.sh's REQUIRED list.
+          EXPECTED_RELEASE_BINS: fabric fabric-daemon fabric-tui fabric-tray fabric-graph-cli
+        run: |
+          TARGET_DIR="target/x86_64-unknown-linux-gnu/release"
+          missing=0
+          for bin in $EXPECTED_RELEASE_BINS; do
+            path="${TARGET_DIR}/${bin}"
+            if [ ! -f "$path" ]; then
+              echo "::error::Expected release binary not found: $path"
+              echo "::error::Is '$bin' a real cargo [[bin]] target? Check: cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; [print(t[\"name\"]) for p in json.load(sys.stdin)[\"packages\"] for t in p[\"targets\"] if \"bin\" in t[\"kind\"]]'"
+              missing=1
+              continue
+            fi
+            if [ ! -x "$path" ]; then
+              echo "::error::Release binary is not executable: $path"
+              missing=1
+              continue
+            fi
+            echo "OK release binary: $path"
+          done
+          if [ "$missing" = "1" ]; then
+            echo "::error::One or more expected release binaries are missing; this commit would ship a partial archive."
+            exit 1
+          fi
+          echo "All expected release binaries present: $EXPECTED_RELEASE_BINS"
+
+      - name: Package the release archive
+        shell: bash
+        env:
+          EXPECTED_RELEASE_BINS: fabric fabric-daemon fabric-tui fabric-tray fabric-graph-cli
+        run: |
+          # Mirrors release.yml's `Create archive (Unix)` step. CI has no tag,
+          # so a synthetic one stands in: install.sh builds the outer asset
+          # name and the inner directory from the same version string, and
+          # the assertion below pins that contract, so the stand-in does not
+          # weaken the check.
+          TAG="v0.0.0-ci"
+          PLATFORM="linux-x86_64"
+          DIST="phenotype-fabric-${TAG}-${PLATFORM}"
+          TARGET_DIR="target/x86_64-unknown-linux-gnu/release"
+          mkdir -p "$DIST"
+          for bin in $EXPECTED_RELEASE_BINS; do
+            cp "$TARGET_DIR/$bin" "$DIST/"
+          done
+          cp LICENSE* "$DIST/" 2>/dev/null || true
+          cp README.md "$DIST/" 2>/dev/null || true
+          tar czf "${DIST}.tar.gz" "$DIST"
+          echo "archive=${DIST}.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Assert the built archive contains the expected binaries
+        shell: bash
+        env:
+          EXPECTED_RELEASE_BINS: fabric fabric-daemon fabric-tui fabric-tray fabric-graph-cli
+        run: |
+          # The step above only proves the binaries were copied locally. This
+          # step looks INSIDE the tarball, which is the same check release.yml's
+          # post-publish `verify` job runs against the published archives --
+          # the check that did not exist when v0.1.2 shipped a partial archive.
+          TAG="v0.0.0-ci"
+          PLATFORM="linux-x86_64"
+          INNER="phenotype-fabric-${TAG}-${PLATFORM}"
+          ARCHIVE="${INNER}.tar.gz"
+          listing=$(tar tzf "$ARCHIVE")
+          echo "---- ${ARCHIVE} ----"
+          printf '%s\n' "$listing"
+
+          failed=0
+          # install.sh refuses to install unless the archive carries its
+          # top-level dir under exactly this name (harness assertion T5).
+          if ! printf '%s\n' "$listing" | grep -qxF "${INNER}/"; then
+            echo "::error::${ARCHIVE} does not contain the top-level dir install.sh expects: ${INNER}/"
+            failed=1
+          fi
+          for bin in $EXPECTED_RELEASE_BINS; do
+            if ! printf '%s\n' "$listing" | grep -qxF "${INNER}/${bin}"; then
+              echo "::error::${ARCHIVE} does not contain expected binary '${bin}'"
+              failed=1
+            fi
+          done
+          if [ "$failed" = "1" ]; then
+            echo "::error::This commit would ship a partial archive; refusing to green-light it."
+            exit 1
+          fi
+          echo "OK built archive ${ARCHIVE} contains: ${EXPECTED_RELEASE_BINS}"
+
+      # ── B: the archive already published ───────────────────────────────
+      - name: Check the published release for a partial archive
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_RELEASE_BINS: fabric fabric-daemon fabric-tui fabric-tray fabric-graph-cli
+          # Hard-fail only when a release just went public. See the job
+          # comment: on an ordinary push the published archive cannot be
+          # changed by this commit, so a red here would be unfixable noise.
+          RELEASE_EVENT: ${{ github.event_name == 'release' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -uo pipefail
+          if [ "$RELEASE_EVENT" = "true" ]; then
+            TAG="$RELEASE_TAG"
+          else
+            TAG="$(gh release view --repo "$GITHUB_REPOSITORY" \
+                    --json tagName --jq .tagName 2>/dev/null || true)"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::notice::No published release found on $GITHUB_REPOSITORY; nothing to verify."
+            exit 0
+          fi
+
+          PLATFORM="linux-x86_64"
+          ARCHIVE="phenotype-fabric-${TAG}-${PLATFORM}.tar.gz"
+
+          # One verdict for every "the published archive is wrong" case: a hard
+          # failure the moment a release went live, an annotation otherwise.
+          verdict() {
+            echo "::error::$1"
+            echo "::error::The fix is to publish a corrected release, not to change code on this branch."
+            echo "::error::$ARCHIVE (release ${TAG}) is what the documented install command downloads today."
+            exit 1
+          }
+          advise() {
+            echo "::warning::title=Partial published release ${TAG}::$1 Fix: cut a corrected release. Hard failure on release: published; advisory on ordinary pushes and PRs so an unrelated PR is not blocked by a defect only a new release can fix."
+          }
+
+          rm -rf assets && mkdir -p assets
+          if ! gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+                --pattern "$ARCHIVE" --dir assets; then
+            msg="Published release ${TAG} has no ${ARCHIVE} asset."
+            if [ "$RELEASE_EVENT" = "true" ]; then verdict "$msg"; else advise "$msg"; exit 0; fi
+          fi
+
+          listing=$(tar tzf "assets/${ARCHIVE}")
+          echo "---- published ${ARCHIVE} ----"
+          printf '%s\n' "$listing"
+
+          missing=""
+          for bin in $EXPECTED_RELEASE_BINS; do
+            printf '%s\n' "$listing" | grep -qE "/${bin}$" || missing="${missing} ${bin}"
+          done
+          if [ -n "$missing" ]; then
+            msg="Published release ${TAG} ships a PARTIAL archive. Missing:${missing}"
+            if [ "$RELEASE_EVENT" = "true" ]; then verdict "$msg"; else advise "$msg"; exit 0; fi
+          fi
+          echo "OK published release ${TAG} contains: ${EXPECTED_RELEASE_BINS}"
+
+      # ── C: exercise install.sh itself against the published release ──
+      # The step above inspects the archive. This one runs the actual
+      # installer end-to-end, which is the only thing that proves install.sh
+      # and the published archive AGREE: it resolves the asset name, extracts
+      # it, and installs. program/scripts/test_install.sh redirects every
+      # write into a temp dir (INSTALL_DIR override), so /usr/local/bin is
+      # never touched.
+      #
+      # The harness resolves the newest published release at run time, so
+      # after a corrected release is cut this automatically tests the NEW
+      # archive instead of a stale pin.
+      - name: Exercise install.sh against the published release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_EVENT: ${{ github.event_name == 'release' }}
+        run: |
+          set -uo pipefail
+          # T6 of the harness asserts the published archive carries every
+          # required binary. On a release event that assertion failing is a
+          # fresh regression and must be RED. On an ordinary push the
+          # published archive is a property of the past that no PR can fix,
+          # so it stays advisory for the same reason as the step above.
+          if bash program/scripts/test_install.sh; then
+            echo "OK install.sh installs the published release cleanly."
+          else
+            if [ "$RELEASE_EVENT" = "true" ]; then
+              echo "::error::install.sh does not install the freshly published release cleanly."
+              exit 1
+            fi
+            echo "::warning::title=install.sh cannot install the published release::The currently published release is incomplete (see the step above). install.sh correctly REFUSES to install a partial toolchain. Fix: publish a corrected release."
+          fi

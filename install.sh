@@ -17,7 +17,21 @@ REPO="KooshaPari/PhenoFabric"
 # Keeping a name here that can never exist in the archive just produces a
 # permanent "Skipped (not in archive)" warning.
 BINS="fabric fabric-daemon fabric-tui fabric-tray fabric-graph-cli"
-INSTALL_DIR="/usr/local/bin"
+# All five names in BINS are REQUIRED. Every one of them is a real cargo
+# [[bin]] target (verified against `cargo metadata`) and every one of them is
+# packaged into the release archives by .github/workflows/release.yml. If one
+# is absent from the extracted archive the install is PARTIAL: the user gets a
+# broken toolchain (e.g. no `fabric` at all) while the script still reports
+# success. A missing required binary is therefore a hard error, not a warning.
+#
+# Observed on v0.1.2: all three published .tar.gz archives were missing
+# `fabric` and `fabric-graph-cli`; this script silently installed 3 of 5
+# binaries, printed "Done.", and exited 0. That is the defect this fixes.
+#
+# INSTALL_DIR is overridable so the installer can be exercised end-to-end
+# against a real release without writing to /usr/local/bin. The default is
+# unchanged.
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
 # ── Colors ────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -98,14 +112,26 @@ download_and_install() {
     die "Expected directory not found after extraction: $dist_dir"
   fi
 
+  # Preflight: refuse to install anything at all if the archive is incomplete.
+  # Doing this before the copy loop means a partial install never leaves the
+  # user with a half-populated INSTALL_DIR.
+  local missing=""
+  for bin in $BINS; do
+    if [ ! -f "${dist_dir}/${bin}" ]; then
+      missing="${missing} ${bin}"
+    fi
+  done
+  if [ -n "$missing" ]; then
+    local archive_contents
+    archive_contents="$(find "$dist_dir" -mindepth 1 -maxdepth 1 -exec basename {} \; | tr '\n' ' ')"
+    rm -rf "$tmpdir"
+    die "Archive ${archive} is missing REQUIRED binaries:${missing} -- nothing was installed. Contents of archive dir: ${archive_contents}"
+  fi
+
   info "Installing to ${INSTALL_DIR} ..."
   for bin in $BINS; do
-    if [ -f "${dist_dir}/${bin}" ]; then
-      install -m 755 "${dist_dir}/${bin}" "${INSTALL_DIR}/${bin}"
-      info "  Installed ${bin}"
-    else
-      warn "  Skipped ${bin} (not in archive)"
-    fi
+    install -m 755 "${dist_dir}/${bin}" "${INSTALL_DIR}/${bin}"
+    info "  Installed ${bin}"
   done
 
   rm -rf "$tmpdir"
@@ -128,8 +154,8 @@ main() {
 
   # Check write permissions
   if [ ! -w "$INSTALL_DIR" ]; then
-    warn "No write permission to ${INSTALL_DIR}. Retrying with sudo ..."
-    exec sudo bash "$0" "$@"
+    warn "No write permission to ${INSTALL_DIR}. Retrying with sudo (INSTALL_DIR is inherited)."
+    exec sudo env "INSTALL_DIR=${INSTALL_DIR}" bash "$0" "$@"
   fi
 
   local version
@@ -142,12 +168,25 @@ main() {
   download_and_install "$version" "$platform"
 
   echo
+  # Resolve each binary against INSTALL_DIR rather than $PATH: INSTALL_DIR is
+  # not necessarily on PATH, and reporting the destination we actually wrote
+  # to beats a stale shadowing copy earlier in PATH.
+  local installed_count=0
+  local required_count
+  required_count=$(echo "$BINS" | wc -w | tr -d ' ')
   info "Installed binaries:"
   for bin in $BINS; do
-    if command -v "$bin" &>/dev/null; then
-      printf "  %-20s %s\n" "$bin" "$(command -v $bin)"
+    if [ -x "${INSTALL_DIR}/${bin}" ]; then
+      printf "  %-20s %s\n" "$bin" "${INSTALL_DIR}/${bin}"
+      installed_count=$((installed_count + 1))
+    else
+      printf "  %-20s %s\n" "$bin" "MISSING"
     fi
   done
+  echo
+  if [ "$installed_count" -ne "$required_count" ]; then
+    die "Installed ${installed_count} of ${required_count} required binaries into ${INSTALL_DIR}."
+  fi
   echo
   info "Get started: fabric --help"
 }
