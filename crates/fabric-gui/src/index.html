@@ -1593,16 +1593,16 @@ a:hover { color: var(--color-teal-bright); }
         </div>
         <div class="content-panel glass" style="max-width:480px;">
           <div class="panel-title">Identity</div>
-          <div class="data-row"><span class="text-dim">Name</span><span>Koosha Pari</span></div>
-          <div class="data-row"><span class="text-dim">Email</span><span class="text-mono text-sm"><REDACTED>@phenotype.io</span></div>
-          <div class="data-row"><span class="text-dim">Organization</span><span>Phenotype Labs</span></div>
-          <div class="data-row"><span class="text-dim">Roles</span><span><span class="badge">admin</span> <span class="badge">operator</span></span></div>
-          <div class="data-row"><span class="text-dim">Session</span><span class="text-dim">Active (expires in 23h 41m)</span></div>
+          <div class="data-row"><span class="text-dim">Name</span><span id="auth-name">--</span></div>
+          <div class="data-row"><span class="text-dim">Email</span><span class="text-mono text-sm" id="auth-email">--</span></div>
+          <div class="data-row"><span class="text-dim">Organization</span><span id="auth-org">--</span></div>
+          <div class="data-row"><span class="text-dim">Roles</span><span id="auth-roles">--</span></div>
+          <div class="data-row"><span class="text-dim">Session</span><span class="text-dim" id="auth-session-expiry">unknown</span></div>
+          <div class="data-row"><span class="text-dim">Status</span><span class="flex gap-2"><span class="status-dot status-disconnected" id="auth-status-dot"></span><span class="text-dim" id="auth-status-text">unknown</span></span></div>
         </div>
         <div class="content-panel glass" style="max-width:480px;">
           <div class="panel-title">Active Sessions</div>
-          <div class="data-row"><span>Desktop</span><span class="text-dim">macOS Sequoia</span><span class="badge">Current</span></div>
-          <div class="data-row"><span>CLI</span><span class="text-dim">fabric-cli v0.1.0</span><span class="text-dim">2h ago</span></div>
+          <div id="auth-sessions"><div class="data-row"><span class="text-dim">Loading session list...</span></div></div>
         </div>
       </div>
 
@@ -2090,13 +2090,95 @@ a:hover { color: var(--color-teal-bright); }
       }
     }
 
+    // ---- Small DOM / formatting helpers ----
+    // Every element lookup in the loaders below goes through these two so a
+    // missing id degrades to "that field just doesn't update" instead of a
+    // TypeError that kills the rest of the function.
+    function el(id) {
+      return document.getElementById(id);
+    }
+
+    function setText(id, value) {
+      const node = el(id);
+      if (node) node.textContent = value;
+      return node !== null;
+    }
+
+    // Escapes a value for interpolation into an innerHTML template literal.
+    // Auth fields (user_name, device, session_id) are attacker-influenced in
+    // the sense that a compromised or hostile WorkOS org controls them, and
+    // this is injected as HTML.
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[c]);
+    }
+
+    // session_expiry_secs -> "23h 41m". Renders hours even when there are
+    // none ("45m") so the unit is always present and the width stays stable.
+    function formatSessionExpiry(secs) {
+      const n = Number(secs);
+      if (!Number.isFinite(n) || n <= 0) return 'unknown';
+      const total = Math.floor(n);
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      if (h > 0) return `${h}h ${m}m`;
+      return `${m}m`;
+    }
+
+    // Renders AuthStatus (crates/fabric-gui/src-tauri/src/types.rs) into the
+    // Auth tab. Fields are exactly: logged_in, user_name, user_email,
+    // org_name, roles, session_expiry_secs, active_sessions[{session_id,
+    // device, created}].
     async function loadAuth() {
       const data = await api('get_auth');
       if (!data) return;
-      document.getElementById('auth-pubkey').value = data.public_key || '-- not connected --';
-      document.getElementById('auth-nodeid').value = data.node_id || '--';
-      const dot = document.getElementById('auth-verified-dot');
-      dot.className = 'status-dot ' + (data.verified ? 'status-connected' : 'status-disconnected');
+
+      // Unknown-session state: show it honestly rather than rendering the
+      // placeholder dashes from the markup as if they were real values.
+      const placeholder = data.logged_in ? 'unknown' : '--';
+
+      setText('auth-name', data.user_name || placeholder);
+      setText('auth-email', data.user_email || placeholder);
+      setText('auth-org', data.org_name || placeholder);
+
+      const roles = Array.isArray(data.roles) ? data.roles.filter(Boolean) : [];
+      setText('auth-roles', roles.length ? roles.join(', ') : placeholder);
+
+      const expiry = formatSessionExpiry(data.session_expiry_secs);
+      setText('auth-session-expiry', expiry);
+      setText(
+        'auth-status-text',
+        data.logged_in
+          ? (expiry === 'unknown' ? 'Authenticated' : `Authenticated (expires in ${expiry})`)
+          : 'Not authenticated'
+      );
+
+      const dot = el('auth-status-dot');
+      if (dot) {
+        dot.className = 'status-dot ' + (data.logged_in ? 'status-connected' : 'status-disconnected');
+      }
+
+      const list = el('auth-sessions');
+      if (!list) return;
+      const sessions = Array.isArray(data.active_sessions) ? data.active_sessions : [];
+      if (sessions.length === 0) {
+        list.innerHTML = `<div class="data-row"><span class="text-dim">${
+          data.logged_in ? 'No active sessions reported' : 'Not authenticated'
+        }</span></div>`;
+        return;
+      }
+      list.innerHTML = sessions.map(s =>
+        `<div class="data-row">` +
+        `<span>${esc(s.device || 'unknown device')}</span>` +
+        `<span class="text-dim">${esc(s.created || 'unknown')}</span>` +
+        `<span class="badge text-mono text-sm">${esc(s.session_id || '--')}</span>` +
+        `</div>`
+      ).join('');
     }
 
     async function loadLogs() {

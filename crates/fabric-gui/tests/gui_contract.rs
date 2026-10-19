@@ -14,8 +14,11 @@
 //!   `fabric-cli`, the GUI's own Tauri config, and the GUI's README.
 //! - The WorkOS client id baked into the JS matches the one the Rust
 //!   shell passes to the daemon.
-//! - The dashboard's `data-bind` selectors that `updateDashboard()`
-//!   queries are actually present in the DOM.
+//! - Every `document.getElementById('x')` target the JS queries in
+//!   `src/index.html` is actually present as `id="x"` in the markup. This
+//!   catches the class of bug where a loader writes to an element that was
+//!   never rendered: `getElementById` returns null, the next property
+//!   access throws, and the rest of that loader never runs.
 //! - The tab bar (`switchTab('x')` callers) matches the page containers
 //!   (`id="page-x"`) matches the loader switch (`loadTabData('x')` cases).
 //! - Every internal `href` / `<link href>` / `<script src>` / `<img src>`
@@ -31,7 +34,11 @@
 //! - Whether the IPC bridge correctly maps to the real daemon wire
 //!   protocol (the JS doesn't speak to the daemon directly — every
 //!   `api('foo')` goes through a Tauri command which does the TCP work).
-//! - Visual regression of the liquid-glass theme.
+//! - Visual regression of the theme. There is no separate stylesheet to
+//!   regress against: `src/index.html` carries its CSS inline in a single
+//!   `<style>` block, so "the theme" and "index.html" are the same file and
+//!   the only cheap structural check available here is that a page exists
+//!   and is well-formed.
 //!
 //! A real browser (chromiumoxide / headless_chrome / Playwright) would
 //! buy us all of that, but the task brief forbade adding one, and the
@@ -88,17 +95,24 @@ fn readme() -> PathBuf {
     gui_root().join("README.md")
 }
 
-fn page_path(name: &str) -> PathBuf {
-    pages_dir().join(name)
-}
-
-// All HTML pages the GUI serves from its static dir. `pages/*.html` are
-// fragments embedded into `index.html`; treat them as siblings of
-// `index.html` for filesystem existence checks.
+// All HTML pages the GUI serves from its static dir.
+//
+// `src/index.html` is the single shipped source: it carries the whole
+// stylesheet, the whole markup for every tab, and the whole script. The
+// `pages/*.html` fragments it used to sit beside are gone (deleted
+// 2026-10-19), so `src/pages/` is absent in the shipped tree and there are
+// no fragments to check. The directory scan is kept because it is the thing
+// that flags a re-introduced fragment the moment it is added: if somebody
+// drops a new `pages/foo.html` back in, it flows into every page-wide check
+// below (well-formedness, local asset references, orphan detection).
 fn all_pages() -> Vec<PathBuf> {
     let mut pages = vec![index_html()];
+    // A missing `src/pages/` is the shipped state, not an error. Anything
+    // other than NotFound is still a hard error — that is a real filesystem
+    // problem we would rather surface than silently treat as "no fragments".
     let entries = match fs::read_dir(pages_dir()) {
         Ok(it) => it,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return pages,
         Err(e) => panic!("read_dir({}) failed: {e}", pages_dir().display()),
     };
     for entry in entries.flatten() {
@@ -810,31 +824,48 @@ fn extract_switch_case_strings(src: &str, fn_name: &str) -> BTreeSet<String> {
 }
 
 // ---------------------------------------------------------------------------
-// dashboard.html updateDashboard(): every data-bind it queries is in the DOM.
+// index.html JS: every document.getElementById('X') target exists as
+// id="X" in the markup.
 // ---------------------------------------------------------------------------
 
 #[test]
-fn dashboard_databinds_referenced_by_js_exist_in_the_dom() {
-    let dashboard = fs::read_to_string(page_path("dashboard.html")).unwrap();
-    let js =
-        extract_script_block(&dashboard).expect("dashboard.html must contain a <script> block");
+fn index_getelementbyid_targets_exist_in_the_dom() {
+    let html = fs::read_to_string(index_html()).unwrap();
+    let js = extract_script_block(&html).expect("index.html must contain a <script> block");
 
-    // The selectors that updateDashboard writes to.
-    let queried: BTreeSet<String> = extract_queryselector_databind(&js);
-    let defined: BTreeSet<String> = extract_dom_databind_values(&dashboard);
+    let queried: BTreeSet<String> = extract_getelementbyid_args(&js);
+    assert!(
+        !queried.is_empty(),
+        "index.html's script block yielded no getElementById targets. If the \
+         script was restructured, update extract_getelementbyid_args rather \
+         than letting this test pass vacuously."
+    );
 
-    let mut missing: Vec<String> = Vec::new();
-    for q in &queried {
-        if !defined.contains(q) {
-            missing.push(q.clone());
-        }
-    }
+    // `extract_attr_values` skips <script> bodies, so this is the real DOM
+    // markup and not an id mentioned inside a JS string.
+    let defined: BTreeSet<String> = extract_attr_values(&html, "id")
+        .into_iter()
+        .map(|(v, _line)| v)
+        .collect();
+
+    let missing: Vec<&String> = queried.iter().filter(|q| !defined.contains(*q)).collect();
     assert!(
         missing.is_empty(),
-        "dashboard.html JS queries [data-bind=\"{missing:?}\"] but no \
-         element with that data-bind exists in the DOM — the page will \
-         silently render zeros on every metric. Add the elements or \
-         remove the JS lines."
+        "index.html's JS calls document.getElementById() for {} id(s) that \
+         no element in the markup carries:\n  - {}\n\
+         getElementById returns null for an unknown id, so every one of \
+         these throws a TypeError on the next property access and silently \
+         kills the rest of that loader. Add the element with the matching \
+         id, or point the JS at an id that exists.\n\
+         Checked {} unique target(s) against {} id= attribute(s) in the DOM.",
+        missing.len(),
+        missing
+            .iter()
+            .map(|m| m.as_str())
+            .collect::<Vec<_>>()
+            .join("\n  - "),
+        queried.len(),
+        defined.len()
     );
 }
 
@@ -846,53 +877,30 @@ fn extract_script_block(html: &str) -> Option<String> {
     Some(html[after_open..after_open + close].to_string())
 }
 
-fn extract_queryselector_databind(js: &str) -> BTreeSet<String> {
-    // Matches `[data-bind="..."]` (either quote) inside
-    // `document.querySelector(...)`. Conservative — we only collect
-    // selectors that contain `data-bind=`.
+// Collects the literal string argument of every `document.getElementById(...)`
+// call. Only single-quoted literals are matched, which is what index.html
+// uses throughout; anything else is silently ignored rather than guessed at,
+// because a false positive here reads as a missing DOM element and would send
+// the next agent chasing a bug that does not exist.
+fn extract_getelementbyid_args(js: &str) -> BTreeSet<String> {
+    const NEEDLE: &[u8] = b"getElementById('";
     let mut out = BTreeSet::new();
     let bytes = js.as_bytes();
     let mut i = 0;
-    while i < bytes.len() {
-        if i + 11 < bytes.len() && &bytes[i..i + 11] == b"[data-bind" {
-            // Skip `=`.
-            let mut j = i + 11;
-            while j < bytes.len() && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'=') {
-                if bytes[j] == b'=' {
-                    j += 1;
-                    break;
+    while i + NEEDLE.len() < bytes.len() {
+        if bytes[i..i + NEEDLE.len()] == *NEEDLE {
+            let start = i + NEEDLE.len();
+            if let Some(end) = bytes[start..].iter().position(|&b| b == b'\'') {
+                if end > 0 {
+                    out.insert(js[start..start + end].to_string());
                 }
-                j += 1;
+                i = start + end + 1;
+                continue;
             }
-            while j < bytes.len() && (bytes[j] == b' ' || bytes[j] == b'\t') {
-                j += 1;
-            }
-            let mut advance_to = i + 11;
-            if j < bytes.len() && (bytes[j] == b'\'' || bytes[j] == b'"') {
-                let quote = bytes[j];
-                let s = j + 1;
-                let mut e = s;
-                while e < bytes.len() && bytes[e] != quote {
-                    e += 1;
-                }
-                if e > s && e < bytes.len() {
-                    out.insert(js[s..e].to_string());
-                    advance_to = e + 1;
-                }
-            }
-            i = advance_to;
-        } else {
-            i += 1;
         }
+        i += 1;
     }
     out
-}
-
-fn extract_dom_databind_values(html: &str) -> BTreeSet<String> {
-    extract_attr_values(html, "data-bind")
-        .into_iter()
-        .map(|(v, _)| v)
-        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -965,9 +973,17 @@ fn every_local_asset_reference_on_every_page_resolves() {
 
 #[test]
 fn pages_dir_files_are_either_referenced_or_documented_as_orphans() {
+    // `src/pages/` does not exist in the shipped tree. No directory means no
+    // fragments and therefore no orphans — nothing to detect. The scan below
+    // still runs the moment a fragment is added back, which is the point:
+    // it fails loudly rather than passing quietly.
+    let Ok(entries) = fs::read_dir(pages_dir()) else {
+        return;
+    };
+
     let index = fs::read_to_string(index_html()).unwrap();
     let mut orphans: Vec<PathBuf> = Vec::new();
-    for entry in fs::read_dir(pages_dir()).unwrap().flatten() {
+    for entry in entries.flatten() {
         let p = entry.path();
         if p.extension().and_then(|s| s.to_str()) != Some("html") {
             continue;
@@ -990,44 +1006,29 @@ fn pages_dir_files_are_either_referenced_or_documented_as_orphans() {
     //   2. Delete the file, OR
     //   3. Add its name to `KNOWN_ORPHANS` with a justification.
     //
-    // Option 3 is used below for the nine fragments, with the reason attached.
-    // The assert still blocks any orphan that is not explicitly declared, so
-    // this is a dated pin of a known state, not a suppression.
-    // Known-orphan allowlist. These are real, dated findings, not a way to
-    // make the test quiet: any orphan NOT listed here still fails, which is
-    // the point of the test.
+    // RESOLVED 2026-10-19: the nine fragments were DELETED rather than wired.
     //
-    // Investigated 2026-10-17: ALL nine fragments in `pages/` are orphans.
-    // index.html embeds equivalent markup inline instead of fetching the
-    // fragments, so each file is a duplicate copy that can drift from the
-    // embedded one. Listing them pins the known state and still blocks a tenth
-    // orphan appearing unnoticed.
+    // index.html is the single shipped source. It already carries all nine
+    // `page-*` divs and a `loadTabData()` case for each, so the fragments were
+    // dead weight that could only drift from the live markup. Wiring them
+    // would have meant `fetch()`-ing fragments inside the Tauri webview, which
+    // changes shipped runtime behaviour and cannot be verified without running
+    // the GUI.
     //
-    // The open decision -- wire the fragments into `loadTabData()` so
-    // index.html fetches them, or delete the nine and keep the inline copy as
-    // the single source -- is a product/architecture choice. It is recorded
-    // as an open obligation rather than resolved by guessing.
-    const KNOWN_ORPHANS: &[&str] = &[
-        "auth.html",
-        "dashboard.html",
-        "leases.html",
-        "logs.html",
-        "network.html",
-        "routes.html",
-        "settings.html",
-        "streaming.html",
-        "topology.html",
-    ];
+    // Five of the nine were near-duplicates (their only ids already existed in
+    // index.html). `settings.html` had genuinely diverged: 12 controls
+    // (daemon-addr, daemon-timeout, bitrate, codec-select, fps-select,
+    // keyframe-interval, refresh-interval, resolution, startup-tab,
+    // stun-server, theme-select, turn-server) against the live form's four
+    // cfg-* fields. That design was never wired and was never shipped, so
+    // deleting it removes no delivered feature; it remains recoverable from
+    // git history at cf2c997 if it is ever wanted.
+    //
+    // The allowlist is gone on purpose. If an unreferenced fragment reappears,
+    // this test fails again rather than passing quietly.
     let real_orphans: Vec<String> = orphans
         .iter()
-        .filter_map(|p| {
-            let name = p.file_name().unwrap().to_string_lossy().to_string();
-            if KNOWN_ORPHANS.contains(&name.as_str()) {
-                None
-            } else {
-                Some(name)
-            }
-        })
+        .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
         .collect();
     assert!(
         real_orphans.is_empty(),
@@ -1041,31 +1042,6 @@ fn pages_dir_files_are_either_referenced_or_documented_as_orphans() {
             .map(|n| format!("pages/{n}"))
             .collect::<Vec<_>>()
             .join("\n  - ")
-    );
-}
-
-#[test]
-fn styles_liquid_glass_is_either_linked_or_deleted() {
-    let css = src_dir().join("styles").join("liquid-glass.css");
-    assert!(
-        css.exists(),
-        "{}: file is missing",
-        css.strip_prefix(src_dir()).unwrap_or(&css).display()
-    );
-    let _index = fs::read_to_string(index_html()).unwrap();
-    let referenced = all_pages()
-        .iter()
-        .any(|p| fs::read_to_string(p).unwrap().contains("liquid-glass.css"));
-    // The README and a comment in index.html both *mention* the file by
-    // name without linking to it. We assert that at least one HTML page
-    // actually loads it. If nothing does, the file is dead weight.
-    assert!(
-        referenced,
-        "src/styles/liquid-glass.css exists but no HTML page links it \
-         (no <link rel=\"stylesheet\" href=\"...liquid-glass.css\">). \
-         Either add the link or delete the file. The page styles are \
-         currently inline-only — a 543-line orphan is a maintenance \
-         hazard."
     );
 }
 
