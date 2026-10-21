@@ -175,6 +175,8 @@ not present in a clean CI checkout either.
 |---|---|---|
 | 39545339580 | `178a355` | FAIL — `couldn't read .../docs/spec/wire-protocol-schema.json` |
 | 39547036357 | `1240110` | Image built and both binaries compiled. Job failed in the *assertion* step with `printf: write error: Broken pipe` — see below. |
+| 39547651066 | `288ffd8` | CANCELLED — not a failure. A later push cancelled the in-flight run; the Docker build was 65% through cargo when it was cancelled. |
+| **39547767036** | **`aed03ba`** | **PASS — all nine jobs green on native Ubuntu x86_64.** |
 
 ### The assertion bug in run 39547036357
 
@@ -220,6 +222,51 @@ The two `printf ... | grep -q` sites in `release.yml`'s "Verify CLI
 archives contain the expected binaries" step were deliberately left alone:
 that step does not enable `pipefail`, so the pattern is safe there. The
 distinction was checked per step, not per file.
+
+### The green run: 39547767036 (commit `aed03ba`)
+
+All nine jobs passed on native Ubuntu x86_64:
+
+```
+Clippy: completed/success
+Format: completed/success
+Check: completed/success
+Docker image builds: completed/success
+Integration tests: completed/success
+Unit tests: completed/success
+Release build: completed/success
+Release archive contents: completed/success
+E2E smoke tests: completed/success
+```
+
+The Docker job's own log, read back from the run, not inferred from the
+job's green checkmark:
+
+```
+OK Docker image contains /usr/local/bin/fabric
+OK Docker image contains /usr/local/bin/fabric-daemon
+OK fabric --version runs inside the image: fabric 0.1.0
+OK fabric-daemon --version runs inside the image: fabric-daemon 0.1.0
+```
+
+That is the four facts this work existed to establish: the image builds
+from the real workspace, both binaries are present, and both binaries
+**execute** inside the runtime stage, which is the only way to catch a
+missing shared library.
+
+The build log also confirms the two Debian fixes landed as intended:
+
+```
+#10 [runtime 2/6] RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl libssl3t64 && rm -rf /var/lib/apt/lists/*
+#10 libssl3t64 is already the newest version (3.5.7-1~deb13u3).
+```
+
+Run 39547651066 (`288ffd8`) was cancelled, not failed: a subsequent push
+cancelled the in-flight run while the Docker build was 65% through `cargo
+build`. Its `X` marker on the build step is a cancellation artifact, not a
+build error, and it is recorded here so the cancelled run is not later
+mistaken for a red build.
 
 ## Repository gates
 
