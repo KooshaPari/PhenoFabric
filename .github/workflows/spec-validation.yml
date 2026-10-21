@@ -18,6 +18,7 @@ on:
       - "cmd/wire/testdata/**/*.json"
       - "program/scripts/**"
       - ".github/workflows/spec-validation.yml"
+      - ".github/workflows/**"
       - "MANIFEST.sha256"
   pull_request:
     paths:
@@ -35,6 +36,7 @@ on:
       - "cmd/wire/testdata/**/*.json"
       - "program/scripts/**"
       - ".github/workflows/spec-validation.yml"
+      - ".github/workflows/**"
       - "MANIFEST.sha256"
 
 jobs:
@@ -57,6 +59,15 @@ jobs:
 
       - name: Validate spec links
         run: python3 program/scripts/check_links.py
+
+      # Two silent release failures on 2026-10-21 shared a root cause: a
+      # workflow step wrote one output name while its consumers read another
+      # (so `TAG` expanded to the empty string), and a multi-line `pattern:`
+      # block scalar was passed to `download-artifact`, whose `pattern` input
+      # is a SINGLE glob (so it matched nothing and v0.1.3 published with
+      # zero assets while the job exited 0). Both are statically checkable.
+      - name: Validate GitHub Actions workflows
+        run: python3 program/scripts/check_workflows.py
 
       - name: Validate MANIFEST matches file tree
         run: python3 program/scripts/check_manifest.py
