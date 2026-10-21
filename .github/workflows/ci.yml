@@ -629,24 +629,34 @@ jobs:
   # ── Docker image builds ──────────────────────────────────────────────
   # The Dockerfile was never built by CI, so its dependency-stub layer
   # drifted out of sync with the workspace. On the v0.1.4 release the Docker
-  # build failed with:
+  # build failed with 7 distinct missing-target errors, e.g.:
   #
   #   error: can't find lib `fabric_cli` at path
   #   `/build/crates/fabric-cli/src/lib.rs`
+  #   error: can't find bin `tf-web` at path
+  #   `/build/crates/fabric-terminal/src/web_main.rs`
   #
-  # because `crates/fabric-cli/Cargo.toml` declares BOTH a [[bin]] (fabric ->
-  # src/main.rs) and a [lib] (fabric_cli -> src/lib.rs), and the stub layer
-  # only created the binary. The stub list is maintained by hand, so it will
-  # drift again; this job is what makes the drift visible at PR time instead
-  # of at release time.
+  # because the stub layer was a hand-maintained list of every declared
+  # cargo target, and cargo refuses to resolve the workspace at all when
+  # any declared target's source file is missing. The stub layer has since
+  # been REMOVED from the Dockerfile (it never provided useful caching,
+  # because every crate the image needs is a path dependency of another
+  # workspace crate, so the cache was warmed with stub crates rather than
+  # the real ones).
   #
-  # The build itself is the assertion. `docker build` cannot even resolve the
-  # workspace if a stub is missing, so a successful build proves every
-  # workspace member is covered by the stub layer.
+  # This job is what makes any future Docker breakage visible at PR time
+  # instead of at release time. It asserts three things:
+  #
+  #   1. the image builds at all (cargo resolves the whole workspace);
+  #   2. both binaries the runtime stage consumes are present;
+  #   3. both binaries actually LOAD and run inside the image -- a binary
+  #      that is present but fails to load (for example because a shared
+  #      library such as libssl.so.3 is missing from the runtime stage)
+  #      is just as broken as a missing binary.
   docker-build:
     name: Docker image builds
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
@@ -675,5 +685,38 @@ jobs:
           done
           if [ "$missing" = "1" ]; then
             echo "::error::The Docker image does not contain the expected binaries."
+            exit 1
+          fi
+
+      - name: Verify the binaries load and run inside the image
+        run: |
+          set -uo pipefail
+          failed=0
+          # Both binaries are clap apps with the built-in `version` flag, so
+          # `--version` prints a version string and exits 0. Running them
+          # also proves every shared library the binary needs is present in
+          # the runtime stage.
+          check_binary() {
+            bin="$1"; shift
+            out="$(docker run --rm --entrypoint "/usr/local/bin/${bin}" fabric-ci:probe "$@" 2>&1)"
+            rc=$?
+            if [ "$rc" -ne 0 ]; then
+              echo "::error::${bin} $* failed inside the image (exit ${rc})"
+              echo "${out}" | sed 's/^/    /'
+              failed=1
+              return
+            fi
+            if printf '%s' "$out" | grep -qiE 'error while loading shared libraries|not found'; then
+              echo "::error::${bin} could not load a required shared library inside the image"
+              echo "${out}" | sed 's/^/    /'
+              failed=1
+              return
+            fi
+            echo "OK ${bin} $* runs inside the image: ${out}"
+          }
+          check_binary fabric --version
+          check_binary fabric-daemon --version
+          if [ "$failed" = "1" ]; then
+            echo "::error::One or more Docker image binaries do not run inside the image."
             exit 1
           fi

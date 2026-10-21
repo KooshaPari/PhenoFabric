@@ -16,88 +16,49 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# Cache dependency builds: copy manifests first, create dummy sources, build deps.
-# All workspace members must be copied here, otherwise `cargo build --release`
-# in the cache step fails with "failed to load manifest for workspace member
-# crates/<name>". This list must be kept in sync with [workspace] members in
-# the top-level Cargo.toml.
+# ── Dependency caching ───────────────────────────────────────────────────────
+# This used to be a two-stage scheme:
+#
+#   1. COPY only the workspace manifests, hand-write a stub source file for
+#      every declared cargo target, and `cargo build --release` to warm the
+#      dependency cache.
+#   2. COPY the real sources and rebuild.
+#
+# The hand-written stub list drifted, and the v0.1.4 release's Docker build
+# failed with:
+#
+#   error: can't find lib `fabric_cli` at path `/build/crates/fabric-cli/src/lib.rs`
+#   error: can't find bin `fabric-tui` at path `/build/crates/fabric-tui/src/main.rs`
+#   error: can't find bin `tf-web` at path `/build/crates/fabric-terminal/src/web_main.rs`
+#   (7 distinct targets in total)
+#
+# The stub layer could not be repaired by hand and stay repaired -- a crate
+# may declare several `[[bin]]`s, a `[lib]`, and `[[bench]]`es, and each new
+# target breaks the build again. Worse, cargo refuses to resolve the
+# workspace AT ALL when any declared target's source file is missing, so the
+# stub list has to be exhaustive to work at all.
+#
+# The stub layer is therefore REMOVED. It never provided useful caching
+# anyway: every crate the image needs is a path dependency of another
+# workspace crate, so the cache would be warmed with stub crates rather than
+# the real ones and the second build would recompile everything regardless.
+#
+# The build now copies the real sources and builds only the two binaries the
+# runtime stage consumes. Because cargo builds only the requested targets and
+# their dependency closure, crates that are irrelevant to the image (the
+# terminal/TUI/GUI crates) are never compiled. Docker's layer cache still
+# does the useful part of the job: any change to an unrelated file leaves
+# the earlier layers intact.
+#
+# `cargo build` errors out if a declared target's source file is missing, so
+# a green build proves the whole workspace resolves.
 COPY Cargo.toml Cargo.lock ./
-COPY crates/fabric-daemon/Cargo.toml crates/fabric-daemon/Cargo.toml
-COPY crates/fabric-cli/Cargo.toml crates/fabric-cli/Cargo.toml
-COPY crates/fabric-graph/Cargo.toml crates/fabric-graph/Cargo.toml
-COPY crates/fabric-graph-cli/Cargo.toml crates/fabric-graph-cli/Cargo.toml
-COPY crates/fabric-capability/Cargo.toml crates/fabric-capability/Cargo.toml
-COPY crates/fabric-capability-ffi/Cargo.toml crates/fabric-capability-ffi/Cargo.toml
-COPY crates/fabric-persist/Cargo.toml crates/fabric-persist/Cargo.toml
-COPY crates/fabric-checker/Cargo.toml crates/fabric-checker/Cargo.toml
-COPY crates/fabric-workspace/Cargo.toml crates/fabric-workspace/Cargo.toml
-COPY crates/fabric-frame-transport/Cargo.toml crates/fabric-frame-transport/Cargo.toml
-COPY crates/phenotype-nvms-adapter/Cargo.toml crates/phenotype-nvms-adapter/Cargo.toml
-COPY crates/phenotype-manifest/Cargo.toml crates/phenotype-manifest/Cargo.toml
-COPY crates/fabric-tray/Cargo.toml crates/fabric-tray/Cargo.toml
-COPY crates/fabric-gui/Cargo.toml crates/fabric-gui/Cargo.toml
-COPY crates/fabric-web/Cargo.toml crates/fabric-web/Cargo.toml
-COPY crates/fabric-tui/Cargo.toml crates/fabric-tui/Cargo.toml
-COPY crates/fabric-surface-mojo/Cargo.toml crates/fabric-surface-mojo/Cargo.toml
-COPY crates/fabric-orchestrator/Cargo.toml crates/fabric-orchestrator/Cargo.toml
-COPY crates/fabric-terminal/Cargo.toml crates/fabric-terminal/Cargo.toml
-COPY crates/fabric-capture/Cargo.toml crates/fabric-capture/Cargo.toml
-COPY crates/fabric-integration-tests/Cargo.toml crates/fabric-integration-tests/Cargo.toml
-COPY crates/fabric-research-ledger/Cargo.toml crates/fabric-research-ledger/Cargo.toml
-COPY examples/full-demo/Cargo.toml examples/full-demo/Cargo.toml
-
-# Create stub lib.rs / main.rs for each workspace member so cargo can resolve deps.
-# List must mirror the COPY list above. Crates that declare [[bench]] entries in
-# their Cargo.toml need benches/ stubs too, otherwise `cargo build --release
-# --locked` in the cache step fails with "can't find `<name>` bench at
-# `benches/<name>.rs`" (see round 14 session notes for the 4 affected crates:
-# fabric-frame-transport, fabric-persist, fabric-checker, fabric-graph). The
-# stub bench body is `fn main() {}` because all four crates use `harness =
-# false` in their [[bench]] declaration.
-RUN mkdir -p crates/fabric-daemon/src crates/fabric-cli/src crates/fabric-graph/src \
-             crates/fabric-graph-cli/src crates/fabric-capability/src \
-             crates/fabric-capability-ffi/src crates/fabric-persist/src \
-             crates/fabric-checker/src crates/fabric-workspace/src \
-             crates/fabric-frame-transport/src crates/phenotype-nvms-adapter/src \
-             crates/phenotype-manifest/src crates/fabric-tray/src \
-             crates/fabric-gui/src crates/fabric-web/src crates/fabric-tui/src \
-             crates/fabric-surface-mojo/src crates/fabric-orchestrator/src \
-             crates/fabric-terminal/src crates/fabric-capture/src \
-             crates/fabric-integration-tests/src crates/fabric-research-ledger/src \
-             crates/fabric-frame-transport/benches crates/fabric-persist/benches \
-             crates/fabric-checker/benches crates/fabric-graph/benches \
-             examples/full-demo/src && \
-    for crate in fabric-graph fabric-graph-cli fabric-capability fabric-capability-ffi \
-                 fabric-persist fabric-checker fabric-workspace \
-                 fabric-frame-transport phenotype-nvms-adapter phenotype-manifest \
-                 fabric-tray fabric-gui fabric-web fabric-tui fabric-surface-mojo \
-                 fabric-orchestrator fabric-terminal fabric-capture \
-                 fabric-integration-tests fabric-research-ledger; do \
-        echo "pub fn _stub() {}" > "crates/${crate}/src/lib.rs"; \
-    done && \
-    for bench in transport persist checker compiler; do \
-        case "$bench" in \
-            transport)     crate=fabric-frame-transport ;; \
-            persist)       crate=fabric-persist ;; \
-            checker)       crate=fabric-checker ;; \
-            compiler)      crate=fabric-graph ;; \
-        esac && \
-        echo "fn main() {}" > "crates/${crate}/benches/${bench}.rs"; \
-    done && \
-    mkdir -p examples/full-demo/src && \
-    echo "pub fn _stub() {}" > examples/full-demo/src/lib.rs && \
-    echo "fn main() {}" > crates/fabric-daemon/src/main.rs && \
-    echo "fn main() {}" > crates/fabric-cli/src/main.rs && \
-    echo "pub fn _stub() {}" > crates/fabric-cli/src/lib.rs
-
-# Pre-build dependencies (cached unless Cargo.toml changes).
-RUN cargo build --release --locked 2>/dev/null || cargo build --release
-
-# Now copy real source and rebuild only the targets we need.
 COPY crates/ crates/
 COPY examples/ examples/
 
-RUN cargo build --release --bin fabric-daemon --bin fabric
+# Build only the binaries the runtime stage consumes. `--locked` keeps the
+# build reproducible against Cargo.lock.
+RUN cargo build --release --locked --bin fabric --bin fabric-daemon
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────
 FROM debian:bookworm-slim AS runtime
@@ -105,6 +66,7 @@ FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create unrooted daemon user.
@@ -117,6 +79,11 @@ RUN mkdir -p /var/lib/fabric && chown fabric:fabric /var/lib/fabric
 # Copy binaries from builder.
 # The CLI binary is named `fabric` (the fabric-cli crate's [[bin]] target);
 # there is no `fabric-cli` binary. See .github/workflows/release.yml.
+#
+# These binaries link OpenSSL: `reqwest` (a fabric-daemon dependency) uses
+# native-tls, which links libssl/libcrypto. The runtime stage therefore
+# installs libssl3 -- without it the binaries fail to load with
+# "error while loading shared libraries: libssl.so.3".
 COPY --from=builder /build/target/release/fabric-daemon /usr/local/bin/fabric-daemon
 COPY --from=builder /build/target/release/fabric        /usr/local/bin/fabric
 

@@ -461,13 +461,22 @@ jobs:
   docker-build:
     name: Build Docker image
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     needs: [deny, identity]
-    # The Dockerfile is brittle: every new workspace member requires
-    # updating its COPY/stub list. Mark this best-effort so a missing
-    # member doesn't fail the whole release; v0.1.2 ships binaries
-    # first, Docker image second.
-    continue-on-error: true
+    # This job was previously `continue-on-error: true` because the
+    # Dockerfile carried a hand-maintained list of cargo dependency stubs.
+    # That list drifted out of sync with the workspace and the v0.1.4
+    # release's Docker build failed with 7 distinct missing-target errors
+    # (for example `can't find lib 'fabric_cli'` and `can't find bin
+    # 'tf-web'`). The stub layer has since been REMOVED from the
+    # Dockerfile: it copies the real sources and builds only the two
+    # binaries the runtime stage consumes, so there is no list to drift.
+    #
+    # The `docker-build` job in ci.yml now builds the image and asserts
+    # that both binaries load and run on every push, so a tag can only be
+    # cut on a commit whose Docker image is already proven to work. That
+    # makes this job a genuine gate rather than a best-effort side effect:
+    # a red Docker build is a real defect, not an expected outcome.
     outputs:
       identity: ${{ needs.identity.outputs.identity }}
     steps:
@@ -521,6 +530,46 @@ jobs:
             -o phenotype-fabric-image.tar \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}
           ls -la phenotype-fabric-image.tar
+
+      - name: Verify the built image's binaries load and run
+        # A built image is not a working image. A binary that is present
+        # but cannot load -- for example because a shared library such as
+        # libssl.so.3 is missing from the runtime stage -- would be
+        # published to the registry as a broken image. Run both binaries
+        # inside the image before the tar is uploaded, so the published
+        # bytes are proven to work.
+        run: |
+          set -uo pipefail
+          failed=0
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}"
+          # Both binaries are clap apps with the built-in `version` flag, so
+          # `--version` prints a version string and exits 0. Running them
+          # also proves every shared library the binary needs is present in
+          # the runtime stage.
+          check_binary() {
+            bin="$1"; shift
+            out="$(docker run --rm --entrypoint "/usr/local/bin/${bin}" "$IMAGE" "$@" 2>&1)"
+            rc=$?
+            if [ "$rc" -ne 0 ]; then
+              echo "::error::${bin} $* failed inside the image (exit ${rc})"
+              echo "${out}" | sed 's/^/    /'
+              failed=1
+              return
+            fi
+            if printf '%s' "$out" | grep -qiE 'error while loading shared libraries|not found'; then
+              echo "::error::${bin} could not load a required shared library inside the image"
+              echo "${out}" | sed 's/^/    /'
+              failed=1
+              return
+            fi
+            echo "OK ${bin} $* runs inside the image: ${out}"
+          }
+          check_binary fabric --version
+          check_binary fabric-daemon --version
+          if [ "$failed" = "1" ]; then
+            echo "::error::One or more Docker image binaries do not run inside the image."
+            exit 1
+          fi
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v7
@@ -814,13 +863,14 @@ jobs:
     timeout-minutes: 15
     needs: [docker-build]
     environment: production
-    # `docker-build` is best-effort (continue-on-error: true), so a Docker
-    # failure must not fail the whole release run. Without this, the
-    # `docker` job failed whenever the upstream build failed, which turned
-    # a known-brittle side effect into a red run for an otherwise complete
-    # release (this is what happened on the v0.1.4 run: both the release
-    # jobs and the post-publish verification passed, but the run was
-    # reported as "failure" purely because of Docker).
+    # The upstream `docker-build` job is now a hard gate: it builds the
+    # image and asserts that both binaries load and run inside it, so a
+    # failure there is a genuine defect and must not be published.
+    #
+    # This job remains best-effort for a different reason: pushing to the
+    # GitHub Container Registry needs a token that may be absent from a
+    # fork or a personal repository, and a missing credential must not
+    # fail a release whose binaries and assets are already correct.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -993,9 +1043,12 @@ jobs:
           echo "All release archives contain the expected binaries: $EXPECTED"
 
       - name: Verify Docker image is pullable
-        # The docker-build job is marked continue-on-error upstream, so
-        # the image may not exist. Treat this verification as best-effort
-        # too.
+        # The upstream `docker-build` job is now a hard gate, so the image
+        # is expected to exist. The `docker` push job remains
+        # best-effort (the registry token may be unavailable), so the
+        # image may still be absent; treat this verification as
+        # best-effort too rather than failing an otherwise correct
+        # release.
         continue-on-error: true
         run: |
           TAG="${{ steps.version.outputs.tag }}"
