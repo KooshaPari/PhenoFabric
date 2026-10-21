@@ -584,7 +584,22 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [build, build-gui, identity]
+    # `docker-build` is a hard gate here, not just for the `docker` push job.
+    #
+    # The v0.1.4 release proved the gap was real: `Build Docker image`
+    # FAILED, `Create GitHub Release` SUCCEEDED, the release body told
+    # users "The Docker image is also tagged with this identity as
+    # build-<sha>", and the ghcr package was never created (the API
+    # returns 404 for it). The release looked complete to a user and the
+    # image did not exist.
+    #
+    # The release body makes a claim about the Docker image, so a release
+    # must not be created unless that image was actually built and
+    # verified. The `docker` push job stays best-effort (the registry
+    # token may be absent) but it now runs BEFORE this job, so its
+    # `pushed` output can tell the release body whether the image
+    # actually reached the registry.
+    needs: [build, build-gui, identity, docker-build, docker]
     steps:
       - uses: actions/checkout@v7
 
@@ -664,6 +679,16 @@ jobs:
         shell: bash
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
+          # The Docker claim in the body must reflect reality. The `docker`
+          # job ran before this one and reported whether the image actually
+          # reached the registry; v0.1.4 shipped a body that promised an
+          # image which was never published (ghcr returns 404 for it).
+          # Only claim the image when it is really there.
+          if [ "${{ needs.docker.outputs.pushed }}" = "true" ]; then
+            DOCKER_LINE="The Docker image is also tagged with this identity as \`build-${{ needs.identity.outputs.identity }}\` for cross-reference."
+          else
+            DOCKER_LINE="The Docker image for this release was built and verified, but was not published to the container registry."
+          fi
           cat > release_body.md << 'BODY_EOF'
           ## CLI Binaries
 
@@ -696,10 +721,15 @@ jobs:
 
           `BUILD_IDENTITY_PLACEHOLDER`
 
-          The Docker image is also tagged with this identity as `build-BUILD_IDENTITY_PLACEHOLDER` for cross-reference.
+          DOCKER_IMAGE_LINE_PLACEHOLDER
           BODY_EOF
           sed -i "s/TAG/${TAG}/g" release_body.md
           sed -i "s/BUILD_IDENTITY_PLACEHOLDER/${{ needs.identity.outputs.identity }}/g" release_body.md
+          # Substitute the Docker line last: it contains the identity too,
+          # and `sed -i` on the placeholder above must not have already
+          # rewritten it.
+          awk -v line="$DOCKER_LINE" '{ if ($0 == "DOCKER_IMAGE_LINE_PLACEHOLDER") print line; else print }' release_body.md > release_body.md.tmp
+          mv release_body.md.tmp release_body.md
           cat release_body.md
 
       - name: Create release
@@ -867,11 +897,27 @@ jobs:
     # image and asserts that both binaries load and run inside it, so a
     # failure there is a genuine defect and must not be published.
     #
-    # This job remains best-effort for a different reason: pushing to the
+    # This job stays best-effort for a different reason: pushing to the
     # GitHub Container Registry needs a token that may be absent from a
     # fork or a personal repository, and a missing credential must not
     # fail a release whose binaries and assets are already correct.
-    continue-on-error: true
+    #
+    # The best-effort behaviour is implemented PER STEP rather than with a
+    # job-level `continue-on-error`, on purpose. A job-level
+    # `continue-on-error` makes the job conclude "success" while its
+    # outcome is "failure", which leaves the downstream `pushed` output
+    # dependent on output-propagation semantics that are easy to get
+    # wrong. Instead each fallible step is individually
+    # `continue-on-error`, the job itself always succeeds, and the final
+    # step unconditionally records whether the image really reached the
+    # registry. The `pushed` output is therefore always definitive, which
+    # is what the release body depends on to make a truthful claim.
+    outputs:
+      # Whether the image actually reached the registry. The release body
+      # makes a claim about the Docker image, and that claim must not be
+      # made when the push failed. `pushed` is the single source of truth
+      # for that claim.
+      pushed: ${{ steps.pushresult.outputs.pushed }}
     steps:
       - uses: actions/checkout@v7
 
@@ -889,6 +935,11 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
+        id: login
+        # A missing or rejected token is an expected credential issue, not
+        # an image defect. The image was already built and verified by
+        # `docker-build`.
+        continue-on-error: true
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
@@ -896,6 +947,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Load pre-built image from tar
+        id: load
+        continue-on-error: true
         run: |
           docker load -i phenotype-fabric-image.tar
           docker images
@@ -913,26 +966,58 @@ jobs:
             type=raw,value=build-${{ needs.docker-build.outputs.identity }}
 
       - name: Retag image with build identity tag
+        id: retag
+        continue-on-error: true
         run: |
           PRIMARY="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
           docker tag "$PRIMARY" "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ needs.docker-build.outputs.identity }}"
           echo "Tagged image with all metadata tags"
 
       - name: Push image with all tags
+        id: push
+        continue-on-error: true
         run: |
           docker push --all-tags "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+      - name: Record whether the image reached the registry
+        id: pushresult
+        # `always()` so this step still runs when an EARLIER step failed
+        # (for example the registry login, when the token is absent).
+        # Without it the `pushed` output would be empty and the release
+        # body would have to guess.
+        #
+        # The success test is `steps.push.outcome`, which is the step's
+        # result BEFORE `continue-on-error` is applied -- so it correctly
+        # reports "failure" for a push that did not actually reach the
+        # registry, while the job itself still concludes successfully.
+        if: always()
+        run: |
+          if [ "${{ steps.push.outcome }}" = "success" ]; then
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
+            echo "OK image pushed to the registry"
+          else
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Image was built and verified but did NOT reach the registry (push outcome: ${{ steps.push.outcome }}, login outcome: ${{ steps.login.outcome }})"
+          fi
 
   # ── Post-publish verification ────────────────────────────────────────
   verify:
     name: Post-publish verification
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Verify only depends on github-release + identity. publish-crates and
-    # docker are best-effort (token may be missing, docker-build may fail)
+    # Verify depends on github-release + identity + docker.
+    #
+    # `publish-crates` is best-effort (the crates.io token may be missing)
     # and the verify job's purpose is to confirm the GitHub release itself
-    # is correct, which is independent of those side effects. The
-    # docker-pull step inside this job is already `continue-on-error: true`.
-    needs: [github-release, identity]
+    # is correct, which is independent of that side effect.
+    #
+    # `docker` is included so the job can read its `pushed` output. That
+    # output lets the Docker pull below be FAIL-CLOSED: if the push
+    # claimed the image reached the registry, a pull that fails means the
+    # published image is broken and the release must not be reported as
+    # good. When the push did not happen the check is skipped explicitly
+    # rather than silently tolerated.
+    needs: [github-release, identity, docker]
     permissions:
       contents: read
     steps:
@@ -1043,18 +1128,30 @@ jobs:
           echo "All release archives contain the expected binaries: $EXPECTED"
 
       - name: Verify Docker image is pullable
-        # The upstream `docker-build` job is now a hard gate, so the image
-        # is expected to exist. The `docker` push job remains
-        # best-effort (the registry token may be unavailable), so the
-        # image may still be absent; treat this verification as
-        # best-effort too rather than failing an otherwise correct
-        # release.
-        continue-on-error: true
+        # The `docker` job reports whether the image actually reached the
+        # registry, so this check can be fail-closed instead of
+        # best-effort:
+        #
+        #   pushed=true  -> the image MUST be pullable, or the release is
+        #                   reporting a broken image and must fail.
+        #   pushed=false -> the image was never published (an expected
+        #                   credential issue, not an image defect), so the
+        #                   pull is skipped explicitly rather than
+        #                   silently tolerated.
+        #
+        # v0.1.4 shipped a release that told users a Docker image existed
+        # when the ghcr package returned 404. This check is the end-to-end
+        # proof that the promise in the release body is true.
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           IDENTITY_TAG="build-${{ needs.identity.outputs.identity }}"
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}"
           IDENTITY_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IDENTITY_TAG}"
+          if [ "${{ needs.docker.outputs.pushed }}" != "true" ]; then
+            echo "::warning::No Docker image was published for this release (the push did not reach the registry); skipping the pull check."
+            echo "This is an expected credential issue, not an image defect. The release body states the image was not published."
+            exit 0
+          fi
           echo "Pulling $IMAGE"
           docker pull --quiet "$IMAGE" || { echo "::error::Docker image not found: $IMAGE"; exit 1; }
           echo "OK Docker image present: $IMAGE"

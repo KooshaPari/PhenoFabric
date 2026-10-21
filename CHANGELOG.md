@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Release**: a failed Docker build can no longer produce a GitHub Release.
+  `github-release` depended only on `build`, `build-gui` and `identity`, so
+  `docker-build` was outside the release's dependency graph. The `v0.1.4`
+  release is the proof: `Build Docker image` failed, `Create GitHub Release`
+  succeeded with all ten assets, no container image was ever published (the
+  `ghcr.io` package API returns 404 for it), and the release body still told
+  users the image existed. `github-release` now needs `docker-build`.
+- **Release**: the release body no longer promises a Docker image that was
+  never published. The `docker` push job now runs before the release is
+  created and exports a `pushed` output, and the body's Docker sentence is
+  generated from it. When the image reached the registry the body names the
+  `build-<identity>` tag; when it did not, the body says the image was built
+  and verified but not published to the container registry.
+- **Release**: the `verify` job's Docker pull is now fail-closed instead of
+  best-effort. It depends on `docker` so it can read `pushed`; when the push
+  claimed success the image must be pullable or the release fails, and when
+  the push did not happen the pull is skipped with an explicit warning. This
+  separates an expected registry-credential issue from a genuinely broken
+  published image.
 - **Docker image**: the image now builds from the real workspace sources
   instead of a hand-maintained Cargo target-stub layer that had drifted away
   from the actual crate graph. The stub generator, its scratch directories
