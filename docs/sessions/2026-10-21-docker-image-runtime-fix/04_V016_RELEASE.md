@@ -163,3 +163,131 @@ in `ci.yml`, a near-identical inline copy in `release.yml`, and the
 standalone script that was actually validated locally. CI was gating on
 a hand-maintained duplicate. Both workflows now call the shared script,
 so the gate runs the exact artifact that was validated.
+
+---
+
+## Publication
+
+| Item | Value |
+|---|---|
+| Tag | `v0.1.6` (annotated), commit `ecf9e7a2a8407919981a15ce0e79cbbd974bb268` |
+| Release workflow run | `39668118930` -- all 15 jobs `success` |
+| Published at | 2026-10-21T20:51:56Z |
+| Release URL | https://github.com/KooshaPari/PhenoFabric/releases/tag/v0.1.6 |
+| Image digest | `sha256:c1f7ef0316d76277a0d0598a4ae4657fdce485336321ccf716ab67f91afb092e` |
+| Build identity | Cargo.lock SHA-256 prefix `ef672c7354d0` |
+
+The release workflow ran the assertions on the exact bytes it pushed.
+From run `39668118930`, job `Build Docker image`, step `Verify the built
+image starts and serves as a daemon`:
+
+```
+PASS: container is still running after a default docker run
+PASS: CLI reaches a healthy daemon over the published port 9400
+PASS: the image HEALTHCHECK reports healthy
+=== ALL ASSERTIONS PASS ===
+```
+
+The `Post-publish verification` job then confirmed all 4 CLI archives
+are present, that they contain the expected binaries, and that the
+published image is pullable.
+
+### The `v0.1.5` tag was not rewritten
+
+| Ref | Before | After |
+|---|---|---|
+| `v0.1.5` tag object | `122d41985e2fe96c29856979177640960c5f04f7` | `122d41985e2fe96c29856979177640960c5f04f7` |
+| `v0.1.5` commit | `f8b32c8b48d3fc9976b95fbab689d4c08159c862` | `f8b32c8b48d3fc9976b95fbab689d4c08159c862` |
+
+Both the local and the remote tag are byte-identical to their pre-release
+values. The released `v0.1.5` still exists and still points at the
+broken image; `v0.1.6` is a new tag alongside it.
+
+### crates.io: not published, by design
+
+The `Publish crates` job is a deliberate no-op while
+`CRATES_IO_TOKEN` is not configured on the repository. The job log
+shows:
+
+```
+::warning::CRATES_IO_TOKEN secret is not configured on this repo. Skipping cargo publish.
+```
+
+This is an expected configuration state, not a defect, and it is not
+part of what this release set out to fix. The crates.io API confirms
+`phenotype-fabric` does not exist as a published crate.
+
+---
+
+## Independent verification of the PUBLISHED artifacts
+
+Everything below was run against the artifacts as downloaded from the
+registry and the release page, not against the local build.
+
+### The published image passes the acceptance script
+
+The image was removed locally and pulled fresh from GHCR, then handed
+to the same script that gates CI:
+
+```
+=== image: ghcr.io/kooshapari/phenofabric:v0.1.6 ===
+PASS: container is still running after a default docker run
+PASS: CLI reaches a healthy daemon over the published port 9400
+    Status:            healthy
+    Uptime:            5s
+    Daemon addr:       127.0.0.1:9400
+PASS: the image HEALTHCHECK reports healthy
+=== ALL ASSERTIONS PASS ===
+```
+
+This is the exact path that failed for `v0.1.5`.
+
+### The published health probe terminates; the v0.1.5 one hangs
+
+Both published probes were run against the SAME live published daemon.
+This isolates the probe defect from every other change.
+
+The `v0.1.6` probe:
+
+```
+{"status":"healthy","uptime_s":6,"topology_epoch":0,"active_leases":0,"active_plans":0}
+EXIT: 0
+real 0m0.252s
+```
+
+The `v0.1.5` probe against the same daemon never returned. Its
+container was still `running` nine minutes later, and the daemon
+container's health log recorded the timeout on every single attempt:
+
+```
+exit=-1 Health check exceeded timeout (5s): {"status":"healthy","uptime_s":466,...}
+exit=-1 Health check exceeded timeout (5s): {"status":"healthy","uptime_s":501,...}
+exit=-1 Health check exceeded timeout (5s): {"status":"healthy","uptime_s":536,...}
+```
+
+The daemon was reporting itself healthy in JSON the whole time while
+the probe refused to finish. That is the `v0.1.5` defect, reproduced
+from published artifacts, and it is not emulation: the daemon was
+healthy and answering.
+
+The `v0.1.6` daemon container's own health log, for contrast:
+
+```
+exit=0 {"status":"healthy","uptime_s":517,...}
+exit=0 {"status":"healthy","uptime_s":547,...}
+exit=0 {"status":"healthy","uptime_s":578,...}
+```
+
+### The published binaries
+
+`phenotype-fabric-v0.1.6-linux-x86_64.tar.gz` was downloaded from the
+release page and contains `fabric`, `fabric-daemon`, `fabric-tui`,
+`fabric-graph-cli`, `fabric-tray` and a `README.md`.
+
+Note on versions: the binaries report the workspace version `0.1.0`,
+not the tag version. This is pre-existing behavior -- the released
+`v0.1.5` binaries report `0.1.0` as well -- and the release workflow
+derives the release name from the Git tag, not from
+`CARGO_PKG_VERSION`. It is not a regression introduced by this
+release, and nothing in the release gates asserts the two must match.
+
