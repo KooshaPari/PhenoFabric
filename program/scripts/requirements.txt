@@ -1,0 +1,13 @@
+# Python dependencies for the repository's validation scripts.
+#
+# These run in the Spec Validation workflow (.github/workflows/spec-validation.yml).
+#
+# PyYAML is required by:
+#   - program/scripts/check_workflows.py  (GitHub Actions workflow lint)
+#   - program/scripts/check_openapi.py    (architecture/openapi.yaml well-formedness)
+#
+# NOTE: PyYAML was previously absent from the CI image, which meant
+# check_openapi.py hit its ImportError guard and printed "WARNING: PyYAML
+# not installed; skipping OpenAPI check" -- i.e. the OpenAPI validation had
+# been silently inert. Installing it here makes that check real again.
+PyYAML>=6.0

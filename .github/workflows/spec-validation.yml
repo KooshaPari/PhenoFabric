@@ -51,6 +51,14 @@ jobs:
         with:
           python-version: "3.11"
 
+      # The validation scripts need PyYAML. It was previously absent from the
+      # CI image, so check_openapi.py hit its ImportError guard and printed
+      # "WARNING: PyYAML not installed; skipping OpenAPI check" -- the OpenAPI
+      # validation had been silently inert. Installing it makes that check
+      # real, and gives check_workflows.py the parser it needs.
+      - name: Install Python dependencies
+        run: python3 -m pip install --disable-pip-version-check -r program/scripts/requirements.txt
+
       - name: Validate spec JSON schemas
         run: python3 program/scripts/check_json_schemas.py
 
