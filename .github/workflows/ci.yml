@@ -734,3 +734,144 @@ jobs:
             echo "::error::One or more Docker image binaries do not run inside the image."
             exit 1
           fi
+
+      # This is the assertion that actually exercises the product. The
+      # checks above prove the binaries exist and load; they cannot catch
+      # an image whose DEFAULT ENTRYPOINT fails to start, because they
+      # override the entrypoint with `--entrypoint`.
+      #
+      # The v0.1.5 image had exactly that defect and every check above
+      # passed: the image built, both binaries ran, but a plain
+      # `docker run <image>` died with
+      #
+      #   ERROR fabric_daemon: failed to create coordinator: database
+      #   error: unable to open database file: state.db
+      #
+      # because the daemon opens a RELATIVE database path and the image
+      # had no WORKDIR, so it resolved against `/`, which the
+      # unprivileged `fabric` user cannot write.
+      #
+      # A second, independent defect lived in the same image: the daemon
+      # binds 127.0.0.1 by default, so `docker run -p 9400:9400` published
+      # a port nothing listened on and a CLI in another container got
+      # "Broken pipe".
+      #
+      # Both are only observable by starting the daemon and talking to
+      # it over the wire protocol. That is what this step does.
+      - name: Verify the daemon starts and serves the wire protocol
+        run: |
+          set -uo pipefail
+          failed=0
+
+          # ── 1. The default invocation must not crash ────────────────
+          # `docker run` with no arguments is the single most likely user
+          # command. It must start the daemon and keep running.
+          echo "::group::Default invocation starts the daemon"
+          # Publish the port so the assertions below can reach the daemon
+          # from OUTSIDE the container. A container with no published port
+          # is only reachable over loopback, which would make those
+          # assertions vacuous.
+          cid="$(docker run --rm -d -p 9400:9400 fabric-ci:probe 2>&1)" || {
+            echo "::error::docker run failed to create a container"
+            echo "${cid}" | sed 's/^/    /'
+            exit 1
+          }
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+
+          # The daemon must still be running after a grace period. A crash
+          # on startup (the state.db defect) shows up here as a container
+          # that has already exited.
+          sleep 5
+          if ! docker ps --filter "id=${cid}" --filter "status=running" \
+               --format '{{.ID}}' | grep -q .; then
+            echo "::error::The container exited during startup"
+            echo "::group::Container logs"
+            docker logs "$cid" 2>&1 | sed 's/^/    /' || true
+            echo "::endgroup::"
+            exit 1
+          fi
+          echo "OK the container is still running after a default 'docker run'"
+
+          # ── 2. The daemon must serve the wire protocol ──────────────
+          # Probe over the PUBLISHED port with the CLI in a SEPARATE
+          # container. That is the real user path and it exercises both
+          # the bind address and the wire protocol at once.
+          #
+          # `docker exec` is deliberately avoided here: it spawns a
+          # process inside the container, which is slow enough under
+          # emulation to make a timeout-based poll flaky. The CLI
+          # connecting from outside is both more realistic and more
+          # stable.
+          echo "::group::The daemon serves the wire protocol"
+          port="$(docker port "$cid" 9400 2>/dev/null | head -1 | sed 's/.*://')"
+          if [ -z "$port" ]; then
+            port=9400
+          fi
+
+          # Retry: the daemon needs a moment to open its database and
+          # bind the socket after the container starts.
+          healthy=0
+          for _ in $(seq 1 20); do
+            out="$(docker run --rm --network host --entrypoint /usr/local/bin/fabric \
+                     fabric-ci:probe status --daemon "127.0.0.1:${port}" 2>&1)"
+            rc=$?
+            if [ "$rc" -eq 0 ] && grep -qi 'healthy' <<<"$out"; then
+              healthy=1
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$healthy" != "1" ]; then
+            echo "::error::The CLI could not reach a healthy daemon over the published port ${port}"
+            echo "${out}" | sed 's/^/    /'
+            echo "::group::Container logs"
+            docker logs "$cid" 2>&1 | sed 's/^/    /' || true
+            echo "::endgroup::"
+            echo "::error::The Docker image does not work as a running daemon."
+            exit 1
+          fi
+          echo "OK the CLI reaches a healthy daemon over the published port ${port}"
+          echo "${out}" | sed 's/^/    /'
+          echo "::endgroup::"
+
+          # ── 3. The image's own HEALTHCHECK must reach 'healthy' ─────
+          # The probe in the v0.1.5 image PRINTED the correct healthy
+          # JSON and then blocked forever, because it waited for EOF on
+          # a connection the daemon intentionally keeps open. The
+          # container's health check therefore always timed out, and a
+          # working daemon was reported unhealthy -- which makes an
+          # orchestrator restart it in a loop.
+          #
+          # Assertion 2 cannot see that defect: the CLI is a separate
+          # binary with its own one-shot client. This assertion runs the
+          # IMAGE's health check, so it is the one that catches a probe
+          # that hangs.
+          echo "::group::The image HEALTHCHECK reaches 'healthy'"
+          health_state=""
+          for _ in $(seq 1 20); do
+            health_state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cid" 2>/dev/null || echo none)"
+            if [ "$health_state" = "healthy" ]; then
+              break
+            fi
+            # A container that exited cannot become healthy; fail fast
+            # rather than burning the whole retry budget.
+            if ! docker ps --filter "id=${cid}" --filter "status=running" \
+                 --format '{{.ID}}' | grep -q .; then
+              break
+            fi
+            sleep 3
+          done
+
+          if [ "$health_state" != "healthy" ]; then
+            echo "::error::The image HEALTHCHECK never reached 'healthy' (last state: ${health_state:-unknown})"
+            echo "::group::Health check log"
+            docker inspect --format '{{range .State.Health.Log}}{{.ExitCode}} {{.Output}}{{end}}' "$cid" 2>&1 | sed 's/^/    /' || true
+            echo "::endgroup::"
+            echo "::group::Container logs"
+            docker logs "$cid" 2>&1 | sed 's/^/    /' || true
+            echo "::endgroup::"
+            echo "::error::The Docker image's health check does not work."
+            exit 1
+          fi
+          echo "OK the image HEALTHCHECK reports healthy"

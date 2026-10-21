@@ -102,6 +102,9 @@ RUN groupadd --gid 1000 fabric && \
     useradd  --uid 1000 --gid fabric --shell /bin/false --create-home fabric
 
 # State directory for SQLite database and workspace data.
+#
+# This is also the daemon's WORKDIR (see below), so `state.db` is created
+# here by default.
 RUN mkdir -p /var/lib/fabric && chown fabric:fabric /var/lib/fabric
 
 # Copy binaries from builder.
@@ -118,14 +121,53 @@ COPY --from=builder /build/target/release/fabric        /usr/local/bin/fabric
 # Expose wire-server port.
 EXPOSE 9400
 
+# WORKDIR must be a directory the unprivileged `fabric` user can write,
+# because the daemon opens its SQLite database at a RELATIVE path
+# ("state.db") resolved against the process working directory.
+#
+# Without this directive the working directory is `/`, which the
+# `fabric` user cannot write, and every container died at startup with:
+#
+#   ERROR fabric_daemon: failed to create coordinator: database error:
+#   database error: unable to open database file: state.db
+#
+# The image built fine, the binaries ran fine, and `docker run` still
+# failed -- so a build-time or `--version` check cannot catch this. Only
+# actually starting the daemon can. See the release workflow's
+# "daemon starts and serves" assertions.
+WORKDIR /var/lib/fabric
+
 # Health check: send a health_check message over the wire protocol.
 # `fabric-daemon health --connect` speaks the TCP wire protocol on port 9400.
 # Note: the CLI (`fabric`) has no `health` subcommand and uses `--daemon`,
 # not `--connect`; the daemon binary is the correct health probe.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+#
+# The probe is a one-shot request/response: it writes the health request,
+# reads exactly one response line, and exits. It does not stream, because
+# the daemon keeps the connection open for further messages -- a probe
+# that waited for EOF would hang forever and every health check would
+# time out. The probe itself enforces a 5s read timeout, so a daemon
+# that stops answering fails the check instead of hanging it.
+#
+# The 15s timeout here is the outer backstop for the whole check (process
+# start plus the round trip), and the 15s start period gives the daemon
+# time to open its database and bind the port before the first probe is
+# treated as meaningful.
+HEALTHCHECK --interval=30s --timeout=15s --start-period=15s --retries=3 \
     CMD /usr/local/bin/fabric-daemon health --connect 127.0.0.1:9400 || exit 1
 
 USER fabric
 
+# The daemon binds the loopback interface by default (127.0.0.1:9400),
+# which is correct for a local daemon but useless in a container: the
+# port is unreachable from outside the container, so `docker run -p 9400:9400`
+# publishes a port nothing is listening on and a CLI in a second
+# container fails with "status check failed ... Broken pipe".
+#
+# The default here is overridden for the container by the CMD below, which
+# listens on 0.0.0.0. Binding all interfaces inside the container is
+# safe: the container's network namespace still isolates the daemon from
+# the host, and the port is only reachable where the operator publishes
+# it with `-p`.
 ENTRYPOINT ["/usr/local/bin/fabric-daemon"]
-CMD ["start"]
+CMD ["start", "--listen", "0.0.0.0:9400", "--db", "/var/lib/fabric/state.db"]

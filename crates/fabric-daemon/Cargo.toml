@@ -45,3 +45,7 @@ tempfile = "3"
 fabric-checker = { path = "../fabric-checker" }
 fabric-frame-transport = { path = "../fabric-frame-transport" }
 phenotype-nvms-adapter = { path = "../phenotype-nvms-adapter" }
+# The wire-server harness needs a multi-threaded runtime. The crate's own
+# dependency enables only `rt` (current-thread), and `rt-multi-thread` is
+# additive here: dev-dependencies merge features with the normal dependency.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }

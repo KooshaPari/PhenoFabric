@@ -5,6 +5,59 @@ All notable changes to Phenotype Fabric will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-10-21
+
+### Fixed
+
+- **Docker image**: a plain `docker run <image>` no longer dies at startup.
+  The `v0.1.5` image had no `WORKDIR`, and the daemon opens its SQLite
+  database at a RELATIVE path (`state.db`), which resolved against `/` --
+  a directory the unprivileged `fabric` user cannot write. Every container
+  exited immediately with `failed to create coordinator: database error:
+  unable to open database file: state.db`. The image now sets
+  `WORKDIR /var/lib/fabric` and passes an absolute `--db` path. The
+  published `v0.1.5` image is affected; `v0.1.6` is not.
+- **Docker image**: the published port now actually reaches the daemon.
+  The daemon binds `127.0.0.1:9400` by default, which is right for a
+  local daemon but useless in a container: `docker run -p 9400:9400`
+  published a port nothing was listening on, and a CLI in a second
+  container failed with `status check failed ... Broken pipe`. The
+  container's default command now passes `--listen 0.0.0.0:9400`. Binding
+  all interfaces inside the container is safe -- the container's network
+  namespace still isolates the daemon from the host, and the port is only
+  reachable where the operator publishes it with `-p`.
+- **Docker image**: the health check no longer reports a false
+  "unhealthy". The root cause was a bug in the health probe itself, not
+  the container: `fabric-daemon health` read lines from the daemon socket
+  in a loop until EOF, but the daemon deliberately keeps a connection
+  open for further messages. The probe therefore printed the correct
+  `{"status":"healthy",...}` JSON and then blocked forever, so the
+  container's health check always timed out and killed it. The result
+  was a working daemon reported as unhealthy, which makes an
+  orchestrator restart it in a loop. `fabric-daemon health` is now a
+  one-shot request/response that reads exactly one line and exits, with
+  an explicit read timeout so a probe that cannot answer fails loudly
+  instead of hanging. The `v0.1.5` image is affected; `v0.1.6` is not.
+
+### Added
+
+- **CI**: the `docker-build` job now asserts that the image works as a
+  running daemon, not just that it contains loadable binaries. The
+  previous checks all ran the binaries with `--entrypoint`, which
+  overrides the image's default command -- so they could not detect an
+  image whose default command fails to start, which is exactly how the
+  `v0.1.5` image shipped. The job now starts the container with a plain
+  `docker run`, asserts it stays up, and then connects to it over the
+  published port with the CLI from a separate container. The same
+  assertion was added to `release.yml`, so an image that cannot start is
+  no longer pushed to the registry.
+- **CI**: a negative test confirmed the new assertion fails against the
+  known-broken `v0.1.5` image and passes against the fixed one. An
+  assertion that has only ever been seen to pass proves nothing.
+- **CI**: the `docker-build` job now also asserts that the container's
+  own `HEALTHCHECK` reaches the `healthy` state, which is what catches
+  a probe that hangs or a daemon that dies after startup.
+
 ## [0.1.5] - 2026-10-21
 
 ### Fixed

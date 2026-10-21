@@ -278,29 +278,77 @@ fn cmd_start(
     info!("fabric-daemon stopped");
 }
 
+/// Probe the daemon's health endpoint.
+///
+/// This is a ONE-SHOT request/response, deliberately not a streaming
+/// reader. The daemon's wire loop keeps a connection open for further
+/// messages, so a reader that loops over `lines()` until EOF blocks
+/// forever: it prints the healthy JSON and then hangs until the caller
+/// kills it. The Docker `HEALTHCHECK` runs exactly this command, so the
+/// probe never returned on its own -- the container was reported
+/// "unhealthy" while the daemon was perfectly fine, and an orchestrator
+/// would restart a working daemon. (Shipped broken in v0.1.5.)
+///
+/// Read ONE response line and exit. Any read timeout is treated as a
+/// failure, because a probe that cannot answer in time is not healthy.
 fn cmd_health(addr: &str) {
-    match std::net::TcpStream::connect(addr) {
-        Ok(mut stream) => {
-            use std::io::Write;
-            let msg = r#"{"type":"health_check"}"#;
-            let _ = writeln!(stream, "{msg}");
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpStream;
+    use std::time::Duration;
 
-            use std::io::BufRead;
-            let reader = std::io::BufReader::new(&stream);
-            for line in reader.lines() {
-                match line {
-                    Ok(l) => {
-                        println!("{l}");
-                    }
-                    Err(e) => {
-                        eprintln!("read error: {e}");
-                        break;
-                    }
-                }
-            }
-        }
+    /// How long to wait for the daemon's health response.
+    const HEALTH_TIMEOUT: Duration = Duration::from_secs(5);
+
+    let stream = match TcpStream::connect(addr) {
+        Ok(s) => s,
         Err(e) => {
             eprintln!("failed to connect to {addr}: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    // The health probe must not hang a container's health check.
+    if let Err(e) = stream.set_read_timeout(Some(HEALTH_TIMEOUT)) {
+        eprintln!("failed to set read timeout: {e}");
+        std::process::exit(1);
+    }
+    if let Err(e) = stream.set_write_timeout(Some(HEALTH_TIMEOUT)) {
+        eprintln!("failed to set write timeout: {e}");
+        std::process::exit(1);
+    }
+    // Nagle would add a delayed-ACK stall to a request/response probe.
+    let _ = stream.set_nodelay(true);
+
+    let mut stream = stream;
+    let msg = r#"{"type":"health_check"}"#;
+    if let Err(e) = writeln!(stream, "{msg}") {
+        eprintln!("failed to send health check: {e}");
+        std::process::exit(1);
+    }
+    if let Err(e) = stream.flush() {
+        eprintln!("failed to flush health check: {e}");
+        std::process::exit(1);
+    }
+
+    // Read exactly one response line. The daemon replies with a single
+    // JSON object per request.
+    let mut reader = BufReader::new(&stream);
+    let mut line = String::new();
+    match reader.read_line(&mut line) {
+        Ok(0) => {
+            eprintln!("daemon closed the connection without a health response");
+            std::process::exit(1);
+        }
+        Ok(_) => {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                eprintln!("daemon returned an empty health response");
+                std::process::exit(1);
+            }
+            println!("{trimmed}");
+        }
+        Err(e) => {
+            eprintln!("health check failed: {e}");
             std::process::exit(1);
         }
     }
