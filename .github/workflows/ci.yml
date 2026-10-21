@@ -585,7 +585,13 @@ jobs:
 
           missing=""
           for bin in $EXPECTED_RELEASE_BINS; do
-            printf '%s\n' "$listing" | grep -qE "/${bin}$" || missing="${missing} ${bin}"
+            # Use a here-string, not `printf ... | grep -q`. `grep -q` exits
+            # on the first match and closes the pipe, so `printf` dies of
+            # SIGPIPE; with `pipefail` set (this step enables it) the
+            # pipeline reports failure and the binary is wrongly recorded
+            # as missing. The listing of a real archive is large enough to
+            # trigger this.
+            grep -qE "/${bin}$" <<<"$listing" || missing="${missing} ${bin}"
           done
           if [ -n "$missing" ]; then
             msg="Published release ${TAG} ships a PARTIAL archive. Missing:${missing}"
@@ -676,7 +682,15 @@ jobs:
           for bin in fabric fabric-daemon; do
             # The runtime stage copies these to /usr/local/bin (see the
             # Dockerfile's runtime stage).
-            if ! printf '%s\n' "$listing" | grep -qE "^usr/local/bin/${bin}$"; then
+            #
+            # Match against the listing with a here-string rather than
+            # `printf ... | grep -q`. `grep -q` exits as soon as it finds a
+            # match, which closes the pipe early; `printf` then dies of
+            # SIGPIPE, and because `pipefail` is set the whole pipeline
+            # reports failure. The symptom is a FALSE "missing binary"
+            # error on a perfectly good image -- the assertion used to
+            # fail on a large image listing while the image was correct.
+            if ! grep -qE "^usr/local/bin/${bin}$" <<<"$listing"; then
               echo "::error::Docker image is missing /usr/local/bin/${bin}"
               missing=1
             else
@@ -706,7 +720,7 @@ jobs:
               failed=1
               return
             fi
-            if printf '%s' "$out" | grep -qiE 'error while loading shared libraries|not found'; then
+            if grep -qiE 'error while loading shared libraries|not found' <<<"$out"; then
               echo "::error::${bin} could not load a required shared library inside the image"
               echo "${out}" | sed 's/^/    /'
               failed=1

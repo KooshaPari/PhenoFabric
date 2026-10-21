@@ -556,7 +556,7 @@ jobs:
               failed=1
               return
             fi
-            if printf '%s' "$out" | grep -qiE 'error while loading shared libraries|not found'; then
+            if grep -qiE 'error while loading shared libraries|not found' <<<"$out"; then
               echo "::error::${bin} could not load a required shared library inside the image"
               echo "${out}" | sed 's/^/    /'
               failed=1
