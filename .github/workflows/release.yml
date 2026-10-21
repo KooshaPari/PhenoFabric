@@ -594,116 +594,25 @@ jobs:
       # Publishing an image that cannot start is exactly the failure
       # mode this release workflow exists to prevent, so both are
       # asserted here, on the exact bytes that get pushed.
+      # The three container assertions live in ONE script, so the release
+      # workflow and CI cannot drift apart and so the exact artifact that
+      # was validated locally is the artifact that gates the publish.
+      #
+      # The script was validated negatively as well as positively: it
+      # FAILS at assertion 1 against the published v0.1.5 image (the
+      # container exits with "unable to open database file: state.db")
+      # and passes all three against the rebuilt image.
+      #
+      # This runs against the image built in THIS job -- the exact bytes
+      # that get pushed -- so a broken image cannot be published.
       - name: Verify the built image starts and serves as a daemon
         run: |
           set -uo pipefail
-          failed=0
-          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}"
-
-          # ── 1. Default invocation must not crash ─────────────────────
-          # Publish the port so the assertion below can reach the daemon
-          # from OUTSIDE the container. Without a published port the
-          # container is only reachable over loopback, which would make
-          # that assertion vacuous.
-          cid="$(docker run --rm -d -p 9400:9400 "$IMAGE" 2>&1)" || {
-            echo "::error::docker run failed to create a container for ${IMAGE}"
-            echo "${cid}" | sed 's/^/    /'
-            exit 1
-          }
-          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
-
-          # A crash on startup (the state.db defect) shows up as a
-          # container that has already exited.
-          sleep 5
-          if ! docker ps --filter "id=${cid}" --filter "status=running" \
-               --format '{{.ID}}' | grep -q .; then
-            echo "::error::The image's default command exits during startup"
-            echo "::group::Container logs"
-            docker logs "$cid" 2>&1 | sed 's/^/    /' || true
-            echo "::endgroup::"
-            echo "::error::The Docker image does not work as a running daemon; refusing to publish it."
-            exit 1
-          fi
-          echo "OK the image's default command keeps the daemon running"
-
-          # ── 2. The daemon must serve the wire protocol ──────────────
-          # Probe over the PUBLISHED port with the CLI in a SEPARATE
-          # container. That is the real user path and it exercises the
-          # bind address and the wire protocol at once.
-          #
-          # `docker exec` is deliberately avoided: it spawns a process
-          # inside the container, which is slow enough under emulation to
-          # make a timeout-based poll flaky.
-          port="$(docker port "$cid" 9400 2>/dev/null | head -1 | sed 's/.*://')"
-          if [ -z "$port" ]; then
-            port=9400
-          fi
-
-          healthy=0
-          for _ in $(seq 1 20); do
-            out="$(docker run --rm --network host --entrypoint /usr/local/bin/fabric \
-                     "$IMAGE" status --daemon "127.0.0.1:${port}" 2>&1)"
-            rc=$?
-            if [ "$rc" -eq 0 ] && grep -qi 'healthy' <<<"$out"; then
-              healthy=1
-              break
-            fi
-            sleep 2
-          done
-
-          if [ "$healthy" != "1" ]; then
-            echo "::error::The CLI could not reach a healthy daemon over the published port ${port}"
-            echo "${out}" | sed 's/^/    /'
-            echo "::group::Container logs"
-            docker logs "$cid" 2>&1 | sed 's/^/    /' || true
-            echo "::endgroup::"
-            echo "::error::The Docker image does not work as a running daemon; refusing to publish it."
-            exit 1
-          fi
-          echo "OK the CLI reaches a healthy daemon over the published port ${port}"
-          echo "${out}" | sed 's/^/    /'
-
-          # ── 3. The image's own HEALTHCHECK must reach 'healthy' ─────
-          # The probe in the v0.1.5 image PRINTED the correct healthy
-          # JSON and then blocked forever, because it waited for EOF on
-          # a connection the daemon intentionally keeps open. The
-          # container's health check therefore always timed out, and a
-          # working daemon was reported unhealthy -- which makes an
-          # orchestrator restart it in a loop.
-          #
-          # The CLI assertion above cannot see that defect: the CLI is a
-          # separate binary with its own one-shot client. This assertion
-          # runs the IMAGE's health check, so it is the one that catches
-          # a probe that hangs. It runs against the exact image bytes
-          # intended for publication, so a broken image is never pushed.
-          echo "::group::The image HEALTHCHECK reaches 'healthy'"
-          health_state=""
-          for _ in $(seq 1 20); do
-            health_state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cid" 2>/dev/null || echo none)"
-            if [ "$health_state" = "healthy" ]; then
-              break
-            fi
-            # A container that exited cannot become healthy; fail fast
-            # rather than burning the whole retry budget.
-            if ! docker ps --filter "id=${cid}" --filter "status=running" \
-                 --format '{{.ID}}' | grep -q .; then
-              break
-            fi
-            sleep 3
-          done
-
-          if [ "$health_state" != "healthy" ]; then
-            echo "::error::The image HEALTHCHECK never reached 'healthy' (last state: ${health_state:-unknown})"
-            echo "::group::Health check log"
-            docker inspect --format '{{range .State.Health.Log}}{{.ExitCode}} {{.Output}}{{end}}' "$cid" 2>&1 | sed 's/^/    /' || true
-            echo "::endgroup::"
-            echo "::group::Container logs"
-            docker logs "$cid" 2>&1 | sed 's/^/    /' || true
-            echo "::endgroup::"
-            echo "::error::The Docker image's health check does not work; refusing to publish it."
-            exit 1
-          fi
-          echo "OK the image HEALTHCHECK reports healthy"
+          # The image reference must be spelled out here: the `IMAGE`
+          # variable was set inside a DIFFERENT step's shell, and a shell
+          # variable does not survive into a later step.
+          scripts/acceptance/docker_acceptance.sh \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}"
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v7

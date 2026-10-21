@@ -12,11 +12,20 @@ echo "=== image: ${IMAGE} ==="
 
 # ── 1. The default invocation must not crash ─────────────────────────
 echo "=== assertion 1: default docker run keeps the daemon running ==="
-cid="$(docker run --rm -d -p 9400:9400 "${IMAGE}" 2>&1)" || {
+# NOTE: deliberately NOT `--rm`. With `--rm`, Docker auto-deletes the
+# container the moment it exits, so `docker logs` on a crashed container
+# returns "page not found" and the actual daemon error is lost. The
+# container is removed explicitly by the EXIT trap instead, which keeps
+# the failure output useful -- that log is the only thing that tells an
+# operator WHY the daemon died.
+cid="$(docker run -d -p 9400:9400 "${IMAGE}" 2>/dev/null | tail -1)" || {
   echo "FAIL: docker run failed to create a container"
-  echo "${cid}" | sed 's/^/    /'
   exit 1
 }
+if [ -z "${cid}" ] || ! docker ps -a --filter "id=${cid}" --format '{{.ID}}' | grep -q .; then
+  echo "FAIL: docker run did not produce a usable container id"
+  exit 1
+fi
 trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
 
 sleep 5
