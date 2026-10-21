@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CI**: the `docker-build` job now also asserts that the container's
   own `HEALTHCHECK` reaches the `healthy` state, which is what catches
   a probe that hangs or a daemon that dies after startup.
+- **CI**: the container assertions now live in one place --
+  `scripts/acceptance/docker_acceptance.sh` -- and both `ci.yml` and
+  `release.yml` call it. They previously existed as two hand-maintained
+  inline copies plus the script, so a fix to one did not reach the
+  others. The gate now runs the exact artifact that was validated
+  locally.
 
 ## [0.1.5] - 2026-10-21
 

@@ -14,6 +14,7 @@ on real Ubuntu CI.
 | `01_RELEASE_GATE_AUDIT.md` | The audit that found the Docker image was not a release gate, and the fix that made it one |
 | `02_V015_RELEASE.md` | The `v0.1.5` release: the gate chain, the independent verification, and the gate results |
 | `03_POST_RELEASE_ACCEPTANCE.md` | The post-release acceptance pass that found the three defects in the published `v0.1.5` image, and the fixes for them |
+| `04_V016_RELEASE.md` | The `v0.1.6` release: the commits, the evidence that each assertion was observed to fail against the broken image, and the native CI run IDs |
 
 ## Goal
 
