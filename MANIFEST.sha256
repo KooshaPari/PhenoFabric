@@ -1,5 +1,5 @@
 {
-  ".dockerignore": "15415dd33b988439d4dd97c49a485084cd635509f827d65afc4c1ac4fd409b3a",
+  ".dockerignore": "7ab58a6e2cf119e267173ddee74b5f8dacfe55395b67ec12b861511a75b9da35",
   ".github/ISSUE_TEMPLATE/bug_report.md": "52fe3923128383d47d1da547afdec6168edb906aa9311293cdaa9a049387ed26",
   ".github/ISSUE_TEMPLATE/feature_request.md": "44804c0f86a45654d2930beddbeecf30f81ed3f4d3bf4809d13983e679440fd2",
   ".github/actions/linux-build-deps/action.yml": "a6d55aebf62146ea4755e560516b6e2c985572a07954180f852a2bc887c2102f",
@@ -18,7 +18,7 @@
   "Cargo.toml": "5c57caba689defc56ad53854f2e7d8d5f757de42a8b1ae68d0250f29ffa15765",
   "DEVELOPMENT_GUIDE.md": "1e4cd0a3097dbbbb863e57faa05ef5a9c7d98bc4c21b70c08af0db415646f96e",
   "DOMAIN_MODEL.md": "dbbc7b626d81de1c499446a905403285903f51fef20e2234faf5bd4f5fa39830",
-  "Dockerfile": "b57725cdf02f29c0b423fa59396e5cda04ba9d18e86e4533bec8ef60ea1da3fd",
+  "Dockerfile": "eeb094544638fe2bc2f12a26f2887311df897e78fd01d4d4bba0f612fe8221b9",
   "FUNCTIONAL_REQUIREMENTS.md": "83a398365c1ca31ca48fec6273e8fd58e34831959caf684c498d5232e09aa394",
   "GLOSSARY.md": "b0e1b19228681d7f1ce220d02c1108629cf7a7154a47ffd04b7fe7c7b3525250",
   "GOVERNANCE.md": "2c655b762ca897fb424645ffe7b1379a59564830caa2c7295869607783b322c2",

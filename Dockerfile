@@ -52,21 +52,49 @@ WORKDIR /build
 #
 # `cargo build` errors out if a declared target's source file is missing, so
 # a green build proves the whole workspace resolves.
+#
+# `docs/` must be copied too: two crates in the image's dependency closure
+# embed documentation into the binary with `include_str!`, and the
+# compiler fails if the file is absent:
+#
+#   crates/fabric-frame-transport/src/schema.rs
+#     include_str!("../../../docs/spec/wire-protocol-schema.json")
+#   crates/fabric-daemon/src/secret_loader/review_response.rs
+#     include_str!("../../../../docs/runbooks/workos-infisical-shared.md")
+#
+# The first of those is a hard build error (the crate is in the
+# `fabric-daemon` dependency closure); the second is a compile error too
+# even though the constant is only read on a review path. Copying the
+# whole `docs/` tree is simpler and more robust than copying individual
+# files, and it is the only way to avoid this class of failure recurring
+# when a new `include_str!` is added.
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 COPY examples/ examples/
+COPY docs/ docs/
 
 # Build only the binaries the runtime stage consumes. `--locked` keeps the
 # build reproducible against Cargo.lock.
 RUN cargo build --release --locked --bin fabric --bin fabric-daemon
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────
-FROM debian:bookworm-slim AS runtime
+# The runtime base MUST match the builder's Debian release.
+#
+# `rust:1.99-slim` is Debian 13 "trixie" (glibc 2.41). A runtime stage
+# on `debian:bookworm-slim` is Debian 12 (glibc 2.36), and a binary
+# linked against glibc 2.41 fails to start on glibc 2.36 with
+# "version `GLIBC_2.38' not found". The two stages were mismatched, so the
+# image could have built successfully and still been unrunnable.
+#
+# The OpenSSL package name also differs between the releases: trixie
+# provides `libssl3t64`, bookworm provides `libssl3`. Both ship
+# /usr/lib/<triplet>/libssl.so.3, which is what the binaries link.
+FROM debian:trixie-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
-        libssl3 \
+        libssl3t64 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create unrooted daemon user.
@@ -82,7 +110,7 @@ RUN mkdir -p /var/lib/fabric && chown fabric:fabric /var/lib/fabric
 #
 # These binaries link OpenSSL: `reqwest` (a fabric-daemon dependency) uses
 # native-tls, which links libssl/libcrypto. The runtime stage therefore
-# installs libssl3 -- without it the binaries fail to load with
+# installs libssl3t64 -- without it the binaries fail to load with
 # "error while loading shared libraries: libssl.so.3".
 COPY --from=builder /build/target/release/fabric-daemon /usr/local/bin/fabric-daemon
 COPY --from=builder /build/target/release/fabric        /usr/local/bin/fabric

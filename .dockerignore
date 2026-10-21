@@ -1,12 +1,42 @@
 # Keep Docker build context small.
+#
+# CAUTION: every pattern here removes files from the Docker build context.
+# The builder stage compiles the real workspace, so ANY file that a crate
+# embeds with `include_str!` / `include_bytes!` MUST NOT be excluded, or
+# the build fails with a confusing "No such file or directory" error that
+# names a path inside the container rather than the excluded path.
+#
+# Currently required by the image's dependency closure:
+#
+#   crates/fabric-frame-transport/src/schema.rs
+#     include_str!("../../../docs/spec/wire-protocol-schema.json")
+#   crates/fabric-daemon/src/secret_loader/review_response.rs
+#     include_str!("../../../../docs/runbooks/workos-infisical-shared.md")
+#
+# NOTE on Docker's ignore semantics: a pattern like `*.md` matches only
+# ROOT-level files; Docker's matcher does not treat `*` as crossing
+# directory separators. So `*.md` never removed `docs/**.md` -- the
+# runbook was safe for a different reason than it first appeared. The
+# explicit `!docs/` exception below documents that intent so a future
+# reader does not "simplify" the pattern list and break the build.
 target/
 .git/
 .github/
 architecture/
 cmd/
-*.md
-!README.md
 deploy/
 .DS_Store
 *.swp
 *.swo
+
+# Generated documentation output (git-ignored, ~6 MB). Not needed by the
+# build and not present in a clean CI checkout.
+docs/book/
+
+# Root-level markdown is excluded to keep the context small.
+*.md
+!README.md
+
+# The daemon embeds docs/runbooks/workos-infisical-shared.md into the
+# binary. Keep the whole docs/ tree available to the builder.
+!docs/
