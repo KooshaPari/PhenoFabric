@@ -814,6 +814,14 @@ jobs:
     timeout-minutes: 15
     needs: [docker-build]
     environment: production
+    # `docker-build` is best-effort (continue-on-error: true), so a Docker
+    # failure must not fail the whole release run. Without this, the
+    # `docker` job failed whenever the upstream build failed, which turned
+    # a known-brittle side effect into a red run for an otherwise complete
+    # release (this is what happened on the v0.1.4 run: both the release
+    # jobs and the post-publish verification passed, but the run was
+    # reported as "failure" purely because of Docker).
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
 

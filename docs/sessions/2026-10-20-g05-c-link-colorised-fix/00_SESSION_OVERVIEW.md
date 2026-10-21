@@ -289,3 +289,101 @@ CI on `23e85fd`: CI `39530950640`, E2E `39530950657`, Spec Validation
 - `publish-crates` is a no-op until `CRATES_IO_TOKEN` is wired on the repo.
   Nothing is published to crates.io today.
 - A1 still needs one human browser run. A2/A3 remain code-complete.
+
+## v0.1.4 published and independently verified (2026-10-21)
+
+Tagged `v0.1.4` at `ea024b5`. Release workflow run `39532120442`.
+
+### What the run proved
+
+| Job | Result |
+|---|---|
+| Build CLI linux-x86_64 / macos-aarch64 / macos-x86_64 / windows-x86_64 | success |
+| Build GUI linux-x64 / macos-arm64 / macos-x64 / windows-x64 | success |
+| Create GitHub Release | success |
+| Post-publish verification | success |
+| Build Docker image | failure (pre-existing, see below) |
+| Push Docker image | failure (consequence of the above) |
+
+**All 10 assets are published.** The run's overall `failure` conclusion came
+ONLY from the two Docker jobs.
+
+The post-publish verification did real work this time: its log shows all four
+CLI archive listings with the five expected binaries, and the final line
+`All release archives contain the expected binaries: fabric fabric-daemon
+fabric-tui fabric-tray fabric-graph-cli`. The docker-pull step inside that job
+is `continue-on-error: true` by design (the release job only depends on
+`github-release` + `identity`), so its `denied` error from ghcr.io does not
+affect the job's success.
+
+### Independent verification (not relying on the workflow's own report)
+
+Downloaded all 10 published assets with `gh release download` and inspected
+them directly:
+
+- All four CLI archives contain **all five** required binaries.
+  - `phenotype-fabric-v0.1.4-linux-x86_64.tar.gz`: fabric, fabric-daemon,
+    fabric-tui, fabric-tray, fabric-graph-cli
+  - `phenotype-fabric-v0.1.4-macos-aarch64.tar.gz`: same five
+  - `phenotype-fabric-v0.1.4-macos-x86_64.tar.gz`: same five
+  - `phenotype-fabric-v0.1.4-windows-x86_64.zip`: the same five with `.exe`
+- The five Linux binaries are genuine `ELF 64-bit LSB pie executable,
+  x86-64` files, not empty placeholders, and are mode 0755.
+- The five macOS binaries are `Mach-O 64-bit executable arm64`.
+- The published macOS `fabric` binary actually RUNS: `fabric --version` ->
+  `fabric 0.1.0`, and `fabric --help` prints its subcommand surface.
+- GUI assets are real installers: AppImage is a static-pie ELF, `.deb` is
+  `Debian binary package (format 2.0)` with `Version: 0.1.4` in its control
+  file, `.exe` is a `PE32 executable (GUI) ... Nullsoft Installer`, `.msi` is
+  a `Composite Document File V2 Document`, `.dmg` files are zlib-compressed
+  disk images.
+- `program/scripts/test_install.sh` against the **published** release:
+  **10 passed, 0 failed** (T1-T9 plus the archive-name check), with
+  `install.sh` downloading from GitHub, extracting, and installing all five
+  binaries into a temp dir.
+
+### Cross-check: v0.1.2 really was broken
+
+Downloaded `phenotype-fabric-v0.1.2-linux-x86_64.tar.gz` and listed it:
+`fabric-daemon`, `fabric-tray`, `fabric-tui`, `README.md` -- only 3 of the 5
+required binaries. `fabric` and `fabric-graph-cli` are absent. Confirmed
+independently, not taken on faith from the earlier session's notes.
+
+### Two more defects found and fixed
+
+**1. The Dockerfile's stub layer was missing `fabric-cli`'s lib target.**
+
+The v0.1.4 Docker build failed with:
+
+    4.499 error: can't find lib `fabric_cli` at path
+    `/build/crates/fabric-cli/src/lib.rs`
+
+`crates/fabric-cli/Cargo.toml` declares BOTH a `[[bin]]` (`fabric` ->
+`src/main.rs`) and a `[lib]` (`fabric_cli` -> `src/lib.rs`). The Dockerfile's
+dependency-stub layer creates `crates/fabric-cli/src/main.rs` but never
+`src/lib.rs`, so cargo cannot even resolve the workspace. Differential proof
+(run locally against a scaffolded copy of the builder stage):
+
+- without the stub: `error: can't find lib 'fabric_cli' at path .../crates/fabric-cli/src/lib.rs`
+- with the stub: resolves cleanly
+
+Fix: add `echo "pub fn _stub() {}" > crates/fabric-cli/src/lib.rs` to the
+Dockerfile stub layer.
+
+**2. The `docker` job was not `continue-on-error`, unlike `docker-build`.**
+
+`docker-build` is marked best-effort, but the downstream `docker` push job
+was not, so a Docker failure turned an otherwise complete release run red.
+That is exactly what happened on the v0.1.4 run: `Create GitHub Release` and
+`Post-publish verification` both succeeded, yet the run was reported as
+`failure`. Fix: mark the `docker` job `continue-on-error: true`.
+
+### Defective releases annotated
+
+- `v0.1.3` (0 assets): release body now leads with a warning that it is
+  broken and points at v0.1.4, explaining both root causes.
+- `v0.1.2` (incomplete Linux archive): release body now leads with a warning
+  naming the two missing binaries and points at v0.1.4.
+
+Neither release was deleted or re-tagged: a published release's assets cannot
+be replaced in place, and the tags carry real build history.

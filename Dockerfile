@@ -87,7 +87,8 @@ RUN mkdir -p crates/fabric-daemon/src crates/fabric-cli/src crates/fabric-graph/
     mkdir -p examples/full-demo/src && \
     echo "pub fn _stub() {}" > examples/full-demo/src/lib.rs && \
     echo "fn main() {}" > crates/fabric-daemon/src/main.rs && \
-    echo "fn main() {}" > crates/fabric-cli/src/main.rs
+    echo "fn main() {}" > crates/fabric-cli/src/main.rs && \
+    echo "pub fn _stub() {}" > crates/fabric-cli/src/lib.rs
 
 # Pre-build dependencies (cached unless Cargo.toml changes).
 RUN cargo build --release --locked 2>/dev/null || cargo build --release

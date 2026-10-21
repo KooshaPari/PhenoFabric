@@ -42,6 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `regenerate_manifest.py` warns about untracked files, since the manifest
   file list comes from `git ls-files` and silently drops anything not yet
   staged.
+- The Docker build's dependency-stub layer now creates
+  `crates/fabric-cli/src/lib.rs`. `fabric-cli` declares both a `[[bin]]` and a
+  `[lib]`, and the stub layer only created the binary, so cargo could not
+  resolve the workspace and the Docker build failed with "can't find lib
+  `fabric_cli`".
+- The `docker` push job is now `continue-on-error: true`, matching
+  `docker-build`. Previously a Docker failure turned an otherwise complete
+  release run red even though the release and its verification had passed.
 
 ## [0.1.3] - 2026-10-20
 
