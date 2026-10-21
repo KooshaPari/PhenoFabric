@@ -5,6 +5,47 @@ All notable changes to Phenotype Fabric will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Docker image**: the image now builds from the real workspace sources
+  instead of a hand-maintained Cargo target-stub layer that had drifted away
+  from the actual crate graph. The stub generator, its scratch directories
+  and the stub layer itself are gone; the builder compiles
+  `cargo build --release --locked --bin fabric --bin fabric-daemon` against
+  the real `crates/`, `examples/` and `docs/` tree.
+- **Docker image**: `docs/` is now copied into the builder. Without it,
+  `fabric-frame-transport`'s `include_str!` of
+  `docs/spec/wire-protocol-schema.json` failed the build.
+- **Docker image**: the runtime base is now `debian:trixie-slim`, matching
+  the `rust:1.99-slim` builder's Debian release and glibc 2.41. It was
+  `bookworm` (glibc 2.36), so a binary linked against the newer glibc could
+  not run on the older runtime.
+- **Docker image**: the runtime installs trixie's `libssl3t64`. The daemon's
+  `reqwest` / `native-tls` path needs OpenSSL, and the package name differs
+  between the two Debian releases.
+- **CI**: three assertions in `ci.yml` reported correct images and correct
+  release archives as missing their binaries. `grep -q` exits on the first
+  match and closes the pipe, so the upstream `printf` died of `SIGPIPE`; with
+  `set -o pipefail` enabled in those steps the pipeline reported failure and
+  the binaries were wrongly recorded as missing. The assertions now use a
+  here-string, which has no pipeline to break.
+
+### Added
+
+- **CI**: the `docker-build` job in `ci.yml` now runs on every push. It
+  builds the image, checks that both binaries are present, and **executes**
+  both binaries inside the image with `--version`. A binary that is present
+  but cannot load its shared libraries is just as broken as a missing one,
+  so the execution check is what makes this job meaningful.
+- **CI**: the `docker-build` job in `release.yml` is promoted from
+  best-effort (`continue-on-error: true`) to a real gate. The image is
+  verified before the image tar is uploaded, so the bytes that reach the
+  registry are proven to work. The downstream registry push stays
+  best-effort, because a missing registry token must not fail a release
+  whose binaries and assets are already correct.
+
 ## [0.1.4] - 2026-10-21
 
 ### Fixed

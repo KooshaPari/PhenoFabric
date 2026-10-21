@@ -174,7 +174,52 @@ not present in a clean CI checkout either.
 | Run | Commit | Result |
 |---|---|---|
 | 39545339580 | `178a355` | FAIL — `couldn't read .../docs/spec/wire-protocol-schema.json` |
-| 39547036357 | `1240110` | See the table below |
+| 39547036357 | `1240110` | Image built and both binaries compiled. Job failed in the *assertion* step with `printf: write error: Broken pipe` — see below. |
+
+### The assertion bug in run 39547036357
+
+The image built. Both binaries compiled. The job then failed in
+"Verify the image contains the expected binaries" with:
+
+```
+printf: write error: Broken pipe
+##[error]Process completed with exit code 1.
+```
+
+The image was correct; the assertion was wrong.
+
+`grep -q` exits as soon as it finds a match, which closes the pipe early.
+`printf` then dies of `SIGPIPE`, and because the step enables
+`set -o pipefail`, the pipeline reports failure. The result is a **false**
+"binary is missing" report against a perfectly good image.
+
+Reproduced locally against a 50,000-entry listing:
+
+```
+$ bash -e piptest.sh
+missing=' fabric fabric-daemon'
+```
+
+The listing of a real image or a real release archive is large enough to
+trigger this reliably, so the assertion fails on correct input.
+
+Three sites were affected, all of which enable `pipefail`:
+
+| Site | Effect before the fix |
+|---|---|
+| `ci.yml` — verify the image contains the expected binaries | The assertion that failed this run |
+| `ci.yml` — check the published release for a partial archive | Reports every binary in a correct archive as missing |
+| The two new binary-execution assertions in `ci.yml` and `release.yml` | Would have had the same defect |
+
+Each was changed from `printf ... | grep -q` to a here-string
+(`grep -q ... <<<"$listing"`), which has no pipeline and therefore no
+`SIGPIPE`. Re-verified against the same 50,000-entry listing: the
+assertion now reports the binaries as present.
+
+The two `printf ... | grep -q` sites in `release.yml`'s "Verify CLI
+archives contain the expected binaries" step were deliberately left alone:
+that step does not enable `pipefail`, so the pattern is safe there. The
+distinction was checked per step, not per file.
 
 ## Repository gates
 
