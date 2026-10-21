@@ -188,3 +188,104 @@ dynamic (newest published release), so no version pin needed updating.
 - `publish-crates` is a no-op until `CRATES_IO_TOKEN` is wired on the repo.
   Nothing is published to crates.io today.
 - A1 still needs one human browser run. A2/A3 remain code-complete.
+
+## Release: v0.1.3 was published EMPTY (2026-10-21)
+
+The v0.1.3 release workflow run `39524991323` reported **failure**, but
+the failure was in the post-publish `verify` job, and the *release itself*
+had been created with **zero assets**.
+
+Two independent defects made that invisible:
+
+1. `download-artifact`'s `pattern` input is a SINGLE minimatch pattern
+   (`new Minimatch(inputs.pattern)` in actions/download-artifact v8
+   `src/download-artifact.ts`). The job passed a YAML block scalar:
+
+       pattern: |
+         cli-*
+         gui-*
+
+   which is the literal two-line string `"cli-*\ngui-*"`. The run log shows
+   `Found 9 artifact(s)` then `Total of 0 artifact(s) downloaded`, and
+   `find artifacts` failed with `find: 'artifacts': No such file or
+   directory`. `softprops/action-gh-release` with `files: artifacts/*` does
+   NOT fail on an empty glob, so the release published with no binaries and
+   the job exited 0.
+
+2. The `verify` job's `Extract version from tag` step wrote `version=...`
+   while all four of its consumers read `steps.version.outputs.tag`. `TAG`
+   therefore expanded to the empty string, so `gh release download ""`
+   reported "no assets to download". The post-publish verification was a
+   no-op that could never have caught the empty archive.
+
+### The G-05 build fix itself was correct
+
+Independently downloading the run artifacts of `39524991323` and listing
+their contents shows every CLI archive carried all five required binaries:
+
+```
+cli-linux-x86_64/phenotype-fabric-v0.1.3-linux-x86_64.tar.gz
+  fabric  fabric-daemon  fabric-tui  fabric-tray  fabric-graph-cli
+cli-macos-aarch64/...   -> all five
+cli-macos-x86_64/...    -> all five
+cli-windows-x86_64/...  -> all five (.exe)
+```
+
+Only the *upload* step dropped them. This is why the fix could not be
+verified by inspecting the published release: there was nothing published
+to inspect.
+
+## Release: v0.1.4
+
+Fixes committed in `d01eeba`, `8a0d89c`, `ca9205b`, `7ab123d`, `23e85fd`:
+
+- `pattern: '{cli-*,gui-*}'` -- one minimatch pattern using brace
+  expansion. Verified against the real v0.1.3 artifact names with
+  minimatch directly: it matches exactly the 8 `cli-*`/`gui-*` artifacts
+  and excludes `KooshaPari~PhenoFabric~<id>.dockerbuild`. (`cli-*` alone
+  would match only 4 and silently drop every GUI installer; `cli-*\ngui-*`
+  matches 0.)
+- The `verify` job's step now writes `tag=`, matching its consumers. The
+  `docker` job already wrote `version=` and read `.version` -- correct as
+  written, left alone.
+- A new `Assert required release assets are present` step fails the release
+  job BEFORE the release is created if any of the ten expected assets is
+  missing, so a partial publish is prevented rather than merely undetected.
+- `program/scripts/check_workflows.py` -- a static lint for both defect
+  classes plus the partial-prefix pitfall, wired into Spec Validation.
+  Verified it flags the pre-fix `release.yml` (5 findings), flags a
+  `cli-*`-only pattern, and passes the fixed file.
+- The Spec Validation workflow now installs PyYAML. Without it
+  `check_openapi.py` hit its ImportError guard and printed "WARNING:
+  PyYAML not installed; skipping OpenAPI check" -- the OpenAPI validation
+  had been silently INERT. It now runs for real.
+- `regenerate_manifest.py` warns about untracked files, since the manifest
+  file list comes from `git ls-files` and silently drops anything not yet
+  staged (this bit us once: `requirements.txt` was regenerated before
+  being staged, and CI failed with "1 added, 0 removed").
+
+CI on `23e85fd`: CI `39530950640`, E2E `39530950657`, Spec Validation
+`39530950692` -- all green, with the OpenAPI check confirmed live
+("OK architecture/openapi.yaml (openapi version: 3.1.0)").
+
+### Empirical notes worth keeping
+
+- `gh release download` ORs multiple `--pattern` flags together (verified
+  against v0.1.2: a matching `.tar.gz` pattern plus a non-matching `.zip`
+  pattern still downloaded the `.tar.gz` files and exited 0). The workflow
+  comment previously claimed AND semantics; corrected.
+- `download-artifact` `pattern` is NOT newline-separated. The
+  `@actions/glob` package accepts newline-separated patterns via
+  `glob.create(patterns.join('\n'))`, but `download-artifact` does not use
+  that -- it uses minimatch directly. The two look alike and are not.
+
+## Notes for the next session
+
+- The `docker-build` job is brittle: it failed on the v0.1.2 run because
+  the Docker build context did not carry the `benches/` directories that
+  several `Cargo.toml` files reference via `[[bench]]`. Those files exist
+  now, so the failure should not recur, but the job is still marked
+  best-effort and `continue-on-error`.
+- `publish-crates` is a no-op until `CRATES_IO_TOKEN` is wired on the repo.
+  Nothing is published to crates.io today.
+- A1 still needs one human browser run. A2/A3 remain code-complete.

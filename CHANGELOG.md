@@ -5,6 +5,94 @@ All notable changes to Phenotype Fabric will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-10-21
+
+### Fixed
+
+- **Release publication**: the GitHub release actually carries its assets.
+  `download-artifact`'s `pattern` input is a single minimatch pattern, not a
+  list, so the previous multi-line `cli-*` / `gui-*` block scalar matched
+  nothing and the release published with zero assets while the job exited 0.
+  It now uses `{cli-*,gui-*}`, which matches the eight CLI and GUI artifacts
+  and still excludes the docker artifact.
+- **Post-publish verification**: the `verify` job's tag-extraction step wrote
+  `version=` while all four of its consumers read
+  `steps.version.outputs.tag`, so `TAG` was empty and the verification was a
+  no-op that could never have caught a partial archive. The step now writes
+  `tag=`.
+- **Partial-release guard**: a new step fails the release job *before* the
+  release is created if any of the ten expected assets is missing, so a
+  partial publish is prevented rather than merely undetected.
+
+### Added
+
+- `program/scripts/check_workflows.py`: a static lint for GitHub Actions
+  workflows. It catches step-output name mismatches, multi-line
+  `download-artifact` patterns, and patterns that cover one release artifact
+  prefix but not the other. Wired into the Spec Validation workflow.
+- `program/scripts/requirements.txt`: the Python dependencies for the
+  validation scripts.
+
+### Changed
+
+- The Spec Validation workflow now installs PyYAML. Without it,
+  `check_openapi.py` hit its ImportError guard and printed
+  "WARNING: PyYAML not installed; skipping OpenAPI check" -- the OpenAPI
+  validation had been silently inert. It now runs for real.
+- `regenerate_manifest.py` warns about untracked files, since the manifest
+  file list comes from `git ls-files` and silently drops anything not yet
+  staged.
+
+## [0.1.3] - 2026-10-20
+
+### Fixed
+
+- **G-05 (Linux-only CI failure)**: the `c_link_smoke` integration test
+  failed on Ubuntu because CI sets `CARGO_TERM_COLOR=always`, which inserts
+  ANSI escapes into rustc's `native-static-libs:` diagnostic and broke the
+  marker match. The test's diagnostic parser now strips ANSI SGR sequences
+  and recognises the rustc diagnostic shape strictly, and the child cargo
+  invocation forces `CARGO_TERM_COLOR=never` and `TERM=dumb`. Verified green
+  on real `ubuntu-24.04` CI.
+
+### Changed
+
+- Split the 748-line `c_link_smoke.rs` into focused modules under
+  `tests/c_link_support/` (ansi, marker, flags, toolchain, c_program), all
+  below the 500-line limit.
+
+### Known issues
+
+- This release was published with **zero assets**. The asset-upload step
+  used a multi-line `download-artifact` pattern that matched nothing, and
+  the verification job read an output name the extraction step never wrote.
+  The binaries themselves were built correctly -- the run artifacts contain
+  all five required binaries in every CLI archive -- but they were never
+  uploaded. Use 0.1.4 instead.
+
+## [0.1.2] - 2026-10-16
+
+### Fixed
+
+- Replaced the retired `macos-13` GitHub-hosted runner with `macos-15-intel`.
+
+### Known issues
+
+- The published Linux archive is **incomplete**: it carries only three of the
+  five binaries `install.sh` requires, missing `fabric` and
+  `fabric-graph-cli`. Use 0.1.4 instead.
+
+## [0.1.1] - 2026-10-10
+
+### Added
+
+- SQLite nested authority-domain and immutable outbox slice in
+  `fabric-persist`, with tests for the ledger transaction path.
+
+### Fixed
+
+- Closed three of four pre-existing `spec-validation.yml` infrastructure gaps.
+
 ## [0.1.0] - 2026-09-13
 
 ### Added
