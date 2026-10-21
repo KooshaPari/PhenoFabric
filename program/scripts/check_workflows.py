@@ -43,6 +43,11 @@ MULTILINE_PATTERN_RE = re.compile(
     re.MULTILINE,
 )
 
+# Artifact-name prefixes the release workflow is expected to publish. If a
+# download-artifact pattern matches one of these but not another, the
+# release would ship a partial set of assets.
+RELEASE_ARTIFACT_PREFIXES = ("cli-", "gui-")
+
 
 def check_step_outputs(job_name: str, job: dict) -> list[str]:
     """Every ``steps.<id>.outputs.<name>`` must name an output the step declares."""
@@ -84,12 +89,26 @@ def check_download_patterns(job_name: str, job: dict) -> list[str]:
             continue
         with_block = step.get("with") or {}
         pattern = with_block.get("pattern")
-        if isinstance(pattern, str) and "\n" in pattern.strip():
+        if not isinstance(pattern, str):
+            continue
+        label = step.get("name") or uses
+        if "\n" in pattern.strip():
             problems.append(
-                f"{job_name}: step '{step.get('name') or uses}' passes a "
-                f"multi-line pattern to download-artifact; 'pattern' is a "
-                f"SINGLE glob and a multi-line value matches nothing "
-                f"(got {pattern!r})"
+                f"{job_name}: step '{label}' passes a multi-line pattern to "
+                f"download-artifact; 'pattern' is a SINGLE minimatch pattern "
+                f"and a multi-line value matches nothing (got {pattern!r})"
+            )
+            continue
+        # A pattern that names one release-artifact prefix but not the
+        # other would ship a partial release. Brace expansion such as
+        # '{cli-*,gui-*}' names both and is fine.
+        covered = {p for p in RELEASE_ARTIFACT_PREFIXES if p in pattern}
+        missing = [p for p in RELEASE_ARTIFACT_PREFIXES if p not in pattern]
+        if covered and missing:
+            problems.append(
+                f"{job_name}: step '{label}' pattern {pattern!r} matches "
+                f"{', '.join(sorted(covered))} but not {', '.join(missing)}; "
+                f"the release would ship a partial asset set"
             )
     return problems
 

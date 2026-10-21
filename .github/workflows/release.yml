@@ -548,15 +548,25 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: artifacts
-          # `pattern` is a SINGLE glob, not a list. A YAML block scalar here
-          # yields the literal two-line string "cli-*\ngui-*", which matches
-          # nothing: the run on 2026-10-21 reported "Found 9 artifact(s)"
-          # then "Total of 0 artifact(s) downloaded", and the release was
-          # published with ZERO assets while the job still exited 0.
-          # `cli-*` alone already excludes the docker artifact (its name is
-          # `KooshaPari~PhenoFabric~<id>.dockerbuild`), so one glob is
-          # enough and is unambiguous.
-          pattern: cli-*
+          # `pattern` is a SINGLE minimatch pattern, NOT a list and NOT
+          # newline-separated. download-artifact v8 does
+          # `new Minimatch(inputs.pattern)` and filters on it (see
+          # actions/download-artifact v8 src/download-artifact.ts). A YAML
+          # block scalar here yields the literal two-line string
+          # "cli-*\ngui-*", which matches nothing: the run on 2026-10-21
+          # reported "Found 9 artifact(s)" then "Total of 0 artifact(s)
+          # downloaded", and the release was published with ZERO assets
+          # while the job still exited 0.
+          #
+          # Minimatch supports brace expansion, so `{cli-*,gui-*}` is the
+          # correct way to express "these two prefixes" in ONE pattern.
+          # Verified against the real v0.1.3 artifact names: it matches
+          # exactly the 8 cli-*/gui-* artifacts and excludes the
+          # `KooshaPari~PhenoFabric~<id>.dockerbuild` artifact.
+          #
+          # Do NOT narrow this to `cli-*`: that would silently drop every
+          # GUI installer (dmg/deb/AppImage/msi/exe) from the release.
+          pattern: '{cli-*,gui-*}'
           merge-multiple: true
 
       - name: List artifacts
