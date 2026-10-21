@@ -38,6 +38,22 @@ def tracked_files(root: Path) -> list[str]:
     return [p for p in out.decode("utf-8").split("\0") if p]
 
 
+def untracked_files(root: Path) -> list[str]:
+    """Return non-ignored files that git is not tracking.
+
+    These will be MISSING from the generated manifest, because the file list
+    comes from `git ls-files`. If you stage a new file after regenerating,
+    the manifest silently omits it and CI fails with "1 added, 0 removed".
+    """
+    out = subprocess.run(
+        ["git", "ls-files", "-z", "--others", "--exclude-standard"],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    ).stdout
+    return [p for p in out.decode("utf-8").split("\0") if p]
+
+
 def main() -> int:
     root = Path(".").resolve()
     manifest: dict[str, str] = {}
@@ -50,6 +66,23 @@ def main() -> int:
     except FileNotFoundError:
         print("  ERROR: git not found on PATH", file=sys.stderr)
         return 1
+
+    untracked = untracked_files(root)
+    if untracked:
+        print(
+            f"  WARN {len(untracked)} untracked file(s) will NOT be in the "
+            f"manifest (the file list comes from `git ls-files`):",
+            file=sys.stderr,
+        )
+        for rel in untracked[:20]:
+            print(f"    {rel}", file=sys.stderr)
+        if len(untracked) > 20:
+            print(f"    ... and {len(untracked) - 20} more", file=sys.stderr)
+        print(
+            "  WARN stage them (`git add`) and re-run, or CI will report a "
+            "manifest mismatch.",
+            file=sys.stderr,
+        )
 
     for rel in files:
         if rel in EXCLUDE_FILES:
