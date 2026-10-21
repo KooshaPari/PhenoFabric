@@ -625,3 +625,55 @@ jobs:
             fi
             echo "::warning::title=install.sh cannot install the published release::The currently published release is incomplete (see the step above). install.sh correctly REFUSES to install a partial toolchain. Fix: publish a corrected release."
           fi
+
+  # ── Docker image builds ──────────────────────────────────────────────
+  # The Dockerfile was never built by CI, so its dependency-stub layer
+  # drifted out of sync with the workspace. On the v0.1.4 release the Docker
+  # build failed with:
+  #
+  #   error: can't find lib `fabric_cli` at path
+  #   `/build/crates/fabric-cli/src/lib.rs`
+  #
+  # because `crates/fabric-cli/Cargo.toml` declares BOTH a [[bin]] (fabric ->
+  # src/main.rs) and a [lib] (fabric_cli -> src/lib.rs), and the stub layer
+  # only created the binary. The stub list is maintained by hand, so it will
+  # drift again; this job is what makes the drift visible at PR time instead
+  # of at release time.
+  #
+  # The build itself is the assertion. `docker build` cannot even resolve the
+  # workspace if a stub is missing, so a successful build proves every
+  # workspace member is covered by the stub layer.
+  docker-build:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build the Docker image
+        run: docker build --tag fabric-ci:probe --load .
+
+      - name: Verify the image contains the expected binaries
+        run: |
+          set -uo pipefail
+          cid="$(docker create fabric-ci:probe)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          listing="$(docker export "$cid" | tar t)"
+          missing=0
+          for bin in fabric fabric-daemon; do
+            # The runtime stage copies these to /usr/local/bin (see the
+            # Dockerfile's runtime stage).
+            if ! printf '%s\n' "$listing" | grep -qE "^usr/local/bin/${bin}$"; then
+              echo "::error::Docker image is missing /usr/local/bin/${bin}"
+              missing=1
+            else
+              echo "OK Docker image contains /usr/local/bin/${bin}"
+            fi
+          done
+          if [ "$missing" = "1" ]; then
+            echo "::error::The Docker image does not contain the expected binaries."
+            exit 1
+          fi
