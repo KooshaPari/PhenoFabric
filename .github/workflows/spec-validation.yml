@@ -86,6 +86,14 @@ jobs:
       - name: Test release checksum gates fail closed
         run: python3 program/scripts/test_release_checksums.py
 
+      # The multi-arch Docker publish can succeed while leaving an
+      # architecture out of the published manifest list. This test
+      # stubs `docker buildx imagetools inspect` and proves the check
+      # FAILS when an architecture is missing -- a check that only ever
+      # passes is indistinguishable from no check.
+      - name: Test Docker manifest architecture check fails closed
+        run: bash scripts/acceptance/test_docker_manifest_archs.sh
+
       - name: Validate MANIFEST matches file tree
         run: python3 program/scripts/check_manifest.py
 

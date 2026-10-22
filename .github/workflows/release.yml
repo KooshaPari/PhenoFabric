@@ -1060,7 +1060,7 @@ jobs:
           # image which was never published (ghcr returns 404 for it).
           # Only claim the image when it is really there.
           if [ "${{ needs.docker.outputs.pushed }}" = "true" ]; then
-            DOCKER_LINE="The Docker image is also tagged with this identity as \`build-${{ needs.identity.outputs.identity }}\` for cross-reference."
+            DOCKER_LINE="The Docker image is published as a multi-architecture manifest list for \`linux/amd64\` and \`linux/arm64\`, and is also tagged with this identity as \`build-${{ needs.identity.outputs.identity }}\` for cross-reference. The \`linux/amd64\` image was built and exercised natively; the \`linux/arm64\` image was built under QEMU emulation on an x86_64 runner, so it carries emulated rather than native arm64 evidence."
           else
             DOCKER_LINE="The Docker image for this release was built and verified, but was not published to the container registry."
           fi
@@ -1266,7 +1266,14 @@ jobs:
   docker:
     name: Push Docker image
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # A Rust workspace build under QEMU emulation is SLOW -- the arm64
+    # half of the multi-arch build runs every compile step through
+    # binfmt translation. The previous 15-minute budget was sized for
+    # a `docker load` + `docker push` of an already-built image and is
+    # nowhere near enough to build the workspace twice. Under the old
+    # budget the arm64 build would be killed mid-compile and the job
+    # would fail for a reason that has nothing to do with the image.
+    timeout-minutes: 90
     needs: [docker-build]
     environment: production
     # The upstream `docker-build` job is now a hard gate: it builds the
@@ -1301,11 +1308,16 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
-      - name: Download pre-built image artifact
-        uses: actions/download-artifact@v8
+      - name: Set up QEMU (linux/arm64 emulation)
+        # The arm64 half of the manifest list is built under QEMU
+        # emulation on this amd64 runner. That makes the arm64 image
+        # EMULATED evidence, not native. The release body says so
+        # explicitly. The linux/amd64 image is genuinely native: the
+        # `docker-build` job built it on an amd64 runner and verified
+        # the binaries run there.
+        uses: docker/setup-qemu-action@v3
         with:
-          name: docker-image
-          path: .
+          platforms: arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -1322,38 +1334,58 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Load pre-built image from tar
-        id: load
-        continue-on-error: true
-        run: |
-          docker load -i phenotype-fabric-image.tar
-          docker images
-          ls -la phenotype-fabric-image.tar
-
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
-            type=raw,value=build-${{ needs.docker-build.outputs.identity }}
-
-      - name: Retag image with build identity tag
-        id: retag
-        continue-on-error: true
-        run: |
-          PRIMARY="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
-          docker tag "$PRIMARY" "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ needs.docker-build.outputs.identity }}"
-          echo "Tagged image with all metadata tags"
-
-      - name: Push image with all tags
+      - name: Publish multi-arch manifest list
         id: push
+        # A missing or rejected token is an expected credential issue on
+        # forks, not an image defect. The image was already built and
+        # verified by `docker-build`. The `pushed` output below is the
+        # single source of truth for whether the release body may claim
+        # the image exists.
+        #
+        # This step REPLACES the old load-tar / retag / `docker push
+        # --all-tags` chain, which could only ever publish a
+        # single-architecture image: the tar built by `docker-build` is
+        # an amd64 image, and `docker push` of a local image writes an
+        # image manifest, not a manifest list. A multi-arch tag has to
+        # be produced by a builder that understands platforms.
         continue-on-error: true
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          # `load` and `push` are mutually exclusive in buildx: `load`
+          # writes a single-architecture image tar into the local
+          # daemon, which cannot represent a manifest list.
+          load: false
+          # Attestation manifests carry the platform `unknown/unknown`.
+          # Left enabled they appear in the manifest list and can be
+          # mistaken for a real image entry.
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ needs.docker-build.outputs.identity }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64
+          cache-from: type=gha,scope=multiarch
+          cache-to: type=gha,mode=max,scope=multiarch
+
+      - name: Verify the published manifest contains both architectures
+        # `always()` so it runs even when the push step failed. The
+        # check is skipped -- explicitly and loudly -- when nothing was
+        # pushed, because there is no manifest to read. When the push
+        # DID succeed, a manifest missing an architecture is a real
+        # defect and fails the job.
+        if: always()
         run: |
-          docker push --all-tags "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          if [ "${{ steps.push.outcome }}" != "success" ]; then
+            echo "::warning::Push did not reach the registry; no manifest to verify."
+            exit 0
+          fi
+          scripts/acceptance/docker_manifest_archs.sh \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" \
+            "linux/amd64 linux/arm64"
 
       - name: Record whether the image reached the registry
         id: pushresult
