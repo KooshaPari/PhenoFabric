@@ -94,6 +94,20 @@ jobs:
       - name: Test Docker manifest architecture check fails closed
         run: bash scripts/acceptance/test_docker_manifest_archs.sh
 
+      # The release version was derived from `${GITHUB_REF#refs/tags/}`,
+      # which is correct ONLY for a tag push. On a workflow_dispatch run
+      # it yields the literal string "refs/heads/main", which becomes the
+      # artifact filename prefix, the Docker tag, and the name of the
+      # release `gh release download` looks for. The v0.1.7 release could
+      # not be re-run from a fixed commit because the dispatch path could
+      # not even name the version it was republishing.
+      #
+      # This test stubs `git ls-remote` and proves the resolver FAILS when
+      # it cannot determine a version, when the named tag does not exist,
+      # and when the version is malformed -- and that it never guesses.
+      - name: Test release version resolution fails closed
+        run: bash scripts/acceptance/test_resolve_version.sh
+
       # The release workflow declares its platforms twice: once in the
       # build matrix, and once in the fail-closed required-asset gate
       # that refuses to publish a release missing one. Nothing links the

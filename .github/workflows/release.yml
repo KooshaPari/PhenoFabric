@@ -7,6 +7,14 @@ on:
         description: 'Type "publish" to confirm (workflow will require environment approval regardless)'
         required: true
         default: ''
+      version:
+        description: >-
+          Version to publish, e.g. "v0.1.7". Leave empty for a tag push.
+          Set it to republish an existing tag from a newer commit: the
+          release then names that version while building the code at the
+          dispatched ref. The tag itself is never moved.
+        required: false
+        default: ''
   push:
     tags: ["v*"]
 
@@ -144,7 +152,12 @@ jobs:
       - name: Extract version from tag
         id: version
         shell: bash
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          source scripts/release/resolve_version.sh
+          echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build release binaries
         shell: bash
@@ -381,7 +394,12 @@ jobs:
       - name: Extract version from tag
         id: version
         shell: bash
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          source scripts/release/resolve_version.sh
+          echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build Tauri bundle
         shell: bash
@@ -397,7 +415,14 @@ jobs:
           # version (e.g. 0.1.0-nightly, which fails Debian/RPM version
           # spec validation). The Tauri CLI merges this JSON over the
           # existing config, so the "version" key on the root is replaced.
-          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          #
+          # The version comes from the RESOLVED tag, not from GITHUB_REF.
+          # On a dispatch, GITHUB_REF is refs/heads/<branch>, and stripping
+          # "refs/tags/v" from it leaves "refs/heads/main" -- which is not a
+          # version and fails Debian/RPM version spec validation. The
+          # resolved tag is the same value the artifact filenames use, so
+          # the bundle version and the published filename cannot disagree.
+          TAG_VERSION="${{ steps.version.outputs.version }}"
           cargo tauri build --target ${{ matrix.target }} --config "{\"version\": \"${TAG_VERSION}\"}"
 
       # ── Collect macOS artifacts ───────────────────────────────────────
@@ -628,7 +653,12 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          source scripts/release/resolve_version.sh
+          echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Verify lockfile matches build identity
         run: |
@@ -772,6 +802,15 @@ jobs:
     needs: [build, build-gui, identity, docker-build, docker]
     steps:
       - uses: actions/checkout@v7
+
+      - name: Extract version from tag
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          source scripts/release/resolve_version.sh
+          echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Download CLI + GUI archive artifacts (exclude docker-image)
         # The previous run's docker-image artifact (a stale .dockerbuild tarball
@@ -1072,7 +1111,7 @@ jobs:
         id: body
         shell: bash
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
+          TAG="${{ steps.version.outputs.tag }}"
           # The Docker claim in the body must reflect reality. The `docker`
           # job ran before this one and reported whether the image actually
           # reached the registry; v0.1.4 shipped a body that promised an
@@ -1131,6 +1170,15 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v3
         with:
+          # The release MUST be bound to the resolved tag explicitly.
+          # Without `tag_name`, this action falls back to GITHUB_REF, which
+          # on a workflow_dispatch run is `refs/heads/main` -- so the
+          # release would be created against the branch instead of the
+          # version it publishes. `tag_name` also makes the action CREATE
+          # the tag if it does not exist; here the tag always exists (the
+          # resolver refuses a version whose tag is absent from origin), so
+          # the release attaches to the existing, already-pushed tag.
+          tag_name: ${{ steps.version.outputs.tag }}
           generate_release_notes: true
           body_path: release_body.md
           files: artifacts/*
@@ -1346,7 +1394,12 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          source scripts/release/resolve_version.sh
+          echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU (linux/arm64 emulation)
         # The arm64 half of the manifest list is built under QEMU
@@ -1497,7 +1550,19 @@ jobs:
         # caught a partial archive. (The `docker` job below uses the same
         # `version=` name and reads `.version` consistently, so it is
         # correct as written; only this job was mismatched.)
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+        #
+        # The value now comes from the shared resolver rather than from
+        # `${GITHUB_REF#refs/tags/}`, so this job verifies the release
+        # under the SAME name every other job published it under. On a
+        # dispatch, the old expression produced the literal string
+        # "refs/heads/main", and `gh release download refs/heads/main`
+        # would fail on a release that actually exists under its tag.
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          source scripts/release/resolve_version.sh
+          echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Download GH release assets
         env:
