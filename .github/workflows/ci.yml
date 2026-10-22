@@ -632,6 +632,94 @@ jobs:
             echo "::warning::title=install.sh cannot install the published release::The currently published release is incomplete (see the step above). install.sh correctly REFUSES to install a partial toolchain. Fix: publish a corrected release."
           fi
 
+  # ── Native cross-platform binary acceptance ─────────────────────────
+  # Every other job in this workflow runs on ubuntu-latest. That means
+  # a macOS or Windows defect -- a Windows-only link error, a missing
+  # MSVC runtime DLL, a macOS codesigning or entitlement failure -- is
+  # invisible until the release workflow runs on a tag, which is far too
+  # late to fix cheaply.
+  #
+  # release.yml already runs scripts/acceptance/binary_acceptance.sh on
+  # the native runner for each release target. This job runs the SAME
+  # script on every push and pull request, on the runners that natively
+  # host each platform, so a platform break is caught at PR time by the
+  # exact assertion that gates the release.
+  #
+  # Using the same script (not a reimplementation) is deliberate: a
+  # second, CI-only copy of the acceptance logic would drift from the
+  # release gate and quietly stop protecting it.
+  #
+  # The matrix deliberately covers one target per platform:
+  #   linux-x86_64   -> the primary Linux user base
+  #   macos-aarch64  -> Apple Silicon, the dominant macOS user base
+  #   macos-x86_64   -> Intel Macs, which the release also ships
+  #   windows-x86_64 -> the primary Windows user base
+  #
+  # macos-15-intel is used for the x86_64 target because the retired
+  # macos-13 image no longer matches a runner (2026-10-15 observation:
+  # the job sat queued for 21+ hours without erroring). release.yml uses
+  # the same image for the same target, so the two stay consistent.
+  native-acceptance:
+    name: Native acceptance ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            platform: linux-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            platform: macos-aarch64
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+            platform: macos-x86_64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            platform: windows-x86_64
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry & target
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-${{ matrix.platform }}-native-acceptance-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.platform }}-native-acceptance-
+
+      - name: Install Linux build dependencies
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        uses: ./.github/actions/linux-build-deps
+        with:
+          arch: host
+
+      - name: Build release binaries
+        shell: bash
+        run: cargo build --release --bins --target ${{ matrix.target }}
+
+      # The assertion itself. It runs every release binary with
+      # `--version` (proving each one starts on this platform) and then
+      # starts the real daemon, probes its health endpoint, and shuts it
+      # down. It exits non-zero on the first failure, so a platform
+      # defect fails this job and the release with it.
+      - name: Run the native binary acceptance gate
+        shell: bash
+        run: |
+          scripts/acceptance/binary_acceptance.sh \
+            "${{ matrix.target }}" \
+            "target/${{ matrix.target }}/release"
+
   # ── Docker image builds ──────────────────────────────────────────────
   # The Dockerfile was never built by CI, so its dependency-stub layer
   # drifted out of sync with the workspace. On the v0.1.4 release the Docker
@@ -659,6 +747,7 @@ jobs:
   #      that is present but fails to load (for example because a shared
   #      library such as libssl.so.3 is missing from the runtime stage)
   #      is just as broken as a missing binary.
+  # ── Docker image builds ─────────────────────────────────────────────
   docker-build:
     name: Docker image builds
     runs-on: ubuntu-latest

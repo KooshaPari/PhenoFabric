@@ -30,6 +30,10 @@ fn main() -> ExitCode {
 
     match args.get(1).map(String::as_str) {
         Some("replan") => run_replan(&args[2..]),
+        Some("--version") | Some("-V") => {
+            println!("fabric-graph-cli {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
         Some("--help") | Some("-h") => {
             print_usage(&args[0]);
             ExitCode::SUCCESS

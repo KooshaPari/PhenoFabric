@@ -123,6 +123,26 @@ jobs:
         shell: bash
         run: cargo build --workspace --release --bins --target ${{ matrix.target }}
 
+      # ── Runtime acceptance on the native runner ─────────────────────
+      # A binary that COMPILES is not a binary that WORKS. The step
+      # below used to be the only existence check, so a macOS or
+      # Windows artifact with a broken link, a missing runtime library,
+      # or a startup panic would be published with a green checkmark.
+      # This runs the real binaries on the runner that natively hosts
+      # the target platform, so the artifact that ships is proven to
+      # start before it ships.
+      #
+      # The script also exercises the daemon end to end (start ->
+      # health -> stop) using the same `health` probe the container
+      # HEALTHCHECK uses. That is the exact path that was broken in
+      # v0.1.5, so it must be proven on every platform, not just Linux.
+      - name: Verify the built binaries run on this platform
+        shell: bash
+        run: |
+          scripts/acceptance/binary_acceptance.sh \
+            "${{ matrix.target }}" \
+            "target/${{ matrix.target }}/release"
+
       # Guard the packaging step below: assert every EXPECTED release binary
       # exists (and is executable on Unix) BEFORE any archive is created.
       # Historically a wrong bin name in the copy loop (e.g. "fabric-cli"
@@ -226,11 +246,37 @@ jobs:
           7z a "${DIST}.zip" "$DIST"
           echo "archive=${DIST}.zip" >> "$GITHUB_ENV"
 
+      # ── Checksum ─────────────────────────────────────────────────────
+      # Publish a SHA-256 for every archive so a user can verify what
+      # they downloaded. No release before v0.1.7 shipped any checksum
+      # at all, which left users unable to detect a truncated or
+      # corrupted download.
+      #
+      # The checksum file is named after the archive, so it lands in the
+      # same artifact upload and reaches the release page alongside the
+      # file it describes.
+      - name: Generate archive checksum
+        shell: bash
+        run: |
+          ARCHIVE="${{ env.archive }}"
+          if [ ! -f "$ARCHIVE" ]; then
+            echo "::error::Archive not found for checksum: $ARCHIVE"
+            exit 1
+          fi
+          sha256sum "$ARCHIVE" > "${ARCHIVE}.sha256"
+          cat "${ARCHIVE}.sha256"
+          echo "checksum=${ARCHIVE}.sha256" >> "$GITHUB_ENV"
+
       - name: Upload archive artifact
         uses: actions/upload-artifact@v7
         with:
           name: cli-${{ matrix.platform }}
-          path: ${{ env.archive }}
+          # Upload the archive AND its checksum. Both are needed: the
+          # archive is the artifact, the checksum is how a user proves
+          # the download is intact.
+          path: |
+            ${{ env.archive }}
+            ${{ env.checksum }}
           retention-days: 3
 
   # ── Cross-platform Tauri GUI builds ──────────────────────────────────
@@ -406,11 +452,66 @@ jobs:
           echo "gui_artifacts_dir=$STAGE" >> "$GITHUB_ENV"
           ls -la "$STAGE"
 
+      # The release job refuses to publish unless EVERY entry in
+      # SHA256SUMS has a `<artifact>.sha256` sidecar, and SHA256SUMS
+      # covers GUI installers as well as CLI archives. The GUI job used
+      # to upload .dmg/.deb/.AppImage/.msi/.exe with no sidecar at all,
+      # so that gate could never pass -- the release was structurally
+      # unable to succeed. Fixing it at the source (generate the sidecar
+      # where the installer is produced) keeps one rule for both paths
+      # instead of carving an installer exemption out of the gate.
+      #
+      # Every installer this runner actually produced gets a sidecar,
+      # not just the first match: Linux ships BOTH a .deb and an
+      # .AppImage and Windows ships BOTH a .msi and a .exe, and the
+      # manifest requires a sidecar for each of them. A single-file
+      # sidecar would leave the second installer to fail validation.
+      - name: Generate installer checksums
+        shell: bash
+        run: |
+          STAGE="${{ env.gui_artifacts_dir }}"
+          if [ -z "$STAGE" ] || [ ! -d "$STAGE" ]; then
+            echo "::error::gui_artifacts_dir is unset or missing: '$STAGE'"
+            exit 1
+          fi
+          # The extension list mirrors the release job's SHA256SUMS
+          # find expression. A GUI installer type that exists here but
+          # not there would ship without a checksum; one that exists
+          # there but not here would be blocked at release time. Keep
+          # the two lists identical.
+          shopt -s nullglob
+          installers=(
+            "$STAGE"/*.tar.gz
+            "$STAGE"/*.zip
+            "$STAGE"/*.AppImage
+            "$STAGE"/*.deb
+            "$STAGE"/*.dmg
+            "$STAGE"/*.exe
+            "$STAGE"/*.msi
+          )
+          if [ "${#installers[@]}" -eq 0 ]; then
+            echo "::error::No GUI installer found in $STAGE to checksum"
+            exit 1
+          fi
+          for installer in "${installers[@]}"; do
+            [ -f "$installer" ] || continue
+            sha256sum "$installer" > "${installer}.sha256"
+            cat "${installer}.sha256"
+          done
+          # CLI names its single sidecar `checksum`; the GUI job has
+          # several, so point at the directory that holds them.
+          echo "checksum_dir=$STAGE" >> "$GITHUB_ENV"
+
       # ── Upload GUI artifact ───────────────────────────────────────────
       - name: Upload GUI artifact
         uses: actions/upload-artifact@v7
         with:
           name: gui-${{ matrix.platform }}
+          # The `*` glob picks up the <installer>.sha256 sidecars
+          # generated above alongside the installers themselves, which
+          # is the same pairing the CLI job makes explicit. Both are
+          # needed: the installer is the artifact, the checksum is how
+          # a user proves the download is intact.
           path: ${{ env.gui_artifacts_dir }}/*
           if-no-files-found: error
           retention-days: 3
@@ -679,6 +780,42 @@ jobs:
       - name: List artifacts
         run: find artifacts -type f | sort
 
+      # A combined SHA256SUMS manifest, so a user can verify EVERY
+      # download with one command (`sha256sum -c SHA256SUMS`) instead of
+      # hunting for per-file checksum assets. The per-archive
+      # `<archive>.sha256` files are published too; this is the
+      # convenience aggregate.
+      - name: Generate combined SHA256SUMS manifest
+        shell: bash
+        run: |
+          cd artifacts
+          # Only real archives and installers get a checksum -- not the
+          # per-file .sha256 files themselves, and not this manifest.
+          # That falls out of the extension list: every pattern below
+          # requires a terminal archive/installer extension, and
+          # `<name>.dmg.sha256` / `SHA256SUMS` end in `.sha256` /
+          # `SHA256SUMS`, neither of which any `-name` glob matches. Do
+          # NOT "simplify" this by switching to a blanket
+          # `-name 'phenotype-fabric-*'`, which would checksum the
+          # sidecars into the manifest and then make each sidecar
+          # describe a file that no longer matches what it was computed
+          # from.
+          #
+          # This extension list is the definition of "a downloadable
+          # artifact" for the whole release. The build-gui job's
+          # sidecar step and the verification step below both repeat it;
+          # all three must stay in sync or an installer type ships
+          # unverifiable or the release blocks on a file it never made.
+          find . -maxdepth 1 -type f \
+            \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.AppImage' \
+               -o -name '*.deb' -o -name '*.dmg' -o -name '*.exe' -o -name '*.msi' \) \
+            -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          cat SHA256SUMS
+          if [ ! -s SHA256SUMS ]; then
+            echo "::error::SHA256SUMS is empty; no archives were found to checksum"
+            exit 1
+          fi
+
       # A release with zero (or partial) assets is worse than a failed
       # release: `softprops/action-gh-release` does NOT fail when `files:
       # artifacts/*` matches nothing, so the run on 2026-10-21 published
@@ -716,6 +853,104 @@ jobs:
             exit 1
           fi
           echo "All required release assets present."
+
+      # Every published archive must have a checksum, and a checksum
+      # that actually matches the archive it describes. A checksum file
+      # that does not match is worse than no checksum at all, because a
+      # user who verifies against it would be told their download is
+      # corrupt when it is fine.
+      - name: Verify every archive has a matching checksum
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd artifacts
+          failed=0
+
+          # 1. The combined manifest must exist and be non-empty.
+          if [ ! -s SHA256SUMS ]; then
+            echo "::error::SHA256SUMS is missing or empty"
+            exit 1
+          fi
+
+          # 2. Every archive and installer in the manifest must have a
+          #    per-file .sha256 sidecar.
+          while read -r sum name; do
+            [ -n "$name" ] || continue
+            if [ ! -f "${name}.sha256" ]; then
+              echo "::error::Missing per-file checksum: ${name}.sha256"
+              failed=1
+            fi
+          done < SHA256SUMS
+
+          # 3. Each sidecar must match the file it describes -- and so
+          #    must the manifest. Checking only the manifest leaves a
+          #    sidecar free to carry a stale digest: a user running
+          #    `sha256sum -c foo.deb.sha256` would be told their download
+          #    is corrupt when it is fine. Both have to agree with the
+          #    real bytes.
+          while read -r sum name; do
+            [ -n "$name" ] || continue
+            if [ ! -f "$name" ]; then
+              echo "::error::SHA256SUMS references a missing file: $name"
+              failed=1
+              continue
+            fi
+            actual="$(sha256sum "$name" | cut -d' ' -f1)"
+            if [ "$actual" != "$sum" ]; then
+              echo "::error::Checksum mismatch for $name"
+              echo "::error::  expected: $sum"
+              echo "::error::  actual:   $actual"
+              failed=1
+            fi
+            # Only compare when the sidecar is actually there: check 2
+            # already reports a missing one, and redirecting `cut` at a
+            # file that does not exist makes bash itself print a
+            # "No such file or directory" line that buries the real
+            # error in noise.
+            if [ -f "${name}.sha256" ]; then
+              sidecar_sum="$(cut -d' ' -f1 < "${name}.sha256")"
+              if [ "$sidecar_sum" != "$actual" ]; then
+                echo "::error::Per-file checksum mismatch for ${name}.sha256"
+                echo "::error::  actual bytes: $actual"
+                echo "::error::  sidecar says: $sidecar_sum"
+                failed=1
+              fi
+            fi
+          done < SHA256SUMS
+
+          # 4. Reverse coverage: every downloadable artifact sitting in
+          #    artifacts/ must appear in the manifest. Checks 2 and 3
+          #    only walk the manifest, so an artifact that was never
+          #    checksummed at all -- a new installer type added to a
+          #    collect step but not to the find expression above -- was
+          #    completely invisible to them and would ship with no
+          #    published checksum and no complaint.
+          #
+          #    The find expression MUST stay identical to the one in
+          #    "Generate combined SHA256SUMS manifest" above. Both use
+          #    `find .`, so both produce `./<name>` and compare cleanly.
+          #
+          #    Manifest names are the second whitespace-delimited field
+          #    of each line (sha256sum emits `<sum>  <name>`). Comparing
+          #    whole lines with a substring grep would let `foo.deb`
+          #    vouch for `foo.deb.signed`, so extract field 2 first.
+          manifest_names="$(awk '{print $2}' SHA256SUMS)"
+          while IFS= read -r -d '' artifact; do
+            if ! printf '%s\n' "$manifest_names" | grep -qxF -- "$artifact"; then
+              echo "::error::Artifact present in artifacts/ but not covered by SHA256SUMS: $artifact"
+              failed=1
+            fi
+          done < <(find . -maxdepth 1 -type f \
+            \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.AppImage' \
+               -o -name '*.deb' -o -name '*.dmg' -o -name '*.exe' -o -name '*.msi' \) \
+            -print0 | sort -z)
+
+          if [ "$failed" = "1" ]; then
+            echo "::error::One or more checksum files are missing or do not match."
+            exit 1
+          fi
+          echo "All $(wc -l < SHA256SUMS | tr -d ' ') published archives have a matching SHA-256 checksum."
 
       - name: Create release body
         id: body
@@ -757,6 +992,7 @@ jobs:
           | Linux x64 | `phenotype-fabric-gui-linux-x64.deb` |
           | Linux x64 | `phenotype-fabric-gui-linux-x64.AppImage` |
           | Windows x64 | `phenotype-fabric-gui-windows-x64.msi` |
+          | Windows x64 | `phenotype-fabric-gui-windows-x64.exe` |
 
           ## Build Identity
 
@@ -1087,6 +1323,18 @@ jobs:
           # Match the real asset-name format. Asset names are:
           #   CLI: phenotype-fabric-${TAG}-{platform}.{tar.gz|zip}
           #   GUI: phenotype-fabric-gui-{platform}.{AppImage|deb|dmg|exe|msi}
+          #   sidecars: <any of the above>.sha256
+          # The `phenotype-fabric-*.sha256` pattern is what brings the
+          # per-file sidecars down for BOTH job families -- CLI sidecars
+          # (phenotype-fabric-${TAG}-....tar.gz.sha256) and the GUI
+          # sidecars added by the build-gui job
+          # (phenotype-fabric-gui-....dmg.sha256), which share the
+          # `phenotype-fabric-` prefix. Without it the check below would
+          # be verifying the manifest against files it could not prove
+          # were individually verifiable for a user.
+          # SHA256SUMS itself does NOT match that glob (no
+          # `phenotype-fabric-` prefix), which is why it needs its own
+          # --pattern entry; the two do not overlap.
           # `gh release download` ORs multiple --pattern flags together
           # (verified empirically against v0.1.2 on 2026-10-21: a matching
           # .tar.gz pattern plus a non-matching .zip pattern still
@@ -1101,10 +1349,96 @@ jobs:
             --pattern 'phenotype-fabric-*.deb' \
             --pattern 'phenotype-fabric-*.dmg' \
             --pattern 'phenotype-fabric-*.exe' \
-            --pattern 'phenotype-fabric-*.msi'
+            --pattern 'phenotype-fabric-*.msi' \
+            --pattern 'phenotype-fabric-*.sha256' \
+            --pattern 'SHA256SUMS'
           echo "::group::Downloaded assets"
           find release-assets -type f | sort
           echo "::endgroup::"
+
+      # Verify the checksums against the artifacts as DOWNLOADED from the
+      # release page. This is the end-to-end proof that a user can
+      # actually verify what they downloaded: the manifest exists, it
+      # covers the archives, and every digest matches the real bytes
+      # that the registry served.
+      #
+      # No release before v0.1.7 published any checksum at all, so
+      # nothing in this repo had ever proven that a downloaded archive
+      # was intact.
+      - name: Verify published checksums match the downloaded assets
+        run: |
+          cd release-assets
+          failed=0
+
+          if [ ! -s SHA256SUMS ]; then
+            echo "::error::SHA256SUMS was not published to the release"
+            exit 1
+          fi
+
+          # The manifest lists archives by bare filename, so verify from
+          # the directory that holds them.
+          while read -r sum name; do
+            [ -n "$name" ] || continue
+            if [ ! -f "$name" ]; then
+              echo "::error::SHA256SUMS references a file not published: $name"
+              failed=1
+              continue
+            fi
+            actual="$(sha256sum "$name" | cut -d' ' -f1)"
+            if [ "$actual" != "$sum" ]; then
+              echo "::error::Checksum mismatch for $name"
+              echo "::error::  expected: $sum"
+              echo "::error::  actual:   $actual"
+              failed=1
+            else
+              echo "OK $name"
+            fi
+
+            # The release job already proved each sidecar matches before
+            # publishing; re-prove it against the bytes the release
+            # actually served, because a sidecar that was correct in the
+            # runner workspace can still be wrong on the release page.
+            # A published sidecar a user cannot trust is worse than no
+            # sidecar: it tells them their intact download is corrupt.
+            if [ ! -f "${name}.sha256" ]; then
+              echo "::error::Missing published per-file checksum: ${name}.sha256"
+              failed=1
+            else
+              sidecar_sum="$(cut -d' ' -f1 < "${name}.sha256" 2>/dev/null || true)"
+              if [ "$sidecar_sum" != "$actual" ]; then
+                echo "::error::Per-file checksum mismatch for ${name}.sha256"
+                echo "::error::  actual bytes: $actual"
+                echo "::error::  sidecar says: ${sidecar_sum:-<empty or unreadable>}"
+                failed=1
+              else
+                echo "OK ${name}.sha256"
+              fi
+            fi
+          done < SHA256SUMS
+
+          # Reverse coverage: every artifact actually served by the
+          # release must be in the manifest. The loop above only walks
+          # the manifest, so an artifact published WITHOUT a manifest
+          # entry -- a GUI installer whose sidecar step was skipped --
+          # would be invisible here and ship unverifiable. Same find
+          # expression as the release job; `find .` keeps the `./`
+          # prefix that SHA256SUMS entries carry.
+          manifest_names="$(awk '{print $2}' SHA256SUMS)"
+          while IFS= read -r -d '' artifact; do
+            if ! printf '%s\n' "$manifest_names" | grep -qxF -- "$artifact"; then
+              echo "::error::Published asset not covered by SHA256SUMS: $artifact"
+              failed=1
+            fi
+          done < <(find . -maxdepth 1 -type f \
+            \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.AppImage' \
+               -o -name '*.deb' -o -name '*.dmg' -o -name '*.exe' -o -name '*.msi' \) \
+            -print0 | sort -z)
+
+          if [ "$failed" = "1" ]; then
+            echo "::error::Published checksums do not match the published assets."
+            exit 1
+          fi
+          echo "All $(wc -l < SHA256SUMS | tr -d ' ') published assets match their published SHA-256 checksums."
 
       - name: Verify all 4 CLI archives present
         run: |

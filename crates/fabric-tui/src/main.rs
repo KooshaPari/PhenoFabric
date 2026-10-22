@@ -27,7 +27,11 @@ use ui::draw;
 // ---------------------------------------------------------------------------
 
 #[derive(clap::Parser)]
-#[command(name = "fabric-tui", about = "TUI dashboard for Phenotype Fabric")]
+#[command(
+    name = "fabric-tui",
+    about = "TUI dashboard for Phenotype Fabric",
+    version
+)]
 struct Cli {
     /// Connect to daemon wire server at this address
     #[arg(short, long, default_value = "127.0.0.1:9400")]

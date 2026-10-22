@@ -218,6 +218,17 @@ fn build_menu() -> Menu {
 }
 
 fn main() -> Result<()> {
+    // Handle `--version`/`-V` before any side effects: no tracing init, no tao
+    // event loop (which would block forever in a headless context). This crate
+    // deliberately has no `clap` dependency, so the check is hand-rolled.
+    if std::env::args()
+        .skip(1)
+        .any(|arg| arg == "--version" || arg == "-V")
+    {
+        println!("fabric-tray {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
