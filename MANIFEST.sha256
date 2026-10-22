@@ -808,6 +808,7 @@
   "docs/sessions/2026-10-21-docker-image-runtime-fix/02_V015_RELEASE.md": "eb20905e4ac7c0f60916f38c35ad9b1670a2f3b6a0d8950fc9b41ad7e1ecf9a4",
   "docs/sessions/2026-10-21-docker-image-runtime-fix/03_POST_RELEASE_ACCEPTANCE.md": "d7e0d67990f7dd46aab350795e609f7a8cc743422d0de5f4b896638d0f0f994b",
   "docs/sessions/2026-10-21-docker-image-runtime-fix/04_V016_RELEASE.md": "ca17bbeb0e4595f1601036787a21bbc1e1a00b1383178fe7f6854049222ef9df",
+  "docs/sessions/2026-10-22-release-platform-hardening/00_SESSION_OVERVIEW.md": "5c407ecc8c1a3fe7c77890866c99451e60f38581b6ff316a3312fa37c0ac4aca",
   "docs/sessions/20260914-branch-cleanup/01_AUDIT.md": "49a952d226bf5eaeda4bc451a57094733546b70ce8d6b3b13e52427fbeb6254e",
   "docs/sessions/20260914-branding-audit/01_AUDIT.md": "85a6a6834b4b8cbf38fb3b5144ed91897f014c0553b172decf6be6b12704eb63",
   "docs/sessions/20260916-2node-harness-feasibility/00_SESSION_OVERVIEW.md": "368ff2008f20965aaff3d3f26d9ef1ad1bad0319504217c22f86bae7c3261cbe",
