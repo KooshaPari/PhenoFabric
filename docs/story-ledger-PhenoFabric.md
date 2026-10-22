@@ -4,6 +4,8 @@ Extracted genesis (2026-09-01) to 2026-10-21: 556 commits, 11 merges, 8 active w
 
 Merge counts in the header cover every merge commit. Within each week, the story lists at most 5 `merge:` entries as a sample, so the listed entries can be fewer than the header total.
 
+Extraction method: `git log --all --no-renames` over a full mirror clone taken 2026-10-21, so counts cover every ref (all branches and replay branches), not only the default branch. They will exceed a count taken on a single branch or a shallow clone.
+
 Full ledger (all repos) lives in PhenoRegistry `ledger/`; raw per-commit JSONL on desk storage.
 
 ---
