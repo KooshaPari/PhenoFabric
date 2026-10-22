@@ -77,6 +77,15 @@ jobs:
       - name: Validate GitHub Actions workflows
         run: python3 program/scripts/check_workflows.py
 
+      # The static lint above cannot tell whether a checksum gate
+      # actually fails closed. This test extracts the real `run:` blocks
+      # out of release.yml and executes them against deliberately broken
+      # fixtures. It exists because three holes were found exactly this
+      # way: an orphan sidecar, a malformed manifest line, and duplicate
+      # manifest lines all passed the release gates with exit 0.
+      - name: Test release checksum gates fail closed
+        run: python3 program/scripts/test_release_checksums.py
+
       - name: Validate MANIFEST matches file tree
         run: python3 program/scripts/check_manifest.py
 

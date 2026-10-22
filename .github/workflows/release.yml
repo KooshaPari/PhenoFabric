@@ -890,13 +890,65 @@ jobs:
 
           # 2. Every archive and installer in the manifest must have a
           #    per-file .sha256 sidecar.
-          while read -r sum name; do
-            [ -n "$name" ] || continue
+          #
+          #    A manifest line is only usable if it has BOTH fields: a
+          #    64-hex digest and a filename. A line with only one field
+          #    is a truncated or malformed manifest, and skipping it
+          #    silently would let a corrupt manifest pass. The old
+          #    `[ -n "$name" ] || continue` guard treated such a line as
+          #    blank and dropped it, so `SHA256SUMS` with a truncated
+          #    line passed the gate AND the success message counted the
+          #    malformed line as an archive. Both are now errors.
+          #
+          #    The digest format is checked here too, so a manifest
+          #    carrying a non-hex digest is rejected at the source
+          #    rather than being compared as a string that happens to
+          #    differ from the real one.
+          manifest_count=0
+          while read -r sum name || [ -n "${sum}${name}" ]; do
+            # A blank line is harmless. A line with a digest but NO
+            # filename is a truncated or malformed manifest entry, and
+            # it must not be skipped: the old `[ -n "$name" ] || continue`
+            # guard dropped it, so `SHA256SUMS` with a truncated line
+            # passed the gate AND the success message counted the
+            # malformed line as an archive. Both are now errors.
+            if [ -z "$sum" ]; then
+              continue
+            fi
+            if [ -z "$name" ]; then
+              echo "::error::Malformed SHA256SUMS line (no filename): $sum"
+              failed=1
+              continue
+            fi
+            # The digest format is checked here too, so a manifest
+            # carrying a non-hex digest is rejected at the source
+            # rather than being compared as a string that happens to
+            # differ from the real one.
+            if ! printf '%s' "$sum" | grep -Eq '^[0-9a-f]{64}$'; then
+              echo "::error::Malformed SHA256SUMS line (bad digest): $sum"
+              failed=1
+              continue
+            fi
+            manifest_count=$((manifest_count + 1))
             if [ ! -f "${name}.sha256" ]; then
               echo "::error::Missing per-file checksum: ${name}.sha256"
               failed=1
             fi
           done < SHA256SUMS
+
+          # 2b. The manifest must not list the same artifact twice.
+          #     Duplicate lines are not an integrity bypass -- every line
+          #     is still byte-verified by check 3 -- but they inflate the
+          #     artifact count in the success message and make the
+          #     manifest ambiguous for a user reading it.
+          duplicate_count="$(awk '{print $2}' SHA256SUMS | grep -v '^$' | sort | uniq -d | wc -l | tr -d ' ')"
+          if [ "$duplicate_count" != "0" ]; then
+            echo "::error::SHA256SUMS lists $duplicate_count artifact(s) more than once:"
+            awk '{print $2}' SHA256SUMS | grep -v '^$' | sort | uniq -d | while IFS= read -r dup; do
+              echo "::error::  $dup"
+            done
+            failed=1
+          fi
 
           # 3. Each sidecar must match the file it describes -- and so
           #    must the manifest. Checking only the manifest leaves a
@@ -904,8 +956,14 @@ jobs:
           #    `sha256sum -c foo.deb.sha256` would be told their download
           #    is corrupt when it is fine. Both have to agree with the
           #    real bytes.
-          while read -r sum name; do
-            [ -n "$name" ] || continue
+          while read -r sum name || [ -n "${sum}${name}" ]; do
+            if [ -z "$sum" ]; then
+              continue
+            fi
+            if [ -z "$name" ]; then
+              # Malformed line; check 2 already reported it.
+              continue
+            fi
             if [ ! -f "$name" ]; then
               echo "::error::SHA256SUMS references a missing file: $name"
               failed=1
@@ -961,11 +1019,35 @@ jobs:
                -o -name '*.deb' -o -name '*.dmg' -o -name '*.exe' -o -name '*.msi' \) \
             -print0 | sort -z)
 
+          # 5. Reverse coverage for SIDECARS. The loop above enumerates
+          #    only the seven archive/installer extensions, so a `.sha256`
+          #    file is never in its find set; and checks 2 and 3 iterate
+          #    the MANIFEST, which a sidecar never appears in. A sidecar
+          #    describing a file that does not exist was therefore
+          #    invisible to every check and the gate exited 0.
+          #
+          #    That is not a cosmetic hole. The post-publish download
+          #    glob is `phenotype-fabric-*.sha256`, so a stale sidecar
+          #    for a removed installer (say a Windows .msi that is no
+          #    longer built) gets published to the release page, and a
+          #    user who runs `sha256sum -c` on it is pointed at a file
+          #    that is not there.
+          #
+          #    Every sidecar must therefore have a subject: strip the
+          #    `.sha256` suffix and require the remaining file to exist.
+          while IFS= read -r -d '' sidecar; do
+            subject="${sidecar%.sha256}"
+            if [ ! -f "$subject" ]; then
+              echo "::error::Checksum sidecar has no matching file: $sidecar (expected $subject)"
+              failed=1
+            fi
+          done < <(find . -maxdepth 1 -type f -name '*.sha256' -print0 | sort -z)
+
           if [ "$failed" = "1" ]; then
             echo "::error::One or more checksum files are missing or do not match."
             exit 1
           fi
-          echo "All $(wc -l < SHA256SUMS | tr -d ' ') published archives have a matching SHA-256 checksum."
+          echo "All $manifest_count published archives have a matching SHA-256 checksum."
 
       - name: Create release body
         id: body
@@ -1392,8 +1474,29 @@ jobs:
 
           # The manifest lists archives by bare filename, so verify from
           # the directory that holds them.
-          while read -r sum name; do
-            [ -n "$name" ] || continue
+          #
+          # A manifest line must have BOTH a 64-hex digest and a
+          # filename. A single-field line is a truncated or malformed
+          # manifest; the old `[ -n "$name" ] || continue` guard dropped
+          # it silently, so a corrupt manifest passed this gate and the
+          # success message counted the malformed line as an asset.
+          # Malformed lines and duplicate listings are both errors now.
+          manifest_count=0
+          while read -r sum name || [ -n "${sum}${name}" ]; do
+            if [ -z "$sum" ]; then
+              continue
+            fi
+            if [ -z "$name" ]; then
+              echo "::error::Malformed SHA256SUMS line (no filename): $sum"
+              failed=1
+              continue
+            fi
+            if ! printf '%s' "$sum" | grep -Eq '^[0-9a-f]{64}$'; then
+              echo "::error::Malformed SHA256SUMS line (bad digest): $sum"
+              failed=1
+              continue
+            fi
+            manifest_count=$((manifest_count + 1))
             if [ ! -f "$name" ]; then
               echo "::error::SHA256SUMS references a file not published: $name"
               failed=1
@@ -1449,11 +1552,36 @@ jobs:
                -o -name '*.deb' -o -name '*.dmg' -o -name '*.exe' -o -name '*.msi' \) \
             -print0 | sort -z)
 
+          # Reverse coverage for SIDECARS, and a duplicate-listing
+          # check. The loop above enumerates only the seven
+          # archive/installer extensions, so a published `.sha256` is
+          # never in its find set; and the manifest walk never sees a
+          # sidecar either. A published sidecar whose subject was not
+          # published was therefore invisible to every check here --
+          # and it IS published, because the download glob above
+          # matches `phenotype-fabric-*.sha256`.
+          while IFS= read -r -d '' sidecar; do
+            subject="${sidecar%.sha256}"
+            if [ ! -f "$subject" ]; then
+              echo "::error::Published checksum sidecar has no matching file: $sidecar (expected $subject)"
+              failed=1
+            fi
+          done < <(find . -maxdepth 1 -type f -name '*.sha256' -print0 | sort -z)
+
+          duplicate_count="$(awk '{print $2}' SHA256SUMS | grep -v '^$' | sort | uniq -d | wc -l | tr -d ' ')"
+          if [ "$duplicate_count" != "0" ]; then
+            echo "::error::SHA256SUMS lists $duplicate_count asset(s) more than once:"
+            awk '{print $2}' SHA256SUMS | grep -v '^$' | sort | uniq -d | while IFS= read -r dup; do
+              echo "::error::  $dup"
+            done
+            failed=1
+          fi
+
           if [ "$failed" = "1" ]; then
             echo "::error::Published checksums do not match the published assets."
             exit 1
           fi
-          echo "All $(wc -l < SHA256SUMS | tr -d ' ') published assets match their published SHA-256 checksums."
+          echo "All $manifest_count published assets match their published SHA-256 checksums."
 
       - name: Verify all 4 CLI archives present
         run: |
