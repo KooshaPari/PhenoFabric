@@ -94,6 +94,20 @@ jobs:
       - name: Test Docker manifest architecture check fails closed
         run: bash scripts/acceptance/test_docker_manifest_archs.sh
 
+      # The release workflow declares its platforms twice: once in the
+      # build matrix, and once in the fail-closed required-asset gate
+      # that refuses to publish a release missing one. Nothing links the
+      # two lists, so they can drift: a platform that is built but not
+      # required can ship broken and the gate will not notice, and a
+      # platform that is required but not built fails the release at TAG
+      # time rather than at PR time.
+      #
+      # This test compares the two lists directly and also asserts the
+      # mandatory platform set, so a platform cannot be quietly dropped
+      # from the matrix.
+      - name: Test release platform lists agree
+        run: python3 program/scripts/test_release_platforms.py
+
       - name: Validate MANIFEST matches file tree
         run: python3 program/scripts/check_manifest.py
 

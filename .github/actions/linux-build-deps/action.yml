@@ -2,73 +2,69 @@ name: Install Linux build dependencies
 description: |
   Install the system libraries PhenoFabric Linux builds need.
 
+  Every Linux build in this repository is NATIVE: the runner hosts the
+  target architecture, so the packages are installed with no
+  architecture suffix.
+
   Covers:
   - CLI x86_64: fabric-tray (libappindicator via gtk), glib, xdo,
     xcb/xkbcommon/wayland.
-  - CLI aarch64 (cross): same set, :arm64-arch.
+  - CLI aarch64: same set. On an arm64 host the packages are already
+    the right architecture, and apt REJECTS an explicit `:arm64` suffix
+    for the host's OWN architecture.
   - GUI: WebKit2GTK, librsvg, patchelf, plus the CLI set.
 
-  Both [Install Linux GUI dependencies] and [Install cross-compilation
-  tools] were missing the glib/appindicator/xdo set on Linux x86_64 and
-  aarch64. The GUI apt list had both libappindicator3-dev and the
-  ayatana fork, which conflict on Ubuntu 22.04+ (GitHub runner); the
-  ayatana fork is the maintained successor and is kept here alone.
+  The `arch` input was removed. It selected between a native install
+  and an x86_64 -> arm64 cross-compile, and the cross-compile path is
+  now dead: Linux aarch64 is built on a native `ubuntu-24.04-arm`
+  runner. Keeping a dead input that silently does nothing is worse
+  than removing it.
 
-inputs:
-  arch:
-    description: |
-      'host' for native x86_64 builds, 'arm64' for aarch64 cross-compile.
-      Defaults to 'host'.
-    required: false
-    default: 'host'
+  History: the cross-compile path existed because the x86_64
+  `ubuntu-latest` runner cannot fetch the arm64 package indexes. The
+  old root-cause comment got it wrong: `archive.ubuntu.com` does not
+  publish `binary-arm64` AT ALL (it 404s for that path permanently);
+  arm64 packages live on `ports.ubuntu.com/ubuntu-ports`. That mirror
+  only helps a native arm64 host, which is why the cross-compile leg
+  could never work and was removed rather than repaired.
+
+  Also worth recording: the GUI apt list once had both
+  `libappindicator3-dev` and the ayatana fork, which conflict on
+  Ubuntu 22.04+ (the GitHub runner). The ayatana fork is the
+  maintained successor and is used here alone.
 
 runs:
   using: composite
   steps:
-    - name: Add arm64 architecture (cross-compile only)
-      if: inputs.arch == 'arm64'
-      shell: bash
-      run: sudo dpkg --add-architecture arm64
-
     - name: apt-get update
       shell: bash
       run: |
-        # GitHub-hosted arm64 cross-compile runners can 404 on the
-        # security/archive mirror arm64 indexes; the build doesn't need
-        # security-patched runtime libs, so we tolerate the 404 and
-        # continue with whatever indexes the archive mirror did return.
-        set +e
-        sudo apt-get update
-        rc=$?
-        if [ $rc -ne 0 ]; then
-          echo "apt-get update exited $rc; arm64 security/archive mirrors may have 404'd."
-          echo "Rewriting sources to only the archive mirror (no security pocket)."
-          # Remove the deb822 sources file entirely so apt can't try to
-          # parse it as deb822, then write a fresh legacy one-line
-          # sources.list with only the archive mirror (archive.ubuntu.com
-          # has full arm64 coverage; security.ubuntu.com does not).
-          sudo rm -f /etc/apt/sources.list.d/ubuntu.sources
-          sudo rm -f /etc/apt/sources.list.d/*ubuntu*.sources
-          # Disable any deb822 sources for ubuntu from the legacy
-          # sources.list (should be a no-op on Ubuntu 24.04 which uses
-          # .d/, but belt and suspenders).
-          if [ -f /etc/apt/sources.list ]; then
-            sudo sed -i '/noble-security\|noble-updates\|noble-backports/d' /etc/apt/sources.list || true
-          fi
-          # Write a clean legacy-style sources.list. Apt 2.x supports
-          # both legacy and deb822 formats; the legacy one-line format
-          # is the simplest to get right without deb822 edge cases.
-          # Use printf with a literal newline (avoids heredoc YAML
-          # indentation pitfalls) to ensure the line is a single
-          # \n-terminated entry in old-style deb format.
-          printf 'deb [arch=amd64,arm64] http://azure.archive.ubuntu.com/ubuntu noble main universe restricted multiverse\n' | sudo tee /etc/apt/sources.list.d/ubuntu.list > /dev/null
-          sudo apt-get update
+        # On a native arm64 runner (ubuntu-24.04-arm) apt already points
+        # at ports.ubuntu.com/ubuntu-ports, which is the mirror that
+        # actually publishes the arm64 indexes. `archive.ubuntu.com`
+        # does NOT publish `binary-arm64` AT ALL -- it returns 404 for
+        # that path permanently -- so a native arm64 host must not be
+        # rewritten to use it.
+        #
+        # The previous implementation tolerated a failing `apt-get
+        # update` and rewrote the sources to the archive mirror. That
+        # was a fail-open: an apt failure that was NOT a mirror problem
+        # would have been swallowed, and the subsequent install would
+        # have failed with a much less diagnosable error. The install
+        # list below is fully satisfiable from the native mirror on
+        # both architectures, so a failure here is a real failure and
+        # must stop the job.
+        if [ "$(dpkg --print-architecture)" = "arm64" ]; then
+          echo "Native arm64 host: apt sources already point at the arm64 mirror."
         fi
+        sudo apt-get update
 
-    - name: Install system libraries (host, x86_64)
-      if: inputs.arch == 'host'
+    - name: Install system libraries
       shell: bash
       run: |
+        # Installed WITHOUT an architecture suffix. On an arm64 host the
+        # packages are already the right architecture, and apt REJECTS an
+        # explicit `:arm64` suffix for the host's own architecture.
         sudo apt-get install -y --no-install-recommends \
           libxcb-render0-dev \
           libxcb-shape0-dev \
@@ -81,18 +77,3 @@ runs:
           libwebkit2gtk-4.1-dev \
           librsvg2-dev \
           patchelf
-
-    - name: Install system libraries (aarch64 cross)
-      if: inputs.arch == 'arm64'
-      shell: bash
-      run: |
-        sudo apt-get install -y --no-install-recommends \
-          gcc-aarch64-linux-gnu \
-          libxcb-render0-dev:arm64 \
-          libxcb-shape0-dev:arm64 \
-          libxcb-xfixes0-dev:arm64 \
-          libxkbcommon-dev:arm64 \
-          libwayland-dev:arm64 \
-          libgtk-3-dev:arm64 \
-          libxdo-dev:arm64 \
-          libayatana-appindicator3-dev:arm64

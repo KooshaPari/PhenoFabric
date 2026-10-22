@@ -437,8 +437,6 @@ jobs:
 
       - name: Install Linux build dependencies (x86_64)
         uses: ./.github/actions/linux-build-deps
-        with:
-          arch: host
 
       # ── A: the archive this commit would ship ─────────────────────────
       - name: Build release binaries (linux-x86_64)
@@ -651,6 +649,7 @@ jobs:
   #
   # The matrix deliberately covers one target per platform:
   #   linux-x86_64   -> the primary Linux user base
+  #   linux-aarch64  -> ARM64 Linux, built natively on an arm64 runner
   #   macos-aarch64  -> Apple Silicon, the dominant macOS user base
   #   macos-x86_64   -> Intel Macs, which the release also ships
   #   windows-x86_64 -> the primary Windows user base
@@ -659,6 +658,11 @@ jobs:
   # macos-13 image no longer matches a runner (2026-10-15 observation:
   # the job sat queued for 21+ hours without erroring). release.yml uses
   # the same image for the same target, so the two stay consistent.
+  #
+  # linux-aarch64 runs on `ubuntu-24.04-arm`, a NATIVE arm64 hosted
+  # runner. The acceptance script runs the real binaries on the host, so
+  # this is genuine native arm64 evidence, not emulation. The same
+  # runner label is used by release.yml for the same target.
   native-acceptance:
     name: Native acceptance ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
@@ -670,6 +674,9 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             platform: linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            platform: linux-aarch64
           - target: aarch64-apple-darwin
             os: macos-latest
             platform: macos-aarch64
@@ -699,10 +706,12 @@ jobs:
           restore-keys: ${{ runner.os }}-${{ matrix.platform }}-native-acceptance-
 
       - name: Install Linux build dependencies
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        # Native host install for both Linux targets. On an arm64 host
+        # the packages are installed WITHOUT an `:arm64` suffix: apt
+        # only accepts an explicit architecture suffix for a FOREIGN
+        # architecture, so `libgtk-3-dev:arm64` is rejected there.
+        if: startsWith(matrix.target, 'x86_64-unknown-linux-gnu') || startsWith(matrix.target, 'aarch64-unknown-linux-gnu')
         uses: ./.github/actions/linux-build-deps
-        with:
-          arch: host
 
       - name: Build release binaries
         shell: bash

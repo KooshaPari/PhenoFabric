@@ -57,12 +57,36 @@ jobs:
             os: ubuntu-latest
             archive_ext: tar.gz
             platform: linux-x86_64
-          # linux-aarch64 disabled: GitHub-hosted ubuntu-latest runners
-          # (canadaeast) cannot reach the arm64 package indexes
-          # (security.ubuntu.com and azure.archive.ubuntu.com both 404
-          # on /dists/noble/{main,universe,...}/binary-arm64/Packages).
-          # Re-enable when a fix is available, or move to ubuntu-24.04-arm
-          # native arm64 runner. See session 2026-10-15-v012-retag-and-build-debt.
+          # linux-aarch64 is built NATIVELY on a `ubuntu-24.04-arm`
+          # runner (native arm64 hosted runners are free for public
+          # repositories).
+          #
+          # It was previously disabled because the x86_64 `ubuntu-latest`
+          # runner cannot reach the arm64 package indexes. The
+          # root cause was NOT a mirror outage, and the previous
+          # comment in this file got it wrong: `archive.ubuntu.com`
+          # does not publish `binary-arm64` AT ALL -- it returns 404
+          # for that path permanently. arm64 packages live on a
+          # separate mirror, `ports.ubuntu.com/ubuntu-ports`, which
+          # serves `dists/noble/main/binary-arm64/Packages.gz` with
+          # HTTP 200 (verified 2026-10-22).
+          #
+          # GitHub's own ARM64 runner image uses that mirror: see
+          # actions/runner-images `images/ubuntu/scripts/build/configure-apt.sh`,
+          # which says "22.04 and 24.04 arm64 ... are served by
+          # ports.ubuntu.com, which the mirror list does not cover".
+          # So on a native `ubuntu-24.04-arm` runner apt already
+          # points at the mirror that carries arm64 packages, and no
+          # `dpkg --add-architecture arm64` cross-compile dance is
+          # needed.
+          #
+          # All 11 required build dependencies were confirmed present
+          # in the noble arm64 indexes (main + universe) on
+          # 2026-10-22.
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            archive_ext: tar.gz
+            platform: linux-aarch64
           # macos-13 (x86_64) was retired 2025-09-19; replacement
           # is macos-15-intel. (Observed 2026-10-15: macos-13 jobs
           # were stuck queued for 21+ hours — the runner image no
@@ -104,24 +128,17 @@ jobs:
           restore-keys: release-cli-${{ matrix.platform }}-
 
       # ── Linux dependencies ────────────────────────────────────────────
-      - name: Install Linux build dependencies (x86_64)
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
+      - name: Install Linux build dependencies (native host)
+        # On a native runner -- including `ubuntu-24.04-arm` -- the
+        # host IS the target architecture. The packages are installed
+        # with no architecture suffix: apt only accepts an explicit
+        # `:arch` suffix for a FOREIGN architecture, so `libgtk-3-dev:arm64`
+        # is rejected on an arm64 host.
+        #
+        # The composite action installs the plain package names, which is
+        # exactly what a native arm64 host needs.
+        if: startsWith(matrix.target, 'x86_64-unknown-linux-gnu') || startsWith(matrix.target, 'aarch64-unknown-linux-gnu')
         uses: ./.github/actions/linux-build-deps
-        with:
-          arch: host
-
-      - name: Install Linux build dependencies (aarch64 cross)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        uses: ./.github/actions/linux-build-deps
-        with:
-          arch: arm64
-
-      - name: Set cross-compilation env (Linux aarch64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        shell: bash
-        run: |
-          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
 
       # ── Build ─────────────────────────────────────────────────────────
       - name: Extract version from tag
@@ -348,8 +365,6 @@ jobs:
       - name: Install Linux build dependencies
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         uses: ./.github/actions/linux-build-deps
-        with:
-          arch: host
 
       # ── Install Node.js (required by Tauri CLI) ──────────────────────
       - name: Setup Node.js
@@ -569,11 +584,17 @@ jobs:
     outputs:
       identity: ${{ steps.identity.outputs.identity }}
 
-  # ── Build Docker image once (matrix-free), push from artifact ────────
-  # Closes the docker half of gap 1 (exact-byte-promotion). The image is
-  # built in this job and saved as a tar artifact; the downstream `docker`
-  # job only loads and pushes. This guarantees the published image bytes
-  # are the ones built here, not a fresh rebuild in a different runner.
+  # ── Build Docker image once (matrix-free), natively ─────────────────
+  # This job is the NATIVE amd64 gate: it builds the image on an amd64
+  # runner and asserts that both binaries load and run inside it, so a
+  # tag can only be cut on a commit whose Docker image is already proven
+  # to work.
+  #
+  # It no longer saves the image as a tar artifact. The multi-arch
+  # publish in the `docker` job builds its own image from the same
+  # Dockerfile, so the tar had no consumer; keeping it only left a
+  # large, unused artifact in every run -- and a `docker-image` artifact
+  # had already leaked into a published release once.
   docker-build:
     name: Build Docker image
     runs-on: ubuntu-latest
@@ -593,8 +614,15 @@ jobs:
     # cut on a commit whose Docker image is already proven to work. That
     # makes this job a genuine gate rather than a best-effort side effect:
     # a red Docker build is a real defect, not an expected outcome.
-    outputs:
-      identity: ${{ needs.identity.outputs.identity }}
+    #
+    # This job exposes no outputs. It used to publish an `identity`
+    # output, but that output was the RAW lockfile hash while the tag
+    # built from it was the `build-<hash>` string, so any consumer that
+    # read `outputs.identity` and re-applied the `build-` prefix
+    # produced `build-build-<hash>`. Nothing reads it now: the publish
+    # job and the verifier both build the tag from
+    # `needs.identity.outputs.identity` directly, so there is exactly
+    # one expression for the tag in the whole workflow.
     steps:
       - uses: actions/checkout@v7
 
@@ -626,9 +654,7 @@ jobs:
         id: tags
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          IDENTITY_TAG="build-${{ needs.identity.outputs.identity }}"
           echo "primary=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "identity=${IDENTITY_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Build image (load to local, do not push)
         uses: docker/build-push-action@v7
@@ -640,19 +666,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Save image to tar
-        run: |
-          docker save \
-            -o phenotype-fabric-image.tar \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}
-          ls -la phenotype-fabric-image.tar
-
       - name: Verify the built image's binaries load and run
         # A built image is not a working image. A binary that is present
         # but cannot load -- for example because a shared library such as
         # libssl.so.3 is missing from the runtime stage -- would be
         # published to the registry as a broken image. Run both binaries
-        # inside the image before the tar is uploaded, so the published
+        # inside the image before this job passes, so the published
         # bytes are proven to work.
         run: |
           set -uo pipefail
@@ -730,14 +749,6 @@ jobs:
           scripts/acceptance/docker_acceptance.sh \
             "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}"
 
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: docker-image
-          path: phenotype-fabric-image.tar
-          retention-days: 1
-          if-no-files-found: error
-
   # ── Create GitHub Release ───────────────────────────────────────────
   github-release:
     name: Create GitHub Release
@@ -768,6 +779,13 @@ jobs:
         # release because of `pattern: "*"` + `merge-multiple: true`. Filter to
         # the artifacts we actually want so a leaked docker-image never
         # pollutes the release.
+        #
+        # The `docker-build` job no longer produces that artifact at all
+        # (the multi-arch publish builds its own image, so the amd64 tar
+        # had no consumer). The filter is kept as defence in depth: the
+        # pattern is the thing that stops a future artifact from leaking
+        # into the release, and removing the filter because the known
+        # offender is gone would remove the guard for the next one.
         uses: actions/download-artifact@v8
         with:
           path: artifacts
@@ -844,6 +862,7 @@ jobs:
           missing=0
           for required in \
             "phenotype-fabric-${RELEASE_TAG}-linux-x86_64.tar.gz" \
+            "phenotype-fabric-${RELEASE_TAG}-linux-aarch64.tar.gz" \
             "phenotype-fabric-${RELEASE_TAG}-macos-x86_64.tar.gz" \
             "phenotype-fabric-${RELEASE_TAG}-macos-aarch64.tar.gz" \
             "phenotype-fabric-${RELEASE_TAG}-windows-x86_64.zip" \
@@ -1070,15 +1089,16 @@ jobs:
           | Platform | Archive |
           |----------|---------|
           | Linux x86_64 | `phenotype-fabric-TAG-linux-x86_64.tar.gz` |
+          | Linux ARM64 | `phenotype-fabric-TAG-linux-aarch64.tar.gz` |
           | macOS x64 | `phenotype-fabric-TAG-macos-x86_64.tar.gz` |
           | macOS ARM64 | `phenotype-fabric-TAG-macos-aarch64.tar.gz` |
           | Windows x64 | `phenotype-fabric-TAG-windows-x86_64.zip` |
 
-          > Linux aarch64 cross-build is currently disabled because
-          > GitHub-hosted runners in canadaeast cannot reach the
-          > arm64 package indexes (security/archive mirrors 404 on
-          > /dists/noble/.../binary-arm64/Packages). Re-enable when
-          > the environment issue is resolved.
+          > Every archive above was built and exercised on a runner
+          > that natively hosts its target platform. Linux ARM64 is
+          > built on an `ubuntu-24.04-arm` runner; the Docker arm64
+          > image is the one exception, and it is built under QEMU
+          > emulation and labelled as such below.
 
           ## Desktop GUI
 
@@ -1262,7 +1282,7 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
-  # ── Docker image (load from artifact built by docker-build, then push) ──
+  # ── Docker image (multi-arch publish; native gate in docker-build) ──
   docker:
     name: Push Docker image
     runs-on: ubuntu-latest
@@ -1274,11 +1294,31 @@ jobs:
     # budget the arm64 build would be killed mid-compile and the job
     # would fail for a reason that has nothing to do with the image.
     timeout-minutes: 90
-    needs: [docker-build]
+    # `identity` is a DIRECT dependency, not just reachable through
+    # `docker-build`. The cross-reference tag `build-<hash>` is built
+    # from `needs.identity.outputs.identity`, and GitHub only exposes
+    # the outputs of a job listed in `needs`. The `docker-build` job
+    # used to re-export that value as its own `identity` output, but
+    # that output was the RAW hash while the tag built from it was the
+    # `build-<hash>` string, so reading `outputs.identity` and
+    # re-applying the prefix produced `build-build-<hash>`. Depending
+    # on `identity` directly removes the extra hop and gives the
+    # workflow exactly ONE expression for the tag.
+    needs: [docker-build, identity]
     environment: production
     # The upstream `docker-build` job is now a hard gate: it builds the
     # image and asserts that both binaries load and run inside it, so a
     # failure there is a genuine defect and must not be published.
+    #
+    # This job therefore DEPENDS on `docker-build` rather than running
+    # beside it, and that ordering is deliberate even though it means
+    # the amd64 half of the workspace is compiled twice per release
+    # (once natively by `docker-build`, once inside this multi-arch
+    # build). If the two jobs ran in parallel, a broken amd64 image
+    # could still be pushed to the registry before `docker-build`
+    # reported the defect, leaving a broken image published under the
+    # release tag for anyone who pulls it directly. Not publishing a
+    # known-bad image is worth one extra compile.
     #
     # This job stays best-effort for a different reason: pushing to the
     # GitHub Container Registry needs a token that may be absent from a
@@ -1363,11 +1403,27 @@ jobs:
           # mistaken for a real image entry.
           provenance: false
           sbom: false
+          # ── Tag set ─────────────────────────────────────────────────
+          # `build-<identity>` is the CROSS-REFERENCE tag: it names the
+          # exact lockfile this image was built from, so a user can
+          # tie a running container back to a source tree.
+          #
+          # The `-amd64` / `-arm64` tags are deliberately NOT published
+          # from this multi-arch build. A single `build-push-action`
+          # invocation with `platforms: linux/amd64,linux/arm64` pushes
+          # the SAME manifest list to every tag it is given. Tagging
+          # that list `:v1.2.3-amd64` would publish a manifest list
+          # that contains BOTH architectures under a name that claims
+          # to be amd64-only. A user pulling that tag on an arm64 host
+          # would silently get the arm64 image, and a user pulling it on
+          # amd64 would get a manifest that does not match its name.
+          # The name has to describe the contents or it is a lie.
+          #
+          # Per-architecture tags, if they are ever wanted, must be
+          # produced by a separate single-platform push.
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ needs.docker-build.outputs.identity }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ needs.identity.outputs.identity }}
           cache-from: type=gha,scope=multiarch
           cache-to: type=gha,mode=max,scope=multiarch
 
@@ -1615,11 +1671,11 @@ jobs:
           fi
           echo "All $manifest_count published assets match their published SHA-256 checksums."
 
-      - name: Verify all 4 CLI archives present
+      - name: Verify all 5 CLI archives present
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           missing=0
-          for platform in linux-x86_64 macos-x86_64 macos-aarch64 windows-x86_64; do
+          for platform in linux-x86_64 linux-aarch64 macos-x86_64 macos-aarch64 windows-x86_64; do
             if [ "$platform" = "windows-x86_64" ]; then
               ext="zip"
             else
@@ -1650,29 +1706,46 @@ jobs:
           # Must match EXPECTED_RELEASE_BINS in the build/package job.
           EXPECTED="fabric fabric-daemon fabric-tui fabric-tray fabric-graph-cli"
           failed=0
-          for platform in linux-x86_64 macos-x86_64 macos-aarch64; do
-            archive="release-assets/phenotype-fabric-${TAG}-${platform}.tar.gz"
+          #
+          # Every published platform goes through the SAME loop. This
+          # used to special-case Windows in a separate hand-written
+          # block with a hardcoded archive name, which meant the
+          # Windows archive's contents were checked by a code path
+          # that no list could audit: adding a platform to the matrix
+          # did not add it to the contents check, and nothing failed.
+          #
+          # One loop, one list, every platform. The archive extension is
+          # derived from the platform the same way the existence check
+          # derives it, so the two cannot disagree about what a
+          # platform's archive is called.
+          for platform in linux-x86_64 linux-aarch64 macos-x86_64 macos-aarch64 windows-x86_64; do
+            if [ "$platform" = "windows-x86_64" ]; then
+              ext="zip"
+            else
+              ext="tar.gz"
+            fi
+            archive="release-assets/phenotype-fabric-${TAG}-${platform}.${ext}"
+            # A missing archive is the EXISTENCE check's job, not this
+            # one. Skip it here rather than failing twice for the same
+            # underlying problem.
             [ -f "$archive" ] || continue
-            listing=$(tar tzf "$archive")
+            if [ "$ext" = "zip" ]; then
+              listing=$(unzip -l "$archive")
+              # Windows binaries carry a .exe suffix.
+              suffix=".exe"
+            else
+              listing=$(tar tzf "$archive")
+              suffix=""
+            fi
             for bin in $EXPECTED; do
-              if ! printf '%s\n' "$listing" | grep -qE "/${bin}$"; then
-                echo "::error::${archive} does not contain expected binary '${bin}'"
+              if ! printf '%s\n' "$listing" | grep -qE "/${bin}${suffix}$"; then
+                echo "::error::${archive} does not contain expected binary '${bin}${suffix}'"
                 failed=1
               fi
             done
             echo "---- ${archive} ----"
             printf '%s\n' "$listing"
           done
-          zip_archive="release-assets/phenotype-fabric-${TAG}-windows-x86_64.zip"
-          if [ -f "$zip_archive" ]; then
-            listing=$(unzip -l "$zip_archive")
-            for bin in $EXPECTED; do
-              if ! printf '%s\n' "$listing" | grep -qE "${bin}\.exe"; then
-                echo "::error::${zip_archive} does not contain expected binary '${bin}.exe'"
-                failed=1
-              fi
-            done
-          fi
           if [ "$failed" = "1" ]; then
             echo "::error::One or more release archives are missing expected binaries; the release artifact is not usable."
             exit 1
