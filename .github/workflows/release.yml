@@ -32,12 +32,23 @@ jobs:
     timeout-minutes: 40
     # macos-x86_64 builds previously ran on the macos-13 runner
     # image, which was retired 2025-09-19. The workflow now uses
-    # macos-15-intel (see matrix include below). The job is also
-    # marked best-effort so a future retirement of macos-15-intel
-    # doesn't block the v0.1.2 release; linux-x86_64, macos-aarch64,
-    # and windows-x86_64 ship on every release. The matrix entry
-    # sets `continue_on_error: true` to opt in.
-    continue-on-error: ${{ matrix.continue_on_error == true }}
+    # macos-15-intel (see matrix include below).
+    #
+    # macOS x86_64 is a REQUIRED release platform, so this job is a
+    # hard gate: there is no `continue_on_error` opt-in any more. The
+    # previous best-effort marker was a leftover from when macos-13
+    # did not exist and the x86_64 build could not run at all; it
+    # predates the runner retirement being fixed.
+    #
+    # The release itself was already fail-closed for this platform --
+    # the `github-release` job requires
+    # `phenotype-fabric-${TAG}-macos-x86_64.tar.gz` to be present and
+    # refuses to publish without it -- but the failure surfaced there,
+    # as a missing-asset error in the release job, rather than at the
+    # build that actually broke. v0.1.6 (2026-10-21) published the
+    # macOS x86_64 CLI archive AND the macOS x86_64 GUI .dmg from
+    # macos-15-intel, so the platform is demonstrably buildable and
+    # the exemption is not needed.
     strategy:
       fail-fast: false
       matrix:
@@ -57,14 +68,13 @@ jobs:
           # were stuck queued for 21+ hours — the runner image no
           # longer exists, but GitHub didn't error out, it just never
           # matched a runner.) Use macos-15-intel so the job actually
-          # starts. The matrix entry sets `continue_on_error: true`
-          # so a future retirement of macos-15-intel doesn't block
-          # the whole release.
+          # starts. macOS x86_64 is a REQUIRED platform, so this entry
+          # deliberately has no `continue_on_error` marker: a failure
+          # here must fail the release, not skip it.
           - target: x86_64-apple-darwin
             os: macos-15-intel
             archive_ext: tar.gz
             platform: macos-x86_64
-            continue_on_error: true
           - target: aarch64-apple-darwin
             os: macos-latest
             archive_ext: tar.gz
@@ -285,11 +295,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     # macos-x64 GUI ran on the retired macos-13 image; the workflow
-    # now uses macos-15-intel. The job is best-effort so the v0.1.2
-    # release can ship on linux-x64, macos-arm64, and windows-x64;
-    # x86_64 macOS GUI users stay on v0.1.1 until pool recovers.
-    # The matrix entry sets `continue_on_error: true` to opt in.
-    continue-on-error: ${{ matrix.continue_on_error == true }}
+    # now uses macos-15-intel. macOS x86_64 is a REQUIRED release
+    # platform, so this job is a hard gate: the previous best-effort
+    # marker predated the runner retirement being fixed and predates
+    # the `github-release` job's required-asset check for
+    # `phenotype-fabric-gui-macos-x64.dmg`.
+    #
+    # v0.1.6 (2026-10-21) published the macOS x86_64 GUI .dmg from
+    # macos-15-intel, so the platform is demonstrably buildable.
     strategy:
       fail-fast: false
       matrix:
@@ -299,10 +312,12 @@ jobs:
             platform: macos-arm64
           # macos-13 (x86_64) was retired 2025-09-19; replacement
           # is macos-15-intel. See CLI build matrix for context.
+          # macOS x86_64 is a REQUIRED platform, so this entry
+          # deliberately has no `continue_on_error` marker: a failure
+          # here must fail the release, not skip it.
           - target: x86_64-apple-darwin
             os: macos-15-intel
             platform: macos-x64
-            continue_on_error: true
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             platform: linux-x64
