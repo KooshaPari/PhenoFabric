@@ -2,6 +2,8 @@
 
 Extracted genesis (2026-09-01) to 2026-10-21: 556 commits, 11 merges, 8 active weeks, peak week 2026-W42 (212 commits).
 
+Merge counts in the header cover every merge commit. Within each week, the story lists at most 5 `merge:` entries as a sample, so the listed entries can be fewer than the header total.
+
 Full ledger (all repos) lives in PhenoRegistry `ledger/`; raw per-commit JSONL on desk storage.
 
 ---
