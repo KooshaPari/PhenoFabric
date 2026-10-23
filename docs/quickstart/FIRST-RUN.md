@@ -9,7 +9,7 @@ verification note below)**.
 
 This is for a **competent engineer** who already has:
 - `git`, `cargo` (Rust 1.81 or newer, per the workspace `rust-version`), and
-  the ability to compile a 22-crate workspace locally;
+  the ability to compile the 23-member workspace declared in the pinned root `Cargo.toml`;
 - about 10–30 GB of disk free for `target/`;
 - patience for the first `cargo build` to take a long time.
 
