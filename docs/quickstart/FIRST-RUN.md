@@ -9,7 +9,7 @@ verification note below)**.
 
 This is for a **competent engineer** who already has:
 - `git`, `cargo` (Rust 1.81 or newer, per the workspace `rust-version`), and
-  the ability to compile a 22-crate workspace locally;
+  the ability to compile the 23-member workspace declared in the pinned root `Cargo.toml`;
 - about 10–30 GB of disk free for `target/`;
 - patience for the first `cargo build` to take a long time.
 
@@ -114,8 +114,8 @@ The CLI has **13** subcommands (verified by reading `crates/fabric-cli/src/main.
 
 Run `cargo run -p fabric-cli -- <subcommand> --help` for each. Several
 subcommands will accept any input in unauthenticated local mode (that is by
-design when `auth.enabled = false`) and will refuse to do anything useful
-about pairing, federation, or transport — see Section 3.
+design when `auth.enabled = false`) and do not expose a first-class CLI pairing command or non-TCP data transport. The
+one-shot federation wire path exists separately; see Section 3.
 
 The daemon itself has three subcommands (`start`, `health`, `status`) — all
 visible via `cargo run -p fabric-daemon -- --help`.
@@ -232,21 +232,33 @@ If (and only if) you have one:
 This is the most valuable section of this document. A new user must not
 chase paths that look plausible but lead nowhere.
 
-### 3.1 — Two-device pairing has no shipped procedure
+### 3.1 — One-shot pairing exists, but **secure persistent two-device federation is not shipped**
 
-A grep across `crates/` for `pair_with`, `paired_node`, `register_peer`,
-`pairing`, and `peer_register` returns nothing. The federation subsystem in
-`crates/fabric-daemon/src/federation/discovery.rs` does have a
-`sync_topology(peer_addr)` path that consumes the `federation.peers` list
-from the daemon config (see `DaemonConfig::federation` at
-`crates/fabric-daemon/src/config.rs:229`), **but** there is:
-- no end-user CLI command to add a peer;
-- no interactive handshake or verification step;
-- no documentation of how two daemons on two hosts actually recognize each
-  other securely.
+**Status at source read (2026-10-23):** This guide originally said no pairing
+wire procedure existed. That statement became stale. The implementation now
+has `federation_pair_request` in
+`crates/fabric-daemon/src/wire/handlers.rs`, the synchronous peer driver in
+`crates/fabric-daemon/src/federation/pairing.rs`, and startup auto-pairing
+through `[federation].static_peers` in `wire/mod.rs`.
+Four loopback integration test functions are present in
+`crates/fabric-integration-tests/tests/federation_pairing.rs`.
+Their current pass status was **not verified in this document-review update**.
 
-**Do not interpret the existence of `federation` configuration as evidence
-of a working two-device story.** Configs alone are not products.
+See [A2 two-device pairing acceptance notes](../acceptance/A2-TWO-DEVICE-PAIRING.md)
+for the newline-delimited raw TCP message shape and an example using `nc`.
+There is **no dedicated GUI/CLI command** for pairing today.
+A successful response reports a *single topology exchange*; the daemon does not
+retain the merged graph for subsequent probes or after restart.
+The outbound peer dial has **no peer-authentication handshake**, so
+**do not attempt this across untrusted network boundaries**.
+The loopback test is not a physical two-host, secure, recoverable CVP journey.
+
+For a meaningful acceptance gate, require two authorized physical hosts,
+explicitly authenticated peers, a graph that survives subsequent queries,
+restart/disconnect recovery, and negative tests for spoofed or unreachable peers.
+The [2026-10-23 SFD baseline](../state/2026-10-23-sfd-pilot/00-COCKPIT.md)
+records this distinction and its dependencies. Source inspection alone has
+not executed that acceptance journey.
 
 ### 3.2 — Transport selection compiles, but only TCP is wired
 
@@ -293,7 +305,7 @@ quickstart is self-contained:
 - Atomic syscall/function placement is a research hypothesis
   (`STATUS.md:23`), not a shipped capability.
 
-### 3.5 — Documentation bugs we already know about
+### 3.5 — Configuration and documentation mismatches requiring tests
 
 These were found during the audit that produced this document. They are
 **not fixed here** because fixing them belongs to the daemon/config lane,
