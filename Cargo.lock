@@ -1589,7 +1589,7 @@ dependencies = [
 name = "fabric-capability"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "chrono",
  "ed25519-dalek 3.0.0",
@@ -1651,7 +1651,7 @@ name = "fabric-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bstr",
  "chrono",
  "clap",
@@ -1707,7 +1707,7 @@ name = "fabric-frame-transport"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "criterion",
  "flate2",
