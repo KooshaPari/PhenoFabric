@@ -21,10 +21,11 @@ ignore = [
     # jsonwebtoken. No patch available (RustCrypto/RSA#626).
     # Local use only, no network timing attack surface in the
     # current fabric-daemon.
-    # NOTE: jsonwebtoken is now 11.1.0; the advisory no longer
-    # matches any crate in Cargo.lock. Kept for review in the next
-    # lockfile refresh — `cargo deny check advisories` reports it
-    # as `advisory-not-detected`.
+    # NOTE: the `rsa` crate is no longer in Cargo.lock at all. It was
+    # pulled in by jsonwebtoken's `rust_crypto` backend; the daemon now
+    # uses the `aws_lc_rs` backend, which implements RSA without the
+    # pure-Rust `rsa` crate. `cargo deny check advisories` reports this
+    # entry as `advisory-not-detected`.
     "RUSTSEC-2023-0071",
     # RUSTSEC-2024-0449 — unsafe-libyaml 0.2.11 (unmaintained) via
     # serde_yaml 0.9.34+deprecated → fabric-cli. Replacement is

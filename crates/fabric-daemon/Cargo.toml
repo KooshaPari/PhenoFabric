@@ -35,10 +35,29 @@ tokio = { version = "1", features = ["net", "io-util", "time", "process", "macro
 reqwest = { version = "0.12", features = ["json"] }
 # 10.3.0 is the first release patched for CVE-2026-25537 / GHSA-h395-gr6q-cpjc
 # (type confusion leading to authorization bypass; vulnerable range < 10.3.0).
-# v10 requires an explicit crypto backend: `rust_crypto` is selected over
-# `aws_lc_rs` because this crate only uses HMAC-SHA256, and it keeps the build
-# pure-Rust instead of adding aws-lc-rs and its C/cmake toolchain dependency.
-jsonwebtoken = { version = "11.1.0", default-features = false, features = ["rust_crypto"] }
+#
+# v10+ requires an explicit crypto backend. `aws_lc_rs` is selected over
+# `rust_crypto` for a SECURITY reason, not a convenience one:
+#
+# The `rust_crypto` backend pulls `p256` and `p384` in unconditionally, and
+# those pin `elliptic-curve 0.13` -> `crypto-bigint ^0.5`. The only
+# crypto-bigint release in the 0.5 line is 0.5.5, and RUSTSEC-2026-0387
+# (issued 2026-10-23) flags crypto-bigint < 0.7.6 for secret-dependent
+# branches in operations intended to be constant-time. There is no backport
+# in the 0.5 line, and jsonwebtoken 11.1.0 -- the latest release -- pins
+# `p256 = "0.13.2"`, so no upstream upgrade path exists.
+#
+# The `aws_lc_rs` backend implements every algorithm this crate uses
+# (HS256, HS384, RS256, ES256, ES384, EdDSA) and depends on none of
+# crypto-bigint / p256 / p384 / rsa / ed25519-dalek. Switching backends
+# REMOVES 26 pure-Rust crypto crates from Cargo.lock rather than adding
+# one, and clears the advisory at its source instead of ignoring it in
+# deny.toml.
+#
+# The cost is that `aws-lc-sys` builds AWS-LC's C core through CMake, so
+# the container builder image needs the `cmake` package. The Dockerfile
+# installs it. The GitHub-hosted runners all ship CMake already.
+jsonwebtoken = { version = "11.1.0", default-features = false, features = ["aws_lc_rs"] }
 
 [dev-dependencies]
 tempfile = "3"

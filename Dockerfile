@@ -8,10 +8,32 @@
 # ── Stage 1: Builder ─────────────────────────────────────────────────
 FROM rust:1.99-slim AS builder
 
+# cmake is REQUIRED, not optional.
+#
+# `fabric-daemon` verifies JWTs with `jsonwebtoken`, which is wired to the
+# `aws_lc_rs` crypto backend. That backend is a binding to AWS-LC, whose
+# FIPS-capable core is C code built by `aws-lc-sys` -- and `aws-lc-sys`
+# drives that build through CMake. `rust:1.99-slim` does not ship CMake,
+# so without this package the container build dies in the dependency
+# build with "cmake executable not found".
+#
+# The backend switch was made for a security reason, not a build reason:
+# the previous `rust_crypto` backend pulled `crypto-bigint 0.5.5`
+# transitively (jsonwebtoken -> p256/p384 -> elliptic-curve ->
+# crypto-bigint), which RUSTSEC-2026-0387 flags for secret-dependent
+# branches in constant-time operations. AWS-LC does not depend on
+# crypto-bigint at all.
+#
+# `nasm` is only needed to assemble the x86-64 optimized code paths on
+# Linux; AWS-LC falls back to a portable C implementation without it, so
+# it is not installed here. `perl` and `clang` are not required either --
+# the `cc` crate invokes the system C compiler, and the base image's
+# gcc is sufficient.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
         libssl-dev \
         ca-certificates \
+        cmake \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
