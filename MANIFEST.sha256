@@ -977,7 +977,7 @@
   "scripts/acceptance/docker_acceptance.sh": "8324b8e9a80461e4c79fefa8511df394f41b3a880d2ce776817467b3e3657dd1",
   "scripts/acceptance/docker_manifest_archs.sh": "1625748c8ab499fa38686a232bcc3f542454018a19b10822f0b389ff5358e854",
   "scripts/acceptance/test_docker_manifest_archs.sh": "cb946cb6d6cd398c3b074731422df734662831ac90230f34738b2685e954d91e",
-  "scripts/acceptance/test_release_sidecar_paths.sh": "e06628bb0a714feea0600dff21a3d096eef1d6f6429538f50412d34141e4a7b0",
+  "scripts/acceptance/test_release_sidecar_paths.sh": "a4a31c20bbe1a5172f0b34e2fbdddb3633b06745f804db90d2200a32cf121495",
   "scripts/acceptance/test_resolve_version.sh": "1b4e2a177d9602d606d9a48e9d9358e9c1bb4fac515995fbd9f3d6996da63c8f",
   "scripts/install.ps1": "e3f15e5b7adec86ed946108eaedd489975a959c1dec8827a6ebcb2e0f547bde1",
   "scripts/install.sh": "7eb3926d2a728761a35b2711dcf210c8fa4541c6e43f926d22462fa9dfdfb7ce",

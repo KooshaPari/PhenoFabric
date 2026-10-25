@@ -170,12 +170,23 @@ for name in phenotype-fabric-gui-windows-x64.msi phenotype-fabric-gui-windows-x6
 done
 
 # ── case 4: the digest matches the real bytes ──────────────────────
+#
+# The digest is computed the way the RELEASE GATE computes it: from
+# inside the artifact directory, with the RELATIVE name that SHA256SUMS
+# carries ("./<name>"). That is the only comparison the gate performs,
+# and it is the one that has to agree with the sidecar.
+#
+# Computing it with the absolute path instead would be a DIFFERENT
+# comparison -- and on GNU coreutils the absolute path's backslashes
+# make sha256sum escape its own output, so the digest would come back
+# with a leading backslash and never match anything. That is a property
+# of the escaping, not of the artifact.
 for name in phenotype-fabric-gui-windows-x64.msi phenotype-fabric-gui-windows-x64.exe; do
   sidecar="${STAGE}/${name}.sha256"
   if [ ! -f "$sidecar" ]; then
     continue
   fi
-  actual="$(sha256sum "${STAGE}/${name}" | cut -d' ' -f1)"
+  actual="$(cd "$STAGE" && sha256sum "./${name}" | cut -d' ' -f1)"
   said="$(cut -d' ' -f1 < "$sidecar")"
   if [ "$actual" = "$said" ]; then
     pass "sidecar digest matches the real bytes for ${name}"
@@ -243,13 +254,24 @@ done
 # If GNU coreutils is available, prove the escaping directly: the same
 # bytes checksummed under a backslash-containing path produce an
 # escaped line, while the relative form does not.
+# Find a GNU coreutils `sha256sum`. On Linux the plain `sha256sum` IS
+# GNU coreutils; on macOS it is the BSD variant, which does NOT implement
+# the escaping, so the GNU shim (gsha256sum) has to be preferred there.
+#
+# The distinction matters: this test asserts the escaping behaviour
+# directly when it can, and the CI runner is Linux, so the real GNU
+# binary is used there.
 GNU_SUM=""
-for cand in gsha256sum /opt/homebrew/opt/coreutils/libexec/gnubin/sha256sum; do
-  if command -v "$cand" >/dev/null 2>&1; then
-    GNU_SUM="$cand"
-    break
-  fi
-done
+if sha256sum --version 2>/dev/null | head -1 | grep -qi "gnu coreutils"; then
+  GNU_SUM="sha256sum"
+else
+  for cand in gsha256sum /opt/homebrew/opt/coreutils/libexec/gnubin/sha256sum; do
+    if command -v "$cand" >/dev/null 2>&1; then
+      GNU_SUM="$cand"
+      break
+    fi
+  done
+fi
 
 if [ -n "$GNU_SUM" ]; then
   # Run inside a directory that actually holds a backslash-named file,
