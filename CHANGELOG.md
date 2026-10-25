@@ -5,6 +5,22 @@ All notable changes to Phenotype Fabric will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **C-link test**: the `c_link_smoke` test no longer leaks a full cargo
+  target tree on every run. Its scratch target dir was named with the
+  process ID plus a nanosecond timestamp, so every invocation created a
+  fresh ~830 MB target tree and abandoned the old one. The code around it
+  claimed the directory was "kept so a subsequent run can reuse the build
+  cache", but a per-run name means cargo can never hit that cache — so
+  every run paid a full cold rebuild and left the tree behind. On a
+  long-lived machine this accumulated to **32 GB of duplicate build
+  trees** in the scratch directory. The target dir now has a stable name,
+  which makes the documented cache reuse actually work: a cold run takes
+  ~133s and a warm run ~3s, against ~24s and ~830 MB per run before.
+
 ## [0.1.6] - 2026-10-21
 
 ### Fixed

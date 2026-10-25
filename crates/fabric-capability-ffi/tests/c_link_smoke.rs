@@ -113,20 +113,31 @@ fn c_link_smoke() {
         );
     });
 
-    // 2. Build the staticlib into a scratch target dir (no lock contention).
+    // A monotonic timestamp, used to give the throwaway C staging dir a
+    // unique name. The cargo target dir below deliberately does NOT use it.
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let scratch_target_dir = std::env::temp_dir().join(format!(
-        "fabric_capability_ffi_link_{}_{}_{}",
-        std::process::id(),
-        stamp,
-        // Avoid name clash between two test files using the same scratch
-        // directory pattern.
-        "c_link_smoke",
-    ));
-    let _ = std::fs::remove_dir_all(&scratch_target_dir);
+
+    // 2. Build the staticlib into a scratch target dir (no lock contention).
+    //
+    // The dir name MUST be stable across runs, or the "reuse the build cache"
+    // optimisation below is dead code: cargo keys its cache on the target
+    // dir path, so a per-run name forces a full cold rebuild (~24s, ~830MB
+    // of target tree) every single time and leaves the old tree behind.
+    // That is not theoretical — it leaked 32GB of duplicate cargo target
+    // trees into the scratch dir before this was fixed.
+    //
+    // Stability is safe here because the target dir is only ever used to
+    // build this one crate at one profile with one toolchain, and cargo
+    // itself handles invalidation (it fingerprints its inputs and rebuilds
+    // when they change). The PID is deliberately NOT in the name: it was
+    // there to avoid concurrent-run collisions, but `cargo` takes a build
+    // lock on the target dir, so two concurrent runs serialise on the lock
+    // instead of corrupting each other. A stable name plus cargo's own
+    // locking is what makes the cache actually work.
+    let scratch_target_dir = std::env::temp_dir().join("fabric_capability_ffi_c_link_smoke_target");
     std::fs::create_dir_all(&scratch_target_dir)
         .expect("create scratch target dir for staticlib build");
 
@@ -137,7 +148,8 @@ fn c_link_smoke() {
     );
 
     // 3. Stage the C source. Use a per-test scratch dir so concurrent test
-    // runs don't collide on the same .c/.o file.
+    // runs don't collide on the same .c/.o file. This one IS deleted at the
+    // end of the run, so a per-run name costs nothing.
     let scratch_c = std::env::temp_dir().join(format!(
         "fabric_capability_ffi_c_link_{}_{}",
         std::process::id(),
@@ -206,10 +218,14 @@ fn c_link_smoke() {
 
     // 7. Cleanup.
     let _ = std::fs::remove_dir_all(&scratch_c);
-    // Keep the scratch_target_dir so a subsequent run can reuse the build
-    // cache — cargo will reuse the cached artefacts, making repeated runs
-    // ~3s instead of ~24s. The dir is rooted in `std::env::temp_dir()`
-    // and is small (only the staticlib).
+    // The scratch_target_dir is deliberately KEPT, so a subsequent run can
+    // reuse the build cache — cargo will reuse the cached artefacts, making
+    // repeated runs ~3s instead of ~24s.
+    //
+    // This only works because the dir name is stable across runs (see step
+    // 2). The dir is a full cargo target tree (~830MB), not "only the
+    // staticlib" as an earlier comment here claimed — but it is ONE tree
+    // that is reused, rather than a new ~830MB tree leaking on every run.
 
     eprintln!("c_link_smoke OK — stdout:\n{}", stdout);
 }
