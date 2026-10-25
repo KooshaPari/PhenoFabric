@@ -552,8 +552,37 @@ jobs:
           fi
           for installer in "${installers[@]}"; do
             [ -f "$installer" ] || continue
-            sha256sum "$installer" > "${installer}.sha256"
-            cat "${installer}.sha256"
+            # The sidecar must name the file the way a user will see it
+            # in the release: the bare filename, e.g.
+            # "phenotype-fabric-gui-windows-x64.msi".
+            #
+            # `sha256sum` escapes a filename that contains a backslash by
+            # prefixing the WHOLE OUTPUT LINE with "\". On the Windows
+            # runner, $STAGE is "${RUNNER_TEMP}/gui-artifacts" =
+            # "D:\a\_temp\gui-artifacts", so the absolute path contains
+            # backslashes and the sidecar came out as:
+            #
+            #     \a9179aaa7a819946b0388a65148d79bb6c...  phenotype-fabric-gui-windows-x64.exe
+            #
+            # The leading backslash lands on the DIGEST field, so every
+            # comparison against it failed -- the release was refused for
+            # two Windows installers whose bytes were perfectly fine. The
+            # v0.1.7 republish run 40243421768 died exactly there, after
+            # the Docker manifest push and the required-asset gate had
+            # both succeeded.
+            #
+            # Computing the digest from INSIDE the directory with a
+            # relative name produces a sidecar with no backslash at all:
+            #
+            #     a9179aaa7a819946b0388a65148d79bb6c...  phenotype-fabric-gui-windows-x64.exe
+            #
+            # which is what `sha256sum -c` expects.
+            (
+              cd "$STAGE"
+              base="$(basename "$installer")"
+              sha256sum "$base" > "${base}.sha256"
+              cat "${base}.sha256"
+            )
           done
           # CLI names its single sidecar `checksum`; the GUI job has
           # several, so point at the directory that holds them.

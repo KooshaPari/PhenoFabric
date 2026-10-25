@@ -122,6 +122,21 @@ jobs:
       - name: Test release version comes from one source, not the git ref
         run: python3 program/scripts/test_release_version_source.py
 
+      # GNU coreutils' `sha256sum` prefixes its whole output line with a
+      # backslash when the filename contains one. The GUI job staged its
+      # installers under "${RUNNER_TEMP}/gui-artifacts", which on the
+      # Windows runner is "D:\a\_temp\gui-artifacts" -- an absolute path
+      # full of backslashes -- so the published sidecar's DIGEST field
+      # was backslash-prefixed and never matched the real bytes. The
+      # v0.1.7 republish run 40243421768 died there, after the Docker
+      # manifest push and the required-asset gate had both succeeded.
+      #
+      # This test extracts the real "Generate installer checksums" step
+      # out of release.yml and runs it against a fixture whose directory
+      # path contains a backslash -- the Windows situation exactly.
+      - name: Test release sidecars name the file, not a path
+        run: bash scripts/acceptance/test_release_sidecar_paths.sh
+
       # The release workflow declares its platforms twice: once in the
       # build matrix, and once in the fail-closed required-asset gate
       # that refuses to publish a release missing one. Nothing links the
