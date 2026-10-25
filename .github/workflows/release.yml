@@ -158,6 +158,7 @@ jobs:
           source scripts/release/resolve_version.sh
           echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "docker_tag=${RELEASE_DOCKER_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Build release binaries
         shell: bash
@@ -400,6 +401,7 @@ jobs:
           source scripts/release/resolve_version.sh
           echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "docker_tag=${RELEASE_DOCKER_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Build Tauri bundle
         shell: bash
@@ -659,6 +661,7 @@ jobs:
           source scripts/release/resolve_version.sh
           echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "docker_tag=${RELEASE_DOCKER_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Verify lockfile matches build identity
         run: |
@@ -811,6 +814,7 @@ jobs:
           source scripts/release/resolve_version.sh
           echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "docker_tag=${RELEASE_DOCKER_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Download CLI + GUI archive artifacts (exclude docker-image)
         # The previous run's docker-image artifact (a stale .dockerbuild tarball
@@ -1400,6 +1404,7 @@ jobs:
           source scripts/release/resolve_version.sh
           echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "docker_tag=${RELEASE_DOCKER_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU (linux/arm64 emulation)
         # The arm64 half of the manifest list is built under QEMU
@@ -1475,7 +1480,7 @@ jobs:
           # Per-architecture tags, if they are ever wanted, must be
           # produced by a separate single-platform push.
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.docker_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ needs.identity.outputs.identity }}
           cache-from: type=gha,scope=multiarch
           cache-to: type=gha,mode=max,scope=multiarch
@@ -1493,7 +1498,7 @@ jobs:
             exit 0
           fi
           scripts/acceptance/docker_manifest_archs.sh \
-            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.docker_tag }}" \
             "linux/amd64 linux/arm64"
 
       - name: Record whether the image reached the registry
@@ -1563,6 +1568,7 @@ jobs:
           source scripts/release/resolve_version.sh
           echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "docker_tag=${RELEASE_DOCKER_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Download GH release assets
         env:

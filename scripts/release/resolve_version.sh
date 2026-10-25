@@ -33,8 +33,17 @@
 # USAGE
 # -----
 #   source scripts/release/resolve_version.sh
-#   echo "$RELEASE_TAG"     # e.g. v0.1.7
-#   echo "$RELEASE_VERSION" # e.g. 0.1.7
+#   echo "$RELEASE_TAG"      # e.g. v0.1.7   -- the release name / artifact prefix
+#   echo "$RELEASE_VERSION"  # e.g. 0.1.7    -- bare semver (Tauri bundle version)
+#   echo "$RELEASE_DOCKER_TAG" # e.g. v0.1.7 -- the container image tag
+#
+# THREE values, deliberately distinct. The container image tag KEEPS the
+# leading "v" (ghcr.io/kooshapari/phenofabric:v0.1.7 is the published
+# name, and the v0.1.7 manifest is already live under it), while the
+# Tauri bundle version DROPS it (0.1.7 is a valid semver; "v0.1.7" is
+# not a valid Debian/RPM package version). Conflating the two would
+# publish the image under a tag nobody pulls, or build a bundle whose
+# version fails spec validation.
 #
 # Environment:
 #   GITHUB_REF        - the ref the workflow was triggered on (required)
@@ -84,6 +93,13 @@ fi
 
 RELEASE_TAG="$RESOLVED_VERSION"
 RELEASE_VERSION="${RELEASE_TAG#v}"
+# The container image tag KEEPS the leading "v". The published v0.1.7
+# manifest lives at ghcr.io/kooshapari/phenofabric:v0.1.7, and the
+# release body's docker instructions name that same tag. Publishing
+# "0.1.7" instead would create a second, differently-named image for
+# the same release and leave the documented tag pointing at a stale
+# manifest.
+RELEASE_DOCKER_TAG="$RELEASE_TAG"
 
 # ── Prove the tag exists ──────────────────────────────────────────────────
 # A republish must name a version that is REALLY released. If the tag
@@ -125,7 +141,7 @@ fi
 
 # Export so a caller can rely on these being set even if it did not
 # assign them itself.
-export RELEASE_TAG RELEASE_VERSION
+export RELEASE_TAG RELEASE_VERSION RELEASE_DOCKER_TAG
 
 # Restore the caller's shell options.
 eval "$__resolve_version_shell_opts"

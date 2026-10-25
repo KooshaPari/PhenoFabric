@@ -125,7 +125,8 @@ run_resolver() {
     resolver_output=$(
       # shellcheck disable=SC1090
       source "$TARGET" 2>&1
-      printf '\nTAG=%s VERSION=%s' "${RELEASE_TAG:-}" "${RELEASE_VERSION:-}"
+      printf '\nTAG=%s VERSION=%s DOCKER_TAG=%s' \
+        "${RELEASE_TAG:-}" "${RELEASE_VERSION:-}" "${RELEASE_DOCKER_TAG:-}"
     ) || rc=$?
 
     printf '%s' "$resolver_output"
@@ -172,6 +173,17 @@ out=$(run_resolver "refs/tags/v0.1.7" "" "0" "v0.1.7" "")
 assert_contains "$out" "TAG=v0.1.7" "tag push resolves the version from GITHUB_REF"
 assert_contains "$out" "VERSION=0.1.7" "tag push derives the bare version"
 assert_contains "$out" "EXIT=0" "tag push exits 0"
+
+# ── case 1b: the Docker image tag KEEPS the leading "v" ────────────────
+# The container image is published as
+# ghcr.io/kooshapari/phenofabric:v0.1.7 -- WITH the "v". The Tauri
+# bundle version is 0.1.7 -- WITHOUT it, because "v0.1.7" is not a
+# valid Debian/RPM package version. These are different values and
+# conflating them publishes the image under a tag nobody pulls.
+out=$(run_resolver "refs/tags/v0.1.7" "" "0" "v0.1.7" "")
+assert_contains "$out" "DOCKER_TAG=v0.1.7" "the Docker image tag keeps the leading v"
+assert_not_contains "$out" "DOCKER_TAG=0.1.7" "the Docker image tag is not the bare semver"
+assert_contains "$out" "VERSION=0.1.7" "the Tauri bundle version is the bare semver"
 
 # ── case 2: explicit input wins over GITHUB_REF ───────────────────────
 out=$(run_resolver "refs/heads/main" "v0.1.7" "0" "v0.1.7" "")
