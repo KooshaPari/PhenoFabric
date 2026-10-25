@@ -900,7 +900,15 @@ jobs:
       - name: Assert required release assets are present
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          # The RESOLVED tag, not `github.ref_name`. On a
+          # workflow_dispatch run `github.ref_name` is the branch name
+          # ("main"), so this gate looked for
+          # "phenotype-fabric-main-linux-x86_64.tar.gz" while the build
+          # jobs had produced
+          # "phenotype-fabric-v0.1.7-linux-x86_64.tar.gz". Every asset
+          # was reported missing and the release was refused -- even
+          # though the artifacts were correct.
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           missing=0
           for required in \
@@ -939,7 +947,11 @@ jobs:
       - name: Verify every archive has a matching checksum
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          # The RESOLVED tag, not `github.ref_name` -- same reason as the
+          # required-asset gate above. On a dispatch, `github.ref_name` is
+          # the branch ("main"), so this gate checked sidecars named for
+          # artifacts that do not exist.
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           cd artifacts
           failed=0

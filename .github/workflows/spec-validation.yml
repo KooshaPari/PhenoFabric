@@ -108,6 +108,20 @@ jobs:
       - name: Test release version resolution fails closed
         run: bash scripts/acceptance/test_resolve_version.sh
 
+      # The release version must be resolved in exactly ONE place and
+      # never from the git ref. On a workflow_dispatch run the ref is a
+      # BRANCH, so `${GITHUB_REF#refs/tags/}` yields "refs/heads/main"
+      # and `github.ref_name` yields "main". Both became release names:
+      # run 40180377333 built and published every artifact correctly and
+      # was then refused by the required-asset gate, which looked for
+      # "phenotype-fabric-main-linux-x86_64.tar.gz" while the build had
+      # produced "phenotype-fabric-v0.1.7-linux-x86_64.tar.gz".
+      #
+      # This test proves the workflow has no ref-derived version left and
+      # that every job reading a version output resolves it itself.
+      - name: Test release version comes from one source, not the git ref
+        run: python3 program/scripts/test_release_version_source.py
+
       # The release workflow declares its platforms twice: once in the
       # build matrix, and once in the fail-closed required-asset gate
       # that refuses to publish a release missing one. Nothing links the
