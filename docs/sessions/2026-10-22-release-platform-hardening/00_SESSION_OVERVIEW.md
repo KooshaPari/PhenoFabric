@@ -5,8 +5,14 @@ pipeline. It is the first PhenoFabric release that carries a native
 Linux ARM64 CLI archive, an aggregate `SHA256SUMS` manifest, and a real
 multi-architecture Docker manifest list.
 
+**Status: published.** https://github.com/KooshaPari/PhenoFabric/releases/tag/v0.1.7
+Release run `40247355311`, published `2026-10-26T01:19:19Z`.
+
 The released `v0.1.6` tag is not rewritten. It stays exactly where it
-is.
+is. The `v0.1.7` tag is not rewritten either -- it still points at
+`b0938bd`, exactly where it was before the republish.
+
+See "Publication" below for the republish path and the full evidence.
 
 ---
 
@@ -260,4 +266,71 @@ conclude before the release work was finished.
 | Spec Validation | `success` |
 | Dependency Audit | `success` |
 
-_(publication evidence filled in below once the release workflow completes)_
+### Published
+
+Release run `40247355311` (`workflow_dispatch`, ref `main`, head
+`aef85f7`, `version=v0.1.7`). Every job concluded `success`:
+
+| Job | Result |
+|---|---|
+| Build identity | `success` |
+| cargo-deny advisories | `success` |
+| Build CLI linux-aarch64 / linux-x86_64 / macos-aarch64 / macos-x86_64 / windows-x86_64 | `success` |
+| Build GUI linux-x64 / macos-arm64 / macos-x64 / windows-x64 | `success` |
+| Build Docker image | `success` |
+| Push Docker image | `success` |
+| Publish crates | `success` (no-op; no `CRATES_IO_TOKEN` is configured) |
+| Create GitHub Release | `success` |
+| Post-publish verification | `success` |
+
+| Property | Value |
+|---|---|
+| Release URL | https://github.com/KooshaPari/PhenoFabric/releases/tag/v0.1.7 |
+| Published at | `2026-10-26T01:19:19Z` |
+| Assets | 23 (11 artifacts + 11 sidecars + `SHA256SUMS`) |
+| Build identity | `888185544dbe` (`Cargo.lock` SHA-256 prefix) |
+| Docker manifest digest | `sha256:6333bfe43dce9aedfa9ad3b893a73de72236ea59eedfe2bfaecccc91a13ba2b5` |
+
+The `v0.1.7` TAG was not moved, deleted, or rewritten. It is still the
+annotated tag object `d1020ac3e265baab5cc65a5b7a36938822a09bef`, which
+still points at `b0938bd5e4423f71e6b8d52bd653d8ba987e27f9` -- exactly
+where it was before the republish. The release was attached to that
+existing tag.
+
+### Independent post-publication verification
+
+`.git/verify_release.sh v0.1.7` re-downloaded every asset from the
+release page and verified it against what was actually published. **All
+independent checks passed.**
+
+| Check | Result |
+|---|---|
+| All 12 required assets present | pass |
+| Every artifact has a `.sha256` sidecar | pass (11/11) |
+| `sha256sum -c SHA256SUMS` | pass (11 entries, all matched) |
+| Every sidecar matches its artifact | pass (11/11) |
+| Linux x86_64 / ARM64 archives carry the core binaries | pass |
+| macOS x64 / ARM64 archives carry the core binaries | pass |
+| Windows x86_64 archive carries the core binaries | pass (5/5) |
+| Published Docker manifest has both architectures | pass (`linux/amd64`, `linux/arm64`) |
+| Every archive the release body claims is published | pass (no dangling claims) |
+| The repository's own manifest checker against the live registry | pass |
+
+The published `macos-aarch64` binaries were additionally extracted and
+**run natively** on an arm64 host: `fabric --version` and
+`fabric-daemon --version` both respond.
+
+Two defects in the VERIFIER itself were found and fixed while running it
+(the verifier is not part of the repository, so neither is a release
+defect):
+
+- It `cd`s into a scratch directory, so `gh` could no longer find the
+  repository by walking up from the working directory. The repository is
+  now pinned explicitly.
+- The Windows binary check joined the archive's file names with spaces
+  and then matched them with `grep -x`, which matches a WHOLE LINE. A
+  space-joined list therefore never matched, and every binary was
+  reported missing for an archive that carried all five. The names are
+  now kept one per line, and the expected list includes `fabric-tray.exe`
+  -- the same five binaries the release workflow's
+  `EXPECTED_RELEASE_BINS` requires.
