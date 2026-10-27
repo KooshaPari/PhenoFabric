@@ -214,10 +214,10 @@ test fail. The sidecar test's control was verified in a Linux container
 (the CI environment), where GNU coreutils' escaping actually applies --
 10 of 16 cases fail with the original code.
 
-### Known pre-existing failure, not addressed here
+### A pre-existing failure, found and fixed
 
 `cargo test --workspace` (the full scope, which also runs doc-tests)
-fails `error_message_table_is_complete_and_nonempty` in
+intermittently failed `error_message_table_is_complete_and_nonempty` in
 `fabric-capability-ffi`:
 
 ```
@@ -225,22 +225,58 @@ error message for code Ok must be UTF-8
 ```
 
 `FabricError::Ok` maps to the literal `"success"`, so the returned
-pointer must be bad. This is PRE-EXISTING and unrelated to the release
-work:
+pointer had to be bad. The root cause was **a missing NUL terminator**.
 
-- It reproduces on the pristine `b0938bd` tag in a separate clean git
-  worktree.
-- `cargo test --workspace --lib` passes.
-- `cargo test --workspace --test '*'` passes (4/4 runs) -- and this is
-  the scope CI actually runs.
-- `cargo test -p fabric-capability-ffi --test abi_surface` alone passes
-  (8/8 runs).
+`fabric_capability_error_message` built its result from a Rust
+`&'static str`, and a `&'static str` is NOT NUL-terminated. The
+compiler placed the eight message literals adjacently in `.rodata` and
+NUL-terminated only the last of them, so the returned pointer pointed
+into the middle of a merged blob. A diagnostic probe confirmed it: the
+pointer for `FabricError::Ok` read back as **139 bytes** --
 
-It is outside the release path: the release workflow runs
-`cargo build --release --bins`, which does not compile tests, and the
-release binaries depend on `fabric-capability`, not on the FFI wrapper.
-The mechanism was not determined; a delegated investigation did not
-conclude before the release work was finished.
+```
+"successunsupported platformschema validation failedcryptographic
+ errorsignature verification failedI/O errorserialization errornull
+ pointer"
+```
+
+A C consumer calling `strlen(m)` or `printf("%s", m)` would have read
+the intended message FOLLOWED BY every other message in the table.
+
+The fix uses `c"..."` literals, which are C strings: the NUL is part of
+the literal, so each message occupies its own NUL-terminated
+allocation. `FabricError::Ok` now reads back as exactly 7 bytes.
+
+#### Why the existing tests missed it
+
+| Test | What it asserted | Why that missed it |
+|---|---|---|
+| Rust `error_message_table_...` | not NULL, not empty, is UTF-8 | a merged blob satisfies all three; the UTF-8 assertion only failed when the linker happened to place non-UTF-8 bytes next to the string |
+| Rust `error_message_is_nul_terminated_per_strlen` | `strlen(p) == CStr::to_bytes().len()` | both read the SAME over-long blob, so they agreed |
+| C `error_message` | not NULL, not empty | same as the first one |
+
+That is why the failure was intermittent, never reproduced when the test
+binary ran alone, and appeared only in the full `--workspace` scope. It
+is also why it was pre-existing: it reproduces on the pristine `b0938bd`
+tag, and it predates the release work entirely.
+
+Both tests now assert the **exact** expected text, which fails in every
+build rather than only in the unlucky ones. Negative controls, both
+verified:
+
+- Rust: `error message for code Ok must be exactly "success" (it ran
+  into adjacent data: the string is not NUL-terminated)`.
+- C: `FAIL error_message exact text: expected "success" (strlen 7), got
+  "successunsupported platform..." (strlen 139)`.
+
+The full `cargo test --workspace` scope now fails **deterministically**
+with the bug present, and passes 3/3 with it fixed (82 test suites each).
+
+The other FFI exports were audited: `fabric_capability_to_json` and
+`fabric_capability_key_id` return `CString::into_raw()` buffers, which
+are heap-allocated and NUL-terminated.
+`fabric_capability_error_message` was the only one returning a borrowed
+static string.
 
 ### Repository gates on the republish commit
 
