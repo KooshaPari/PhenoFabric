@@ -102,17 +102,39 @@ pub unsafe extern "C" fn fabric_capability_to_json(
 pub extern "C" fn fabric_capability_error_message(
     code: FabricError,
 ) -> *const std::os::raw::c_char {
-    let s: &'static str = match code {
-        FabricError::Ok => "success",
-        FabricError::Unsupported => "unsupported platform",
-        FabricError::Schema => "schema validation failed",
-        FabricError::Crypto => "cryptographic error",
-        FabricError::Signature => "signature verification failed",
-        FabricError::Io => "I/O error",
-        FabricError::Serde => "serialization error",
-        FabricError::NullPointer => "null pointer",
+    // The strings MUST be C strings: NUL-terminated.
+    //
+    // A Rust `&'static str` is NOT NUL-terminated. The compiler is free
+    // to place the eight message literals adjacently in `.rodata` and
+    // NUL-terminate only the last of them, so returning
+    // `s.as_ptr()` handed the C caller a pointer into the MIDDLE of a
+    // merged blob. A C consumer reading it with `strlen`/`printf("%s")`
+    // would have read the intended message PLUS every message that
+    // happened to follow it in memory.
+    //
+    // That is not theoretical. The `abi_surface` test caught it: the
+    // pointer for `FabricError::Ok` ("success") read back as 139 bytes --
+    // "successunsupported platformschema validation failed..." -- and
+    // the UTF-8 assertion failed whenever the bytes after the intended
+    // string were not valid UTF-8. Whether that happened depended on
+    // the linker's layout, which is why the failure was intermittent:
+    // it passed in some builds and failed in others, and it never
+    // reproduced when the test ran on its own.
+    //
+    // A `c"..."` literal is a C string: the NUL is part of the literal.
+    // Each message now occupies its own NUL-terminated allocation, so
+    // the pointer is exactly the message and nothing more.
+    let s: &'static core::ffi::CStr = match code {
+        FabricError::Ok => c"success",
+        FabricError::Unsupported => c"unsupported platform",
+        FabricError::Schema => c"schema validation failed",
+        FabricError::Crypto => c"cryptographic error",
+        FabricError::Signature => c"signature verification failed",
+        FabricError::Io => c"I/O error",
+        FabricError::Serde => c"serialization error",
+        FabricError::NullPointer => c"null pointer",
     };
-    s.as_ptr() as *const std::os::raw::c_char
+    s.as_ptr()
 }
 
 // ---------------------------------------------------------------------------

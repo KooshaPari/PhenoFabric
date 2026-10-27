@@ -27,11 +27,41 @@ pub const C_PROGRAM: &str = r#"
 #define FAIL(name, why) do { fprintf(stderr, "FAIL %s: %s\n", name, why); fflush(stderr); exit(EXIT_FAILURE); } while (0)
 
 int main(void) {
-    // --- error_message: every code must return a non-NULL non-empty UTF-8-ish string.
-    for (FabricError c = 0; c <= FABRIC_NULL_POINTER; c++) {
-        const char *m = fabric_capability_error_message(c);
-        if (!m) FAIL("error_message NULL", "returned NULL");
-        if (strlen(m) == 0) FAIL("error_message empty", "returned empty string");
+    // --- error_message: every code must return a NUL-terminated string whose
+    // CONTENT is exactly the documented message.
+    //
+    // The EXACT text is compared, not just "non-NULL and non-empty". A Rust
+    // `&'static str` is not NUL-terminated, so the returned pointer could
+    // point into the middle of a merged `.rodata` blob and `strlen(m)` would
+    // report the intended message PLUS every message that followed it. The
+    // old check ("not NULL, not empty") is satisfied by that blob too, which
+    // is why the C consumer never noticed.
+    //
+    // This is the property a real C consumer depends on: `printf("%s", m)`
+    // must print one message, not a paragraph.
+    {
+        static const char *const expected[] = {
+            "success",
+            "unsupported platform",
+            "schema validation failed",
+            "cryptographic error",
+            "signature verification failed",
+            "I/O error",
+            "serialization error",
+            "null pointer",
+        };
+        for (FabricError c = 0; c <= FABRIC_NULL_POINTER; c++) {
+            const char *m = fabric_capability_error_message(c);
+            if (!m) FAIL("error_message NULL", "returned NULL");
+            if (strlen(m) == 0) FAIL("error_message empty", "returned empty string");
+            if (strcmp(m, expected[c]) != 0) {
+                char why[512];
+                snprintf(why, sizeof(why),
+                         "expected \"%s\" (strlen %zu), got \"%s\" (strlen %zu)",
+                         expected[c], strlen(expected[c]), m, strlen(m));
+                FAIL("error_message exact text", why);
+            }
+        }
     }
     PASS("error_message");
 

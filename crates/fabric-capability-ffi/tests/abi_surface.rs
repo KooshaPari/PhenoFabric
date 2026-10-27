@@ -65,19 +65,41 @@ fn fabric_error_codes_are_distinct() {
 /// a non-empty, NUL-terminated, UTF-8 string. If a code were unhandled the
 /// implementation would have to return `""` and C callers would have seen
 /// an empty message.
+///
+/// The EXACT expected text is asserted, not just "non-empty and UTF-8".
+/// That distinction is the whole point of this test.
+///
+/// `fabric_capability_error_message` used to build its result from a Rust
+/// `&'static str`. A `&'static str` is NOT NUL-terminated: the compiler is
+/// free to place the eight message literals adjacently in `.rodata` and
+/// NUL-terminate only the last one. The returned pointer therefore pointed
+/// into the MIDDLE of a merged blob, and a C consumer reading it with
+/// `strlen` or `printf("%s")` saw the intended message FOLLOWED BY every
+/// other message in the table.
+///
+/// "Non-empty" and "UTF-8" do not catch that: the merged blob is both.
+/// The UTF-8 assertion only failed when the linker happened to place
+/// non-UTF-8 bytes next to the string, which is why the failure was
+/// intermittent and never reproduced when this test binary ran alone.
+///
+/// Asserting the exact bytes catches it in EVERY build.
 #[test]
 fn error_message_table_is_complete_and_nonempty() {
-    for code in [
-        FabricError::Ok,
-        FabricError::Unsupported,
-        FabricError::Schema,
-        FabricError::Crypto,
-        FabricError::Signature,
-        FabricError::Io,
-        FabricError::Serde,
-        FabricError::NullPointer,
-    ] {
-        let p = fabric_capability_error_message(code);
+    // The expected text for every code. This is the contract a C consumer
+    // sees; a message that runs into the next one is a contract violation.
+    let expected: &[(FabricError, &str)] = &[
+        (FabricError::Ok, "success"),
+        (FabricError::Unsupported, "unsupported platform"),
+        (FabricError::Schema, "schema validation failed"),
+        (FabricError::Crypto, "cryptographic error"),
+        (FabricError::Signature, "signature verification failed"),
+        (FabricError::Io, "I/O error"),
+        (FabricError::Serde, "serialization error"),
+        (FabricError::NullPointer, "null pointer"),
+    ];
+
+    for (code, want) in expected {
+        let p = fabric_capability_error_message(*code);
         assert!(
             !p.is_null(),
             "error message for code {:?} must not be NULL",
@@ -93,6 +115,29 @@ fn error_message_table_is_complete_and_nonempty() {
             s.to_str().is_ok(),
             "error message for code {:?} must be UTF-8",
             code
+        );
+
+        // The message must be EXACTLY the expected text -- no more. A
+        // Rust `&'static str` is not NUL-terminated, so a pointer into
+        // merged `.rodata` would make this read the whole table.
+        assert_eq!(
+            s.to_str().unwrap(),
+            *want,
+            "error message for code {:?} must be exactly {:?} (it ran into \
+             adjacent data: the string is not NUL-terminated)",
+            code,
+            want
+        );
+
+        // And the byte length must match the expected text, which is the
+        // property a C consumer's `strlen` depends on.
+        assert_eq!(
+            s.to_bytes().len(),
+            want.len(),
+            "error message for code {:?} must be {} bytes long (got {})",
+            code,
+            want.len(),
+            s.to_bytes().len()
         );
     }
 }
