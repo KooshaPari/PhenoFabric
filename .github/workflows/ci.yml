@@ -291,6 +291,34 @@ jobs:
               | head -22 | while IFS= read -r l; do echo "::error::$l"; done
             exit "$status"
           fi
+
+      # Doctests are the third test target, and CI never ran them.
+      #
+      # `cargo test --workspace --lib` and `cargo test --workspace --test
+      # '*'` cover the unit and integration test binaries, but the
+      # doc-tests are a SEPARATE target that only a bare `cargo test
+      # --workspace` (or an explicit `--doc`) selects. The workspace
+      # carries live doc-tests -- e.g. the `TailscaleClient` example in
+      # `crates/fabric-daemon/src/network/tailscale.rs` is a compile-only
+      # doc-test that exercises the public API's type signatures -- and
+      # none of them had ever been executed by CI.
+      #
+      # A doc-test that documents an API incorrectly is a wrong promise
+      # on the crate's front page, and nothing else in the pipeline
+      # would catch it: `cargo check` does not compile doc-tests, and
+      # `cargo clippy` does not run them.
+      - name: Run doc-tests
+        run: |
+          set +e
+          cargo test --workspace --doc --no-fail-fast 2>&1 | tee /tmp/doctest.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "::error::doc-tests failed (exit ${status}) on $(rustc --version)"
+            sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/doctest.log > /tmp/doctest.log.clean
+            grep -nE 'error\[|^error|panicked at|test result: FAILED|^failures:' /tmp/doctest.log.clean \
+              | head -22 | while IFS= read -r l; do echo "::error::$l"; done
+            exit "$status"
+          fi
   # ── E2E smoke tests ─────────────────────────────────────────────────
   test-e2e:
     name: E2E smoke tests
