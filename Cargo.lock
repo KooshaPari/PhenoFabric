@@ -1571,7 +1571,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-cli"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1600,7 +1600,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-daemon"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "chrono",
  "clap",
@@ -1665,7 +1665,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-graph"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "blake3",
@@ -1684,7 +1684,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-graph-cli"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "chrono",
  "fabric-capability",
@@ -1739,7 +1739,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-orchestrator"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "clap",
@@ -1780,7 +1780,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-research-ledger"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "serde",
  "serde_json",
@@ -1788,7 +1788,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-surface-mojo"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "fabric-capability",
  "fabric-frame-transport",
@@ -1820,7 +1820,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-tray"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "dirs 5.0.1",
@@ -1834,7 +1834,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-tui"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "chrono",
  "clap",
