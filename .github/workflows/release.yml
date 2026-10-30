@@ -160,6 +160,40 @@ jobs:
           echo "version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "docker_tag=${RELEASE_DOCKER_TAG}" >> "$GITHUB_OUTPUT"
 
+      # ── Version consistency ───────────────────────────────────────────
+      # A released binary must report the version it was released as. v0.1.7
+      # shipped binaries that answer `fabric --version` with "0.1.0": every
+      # binary prints env!("CARGO_PKG_VERSION") and [workspace.package] version
+      # was never bumped past 0.1.0. Verified 2026-10-30 by downloading the
+      # published v0.1.7 macOS-arm64 tarball and running all five binaries.
+      #
+      # It is not cosmetic. crates/fabric-terminal/src/self_update.rs compares
+      # env!("CARGO_PKG_VERSION") against the release tag with 'v' stripped, so
+      # it read 0.1.0 against 0.1.7, concluded an update was always available,
+      # and after updating still reported 0.1.0 - it could never converge.
+      #
+      # This gate is fail-closed and sits before the build, so a tag bumped
+      # without bumping Cargo.toml can never publish again.
+      - name: Verify workspace version matches the release version
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ws_ms=$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1)
+          rel_ms="${RELEASE_VERSION#v}"
+          if [ -z "$ws_ms" ]; then
+            echo "::error::could not read [workspace.package] version from Cargo.toml"
+            exit 1
+          fi
+          if [ "$ws_ms" != "$rel_ms" ]; then
+            echo "::error::release version '${RELEASE_VERSION}' does not match [workspace.package] version '${ws_ms}'."
+            echo "::error::Shipping this would publish binaries that report ${ws_ms} under a ${rel_ms} tag, and self-update would never converge."
+            echo "::error::Bump [workspace.package] version in Cargo.toml to ${rel_ms} and re-tag."
+            exit 1
+          fi
+          echo "version OK: Cargo.toml and release tag both ${ws_ms}"
+
       - name: Build release binaries
         shell: bash
         run: cargo build --workspace --release --bins --target ${{ matrix.target }}
