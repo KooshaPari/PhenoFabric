@@ -7,7 +7,11 @@ CRATE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../../../" && pwd)"
 APP_NAME="Fabric"
 BUNDLE_ID="com.phenotype.fabric"
-VERSION="0.1.0"
+VERSION="$(awk '
+  /^\[workspace\.package\]/ { inwp=1; next }
+  /^\[/ { inwp=0 }
+  inwp && /^version[[:space:]]*=/ { gsub(/.*=[[:space:]]*"/, ""); gsub(/".*/, ""); print; exit }
+' "$REPO_ROOT/Cargo.toml")"
 ICON_NAME="Fabric.icns"
 
 APP_DIR="$SCRIPT_DIR/$APP_NAME.app"
