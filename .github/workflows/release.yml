@@ -174,25 +174,30 @@ jobs:
       #
       # This gate is fail-closed and sits before the build, so a tag bumped
       # without bumping Cargo.toml can never publish again.
-      - name: Verify workspace version matches the release version
+      #
+      # It checks the EFFECTIVE version of every released binary crate, not
+      # just [workspace.package]. The first version of this gate only compared
+      # the workspace version, which was a hole: three of the five released
+      # binaries do not inherit it.
+      #
+      #   fabric-cli        version = "0.1.0"          -> bin `fabric`
+      #   fabric-tui        version = "0.1.0"          -> bin `fabric-tui`
+      #   fabric-tray       version = "0.1.0"          -> bin `fabric-tray`
+      #   fabric-graph-cli  version.workspace = true   -> bin `fabric-graph-cli`
+      #   fabric-daemon     version.workspace = true   -> bin `fabric-daemon`
+      #
+      # So bumping only [workspace.package] to 0.1.8 would have made this gate
+      # PASS while three of the five binaries still reported 0.1.0 - the exact
+      # bug the gate exists to prevent. cargo metadata resolves inheritance and
+      # hardcoded versions into the value each crate actually compiles with,
+      # so that is what the gate compares.
+      - name: Verify every released binary reports the release version
         shell: bash
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          ws_ms=$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1)
-          rel_ms="${RELEASE_VERSION#v}"
-          if [ -z "$ws_ms" ]; then
-            echo "::error::could not read [workspace.package] version from Cargo.toml"
-            exit 1
-          fi
-          if [ "$ws_ms" != "$rel_ms" ]; then
-            echo "::error::release version '${RELEASE_VERSION}' does not match [workspace.package] version '${ws_ms}'."
-            echo "::error::Shipping this would publish binaries that report ${ws_ms} under a ${rel_ms} tag, and self-update would never converge."
-            echo "::error::Bump [workspace.package] version in Cargo.toml to ${rel_ms} and re-tag."
-            exit 1
-          fi
-          echo "version OK: Cargo.toml and release tag both ${ws_ms}"
+          scripts/check-release-version.sh "$RELEASE_VERSION"
 
       - name: Build release binaries
         shell: bash

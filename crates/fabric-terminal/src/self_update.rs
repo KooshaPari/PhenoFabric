@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use serde::Deserialize;
 
-const GITHUB_REPO: &str = "<REDACTED>/terminal-fabric";
+const GITHUB_REPO: &str = "KooshaPari/PhenoFabric";
 
 #[derive(Deserialize)]
 struct GitHubRelease {
@@ -98,4 +98,63 @@ pub fn run(binary_name: &str) -> Result<()> {
     println!("Restart {} to use the new version.", binary_name);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GITHUB_REPO;
+
+    /// A PII sweep replaced the owner segment of `GITHUB_REPO` with the
+    /// literal `<REDACTED>` in commit 6840d4f (2026-09-16). The constant is
+    /// interpolated straight into a GitHub API URL, so the redaction silently
+    /// produced a URL that cannot resolve:
+    ///
+    ///     https://api.github.com/repos/<REDACTED>/terminal-fabric/releases/latest
+    ///
+    /// It only fails at runtime, on a machine trying to self-update, which is
+    /// why it went unnoticed. These tests pin the constant so a redaction
+    /// cannot break it again.
+    #[test]
+    fn github_repo_is_not_redacted() {
+        assert!(
+            !GITHUB_REPO.contains("REDACTED"),
+            "GITHUB_REPO is redacted, so the self-update URL cannot resolve: \
+             https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+        );
+    }
+
+    #[test]
+    fn github_repo_is_owner_slash_name() {
+        let parts: Vec<&str> = GITHUB_REPO.split('/').collect();
+        assert_eq!(
+            parts.len(),
+            2,
+            "GITHUB_REPO must be exactly `owner/name`, got {GITHUB_REPO:?}"
+        );
+        assert!(!parts[0].is_empty(), "owner segment must not be empty");
+        assert!(!parts[1].is_empty(), "name segment must not be empty");
+    }
+
+    #[test]
+    fn github_repo_names_the_current_repository() {
+        // terminal-fabric was absorbed into phenotype-fabric. The old path is
+        // 404 and can never serve a release.
+        assert_eq!(
+            GITHUB_REPO, "KooshaPari/PhenoFabric",
+            "self-update must read releases from the repository that publishes them"
+        );
+    }
+
+    #[test]
+    fn release_api_url_is_well_formed() {
+        let url = format!("https://api.github.com/repos/{GITHUB_REPO}/releases/latest");
+        assert!(
+            url.starts_with("https://api.github.com/repos/KooshaPari/"),
+            "release URL has the wrong shape: {url}"
+        );
+        assert!(
+            !url.contains('<') && !url.contains('>'),
+            "release URL contains angle brackets: {url}"
+        );
+    }
 }
