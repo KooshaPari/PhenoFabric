@@ -1,6 +1,6 @@
 [package]
 name = "fabric-gui"
-version = "0.1.0-nightly"
+version = "0.1.8"
 edition = "2021"
 description = "Phenotype Fabric -- Tauri v2 desktop shell with daemon integration"
 license = "MIT OR Apache-2.0"

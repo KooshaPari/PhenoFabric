@@ -154,6 +154,9 @@ jobs:
       - name: Validate MANIFEST matches file tree
         run: python3 program/scripts/check_manifest.py
 
+      - name: Validate GUI version literals match workspace version
+        run: python3 program/scripts/check_gui_versions.py
+
   check-go:
     name: Go test (capprobe + checker + wire)
     runs-on: ubuntu-latest
