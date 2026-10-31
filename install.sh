@@ -31,6 +31,7 @@ BINS="fabric fabric-daemon fabric-tui fabric-tray fabric-graph-cli"
 # INSTALL_DIR is overridable so the installer can be exercised end-to-end
 # against a real release without writing to /usr/local/bin. The default is
 # unchanged.
+INSTALL_DIR_GIVEN="${INSTALL_DIR:-}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
 # ── Colors ────────────────────────────────────────────────────────────
@@ -104,6 +105,29 @@ download_and_install() {
     wget -qO "${tmpdir}/${archive}" "$url" || die "Download failed. Check that version '${version}' exists."
   fi
 
+  # Verify against the release's own published digest BEFORE extracting.
+  # The archive is untrusted input: a truncated CDN response or a swapped
+  # artifact must never be installed, and tar would happily unpack either.
+  info "Verifying sha256 ..."
+  local shaurl="${url}.sha256"
+  if command -v curl &>/dev/null; then
+    curl -fSL -o "${tmpdir}/${archive}.sha256" "$shaurl" \
+      || { rm -rf "$tmpdir"; die "Checksum download failed: ${shaurl}"; }
+  else
+    wget -qO "${tmpdir}/${archive}.sha256" "$shaurl" \
+      || { rm -rf "$tmpdir"; die "Checksum download failed: ${shaurl}"; }
+  fi
+  if command -v sha256sum &>/dev/null; then
+    ( cd "$tmpdir" && sha256sum -c --quiet "${archive}.sha256" ) \
+      || { rm -rf "$tmpdir"; die "Checksum mismatch for ${archive} -- nothing was installed."; }
+  elif command -v shasum &>/dev/null; then
+    ( cd "$tmpdir" && shasum -a 256 -c --quiet "${archive}.sha256" ) \
+      || { rm -rf "$tmpdir"; die "Checksum mismatch for ${archive} -- nothing was installed."; }
+  else
+    rm -rf "$tmpdir"
+    die "Neither sha256sum nor shasum is available to verify the download."
+  fi
+
   info "Extracting ..."
   tar xzf "${tmpdir}/${archive}" -C "${tmpdir}"
 
@@ -148,15 +172,27 @@ main() {
   platform=$(_platform)
   info "Detected platform: ${platform}"
 
-  if [ ! -d "$INSTALL_DIR" ]; then
-    die "Install directory ${INSTALL_DIR} does not exist. Create it or run with sudo."
+  if [ -n "$INSTALL_DIR_GIVEN" ]; then
+    # An explicit destination must be honoured or the install must stop. Never
+    # install somewhere the caller did not ask for.
+    if [ ! -d "$INSTALL_DIR" ]; then
+      die "Install directory ${INSTALL_DIR} does not exist. Create it first."
+    fi
+    if [ ! -w "$INSTALL_DIR" ]; then
+      die "No write permission to ${INSTALL_DIR}. Re-run with sudo, or set INSTALL_DIR to a writable path."
+    fi
+  elif [ ! -w "$INSTALL_DIR" ]; then
+    # `curl ... | bash` has no script path: $0 is "bash", so the previous
+    # `exec sudo env ... bash "$0" "$@"` re-exec asked bash to run a file
+    # literally named "bash" and failed. That made the documented one-liner
+    # unusable for any user who cannot write /usr/local/bin, which is most of
+    # them. Prefer a user-writable location over escalating privileges, and say
+    # so rather than silently changing the destination.
+    INSTALL_DIR="$HOME/.local/bin"
+    warn "/usr/local/bin is not writable; installing to ${INSTALL_DIR} instead."
+    warn "For a system-wide install, re-run with sudo or set INSTALL_DIR explicitly."
   fi
-
-  # Check write permissions
-  if [ ! -w "$INSTALL_DIR" ]; then
-    warn "No write permission to ${INSTALL_DIR}. Retrying with sudo (INSTALL_DIR is inherited)."
-    exec sudo env "INSTALL_DIR=${INSTALL_DIR}" bash "$0" "$@"
-  fi
+  mkdir -p "$INSTALL_DIR"
 
   local version
   version=$(_latest_version)

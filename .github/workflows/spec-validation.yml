@@ -157,6 +157,13 @@ jobs:
       - name: Validate GUI version literals match workspace version
         run: python3 program/scripts/check_gui_versions.py
 
+      # The 2026-09-16 PII sweep (6840d4f) replaced repository owner segments
+      # with `<REDACTED>`. Where that value is interpolated into a URL the break
+      # is silent at rest and only fails when a user runs the code, which is how
+      # every documented installer stayed dead until v0.1.8.
+      - name: Validate no executable script names a redacted repository owner
+        run: python3 program/scripts/check_no_redacted_identifiers.py
+
   check-go:
     name: Go test (capprobe + checker + wire)
     runs-on: ubuntu-latest
