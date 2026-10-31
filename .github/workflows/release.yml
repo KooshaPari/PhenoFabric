@@ -1493,7 +1493,7 @@ jobs:
         # explicitly. The linux/amd64 image is genuinely native: the
         # `docker-build` job built it on an amd64 runner and verified
         # the binaries run there.
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
 
