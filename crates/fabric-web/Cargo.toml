@@ -16,7 +16,7 @@ fabric-graph = { path = "../fabric-graph" }
 fabric-tray = { path = "../fabric-tray" }
 fabric-frame-transport = { path = "../fabric-frame-transport" }
 
-leptos = { version = "0.7", features = [] }
+leptos = { version = "0.8", features = [] }
 leptos_meta = "0.7"
 leptos_router = "0.7"
 console_error_panic_hook = "0.1"
