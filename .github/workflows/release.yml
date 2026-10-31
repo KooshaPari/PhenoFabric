@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "publish" to confirm (workflow will require environment approval regardless)'
+        description: 'Type "publish" to confirm a dispatch. Any other value fails the run before anything is built. Tag pushes do not set this input, so the check does not apply to them.'
         required: true
         default: ''
       version:
@@ -668,6 +668,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # A dispatch must state its intent explicitly.
+      #
+      # The `confirm` input used to be declared and never read: a dispatch
+      # with `confirm=publish`, `confirm=no`, or an empty string all ran
+      # identically, so the input only decorated the UI while its own
+      # description claimed an approval step that did not exist (the
+      # `production` environment has no protection rules). This job is a
+      # dependency of every publishing job (`docker`, `github-release`), so
+      # failing here means nothing gets published.
+      - name: Require explicit publish confirmation
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "publish" ]; then
+            echo "::error::workflow_dispatch requires confirm=publish, got '${CONFIRM}'. Refusing to publish."
+            exit 1
+          fi
+          echo "Publish confirmed."
+
       - uses: actions/checkout@v7
 
       - name: Compute build identity
