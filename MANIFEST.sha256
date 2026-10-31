@@ -954,6 +954,7 @@
   "program/scripts/check_json_schemas.py": "ed8cc324510c43c8fad26c08a5216a05bba98425cbadc9c72ac29bd3a64e2ad5",
   "program/scripts/check_links.py": "5dfff1b3cb4c7f1d5c5a2d970d8eae7346945c66d7956dd70b84fda1a959ee7b",
   "program/scripts/check_manifest.py": "fdd14b7206f59c8cc629d5aaf1d38feb6a8854ef4e48c9f7ac6650bc1b717b33",
+  "program/scripts/check_no_redacted_identifiers.py": "aadcf7b1c91c9fd1ded869df233ddc075656a7652485a09293f7384ff04f88f3",
   "program/scripts/check_openapi.py": "f918d71a19781d7b0f67d414569f06e706d910ea73877b5c0255ee2bbbc8965f",
   "program/scripts/check_workflows.py": "c0eec0e02c220c0f4b7b14825059acdfd1bed8f35b01e81d07c26ec3b4029fdb",
   "program/scripts/regenerate_manifest.py": "75fbfde30a8ef879505dc1ab8cd4152986ef1cb2cad81cf4afed77e305ec9a9b",
