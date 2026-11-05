@@ -15,7 +15,7 @@ fabric-capability = { path = "../fabric-capability" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
-dirs = "5.0"
+dirs = "6.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 chrono = { workspace = true }
