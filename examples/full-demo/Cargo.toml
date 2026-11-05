@@ -1,6 +1,6 @@
 [package]
 name = "fabric-full-demo"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 publish = false
 description = "Complete working demo: boots daemon, loads topology, compiles routes, streams a test frame"

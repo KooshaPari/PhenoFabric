@@ -1,6 +1,6 @@
 [package]
 name = "fabric-frame-transport"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 description = "Phenotype Fabric frame transport — HEVC/AV1 encoded frames over TCP for Parsec-style streaming"
 license = "MIT OR Apache-2.0"

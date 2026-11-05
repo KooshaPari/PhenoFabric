@@ -1,6 +1,6 @@
 [package]
 name = "fabric-checker"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 description = "PF-WP-011: cross-checks a Fabric capability probe against an application manifest and emits a structured admission decision."
 license = "Apache-2.0"
