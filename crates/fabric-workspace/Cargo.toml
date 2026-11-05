@@ -1,6 +1,6 @@
 [package]
 name = "fabric-workspace"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 authors = ["Phenotype OSS <oss@phenotype.dev>"]
 description = "Fabric seat-leases and workspace state management"

@@ -1,6 +1,6 @@
 [package]
 name = "fabric-capture"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 description = "Phenotype Fabric Windows Terminal content capture agent"
 license.workspace = true
