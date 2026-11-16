@@ -6,7 +6,7 @@
 # ──────────────────────────────────────────────────────────────────────
 
 # ── Stage 1: Builder ─────────────────────────────────────────────────
-FROM rust:1.99-slim AS builder
+FROM rust:1.100-slim AS builder
 
 # cmake is REQUIRED, not optional.
 #
