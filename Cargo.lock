@@ -1497,7 +1497,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-capability"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "base64 0.23.1",
  "blake3",
@@ -1517,7 +1517,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-capability-ffi"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "fabric-capability",
  "serde",
@@ -1527,7 +1527,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-capture"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "clap",
@@ -1544,7 +1544,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-checker"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "chrono",
  "criterion",
@@ -1614,7 +1614,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-frame-transport"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -1631,7 +1631,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-full-demo"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "bytes",
@@ -1703,7 +1703,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-integration-tests"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "bytes",
@@ -1750,7 +1750,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-persist"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "chrono",
  "criterion",
@@ -1788,7 +1788,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-terminal"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "axum",
@@ -1841,7 +1841,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-web"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "bytes",
  "console_error_panic_hook",
@@ -1861,7 +1861,7 @@ dependencies = [
 
 [[package]]
 name = "fabric-workspace"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3335,9 +3335,9 @@ dependencies = [
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.38.2"
+version = "0.40.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1d20bef17f513b9b3004532233187769cd072d790971f4e4da0e346eb6401e8"
+checksum = "b06e69070b7e12262b0cd90832f0a7396f142a2b330181255562decf9f0c6215"
 dependencies = [
  "cc",
  "pkg-config",
@@ -4228,7 +4228,7 @@ dependencies = [
 
 [[package]]
 name = "phenotype-nvms-adapter"
-version = "0.1.0"
+version = "0.1.8"
 dependencies = [
  "chrono",
  "fabric-capability",
@@ -5043,11 +5043,10 @@ dependencies = [
 
 [[package]]
 name = "rsqlite-vfs"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c51c9ae4df8a7fba42103df5c621fa3c37eccf3a3c650879e90fc48b11cc192c"
+checksum = "353b74f9810d5b085b6c42c9d86a5f0fdb795553235cdd48753b32e3809d18a7"
 dependencies = [
- "hashbrown 0.16.1",
  "thiserror 2.0.21",
 ]
 
@@ -5068,9 +5067,9 @@ dependencies = [
 
 [[package]]
 name = "rusqlite"
-version = "0.40.2"
+version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23f2a97da3e3873c73cb2a2e71b35c40ff95e0b1eefa8d72d8499a6928c3b5b3"
+checksum = "a4edff0039f148731aee2fd80f76dbfeb12d204ab3d1c544838d34e02151049b"
 dependencies = [
  "bitflags 2.13.2",
  "fallible-iterator",
@@ -5623,14 +5622,12 @@ dependencies = [
 
 [[package]]
 name = "sqlite-wasm-rs"
-version = "0.5.5"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc3efc0da82635d7e1ced0053bbbfa8c7ab9645d0bf36ceb4f7127bb85315d75"
+checksum = "a6cd504cecbfe7eef649988840f9a6cb768d11085efec138f8e99f160632d867"
 dependencies = [
  "cc",
- "js-sys",
  "rsqlite-vfs",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -5900,7 +5897,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -7075,15 +7072,6 @@ name = "windows-sys"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
-dependencies = [
- "windows-targets 0.52.6",
-]
-
-[[package]]
-name = "windows-sys"
-version = "0.59.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e38bc4d79ed67fd075bcc251a1c39b32a1776bbe92e5bef1f0bf1f8c531853b"
 dependencies = [
  "windows-targets 0.52.6",
 ]
